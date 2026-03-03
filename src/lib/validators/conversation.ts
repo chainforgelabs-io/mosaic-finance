@@ -6,4 +6,9 @@ export const ConversationMessageSchema = z.object({
   sessionType: z.enum(["fact-find", "risk-profile", "walkthrough", "followup"]),
 });
 
-export type ConversationMessage = z.infer<typeof ConversationMessageSchema>;
+export const ConversationStartSchema = z.object({
+  sessionType: z.enum(['fact-find', 'risk-profile', 'walkthrough', 'followup']),
+});
+
+export type ConversationMessageInput = z.infer<typeof ConversationMessageSchema>;
+export type ConversationStartInput = z.infer<typeof ConversationStartSchema>;
