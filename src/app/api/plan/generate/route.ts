@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { claudeChat } from '@/lib/claude/client';
 import { buildPlanGenerationPrompt } from '@/lib/claude/prompts/plan-generation';
+import { getMarketContext } from '@/lib/market-data/alpha-vantage';
+import { sendApprovalQueueNotification } from '@/lib/resend/client';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 
@@ -70,11 +72,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let marketContext = null;
+    try {
+      marketContext = await getMarketContext();
+    } catch (err) {
+      captureAPIError(err, {
+        route: 'plan/generate',
+        userId: user.id,
+        step: 'market_context_fetch',
+      });
+    }
+
     const userData = {
       profile: financialProfile.data,
       holdings: holdings.data,
       riskProfile: riskProfile.data,
-      marketContext: null,
+      marketContext: marketContext as Record<string, unknown> | null,
       generatedAt: new Date().toISOString(),
     };
 
@@ -145,6 +158,15 @@ export async function POST(req: NextRequest) {
         step: 'approval_queue_insert',
       });
     }
+
+    await sendApprovalQueueNotification(plan.id, isPremium).catch((err) =>
+      captureAPIError(err, {
+        route: 'plan/generate',
+        userId: user.id,
+        planId: plan.id,
+        step: 'approval_notification',
+      }),
+    );
 
     return NextResponse.json({
       planId: plan.id,
