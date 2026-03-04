@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Clock, CheckCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
-type ApprovalStatus = "pending" | "ready" | "rejected";
+type ApprovalStatus = "pending" | "pending_review" | "ready" | "delivered" | "rejected";
 
 interface ApprovalStatusBannerProps {
   status: ApprovalStatus;
@@ -26,7 +26,17 @@ const config: Record<
     bgClass: "bg-amber-500/10 border-amber-500/20",
     iconColor: "text-amber-600",
   },
+  pending_review: {
+    icon: Clock,
+    bgClass: "bg-amber-500/10 border-amber-500/20",
+    iconColor: "text-amber-600",
+  },
   ready: {
+    icon: CheckCircle,
+    bgClass: "bg-[var(--emerald)]/10 border-[var(--emerald)]/20",
+    iconColor: "text-[var(--emerald)]",
+  },
+  delivered: {
     icon: CheckCircle,
     bgClass: "bg-[var(--emerald)]/10 border-[var(--emerald)]/20",
     iconColor: "text-[var(--emerald)]",
@@ -57,7 +67,7 @@ export function ApprovalStatusBanner({
       <Icon className={cn("size-5 shrink-0", iconColor)} />
       <div className="flex flex-1 items-center justify-between gap-4">
         <p className="font-body text-sm text-[var(--text-primary)]">
-          {status === "pending" && (
+          {(status === "pending" || status === "pending_review") && (
             <>
               Your plan is being reviewed.
               {estimatedDelivery && (
@@ -68,10 +78,10 @@ export function ApprovalStatusBanner({
               )}
             </>
           )}
-          {status === "ready" && "Your plan is ready!"}
+          {(status === "ready" || status === "delivered") && "Your plan is ready!"}
           {status === "rejected" && "Additional information needed"}
         </p>
-        {status === "ready" && planId && (
+        {(status === "ready" || status === "delivered") && planId && (
           <Link
             href={`/dashboard/plan/${planId}`}
             className="shrink-0 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"

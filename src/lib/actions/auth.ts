@@ -4,6 +4,22 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { signUpSchema, signInSchema } from "@/lib/schemas/auth";
 
+const PROVINCE_CODES: Record<string, string> = {
+  "Alberta": "AB",
+  "British Columbia": "BC",
+  "Manitoba": "MB",
+  "New Brunswick": "NB",
+  "Newfoundland and Labrador": "NL",
+  "Northwest Territories": "NT",
+  "Nova Scotia": "NS",
+  "Nunavut": "NU",
+  "Ontario": "ON",
+  "Prince Edward Island": "PE",
+  "Quebec": "QC",
+  "Saskatchewan": "SK",
+  "Yukon": "YT",
+};
+
 export type AuthResult = {
   error?: string;
 };
@@ -39,11 +55,9 @@ export async function signUp(formData: {
   if (authData.user) {
     const { error: profileError } = await supabase.from("user_profiles").insert({
       id: authData.user.id,
-      email: parsed.data.email,
       alias: parsed.data.alias,
-      province: parsed.data.province,
-      tier: "free",
-      onboarding_completed: false,
+      province: PROVINCE_CODES[parsed.data.province] ?? parsed.data.province,
+      subscription_tier: "free",
     });
 
     if (profileError) {
@@ -78,12 +92,13 @@ export async function signIn(formData: {
 
   if (user) {
     const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("onboarding_completed")
-      .eq("id", user.id)
+      .from("financial_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
       .single();
 
-    if (profile?.onboarding_completed) {
+    if (profile) {
       redirect("/dashboard");
     }
   }
