@@ -7,9 +7,7 @@ export default function OnboardingLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--warm-50)]">
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        {children}
-      </div>
+      <main className="flex flex-1 flex-col">{children}</main>
       <ComplianceFooter />
     </div>
   );

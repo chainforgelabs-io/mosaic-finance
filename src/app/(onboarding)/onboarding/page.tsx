@@ -106,6 +106,7 @@ export default function OnboardingProfilePage() {
   }
 
   return (
+    <div className="flex flex-1 items-center justify-center px-4 py-12">
     <div className="w-full max-w-[640px]">
       <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 md:p-10">
         <div className="mb-2 flex justify-center">
@@ -320,6 +321,7 @@ export default function OnboardingProfilePage() {
           </button>
         </form>
       </div>
+    </div>
     </div>
   );
 }
