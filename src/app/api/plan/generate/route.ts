@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
     const { data: userProfile } = await supabase
       .from('user_profiles')
-      .select('subscription_tier')
+      .select('subscription_tier, alias, age, province, employment_type, family_structure')
       .eq('id', user.id)
       .single();
 
@@ -85,7 +85,13 @@ export async function POST(req: NextRequest) {
 
     const userData = {
       profile: financialProfile.data,
-      userProfile: userProfile ?? null,
+      userProfile: userProfile ? {
+        alias: userProfile.alias,
+        age: userProfile.age,
+        province: userProfile.province,
+        employment_type: userProfile.employment_type,
+        family_structure: userProfile.family_structure,
+      } : null,
       holdings: holdings.data,
       riskProfile: riskProfile.data,
       marketContext: marketContext as Record<string, unknown> | null,
