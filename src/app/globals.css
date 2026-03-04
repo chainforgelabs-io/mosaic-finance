@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Core */
+  --slate-950: #0C0F17;
+  --slate-900: #131620;
+  --emerald: #10B981;
+  --emerald-dark: #059669;
+  --emerald-soft: #D1FAE5;
+
+  /* Surfaces */
+  --white: #FFFFFF;
+  --warm-50: #FAFAF8;
+  --warm-100: #F5F5F0;
+  --warm-200: #E8E8E0;
+
+  /* Text */
+  --text-primary: #0C0F17;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-inverse: #F9FAFB;
+
+  /* Semantic */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  --background: var(--warm-50);
+  --foreground: var(--text-primary);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-slate-950: var(--slate-950);
+  --color-slate-900: var(--slate-900);
+  --color-emerald: var(--emerald);
+  --color-emerald-dark: var(--emerald-dark);
+  --color-emerald-soft: var(--emerald-soft);
+  --color-warm-50: var(--warm-50);
+  --color-warm-100: var(--warm-100);
+  --color-warm-200: var(--warm-200);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "DM Sans", system-ui, sans-serif;
+  color: var(--text-primary);
+  background: var(--warm-50);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.3); }
+}
+
+@keyframes emerald-glow {
+  0%, 100% { box-shadow: 0 0 16px rgba(16, 185, 129, 0.25); }
+  50% { box-shadow: 0 0 32px rgba(16, 185, 129, 0.5), 0 0 48px rgba(16, 185, 129, 0.2); }
+}
+
+@keyframes checklist-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--warm-200) 25%, var(--warm-100) 50%, var(--warm-200) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
