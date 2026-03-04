@@ -95,3 +95,42 @@ export type OnboardingStep =
   | "generating"
   | "review"
   | "complete";
+
+export type UserRole = "user" | "cim_reviewer";
+
+export type ApprovalAction = "approve" | "edit_approve" | "reject";
+
+export type QueuePriority = "priority" | "standard";
+
+export type QueueFilter = "all" | "priority" | "standard" | "overdue";
+
+export interface ReviewerProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface ApprovalQueueItem {
+  id: string;
+  planId: string;
+  userAlias: string;
+  riskScore: number;
+  riskLabel: RiskLabel;
+  tier: Tier;
+  province: string;
+  age: number;
+  submittedAt: string;
+  slaDeadline: string;
+  priority: QueuePriority;
+  plan: FinancialPlan;
+}
+
+export interface ApprovalAudit {
+  submittedBy: string;
+  submittedAt: string;
+  slaDeadline: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  action?: ApprovalAction;
+}
