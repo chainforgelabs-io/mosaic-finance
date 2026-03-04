@@ -1,5 +1,5 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -29,27 +29,37 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const pathname = request.nextUrl.pathname;
+  const isProtectedRoute =
+    pathname.startsWith('/dashboard') || pathname.startsWith('/admin');
+  const isAuthRoute =
+    pathname.startsWith('/login') || pathname.startsWith('/signup');
 
-  const publicRoutes = ["/", "/login", "/signup"];
-  const isPublic = publicRoutes.includes(pathname) || pathname.startsWith("/auth/");
-
-  if (!user && !isPublic) {
+  if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = '/login';
+    url.searchParams.set('redirectTo', pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (user && isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  if (user && pathname.startsWith('/admin')) {
     const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("onboarding_completed")
-      .eq("id", user.id)
+      .from('user_profiles')
+      .select('role')
+      .eq('id', user.id)
       .single();
 
-    const url = request.nextUrl.clone();
-    url.pathname = profile?.onboarding_completed ? "/dashboard" : "/onboarding";
-    return NextResponse.redirect(url);
+    if (profile?.role !== 'cim_reviewer' && profile?.role !== 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

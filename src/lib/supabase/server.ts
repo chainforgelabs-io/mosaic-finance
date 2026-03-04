@@ -1,5 +1,5 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -18,8 +18,8 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // setAll is called from Server Components where cookies can't be set.
-            // This can be safely ignored when middleware refreshes the session.
+            // setAll is called from a Server Component where cookies can't be set.
+            // This can be ignored if middleware refreshes sessions.
           }
         },
       },

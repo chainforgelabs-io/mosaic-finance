@@ -1,129 +1,232 @@
-import { createClient } from "@/lib/supabase/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { anthropic } from '@/lib/claude/client';
+import { ratelimit } from '@/lib/ratelimit';
+import { captureAPIError } from '@/lib/sentry';
 
-const EXTRACTION_PROMPT = `You are an expert at extracting investment holdings from financial statements. Analyze this statement image/document and extract all holdings.
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+] as const;
 
-Return ONLY a JSON array of holdings, each with:
-- "tickerOrName": The ticker symbol or fund name
-- "balance": The dollar balance (number only, no $ or commas)
-- "units": The number of units/shares if visible (number or null)
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-Example:
-[
-  {"tickerOrName": "XEQT", "balance": 15000, "units": 120},
-  {"tickerOrName": "VFV", "balance": 8500, "units": 45},
-  {"tickerOrName": "GIC - 1yr", "balance": 5000, "units": null}
-]
+const STATEMENT_PARSE_PROMPT = `You are a financial document parser for Finova AI, a Canadian financial planning platform.
 
-If you cannot parse any holdings, return an empty array [].
-Return ONLY the JSON array, no explanation.`;
+The user has uploaded a blacked-out investment statement. Sensitive information (SIN, account numbers, full legal name) may be redacted. That is expected and correct — do NOT flag redacted fields as errors.
 
-export async function POST(request: Request) {
-  const supabase = await createClient();
+Extract all visible investment holdings from this document. For each holding, capture:
+- ticker: The ticker symbol (e.g., XEQT, ZAG.TO, VFV). If not visible, use "UNKNOWN".
+- name: The full name of the holding (e.g., "iShares Core S&P/TSX Capped Composite Index ETF")
+- balance: The market value in CAD. If only shown in another currency, note that.
+- units: Number of units/shares if visible. Omit if not shown.
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+Also identify:
+- account_type: The account type if visible (RRSP, TFSA, FHSA, non-registered, LIRA, RESP, pension). If multiple accounts are on one statement, group holdings by account.
+- total_value: Total portfolio value if shown on the statement.
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: "File too large. Maximum 10MB." },
-        { status: 400 },
-      );
-    }
-
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-      "image/gif",
-      "application/pdf",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: "Unsupported file type. Use PDF, JPEG, PNG, or WebP." },
-        { status: 400 },
-      );
-    }
-
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-
-    const isPdf = file.type === "application/pdf";
-    const mediaType = isPdf
-      ? ("application/pdf" as const)
-      : (file.type as "image/jpeg" | "image/png" | "image/webp" | "image/gif");
-
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
-    const sourceBlock = isPdf
-      ? ({
-          type: "document" as const,
-          source: {
-            type: "base64" as const,
-            media_type: mediaType,
-            data: base64,
-          },
-        } as Anthropic.DocumentBlockParam)
-      : ({
-          type: "image" as const,
-          source: {
-            type: "base64" as const,
-            media_type: mediaType,
-            data: base64,
-          },
-        } as Anthropic.ImageBlockParam);
-
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [sourceBlock, { type: "text", text: EXTRACTION_PROMPT }],
-        },
+OUTPUT FORMAT: Return ONLY a valid JSON object:
+{
+  "accounts": [
+    {
+      "account_type": "RRSP" | "TFSA" | "FHSA" | "non-registered" | "pension" | "LIRA" | "RESP" | "unknown",
+      "holdings": [
+        { "ticker": string, "name": string, "balance": number, "units": number | null }
       ],
-    });
+      "total_value": number | null
+    }
+  ],
+  "confidence": "high" | "medium" | "low",
+  "notes": string
+}
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    if (!textBlock || textBlock.type !== "text") {
+RULES:
+- If a value is partially obscured, provide your best estimate and set confidence to "medium" or "low"
+- Do NOT invent holdings that are not visible in the document
+- If the document is not a financial statement, return { "accounts": [], "confidence": "low", "notes": "Document does not appear to be a financial statement" }
+- All monetary values should be in CAD unless explicitly stated otherwise`;
+
+export async function POST(req: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { success } = await ratelimit.upload.limit(user.id);
+    if (!success) {
       return NextResponse.json(
-        { error: "Failed to parse statement" },
+        { error: 'Upload limit reached. Please try again later.' },
+        { status: 429 },
+      );
+    }
+
+    const formData = await req.formData();
+    const file = formData.get('file');
+
+    if (!file || !(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'No file provided. Please upload a statement image or PDF.' },
+        { status: 400 },
+      );
+    }
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number])) {
+      return NextResponse.json(
+        {
+          error: `Unsupported file type: ${file.type}. Accepted formats: JPEG, PNG, WebP, PDF.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'File too large. Maximum size is 10 MB.' },
+        { status: 400 },
+      );
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
+
+    const fileExt = file.name.split('.').pop() ?? 'jpg';
+    const storagePath = `statements/${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      captureAPIError(uploadError, {
+        route: 'upload/statement',
+        userId: user.id,
+        step: 'storage_upload',
+      });
+      return NextResponse.json(
+        { error: 'Failed to upload file' },
         { status: 500 },
       );
     }
 
-    let holdings: { tickerOrName: string; balance: number; units: number | null }[];
-    try {
-      const jsonMatch = textBlock.text.match(/\[[\s\S]*\]/);
-      holdings = JSON.parse(jsonMatch?.[0] ?? "[]");
-    } catch {
+    const { data: docRecord, error: insertError } = await supabase
+      .from('document_uploads')
+      .insert({
+        user_id: user.id,
+        storage_path: storagePath,
+        parse_status: 'processing',
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      captureAPIError(insertError, {
+        route: 'upload/statement',
+        userId: user.id,
+        step: 'document_record_insert',
+      });
       return NextResponse.json(
-        { error: "Could not extract holdings from statement" },
+        { error: 'Failed to create document record' },
+        { status: 500 },
+      );
+    }
+
+    let parsedHoldings;
+    try {
+      const isPdf = file.type === 'application/pdf';
+      const contentBlock = isPdf
+        ? {
+            type: 'document' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: 'application/pdf' as const,
+              data: base64Data,
+            },
+          }
+        : {
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
+              data: base64Data,
+            },
+          };
+
+      const response = await anthropic.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              contentBlock,
+              {
+                type: 'text',
+                text: 'Parse the investment holdings from this statement.',
+              },
+            ],
+          },
+        ],
+        system: STATEMENT_PARSE_PROMPT,
+      });
+
+      const responseText =
+        response.content[0].type === 'text' ? response.content[0].text : '';
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON in Claude Vision response');
+      parsedHoldings = JSON.parse(jsonMatch[0]);
+    } catch (parseError) {
+      captureAPIError(parseError, {
+        route: 'upload/statement',
+        userId: user.id,
+        documentId: docRecord.id,
+        step: 'claude_vision_parse',
+      });
+
+      await supabase
+        .from('document_uploads')
+        .update({ parse_status: 'failed' })
+        .eq('id', docRecord.id);
+
+      return NextResponse.json(
+        {
+          documentId: docRecord.id,
+          status: 'failed',
+          error:
+            'Could not parse the statement. Please ensure the document is a clear image of a financial statement.',
+        },
         { status: 422 },
       );
     }
 
-    return NextResponse.json({ holdings });
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to process statement";
-    return NextResponse.json({ error: message }, { status: 500 });
+    await supabase
+      .from('document_uploads')
+      .update({
+        parsed_holdings: parsedHoldings,
+        parse_status: 'completed',
+      })
+      .eq('id', docRecord.id);
+
+    return NextResponse.json({
+      documentId: docRecord.id,
+      status: 'completed',
+      parsedHoldings,
+    });
+  } catch (error) {
+    captureAPIError(error, { route: 'upload/statement' });
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }
