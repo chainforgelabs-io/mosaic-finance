@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
 
     const userData = {
       profile: financialProfile.data,
+      userProfile: userProfile ?? null,
       holdings: holdings.data,
       riskProfile: riskProfile.data,
       marketContext: marketContext as Record<string, unknown> | null,
