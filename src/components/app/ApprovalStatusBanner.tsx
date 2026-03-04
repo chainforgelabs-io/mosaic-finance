@@ -1,67 +1,93 @@
 "use client";
 
-import { Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Clock, CheckCircle, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import type { PlanStatus } from "@/types";
+
+type ApprovalStatus = "pending" | "ready" | "rejected";
 
 interface ApprovalStatusBannerProps {
-  status: PlanStatus;
+  status: ApprovalStatus;
   estimatedDelivery?: string;
   planId?: string;
+  className?: string;
 }
 
-export function ApprovalStatusBanner({ status, estimatedDelivery, planId }: ApprovalStatusBannerProps) {
-  if (status === "pending_review") {
-    return (
-      <div className="w-full rounded-lg p-4 flex items-center gap-3 bg-[var(--warning)]/10 border border-[var(--warning)]/20">
-        <Clock className="w-5 h-5 text-[var(--warning)] shrink-0" />
-        <div className="flex-1">
-          <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)]">
-            Your plan is being reviewed by a CIM professional.
-          </p>
-          {estimatedDelivery && (
-            <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mt-0.5">
-              Estimated: {estimatedDelivery}
-            </p>
-          )}
-        </div>
-      </div>
-    );
+const config: Record<
+  ApprovalStatus,
+  {
+    icon: typeof Clock;
+    bgClass: string;
+    iconColor: string;
   }
+> = {
+  pending: {
+    icon: Clock,
+    bgClass: "bg-amber-500/10 border-amber-500/20",
+    iconColor: "text-amber-600",
+  },
+  ready: {
+    icon: CheckCircle,
+    bgClass: "bg-[var(--emerald)]/10 border-[var(--emerald)]/20",
+    iconColor: "text-[var(--emerald)]",
+  },
+  rejected: {
+    icon: AlertCircle,
+    bgClass: "bg-red-500/10 border-red-500/20",
+    iconColor: "text-[var(--error)]",
+  },
+};
 
-  if (status === "delivered") {
-    return (
-      <div className="w-full rounded-lg p-4 flex items-center gap-3 bg-[var(--emerald)]/10 border border-[var(--emerald)]/20">
-        <CheckCircle2 className="w-5 h-5 text-[var(--emerald)] shrink-0" />
-        <div className="flex-1">
-          <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)]">
-            Your plan is ready!
-          </p>
-        </div>
-        {planId && (
+export function ApprovalStatusBanner({
+  status,
+  estimatedDelivery,
+  planId,
+  className,
+}: ApprovalStatusBannerProps) {
+  const { icon: Icon, bgClass, iconColor } = config[status];
+
+  return (
+    <div
+      className={cn(
+        "flex w-full items-center gap-3 rounded-lg border px-5 py-4",
+        bgClass,
+        className,
+      )}
+    >
+      <Icon className={cn("size-5 shrink-0", iconColor)} />
+      <div className="flex flex-1 items-center justify-between gap-4">
+        <p className="font-body text-sm text-[var(--text-primary)]">
+          {status === "pending" && (
+            <>
+              Your plan is being reviewed.
+              {estimatedDelivery && (
+                <span className="text-[var(--text-secondary)]">
+                  {" "}
+                  Estimated: {estimatedDelivery}
+                </span>
+              )}
+            </>
+          )}
+          {status === "ready" && "Your plan is ready!"}
+          {status === "rejected" && "Additional information needed"}
+        </p>
+        {status === "ready" && planId && (
           <Link
             href={`/dashboard/plan/${planId}`}
-            className="px-4 py-1.5 rounded-lg bg-[var(--emerald)] text-white text-sm font-medium font-[family-name:var(--font-display)] hover:bg-[var(--emerald-dark)] transition-colors"
+            className="shrink-0 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
           >
             View Plan
           </Link>
         )}
+        {status === "rejected" && (
+          <Link
+            href="/onboarding/fact-find"
+            className="shrink-0 rounded-lg bg-[var(--error)] px-4 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-red-600"
+          >
+            Provide Info
+          </Link>
+        )}
       </div>
-    );
-  }
-
-  if (status === "generating") {
-    return (
-      <div className="w-full rounded-lg p-4 flex items-center gap-3 bg-red-500/10 border border-red-500/20">
-        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
-        <div className="flex-1">
-          <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)]">
-            Your plan is being generated. This may take a moment.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }

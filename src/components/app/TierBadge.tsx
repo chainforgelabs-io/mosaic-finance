@@ -1,11 +1,18 @@
 "use client";
 
-import type { Tier } from "@/types";
+import { cn } from "@/lib/utils";
+
+type Tier = "free" | "essential" | "pro" | "premium";
+
+interface TierBadgeProps {
+  tier: Tier;
+  className?: string;
+}
 
 const tierStyles: Record<Tier, string> = {
   free: "bg-gray-200 text-gray-600",
   essential: "bg-[var(--slate-950)] text-white",
-  pro: "border border-[var(--emerald)] text-[var(--emerald)]",
+  pro: "border border-[var(--emerald)] text-[var(--emerald)] bg-transparent",
   premium: "bg-[var(--emerald)] text-white",
 };
 
@@ -16,10 +23,14 @@ const tierLabels: Record<Tier, string> = {
   premium: "Premium",
 };
 
-export function TierBadge({ tier }: { tier: Tier }) {
+export function TierBadge({ tier, className }: TierBadgeProps) {
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium font-[family-name:var(--font-display)] tracking-wide ${tierStyles[tier]}`}
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 font-display text-[11px] font-600 leading-none",
+        tierStyles[tier],
+        className,
+      )}
     >
       {tierLabels[tier]}
     </span>

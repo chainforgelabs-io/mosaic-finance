@@ -17,6 +17,8 @@
     "@supabase/supabase-js": "^2.98.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
     "next": "16.1.6",
     "puppeteer-core": "^24.37.5",
@@ -25,6 +27,7 @@
     "react-hook-form": "^7.71.2",
     "resend": "^6.9.3",
     "stripe": "^20.4.0",
+    "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },

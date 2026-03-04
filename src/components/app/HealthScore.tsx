@@ -1,72 +1,105 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
-type Size = "sm" | "md" | "lg";
-
-const sizeConfig: Record<Size, { dim: number; stroke: number; fontSize: string }> = {
-  sm: { dim: 80, stroke: 6, fontSize: "text-xl" },
-  md: { dim: 120, stroke: 8, fontSize: "text-3xl" },
-  lg: { dim: 180, stroke: 10, fontSize: "text-5xl" },
-};
-
-function getScoreColor(score: number) {
-  if (score < 50) return "var(--error)";
-  if (score < 70) return "var(--warning)";
-  return "var(--emerald)";
+interface HealthScoreProps {
+  score: number;
+  size?: "sm" | "md" | "lg";
+  className?: string;
 }
 
-export function HealthScore({ score, size = "md" }: { score: number; size?: Size }) {
+const sizeMap = {
+  sm: { dimension: 80, strokeWidth: 6, fontSize: "text-lg" },
+  md: { dimension: 120, strokeWidth: 8, fontSize: "text-3xl" },
+  lg: { dimension: 180, strokeWidth: 10, fontSize: "text-5xl" },
+} as const;
+
+function getScoreColor(score: number): string {
+  if (score < 50) return "var(--error)";
+  if (score < 70) return "var(--warning)";
+  if (score < 85) return "var(--emerald)";
+  return "#059669";
+}
+
+export function HealthScore({ score, size = "md", className }: HealthScoreProps) {
   const [displayScore, setDisplayScore] = useState(0);
-  const config = sizeConfig[size];
-  const radius = (config.dim - config.stroke) / 2;
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { dimension, strokeWidth, fontSize } = sizeMap[size];
+  const radius = (dimension - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const progress = (displayScore / 100) * circumference;
-  const color = getScoreColor(score);
 
   useEffect(() => {
-    let start = 0;
-    const duration = 1200;
-    const startTime = performance.now();
+    if (hasAnimated) return;
 
-    function animate(currentTime: number) {
-      const elapsed = currentTime - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      start = Math.round(eased * score);
-      setDisplayScore(start);
-      if (t < 1) requestAnimationFrame(animate);
-    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHasAnimated(true);
+          const duration = 1200;
+          const startTime = performance.now();
 
-    requestAnimationFrame(animate);
-  }, [score]);
+          function animate(currentTime: number) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            setDisplayScore(Math.round(eased * score));
+            if (progress < 1) requestAnimationFrame(animate);
+          }
+
+          requestAnimationFrame(animate);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [score, hasAnimated]);
+
+  const strokeDashoffset = circumference - (displayScore / 100) * circumference;
+  const color = getScoreColor(score);
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: config.dim, height: config.dim }}>
-      <svg width={config.dim} height={config.dim} className="-rotate-90">
+    <div
+      ref={ref}
+      className={cn("relative inline-flex items-center justify-center", className)}
+      style={{ width: dimension, height: dimension }}
+    >
+      <svg
+        width={dimension}
+        height={dimension}
+        className="-rotate-90"
+      >
         <circle
-          cx={config.dim / 2}
-          cy={config.dim / 2}
+          cx={dimension / 2}
+          cy={dimension / 2}
           r={radius}
           fill="none"
           stroke="var(--warm-200)"
-          strokeWidth={config.stroke}
+          strokeWidth={strokeWidth}
         />
         <circle
-          cx={config.dim / 2}
-          cy={config.dim / 2}
+          cx={dimension / 2}
+          cy={dimension / 2}
           r={radius}
           fill="none"
           stroke={color}
-          strokeWidth={config.stroke}
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference - progress}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
-          className="transition-all duration-300"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          style={{ transition: "stroke-dashoffset 100ms ease-out" }}
         />
       </svg>
       <span
-        className={`absolute font-[family-name:var(--font-display)] font-bold ${config.fontSize} tabular-nums`}
+        className={cn(
+          "absolute font-display font-bold tabular-nums",
+          fontSize,
+        )}
         style={{ color }}
       >
         {displayScore}
