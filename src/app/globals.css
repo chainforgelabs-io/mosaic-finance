@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Core */
+  --slate-950: #0C0F17;
+  --slate-900: #131620;
+  --emerald: #10B981;
+  --emerald-dark: #059669;
+  --emerald-soft: #D1FAE5;
+
+  /* Surfaces */
+  --white: #FFFFFF;
+  --warm-50: #FAFAF8;
+  --warm-100: #F5F5F0;
+  --warm-200: #E8E8E0;
+
+  /* Text */
+  --text-primary: #0C0F17;
+  --text-secondary: #4B5563;
+  --text-muted: #9CA3AF;
+  --text-inverse: #F9FAFB;
+
+  /* Semantic */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-slate-950: var(--slate-950);
+  --color-slate-900: var(--slate-900);
+  --color-emerald: var(--emerald);
+  --color-emerald-dark: var(--emerald-dark);
+  --color-emerald-soft: var(--emerald-soft);
+  --color-warm-50: var(--warm-50);
+  --color-warm-100: var(--warm-100);
+  --color-warm-200: var(--warm-200);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-inverse: var(--text-inverse);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body), "DM Sans", system-ui, sans-serif;
+  color: var(--text-primary);
+  background: var(--white);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), "Plus Jakarta Sans", system-ui, sans-serif;
 }
