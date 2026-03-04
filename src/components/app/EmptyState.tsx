@@ -10,6 +10,7 @@ interface EmptyStateProps {
   description: string;
   ctaLabel?: string;
   ctaHref?: string;
+  onAction?: () => void;
   className?: string;
 }
 
@@ -19,6 +20,7 @@ export function EmptyState({
   description,
   ctaLabel,
   ctaHref,
+  onAction,
   className,
 }: EmptyStateProps) {
   return (
@@ -42,6 +44,15 @@ export function EmptyState({
         >
           {ctaLabel}
         </Link>
+      )}
+      {ctaLabel && onAction && !ctaHref && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex items-center rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-display text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
+        >
+          {ctaLabel}
+        </button>
       )}
     </div>
   );
