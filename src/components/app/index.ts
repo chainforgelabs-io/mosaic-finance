@@ -1,4 +1,5 @@
 export { AppSidebar } from "./AppSidebar";
+export { FinovaLogo } from "./FinovaLogo";
 export { TierBadge } from "./TierBadge";
 export { HealthScore } from "./HealthScore";
 export { FinancialCard } from "./FinancialCard";
