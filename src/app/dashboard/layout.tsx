@@ -17,10 +17,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[var(--warm-50)]">
       <AppSidebar
-        alias={user?.alias}
-        tier={user?.tier}
+        userAlias={user?.alias ?? "User"}
+        tier={user?.tier ?? "free"}
         planStatus={planStatus}
-        planId={plan?.id}
       />
       <main className="md:pl-60 min-h-screen flex flex-col pb-16 md:pb-0">
         <div className="flex-1 max-w-[1080px] w-full mx-auto px-6 py-8">
