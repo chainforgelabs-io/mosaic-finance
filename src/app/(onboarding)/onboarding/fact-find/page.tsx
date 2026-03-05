@@ -264,42 +264,37 @@ function FactFindConversation() {
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
-          let eventType = "";
           for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              const dataStr = line.slice(6);
-              try {
-                const data = JSON.parse(dataStr);
+            if (!line.startsWith("data: ")) continue;
+            const dataStr = line.slice(6);
+            try {
+              const data = JSON.parse(dataStr);
 
-                switch (eventType) {
-                  case "token":
-                    accumulated += data.content;
-                    updateLastAssistantMessage(accumulated);
-                    break;
+              switch (data.type) {
+                case "delta":
+                  accumulated += data.text;
+                  updateLastAssistantMessage(accumulated);
+                  break;
 
-                  case "topics":
-                    setExtractedTopics(data);
-                    break;
+                case "topics":
+                  setExtractedTopics(data);
+                  break;
 
-                  case "done":
-                    if (data.sessionComplete) {
-                      setSessionComplete(true);
-                      if (data.summary) {
-                        setSummaryData(data.summary);
-                      }
+                case "done":
+                  if (data.sessionComplete) {
+                    setSessionComplete(true);
+                    if (data.extractedData) {
+                      setSummaryData(data.extractedData);
                     }
-                    break;
+                  }
+                  break;
 
-                  case "error":
-                    setError(data.message ?? "An error occurred");
-                    break;
-                }
-              } catch {
-                // SSE parse error — skip malformed event
+                case "error":
+                  setError(data.message ?? "An error occurred");
+                  break;
               }
-              eventType = "";
+            } catch {
+              // SSE parse error — skip malformed chunk
             }
           }
         }
