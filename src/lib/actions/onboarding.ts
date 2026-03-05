@@ -4,14 +4,27 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { financialProfileSchema } from "@/lib/schemas/onboarding";
 
+const EMPLOYMENT_DB_MAP: Record<string, string> = {
+  "Employed": "employed",
+  "Self-Employed": "self-employed",
+  "Retired": "retired",
+  "Student": "student",
+};
+
+const FAMILY_DB_MAP: Record<string, string> = {
+  "Single": "single",
+  "Married": "married",
+  "Common-Law": "common-law",
+  "Single Parent": "single-parent",
+  "Family": "family",
+};
+
 export type OnboardingResult = {
   error?: string;
 };
 
 export async function saveFinancialProfile(formData: {
-  alias: string;
   age: number;
-  province: string;
   employmentType: string;
   familyStructure: string;
 }): Promise<OnboardingResult> {
@@ -32,15 +45,13 @@ export async function saveFinancialProfile(formData: {
 
   const { error: profileError } = await supabase
     .from("user_profiles")
-    .upsert({
-      id: user.id,
-      alias: parsed.data.alias,
-      province: parsed.data.province,
+    .update({
       age: parsed.data.age,
-      employment_type: parsed.data.employmentType,
-      family_structure: parsed.data.familyStructure,
+      employment_type: EMPLOYMENT_DB_MAP[parsed.data.employmentType] ?? parsed.data.employmentType.toLowerCase(),
+      family_structure: FAMILY_DB_MAP[parsed.data.familyStructure] ?? parsed.data.familyStructure.toLowerCase(),
       updated_at: new Date().toISOString(),
-    });
+    })
+    .eq("id", user.id);
 
   if (profileError) {
     return { error: "Failed to save profile. Please try again." };
@@ -51,10 +62,6 @@ export async function saveFinancialProfile(formData: {
     .upsert(
       {
         user_id: user.id,
-        age: parsed.data.age,
-        province: parsed.data.province,
-        employment_type: parsed.data.employmentType,
-        family_structure: parsed.data.familyStructure,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },

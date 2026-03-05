@@ -9,7 +9,6 @@ import {
   Loader2,
   Palmtree,
   UserRound,
-  Users,
   Heart,
   HeartHandshake,
   Baby,
@@ -26,8 +25,6 @@ import {
   FAMILY_STRUCTURES,
   type FinancialProfileFormData,
 } from "@/lib/schemas/onboarding";
-import { PROVINCES } from "@/lib/schemas/auth";
-import { createClient } from "@/lib/supabase/client";
 import type { LucideIcon } from "lucide-react";
 
 const EMPLOYMENT_OPTIONS: { value: (typeof EMPLOYMENT_TYPES)[number]; label: string; icon: LucideIcon }[] = [
@@ -48,20 +45,16 @@ const FAMILY_OPTIONS: { value: (typeof FAMILY_STRUCTURES)[number]; label: string
 export default function OnboardingProfilePage() {
   const { currentStep, completedSteps, setCurrentStep } = useOnboardingStore();
   const [serverError, setServerError] = useState<string | null>(null);
-  const [prefilled, setPrefilled] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FinancialProfileFormData>({
     resolver: zodResolver(financialProfileSchema),
     defaultValues: {
-      alias: "",
       age: undefined,
-      province: undefined,
       employmentType: undefined,
       familyStructure: undefined,
     },
@@ -70,32 +63,6 @@ export default function OnboardingProfilePage() {
   useEffect(() => {
     setCurrentStep("profile");
   }, [setCurrentStep]);
-
-  useEffect(() => {
-    if (prefilled) return;
-
-    async function loadProfile() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("user_profiles")
-        .select("alias, province")
-        .eq("id", user.id)
-        .single();
-
-      if (profile) {
-        if (profile.alias) setValue("alias", profile.alias);
-        if (profile.province) setValue("province", profile.province);
-      }
-      setPrefilled(true);
-    }
-
-    loadProfile();
-  }, [prefilled, setValue]);
 
   async function onSubmit(data: FinancialProfileFormData) {
     setServerError(null);
@@ -121,10 +88,10 @@ export default function OnboardingProfilePage() {
 
         <div className="mb-8 text-center">
           <h1 className="font-display text-[26px] font-bold text-[var(--text-primary)]">
-            Let&apos;s start with the basics
+            Tell us a bit more
           </h1>
           <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
-            Takes about 2 minutes. No sensitive information required.
+            This helps us personalize your financial plan.
           </p>
         </div>
 
@@ -135,25 +102,6 @@ export default function OnboardingProfilePage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Alias */}
-          <div>
-            <label
-              htmlFor="alias"
-              className="mb-1.5 block font-body text-sm font-medium text-[var(--text-primary)]"
-            >
-              Alias
-            </label>
-            <input
-              id="alias"
-              type="text"
-              autoComplete="username"
-              placeholder="e.g. maple_investor"
-              className={inputClassName(!!errors.alias)}
-              {...register("alias")}
-            />
-            {errors.alias && <FieldError message={errors.alias.message!} />}
-          </div>
-
           {/* Age */}
           <div>
             <label
@@ -171,32 +119,6 @@ export default function OnboardingProfilePage() {
               {...register("age", { valueAsNumber: true })}
             />
             {errors.age && <FieldError message={errors.age.message!} />}
-          </div>
-
-          {/* Province */}
-          <div>
-            <label
-              htmlFor="province"
-              className="mb-1.5 block font-body text-sm font-medium text-[var(--text-primary)]"
-            >
-              Province
-            </label>
-            <select
-              id="province"
-              className={inputClassName(!!errors.province, "cursor-pointer")}
-              defaultValue=""
-              {...register("province")}
-            >
-              <option value="" disabled>
-                Select your province
-              </option>
-              {PROVINCES.map((province) => (
-                <option key={province} value={province}>
-                  {province}
-                </option>
-              ))}
-            </select>
-            {errors.province && <FieldError message={errors.province.message!} />}
           </div>
 
           {/* Employment Type */}
