@@ -4,15 +4,50 @@ import { useEffect } from "react";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
+import { createClient } from "@/lib/supabase/client";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, plan, planStatus, loadMockData } = usePlanStore();
+  const { user, planStatus, setUser, setPlanStatus } = usePlanStore();
 
   useEffect(() => {
-    if (!user) {
-      loadMockData("delivered");
+    if (user) return;
+
+    async function loadUser() {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("alias, subscription_tier")
+        .eq("id", authUser.id)
+        .single();
+
+      if (profile) {
+        setUser({
+          id: authUser.id,
+          alias: profile.alias,
+          tier: profile.subscription_tier ?? "free",
+        });
+      }
+
+      const { data: plan } = await supabase
+        .from("financial_plans")
+        .select("id, status")
+        .eq("user_id", authUser.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (plan) {
+        setPlanStatus(plan.status);
+      } else {
+        setPlanStatus("none");
+      }
     }
-  }, [user, loadMockData]);
+
+    loadUser();
+  }, [user, setUser, setPlanStatus]);
 
   return (
     <div className="min-h-screen bg-[var(--warm-50)]">

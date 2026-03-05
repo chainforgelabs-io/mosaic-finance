@@ -8,9 +8,10 @@ import {
   TrendingUp,
   Settings,
   ArrowUpRight,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { TierBadge } from "./TierBadge";
 
 interface AppSidebarProps {
@@ -42,6 +43,12 @@ export function AppSidebar({
   className,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await fetch("/api/auth/signout", { method: "POST" });
+    router.push("/login");
+  }
 
   return (
     <aside
@@ -128,6 +135,13 @@ export function AppSidebar({
             <ArrowUpRight className="size-3" />
           </Link>
         )}
+        <button
+          onClick={handleSignOut}
+          className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 font-display text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-white/5 hover:text-white md:max-lg:justify-center"
+        >
+          <LogOut className="size-3.5" />
+          <span className="md:max-lg:hidden">Sign Out</span>
+        </button>
       </div>
 
       {/* Compliance note */}
