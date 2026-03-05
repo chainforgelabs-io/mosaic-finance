@@ -275,7 +275,7 @@ function ConversationPhase({
       const res = await fetch("/api/conversation/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "risk-profile" }),
+        body: JSON.stringify({ sessionType: "risk-profile" }),
       });
       if (!res.ok) throw new Error("Failed to start session");
 

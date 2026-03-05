@@ -241,7 +241,7 @@ function FactFindConversation() {
         const res = await fetch("/api/conversation/message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId, message: userMessage }),
+          body: JSON.stringify({ sessionId, message: userMessage, sessionType: "fact-find" }),
         });
 
         if (!res.ok) {
@@ -329,7 +329,11 @@ function FactFindConversation() {
     setIsStarting(true);
 
     try {
-      const res = await fetch("/api/conversation/start", { method: "POST" });
+      const res = await fetch("/api/conversation/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionType: "fact-find" }),
+      });
       if (!res.ok) throw new Error("Failed to start session");
 
       const { sessionId: newSessionId } = await res.json();
