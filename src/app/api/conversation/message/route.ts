@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { sessionId, message, sessionType } = parsed.data;
-  const sanitizedMessage = sanitizeUserInput(message);
+  const sanitizedMessage = message ? sanitizeUserInput(message) : null;
 
   const { data: session } = await supabase
     .from('conversation_sessions')
@@ -67,12 +67,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await supabase.from('conversation_messages').insert({
-    session_id: sessionId,
-    user_id: user.id,
-    role: 'user',
-    content: sanitizedMessage,
-  });
+  if (sanitizedMessage) {
+    await supabase.from('conversation_messages').insert({
+      session_id: sessionId,
+      user_id: user.id,
+      role: 'user',
+      content: sanitizedMessage,
+    });
+  }
 
   const { data: messageHistory } = await supabase
     .from('conversation_messages')
@@ -80,10 +82,14 @@ export async function POST(req: NextRequest) {
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true });
 
-  const claudeMessages = (messageHistory || []).map((m) => ({
+  let claudeMessages = (messageHistory || []).map((m) => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
   }));
+
+  if (claudeMessages.length === 0) {
+    claudeMessages = [{ role: 'user' as const, content: 'Please begin the conversation.' }];
+  }
 
   const systemPrompt =
     SYSTEM_PROMPTS[sessionType] ?? SYSTEM_PROMPTS['fact-find'];
