@@ -57,19 +57,23 @@ export async function saveFinancialProfile(formData: {
     return { error: "Failed to save profile. Please try again." };
   }
 
-  const { error: financialError } = await supabase
+  const { data: existingProfile } = await supabase
     .from("financial_profiles")
-    .upsert(
-      {
-        user_id: user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+    .select("id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
 
-  if (financialError) {
-    return { error: "Failed to create financial profile. Please try again." };
+  if (!existingProfile) {
+    const { error: financialError } = await supabase
+      .from("financial_profiles")
+      .insert({
+        user_id: user.id,
+      });
+
+    if (financialError) {
+      return { error: "Failed to create financial profile. Please try again." };
+    }
   }
 
   redirect("/onboarding/fact-find");
