@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
 
 interface ConversationBubbleProps {
   role: "user" | "assistant";
@@ -33,48 +32,7 @@ export function ConversationBubble({
   isStreaming = false,
   className,
 }: ConversationBubbleProps) {
-  const [displayedContent, setDisplayedContent] = useState("");
-  const prevContentRef = useRef("");
   const isUser = role === "user";
-
-  useEffect(() => {
-    if (!isStreaming || isUser) {
-      setDisplayedContent(content);
-      return;
-    }
-
-    // SSE progressive rendering: as content prop grows, reveal new characters
-    const prevLen = prevContentRef.current.length;
-    const newChars = content.slice(prevLen);
-
-    if (newChars.length === 0) {
-      setDisplayedContent(content);
-      return;
-    }
-
-    let charIndex = 0;
-    setDisplayedContent(content.slice(0, prevLen));
-
-    const interval = setInterval(() => {
-      charIndex++;
-      const nextContent = content.slice(0, prevLen + charIndex);
-      setDisplayedContent(nextContent);
-
-      if (charIndex >= newChars.length) {
-        clearInterval(interval);
-        prevContentRef.current = content;
-      }
-    }, 12);
-
-    return () => clearInterval(interval);
-  }, [content, isStreaming, isUser]);
-
-  useEffect(() => {
-    if (!isStreaming) {
-      prevContentRef.current = "";
-    }
-  }, [isStreaming]);
-
   const showTypingIndicator = isStreaming && !content;
 
   return (
@@ -106,7 +64,7 @@ export function ConversationBubble({
             <TypingIndicator />
           ) : (
             <span>
-              {isUser ? content : displayedContent}
+              {content}
               {isStreaming && content && (
                 <span
                   className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[2px] bg-[var(--emerald)]"

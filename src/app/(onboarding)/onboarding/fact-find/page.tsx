@@ -24,6 +24,27 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "knowledge", label: "Knowledge" },
 ];
 
+const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
+  income: /income|salary|earn|gross|net pay|household income|take.?home/i,
+  expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill/i,
+  debts: /debt|loan|credit|owe|balance|interest rate|line of credit|mortgage.*\$|student loan/i,
+  goals: /goal|objective|plan to|want to|hope to|saving for|priority|financial freedom/i,
+  retirement: /retire|retirement|cpp|oas|pension|rsp|rrsp|age 6[0-9]|age 55/i,
+  investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance/i,
+  knowledge: /knowledge|experience|familiar|understand.*risk|novice|beginner|intermediate|advanced|comfortable with/i,
+};
+
+function detectTopics(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
+  const allText = messages.map((m) => m.content).join(" ");
+  const detected: Partial<ExtractedTopics> = {};
+  for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
+    if (pattern.test(allText)) {
+      detected[key as keyof ExtractedTopics] = true;
+    }
+  }
+  return detected;
+}
+
 function ComplianceCard({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 py-8">
@@ -211,12 +232,24 @@ function FactFindConversation() {
   }, [setCurrentStep]);
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      const el = scrollContainerRef.current;
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      });
+    }
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0 && !isStreaming) {
+      const detected = detectTopics(messages);
+      setExtractedTopics(detected);
+    }
+  }, [messages, isStreaming, setExtractedTopics]);
 
   const sendMessage = useCallback(
     async (userMessage?: string) => {
@@ -296,6 +329,25 @@ function FactFindConversation() {
             } catch {
               // SSE parse error — skip malformed chunk
             }
+          }
+        }
+        // Check for completion tag in accumulated response
+        const completeMatch = accumulated.match(
+          /<FACT_FIND_COMPLETE>([\s\S]*?)<\/FACT_FIND_COMPLETE>/,
+        );
+        if (completeMatch) {
+          try {
+            const extractedData = JSON.parse(completeMatch[1]);
+            setSessionComplete(true);
+            setSummaryData(extractedData);
+            const cleaned = accumulated
+              .replace(/<FACT_FIND_COMPLETE>[\s\S]*?<\/FACT_FIND_COMPLETE>/, "")
+              .trim();
+            if (cleaned) {
+              updateLastAssistantMessage(cleaned);
+            }
+          } catch {
+            // JSON parse failed
           }
         }
       } catch (err) {
