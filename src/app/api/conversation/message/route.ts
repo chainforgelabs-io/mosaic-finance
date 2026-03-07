@@ -3,24 +3,49 @@ import { createClient } from '@/lib/supabase/server';
 import { anthropic } from '@/lib/claude/client';
 import { FACT_FIND_SYSTEM_PROMPT } from '@/lib/claude/prompts/fact-find';
 import { RISK_PROFILE_SYSTEM_PROMPT } from '@/lib/claude/prompts/risk-profile';
+import { ANNUAL_REVIEW_SYSTEM_PROMPT } from '@/lib/claude/prompts/annual-review';
+import { AD_HOC_SYSTEM_PROMPT } from '@/lib/claude/prompts/ad-hoc';
+import { buildKnowledgeContext, type UserProfileFlags, type ConversationStage } from '@/lib/knowledge/loader';
 import { ConversationMessageSchema } from '@/lib/validators/conversation';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
 
-const SYSTEM_PROMPTS: Record<string, string> = {
-  'fact-find': FACT_FIND_SYSTEM_PROMPT,
-  'risk-profile': RISK_PROFILE_SYSTEM_PROMPT,
-};
-
-const COMPLETION_TAGS: Record<string, RegExp> = {
-  'fact-find': /<FACT_FIND_COMPLETE>([\s\S]*?)<\/FACT_FIND_COMPLETE>/,
-  'risk-profile': /<RISK_PROFILE_COMPLETE>([\s\S]*?)<\/RISK_PROFILE_COMPLETE>/,
-};
-
-const STRIP_TAGS: Record<string, RegExp> = {
-  'fact-find': /<FACT_FIND_COMPLETE>[\s\S]*?<\/FACT_FIND_COMPLETE>/,
-  'risk-profile': /<RISK_PROFILE_COMPLETE>[\s\S]*?<\/RISK_PROFILE_COMPLETE>/,
+const SESSION_TYPE_CONFIG: Record<string, {
+  prompt: string;
+  completionTag: RegExp;
+  stripTag: RegExp;
+  tagOpen: string;
+  knowledgeStage: ConversationStage;
+}> = {
+  'fact-find': {
+    prompt: FACT_FIND_SYSTEM_PROMPT,
+    completionTag: /<FACT_FIND_COMPLETE>([\s\S]*?)<\/FACT_FIND_COMPLETE>/,
+    stripTag: /<FACT_FIND_COMPLETE>[\s\S]*?<\/FACT_FIND_COMPLETE>/,
+    tagOpen: '<FACT_FIND_COMPLETE>',
+    knowledgeStage: 'fact-find',
+  },
+  'risk-profile': {
+    prompt: RISK_PROFILE_SYSTEM_PROMPT,
+    completionTag: /<RISK_PROFILE_COMPLETE>([\s\S]*?)<\/RISK_PROFILE_COMPLETE>/,
+    stripTag: /<RISK_PROFILE_COMPLETE>[\s\S]*?<\/RISK_PROFILE_COMPLETE>/,
+    tagOpen: '<RISK_PROFILE_COMPLETE>',
+    knowledgeStage: 'risk-assessment',
+  },
+  'annual-review': {
+    prompt: ANNUAL_REVIEW_SYSTEM_PROMPT,
+    completionTag: /<REVIEW_COMPLETE>([\s\S]*?)<\/REVIEW_COMPLETE>/,
+    stripTag: /<REVIEW_COMPLETE>[\s\S]*?<\/REVIEW_COMPLETE>/,
+    tagOpen: '<REVIEW_COMPLETE>',
+    knowledgeStage: 'annual-review',
+  },
+  'ad-hoc': {
+    prompt: AD_HOC_SYSTEM_PROMPT,
+    completionTag: /(?!)/, // no completion tag for ad-hoc
+    stripTag: /(?!)/,
+    tagOpen: '',
+    knowledgeStage: 'ad-hoc',
+  },
 };
 
 export async function POST(req: NextRequest) {
@@ -91,11 +116,94 @@ export async function POST(req: NextRequest) {
     claudeMessages = [{ role: 'user' as const, content: 'Please begin the conversation.' }];
   }
 
-  const systemPrompt =
-    SYSTEM_PROMPTS[sessionType] ?? SYSTEM_PROMPTS['fact-find'];
+  // Build system prompt based on session type
+  const config = SESSION_TYPE_CONFIG[sessionType] ?? SESSION_TYPE_CONFIG['fact-find'];
+  let systemPrompt = config.prompt;
 
+  // Fetch user profile for context injection
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('alias, age, sex, annual_income, province, employment_type, family_structure')
+    .eq('id', user.id)
+    .single();
+
+  // Fetch household members
+  const { data: householdMembers } = await supabase
+    .from('household_members')
+    .select('relationship, age, sex, occupation, annual_income, is_dependant')
+    .eq('user_id', user.id);
+
+  // Build user profile flags for knowledge module injection
+  const userFlags: UserProfileFlags = {};
+
+  if (profile) {
+    if (profile.employment_type === 'self-employed') userFlags.isSelfEmployed = true;
+
+    const profileContext: string[] = [];
+    if (profile.alias) profileContext.push(`Name/alias: ${profile.alias}`);
+    if (profile.age) profileContext.push(`Age: ${profile.age}`);
+    if (profile.sex) profileContext.push(`Sex: ${profile.sex}`);
+    if (profile.annual_income) profileContext.push(`Annual income: $${Number(profile.annual_income).toLocaleString()}`);
+    if (profile.province) profileContext.push(`Province: ${profile.province}`);
+    if (profile.employment_type) profileContext.push(`Employment: ${profile.employment_type}`);
+    if (profile.family_structure) profileContext.push(`Family: ${profile.family_structure}`);
+
+    if (householdMembers && householdMembers.length > 0) {
+      profileContext.push(`\nHousehold members:`);
+      for (const member of householdMembers) {
+        const parts = [`  - ${member.relationship}`];
+        if (member.age) parts.push(`age ${member.age}`);
+        if (member.sex) parts.push(`${member.sex}`);
+        if (member.occupation) parts.push(`${member.occupation}`);
+        if (member.annual_income) parts.push(`income $${Number(member.annual_income).toLocaleString()}`);
+        if (member.is_dependant) parts.push(`(dependant)`);
+        profileContext.push(parts.join(', '));
+      }
+      userFlags.isDivorced = false; // has household members, probably not divorced
+    }
+
+    if (profileContext.length > 0) {
+      systemPrompt += `\n\nCLIENT PROFILE (already collected — do NOT re-ask these):\n${profileContext.join('\n')}\n\nUse this information naturally. Greet them by name if available. Skip questions about information you already have — move straight to what you don't know yet.`;
+    }
+  }
+
+  // Check for detected flags from a previous fact-find session
+  if (sessionType !== 'fact-find') {
+    const { data: factFindSession } = await supabase
+      .from('conversation_sessions')
+      .select('metadata')
+      .eq('user_id', user.id)
+      .eq('session_type', 'fact-find')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (factFindSession?.metadata) {
+      const meta = factFindSession.metadata as Record<string, unknown>;
+      const extracted = meta.extracted_data as Record<string, unknown> | undefined;
+      if (extracted?.detected_flags) {
+        const flags = extracted.detected_flags as Record<string, boolean>;
+        if (flags.is_divorced_or_separated) userFlags.isDivorced = true;
+        if (flags.is_business_owner) userFlags.isBusinessOwner = true;
+        if (flags.is_self_employed) userFlags.isSelfEmployed = true;
+        if (flags.has_us_property) userFlags.hasUSProperty = true;
+        if (flags.has_us_income) userFlags.hasUSIncome = true;
+        if (flags.is_snowbird) userFlags.isSnowbird = true;
+      }
+    }
+  }
+
+  // Inject knowledge modules
+  const knowledgeContext = buildKnowledgeContext(config.knowledgeStage, userFlags);
+  if (knowledgeContext) {
+    systemPrompt += knowledgeContext;
+  }
+
+  const TAG_OPEN = config.tagOpen;
   const encoder = new TextEncoder();
   let fullResponse = '';
+  let flushedUpTo = 0;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -109,19 +217,74 @@ export async function POST(req: NextRequest) {
 
         response.on('text', (text) => {
           fullResponse += text;
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: 'delta', text })}\n\n`,
-            ),
-          );
+
+          if (TAG_OPEN) {
+            const tagIdx = fullResponse.indexOf(TAG_OPEN);
+
+            if (tagIdx !== -1) {
+              if (flushedUpTo < tagIdx) {
+                const visibleChunk = fullResponse.slice(flushedUpTo, tagIdx);
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'delta', text: visibleChunk })}\n\n`,
+                  ),
+                );
+                flushedUpTo = tagIdx;
+              }
+              return;
+            }
+
+            const safeEnd = Math.max(flushedUpTo, fullResponse.length - TAG_OPEN.length);
+            if (safeEnd > flushedUpTo) {
+              const chunk = fullResponse.slice(flushedUpTo, safeEnd);
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`,
+                ),
+              );
+              flushedUpTo = safeEnd;
+            }
+          } else {
+            // No tag to buffer — stream everything
+            const chunk = fullResponse.slice(flushedUpTo);
+            if (chunk) {
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`,
+                ),
+              );
+              flushedUpTo = fullResponse.length;
+            }
+          }
         });
 
         await response.finalMessage();
 
+        // Flush remaining visible text
+        if (TAG_OPEN) {
+          const tagIdx = fullResponse.indexOf(TAG_OPEN);
+          const visibleEnd = tagIdx !== -1 ? tagIdx : fullResponse.length;
+          if (flushedUpTo < visibleEnd) {
+            const remaining = fullResponse.slice(flushedUpTo, visibleEnd);
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ type: 'delta', text: remaining })}\n\n`,
+              ),
+            );
+          }
+        } else if (flushedUpTo < fullResponse.length) {
+          const remaining = fullResponse.slice(flushedUpTo);
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: 'delta', text: remaining })}\n\n`,
+            ),
+          );
+        }
+
         let extractedData = null;
         let sessionStatus: 'active' | 'completed' = 'active';
 
-        const completionPattern = COMPLETION_TAGS[sessionType];
+        const completionPattern = config.completionTag;
         if (completionPattern) {
           const match = fullResponse.match(completionPattern);
           if (match) {
@@ -134,7 +297,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        const stripPattern = STRIP_TAGS[sessionType];
+        const stripPattern = config.stripTag;
         const cleanedResponse = stripPattern
           ? fullResponse.replace(stripPattern, '').trim()
           : fullResponse.trim();
@@ -151,7 +314,7 @@ export async function POST(req: NextRequest) {
           .update({
             status: sessionStatus,
             metadata: extractedData
-              ? { ...session.metadata, extracted_data: extractedData }
+              ? { ...((typeof session.metadata === 'object' && session.metadata) || {}), extracted_data: extractedData }
               : session.metadata,
             last_activity_at: new Date().toISOString(),
           })

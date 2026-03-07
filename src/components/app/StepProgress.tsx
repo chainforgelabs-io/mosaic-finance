@@ -6,17 +6,17 @@ import { Check } from "lucide-react";
 export type OnboardingStep =
   | "profile"
   | "fact-find"
-  | "holdings"
   | "risk-profile"
+  | "holdings"
   | "generating"
   | "review"
   | "complete";
 
 const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "profile", label: "Profile" },
-  { key: "fact-find", label: "Fact-Find" },
-  { key: "holdings", label: "Holdings" },
+  { key: "fact-find", label: "Consultation" },
   { key: "risk-profile", label: "Risk Profile" },
+  { key: "holdings", label: "Holdings" },
   { key: "generating", label: "Generating" },
   { key: "review", label: "Review" },
   { key: "complete", label: "Complete" },
@@ -34,7 +34,7 @@ export function StepProgress({
   className,
 }: StepProgressProps) {
   return (
-    <div className={cn("w-full px-4 py-6", className)}>
+    <div className={cn("w-full border-b border-[var(--warm-200)] px-4 py-6", className)}>
       <div className="flex items-center justify-between">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.includes(step.key);

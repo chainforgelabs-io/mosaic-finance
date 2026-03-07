@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Trash2,
@@ -10,12 +11,16 @@ import {
   Loader2,
   Briefcase,
   FileText,
+  AlertTriangle,
+  Info,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { FinovaLogo } from "@/components/app/FinovaLogo";
 import { EmptyState } from "@/components/app/EmptyState";
-import { useOnboardingStore } from "@/stores/onboarding";
+import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
 import {
   ACCOUNT_TYPES,
@@ -30,6 +35,7 @@ interface HoldingRow extends HoldingFormData {
 interface SavedAccount {
   id: string;
   accountType: AccountType;
+  accountName?: string;
   holdings: HoldingRow[];
   collapsed: boolean;
 }
@@ -97,11 +103,11 @@ function HoldingsTable({
                 <td className="py-2 pr-3">
                   <input
                     type="text"
-                    value={h.tickerOrName}
+                    value={h.tickerOrName ?? ""}
                     onChange={(e) =>
                       onUpdate(h.localId, "tickerOrName", e.target.value)
                     }
-                    placeholder="e.g. XEQT"
+                    placeholder="e.g. XEQT (optional)"
                     className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
                   />
                 </td>
@@ -185,8 +191,7 @@ function AccountCard({
             {account.accountType}
           </span>
           <span className="font-body text-[14px] text-[var(--text-secondary)]">
-            {account.holdings.length} holding
-            {account.holdings.length !== 1 ? "s" : ""}
+            {account.accountName || `${account.holdings.length} holding${account.holdings.length !== 1 ? "s" : ""}`}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -224,7 +229,7 @@ function AccountCard({
                   className="border-b border-[var(--warm-200)]/30"
                 >
                   <td className="py-2 font-body text-[14px] text-[var(--text-primary)]">
-                    {h.tickerOrName}
+                    {h.tickerOrName || "—"}
                   </td>
                   <td className="py-2 text-right font-body text-[14px] tabular-nums text-[var(--text-primary)]">
                     ${h.balance.toLocaleString("en-CA", { minimumFractionDigits: 2 })}
@@ -255,23 +260,18 @@ function AccountCard({
 function UploadDropZone({
   onParsed,
 }: {
-  onParsed: (
-    holdings: { tickerOrName: string; balance: number; units?: number }[],
-  ) => void;
+  onParsed: (accounts: SavedAccount[]) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
-  const [parsedHoldings, setParsedHoldings] = useState<
-    { tickerOrName: string; balance: number; units?: number }[] | null
-  >(null);
+  const [uploadNote, setUploadNote] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
     async (file: File) => {
       setIsParsing(true);
       setParseError(null);
-      setParsedHoldings(null);
 
       try {
         const formData = new FormData();
@@ -288,13 +288,45 @@ function UploadDropZone({
           throw new Error(data.error ?? "Upload failed");
         }
 
-        if (!data.holdings || data.holdings.length === 0) {
+        const parsed = data.parsedHoldings ?? data;
+        const rawAccounts = parsed.accounts ?? [];
+
+        if (rawAccounts.length === 0) {
           setParseError(
             "No holdings found in this document. Try a different file or enter manually.",
           );
-        } else {
-          setParsedHoldings(data.holdings);
+          return;
         }
+
+        const DB_TO_DISPLAY: Record<string, AccountType> = {
+          "non-registered": "Non-Reg",
+          "pension": "Pension",
+          "RRSP": "RRSP",
+          "TFSA": "TFSA",
+          "FHSA": "FHSA",
+          "LIRA": "LIRA",
+          "RESP": "RESP",
+        };
+
+        const newAccounts: SavedAccount[] = rawAccounts.map(
+          (acc: { account_type: string; holdings?: { ticker?: string; name?: string; balance?: number; units?: number }[]; total_value?: number }, i: number) => ({
+            id: `acc-upload-${Date.now()}-${i}`,
+            accountType: DB_TO_DISPLAY[acc.account_type] ?? "Non-Reg",
+            accountName: uploadNote || undefined,
+            holdings: (acc.holdings ?? []).map(
+              (h: { ticker?: string; name?: string; balance?: number; units?: number }, j: number) => ({
+                localId: `upload-${Date.now()}-${i}-${j}`,
+                tickerOrName: h.ticker || h.name || "",
+                balance: h.balance ?? 0,
+                units: h.units,
+              }),
+            ),
+            collapsed: false,
+          }),
+        );
+
+        onParsed(newAccounts);
+        setUploadNote("");
       } catch (err) {
         setParseError(
           err instanceof Error ? err.message : "Failed to parse statement",
@@ -303,7 +335,7 @@ function UploadDropZone({
         setIsParsing(false);
       }
     },
-    [],
+    [onParsed, uploadNote],
   );
 
   const handleDrop = useCallback(
@@ -316,13 +348,6 @@ function UploadDropZone({
     [handleFile],
   );
 
-  const handleConfirm = () => {
-    if (parsedHoldings) {
-      onParsed(parsedHoldings);
-      setParsedHoldings(null);
-    }
-  };
-
   if (isParsing) {
     return (
       <div className="space-y-4">
@@ -333,115 +358,6 @@ function UploadDropZone({
               Analyzing your statement...
             </p>
           </div>
-          <div className="mt-6 space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex gap-3">
-                <div
-                  className="h-5 flex-1 rounded bg-[var(--warm-200)]"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(90deg, var(--warm-200) 0%, var(--warm-100) 50%, var(--warm-200) 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: "shimmer 1.5s infinite",
-                  }}
-                />
-                <div
-                  className="h-5 w-24 rounded bg-[var(--warm-200)]"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(90deg, var(--warm-200) 0%, var(--warm-100) 50%, var(--warm-200) 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: "shimmer 1.5s infinite",
-                    animationDelay: "300ms",
-                  }}
-                />
-                <div
-                  className="h-5 w-16 rounded bg-[var(--warm-200)]"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(90deg, var(--warm-200) 0%, var(--warm-100) 50%, var(--warm-200) 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: "shimmer 1.5s infinite",
-                    animationDelay: "600ms",
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (parsedHoldings) {
-    const total = parsedHoldings.reduce((s, h) => s + h.balance, 0);
-    return (
-      <div className="space-y-4">
-        <div className="rounded-lg border border-[var(--emerald)]/30 bg-white p-6">
-          <h3 className="mb-4 font-display text-[16px] font-semibold text-[var(--text-primary)]">
-            We found {parsedHoldings.length} holding
-            {parsedHoldings.length !== 1 ? "s" : ""}
-          </h3>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[var(--warm-200)]">
-                <th className="pb-2 text-left font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                  Holding
-                </th>
-                <th className="pb-2 text-right font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                  Balance
-                </th>
-                <th className="pb-2 text-right font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                  Units
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {parsedHoldings.map((h, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-[var(--warm-200)]/30"
-                >
-                  <td className="py-2 font-body text-[14px] text-[var(--text-primary)]">
-                    {h.tickerOrName}
-                  </td>
-                  <td className="py-2 text-right font-body text-[14px] tabular-nums text-[var(--text-primary)]">
-                    ${h.balance.toLocaleString("en-CA", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="py-2 text-right font-body text-[14px] tabular-nums text-[var(--text-muted)]">
-                    {h.units ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-[var(--warm-200)]">
-                <td className="pt-3 font-body text-[14px] font-semibold text-[var(--text-primary)]">
-                  Total
-                </td>
-                <td className="pt-3 text-right font-body text-[16px] font-semibold tabular-nums text-[var(--emerald)]">
-                  ${total.toLocaleString("en-CA", { minimumFractionDigits: 2 })}
-                </td>
-                <td />
-              </tr>
-            </tfoot>
-          </table>
-          <div className="mt-5 flex gap-3">
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="flex-1 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
-            >
-              Add These Holdings
-            </button>
-            <button
-              type="button"
-              onClick={() => setParsedHoldings(null)}
-              className="flex-1 rounded-lg border border-[var(--warm-200)] bg-white px-5 py-2.5 font-display text-[14px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--warm-100)]"
-            >
-              Try Another File
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -449,6 +365,36 @@ function UploadDropZone({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+          <div>
+            <h3 className="font-display text-[14px] font-semibold text-[var(--text-primary)]">
+              Protect your privacy
+            </h3>
+            <p className="mt-1 font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
+              Before uploading, please <strong>black out or redact</strong> any personal information
+              including names, account numbers, SIN, and addresses. Only account types and
+              holdings/balances are needed. Use the note field below to identify which account
+              this statement belongs to.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
+          Statement Note (e.g. &quot;My TFSA at Wealthsimple&quot;)
+        </label>
+        <input
+          type="text"
+          value={uploadNote}
+          onChange={(e) => setUploadNote(e.target.value)}
+          placeholder="Optional — helps identify this statement"
+          className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
+        />
+      </div>
+
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -471,13 +417,10 @@ function UploadDropZone({
           )}
         />
         <h3 className="font-display text-[18px] font-medium text-[var(--text-primary)]">
-          Upload a blacked-out statement
+          Upload a redacted statement
         </h3>
         <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
-          Remove your name and account numbers first. PDF or image accepted.
-        </p>
-        <p className="mt-1 font-body text-[12px] text-[var(--text-muted)]">
-          AI will extract your holdings automatically.
+          PDF or image accepted. You can upload multiple statements.
         </p>
 
         <input
@@ -488,6 +431,7 @@ function UploadDropZone({
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
+            if (e.target) e.target.value = "";
           }}
         />
       </div>
@@ -509,6 +453,7 @@ function ManualEntryForm({
   onSaveAccount: (account: SavedAccount) => void;
 }) {
   const [selectedType, setSelectedType] = useState<AccountType | null>(null);
+  const [accountName, setAccountName] = useState("");
   const [holdings, setHoldings] = useState<HoldingRow[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -546,20 +491,22 @@ function ManualEntryForm({
       return;
     }
 
-    const validHoldings = holdings.filter((h) => h.tickerOrName.trim());
+    const validHoldings = holdings.filter((h) => h.balance > 0);
     if (validHoldings.length === 0) {
-      setFormError("Add at least one holding with a name.");
+      setFormError("Add at least one holding with a balance.");
       return;
     }
 
     onSaveAccount({
       id: `acc-${Date.now()}`,
       accountType: selectedType,
+      accountName: accountName || undefined,
       holdings: validHoldings,
       collapsed: true,
     });
 
     setSelectedType(null);
+    setAccountName("");
     setHoldings([]);
   };
 
@@ -585,6 +532,23 @@ function ManualEntryForm({
             />
           ))}
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="accountName"
+          className="mb-1.5 block font-body text-[13px] font-medium text-[var(--text-secondary)]"
+        >
+          Account Name (optional)
+        </label>
+        <input
+          id="accountName"
+          type="text"
+          value={accountName}
+          onChange={(e) => setAccountName(e.target.value)}
+          placeholder="e.g. Wealthsimple TFSA, Work DC Pension"
+          className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
+        />
       </div>
 
       {holdings.length > 0 && (
@@ -638,18 +602,57 @@ function ManualEntryForm({
   );
 }
 
+function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
+  const DB_TO_DISPLAY: Record<string, AccountType> = {
+    "RRSP": "RRSP",
+    "TFSA": "TFSA",
+    "FHSA": "FHSA",
+    "non-registered": "Non-Reg",
+    "pension": "Pension",
+    "LIRA": "LIRA",
+    "RESP": "RESP",
+  };
+
+  return factFindAccounts.map((acc, i) => ({
+    id: `prefill-${i}-${Date.now()}`,
+    accountType: DB_TO_DISPLAY[acc.account_type] ?? "Non-Reg",
+    accountName: acc.description || undefined,
+    holdings: [
+      {
+        localId: `prefill-h-${i}-${Date.now()}`,
+        tickerOrName: "",
+        balance: acc.approximate_balance ?? 0,
+        units: undefined,
+      },
+    ],
+    collapsed: false,
+  }));
+}
+
 export default function HoldingsPage() {
-  const { currentStep, completedSteps, setCurrentStep, completeStep } =
+  const router = useRouter();
+  const { currentStep, completedSteps, setCurrentStep, completeStep, factFindAccounts } =
     useOnboardingStore();
   const [activeTab, setActiveTab] = useState<"manual" | "upload">("manual");
   const [accounts, setAccounts] = useState<SavedAccount[]>([]);
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const hasPrePopulated = useRef(false);
 
   useEffect(() => {
+    completeStep("profile");
+    completeStep("fact-find");
+    completeStep("risk-profile");
     setCurrentStep("holdings");
-  }, [setCurrentStep]);
+  }, [completeStep, setCurrentStep]);
+
+  useEffect(() => {
+    if (!hasPrePopulated.current && factFindAccounts.length > 0) {
+      hasPrePopulated.current = true;
+      setAccounts(buildPrePopulatedAccounts(factFindAccounts));
+    }
+  }, [factFindAccounts]);
 
   const handleSaveAccount = (account: SavedAccount) => {
     setAccounts((prev) => [...prev, account]);
@@ -668,21 +671,8 @@ export default function HoldingsPage() {
     setAccounts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const handleUploadParsed = (
-    holdings: { tickerOrName: string; balance: number; units?: number }[],
-  ) => {
-    const newAccount: SavedAccount = {
-      id: `acc-upload-${Date.now()}`,
-      accountType: "TFSA",
-      holdings: holdings.map((h, i) => ({
-        ...h,
-        localId: `upload-${Date.now()}-${i}`,
-        balance: h.balance,
-        units: h.units,
-      })),
-      collapsed: false,
-    };
-    setAccounts((prev) => [...prev, newAccount]);
+  const handleUploadParsed = (newAccounts: SavedAccount[]) => {
+    setAccounts((prev) => [...prev, ...newAccounts]);
     setActiveTab("manual");
   };
 
@@ -692,15 +682,20 @@ export default function HoldingsPage() {
   );
 
   const handleContinue = async () => {
-    if (accounts.length === 0) return;
-
     setIsSubmitting(true);
     setServerError(null);
+
+    if (accounts.length === 0) {
+      completeStep("holdings");
+      router.push("/onboarding/generating");
+      return;
+    }
 
     const formData = {
       accounts: accounts.map((a) => ({
         id: a.id,
         accountType: a.accountType,
+        accountName: a.accountName,
         holdings: a.holdings.map((h) => ({
           tickerOrName: h.tickerOrName,
           balance: h.balance,
@@ -730,6 +725,14 @@ export default function HoldingsPage() {
           completedSteps={completedSteps}
           className="mb-8"
         />
+
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+          <Info className="mt-0.5 size-4 shrink-0 text-blue-600" />
+          <p className="font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            For the best analysis, include exact fund names and ticker symbols where possible.
+            Approximate balances are fine for now — you can refine details later in your dashboard.
+          </p>
+        </div>
 
         <div className="mb-8">
           <div className="flex border-b border-[var(--warm-200)]">
@@ -769,6 +772,16 @@ export default function HoldingsPage() {
                 Add your investment accounts
               </h1>
             </div>
+
+            {factFindAccounts.length > 0 && accounts.length > 0 && (
+              <div className="flex items-start gap-3 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
+                <Info className="mt-0.5 size-4 shrink-0 text-[var(--emerald)]" />
+                <p className="font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                  We&apos;ve added accounts based on your conversation. Edit the details below,
+                  add specific holdings, or add more accounts.
+                </p>
+              </div>
+            )}
 
             {accounts.length === 0 && !isAddingAccount && (
               <EmptyState
@@ -820,35 +833,47 @@ export default function HoldingsPage() {
           </div>
         )}
 
-        {accounts.length > 0 && (
-          <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--warm-200)] bg-white">
-            <div className="mx-auto flex max-w-[800px] items-center justify-between px-6 py-4">
-              <div>
-                <span className="font-body text-[13px] text-[var(--text-muted)]">
-                  Total Portfolio
-                </span>
-                <p className="font-body text-[22px] font-semibold tabular-nums text-[var(--text-primary)]">
-                  $
-                  {runningTotal.toLocaleString("en-CA", {
-                    minimumFractionDigits: 2,
-                  })}
-                </p>
-              </div>
+        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--warm-200)] bg-white">
+          <div className="mx-auto flex max-w-[800px] items-center justify-between px-6 py-4">
+            <button
+              type="button"
+              onClick={() => router.push("/onboarding/fact-find")}
+              className="flex items-center gap-2 rounded-lg border border-[var(--warm-200)] px-5 py-2.5 font-display text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--warm-100)]"
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </button>
+
+            <div className="flex items-center gap-4">
+              {accounts.length > 0 && (
+                <div className="text-right">
+                  <span className="font-body text-[12px] text-[var(--text-muted)]">
+                    Total Portfolio
+                  </span>
+                  <p className="font-body text-[18px] font-semibold tabular-nums text-[var(--text-primary)]">
+                    ${runningTotal.toLocaleString("en-CA", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={handleContinue}
                 disabled={isSubmitting}
-                className="flex items-center justify-center rounded-lg bg-[var(--emerald)] px-8 py-3 font-display text-[15px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSubmitting ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (
-                  "Continue to Risk Profile"
+                  <>
+                    {accounts.length === 0 ? "Skip for now" : "Continue"}
+                    <ArrowRight className="size-4" />
+                  </>
                 )}
               </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,9 @@ import { HealthScore } from "@/components/app/HealthScore";
 import { FinancialCard } from "@/components/app/FinancialCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
+import { HouseholdCard } from "@/components/app/HouseholdCard";
+import { MeetingHistory } from "@/components/app/MeetingHistory";
+import { ReviewReminder } from "@/components/app/ReviewReminder";
 import { FileText, ArrowRight, Lock, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
@@ -166,6 +169,13 @@ function DashboardDelivered() {
             </Link>
           ))}
         </div>
+      </div>
+
+      <ReviewReminder />
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <HouseholdCard />
+        <MeetingHistory />
       </div>
 
       {marketContext && (

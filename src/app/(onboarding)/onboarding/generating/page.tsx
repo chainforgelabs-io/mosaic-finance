@@ -208,8 +208,12 @@ export default function GeneratingPage() {
   const { status: realtimeStatus } = usePlanStatusSubscription(planId);
 
   useEffect(() => {
+    completeStep("profile");
+    completeStep("fact-find");
+    completeStep("risk-profile");
+    completeStep("holdings");
     setCurrentStep("generating");
-  }, [setCurrentStep]);
+  }, [completeStep, setCurrentStep]);
 
   const triggerGeneration = useCallback(async () => {
     if (hasTriggered.current) return;

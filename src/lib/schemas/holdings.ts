@@ -12,11 +12,17 @@ export const ACCOUNT_TYPES = [
 
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
+const ACCOUNT_TYPE_DB_MAP: Record<string, string> = {
+  "Non-Reg": "non-registered",
+  "Pension": "pension",
+};
+
+export function toDbAccountType(displayType: string): string {
+  return ACCOUNT_TYPE_DB_MAP[displayType] ?? displayType;
+}
+
 export const holdingSchema = z.object({
-  tickerOrName: z
-    .string()
-    .min(1, "Ticker or fund name is required")
-    .max(100, "Name too long"),
+  tickerOrName: z.string().max(100, "Name too long").optional().default(""),
   balance: z
     .number({ message: "Balance is required" })
     .min(0, "Balance must be positive"),
@@ -28,6 +34,7 @@ export const accountSchema = z.object({
   accountType: z.enum(ACCOUNT_TYPES, {
     message: "Please select an account type",
   }),
+  accountName: z.string().max(100).optional(),
   holdings: z.array(holdingSchema).min(1, "Add at least one holding"),
 });
 

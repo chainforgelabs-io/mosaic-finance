@@ -9,6 +9,7 @@ import {
   Settings,
   ArrowUpRight,
   LogOut,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "My Plan", href: "/dashboard/plan", icon: FileText },
   { label: "Walkthrough", href: "/dashboard/plan/walkthrough", icon: MessageSquare, requiresPlan: true },
+  { label: "AI Meeting", href: "/dashboard/meeting", icon: Video },
   { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];

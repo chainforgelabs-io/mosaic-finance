@@ -1,3 +1,5 @@
+import { buildKnowledgeContext, type UserProfileFlags } from '@/lib/knowledge/loader';
+
 export interface PlanGenerationInput {
   profile: {
     annual_income?: number | null;
@@ -24,13 +26,18 @@ export interface PlanGenerationInput {
     risk_score: string;
     conversational_insights?: string | null;
   } | null;
+  factFindData?: unknown;
+  householdMembers?: { relationship: string; age?: number; occupation?: string; annual_income?: number; is_dependant?: boolean }[] | null;
   marketContext: unknown;
   generatedAt: string;
+  userFlags?: UserProfileFlags;
 }
 
 export function buildPlanGenerationPrompt(userData: PlanGenerationInput): string {
-  return `You are a CIM-designated senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a CIM-designated professional before delivery.
+  const knowledgeContext = buildKnowledgeContext('plan-generation', userData.userFlags ?? {});
 
+  return `You are a CIM-designated senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a CIM-designated professional before delivery.
+${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData, null, 2)}
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { holdingsSchema } from "@/lib/schemas/holdings";
+import { holdingsSchema, toDbAccountType } from "@/lib/schemas/holdings";
 import { redirect } from "next/navigation";
 
 export type HoldingsResult = {
@@ -12,7 +12,8 @@ export async function saveHoldings(formData: {
   accounts: {
     id: string;
     accountType: string;
-    holdings: { tickerOrName: string; balance: number; units?: number }[];
+    accountName?: string;
+    holdings: { tickerOrName?: string; balance: number; units?: number }[];
   }[];
 }): Promise<HoldingsResult> {
   const parsed = holdingsSchema.safeParse(formData);
@@ -39,16 +40,24 @@ export async function saveHoldings(formData: {
     return { error: "Failed to update holdings. Please try again." };
   }
 
-  const rows = parsed.data.accounts.flatMap((account) =>
-    account.holdings.map((holding) => ({
+  const rows = parsed.data.accounts.map((account) => {
+    const holdingsJson = account.holdings.map((h) => ({
+      ticker: h.tickerOrName || "",
+      name: h.tickerOrName || "",
+      balance: h.balance,
+      units: h.units ?? null,
+    }));
+
+    const totalValue = account.holdings.reduce((sum, h) => sum + h.balance, 0);
+
+    return {
       user_id: user.id,
-      account_type: account.accountType,
-      ticker_or_name: holding.tickerOrName,
-      balance: holding.balance,
-      units: holding.units ?? null,
-      created_at: new Date().toISOString(),
-    })),
-  );
+      account_type: toDbAccountType(account.accountType),
+      holdings: holdingsJson,
+      total_value: totalValue,
+      source: "manual" as const,
+    };
+  });
 
   if (rows.length > 0) {
     const { error: insertError } = await supabase
@@ -60,5 +69,5 @@ export async function saveHoldings(formData: {
     }
   }
 
-  redirect("/onboarding/risk-profile");
+  redirect("/onboarding/generating");
 }

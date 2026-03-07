@@ -14,6 +14,8 @@ interface State {
   timedOut: boolean;
 }
 
+const TIMEOUT_MS = 120_000;
+
 export class ConversationErrorBoundary extends Component<Props, State> {
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -24,10 +26,6 @@ export class ConversationErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, errorMessage: error.message };
-  }
-
-  componentDidMount() {
-    this.startTimeout();
   }
 
   componentWillUnmount() {
@@ -42,7 +40,7 @@ export class ConversationErrorBoundary extends Component<Props, State> {
         timedOut: true,
         errorMessage: "The conversation is taking longer than expected.",
       });
-    }, 30_000);
+    }, TIMEOUT_MS);
   }
 
   clearTimeout() {
@@ -58,7 +56,6 @@ export class ConversationErrorBoundary extends Component<Props, State> {
 
   handleRetry = () => {
     this.setState({ hasError: false, errorMessage: null, timedOut: false });
-    this.startTimeout();
     this.props.onRetry?.();
   };
 

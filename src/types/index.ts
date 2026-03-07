@@ -12,11 +12,11 @@ export type RiskLabel =
 export interface UserProfile {
   id: string;
   alias: string;
-  email: string;
-  province: string;
-  age: number;
-  employmentType: string;
-  familyStructure: string;
+  email?: string;
+  province?: string;
+  age?: number;
+  employmentType?: string;
+  familyStructure?: string;
   tier: Tier;
 }
 
@@ -87,11 +87,22 @@ export interface ConversationMessage {
   timestamp: string;
 }
 
+export interface HouseholdMember {
+  id?: string;
+  relationship: "spouse" | "child" | "parent" | "sibling" | "other";
+  age?: number;
+  sex?: "male" | "female" | "other" | "prefer-not-to-say";
+  occupation?: string;
+  annualIncome?: number;
+  isDependant: boolean;
+  notes?: string;
+}
+
 export type OnboardingStep =
   | "profile"
   | "fact-find"
-  | "holdings"
   | "risk-profile"
+  | "holdings"
   | "generating"
   | "review"
   | "complete";

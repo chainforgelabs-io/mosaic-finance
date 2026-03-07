@@ -25,8 +25,19 @@ export type OnboardingResult = {
 
 export async function saveFinancialProfile(formData: {
   age: number;
+  sex?: string;
+  annualIncome?: number;
   employmentType: string;
   familyStructure: string;
+  householdMembers?: {
+    relationship: string;
+    age?: number;
+    sex?: string;
+    occupation?: string;
+    annualIncome?: number;
+    isDependant: boolean;
+    notes?: string;
+  }[];
 }): Promise<OnboardingResult> {
   const parsed = financialProfileSchema.safeParse(formData);
   if (!parsed.success) {
@@ -47,6 +58,8 @@ export async function saveFinancialProfile(formData: {
     .from("user_profiles")
     .update({
       age: parsed.data.age,
+      sex: parsed.data.sex ?? null,
+      annual_income: parsed.data.annualIncome ?? 0,
       employment_type: EMPLOYMENT_DB_MAP[parsed.data.employmentType] ?? parsed.data.employmentType.toLowerCase(),
       family_structure: FAMILY_DB_MAP[parsed.data.familyStructure] ?? parsed.data.familyStructure.toLowerCase(),
       updated_at: new Date().toISOString(),
@@ -55,6 +68,35 @@ export async function saveFinancialProfile(formData: {
 
   if (profileError) {
     return { error: "Failed to save profile. Please try again." };
+  }
+
+  // Save household members
+  const members = parsed.data.householdMembers ?? [];
+  if (members.length > 0) {
+    // Clear existing members first
+    await supabase
+      .from("household_members")
+      .delete()
+      .eq("user_id", user.id);
+
+    const rows = members.map((m) => ({
+      user_id: user.id,
+      relationship: m.relationship,
+      age: m.age ?? null,
+      sex: m.sex ?? null,
+      occupation: m.occupation ?? null,
+      annual_income: m.annualIncome ?? 0,
+      is_dependant: m.isDependant,
+      notes: m.notes ?? null,
+    }));
+
+    const { error: membersError } = await supabase
+      .from("household_members")
+      .insert(rows);
+
+    if (membersError) {
+      return { error: "Failed to save household members. Please try again." };
+    }
   }
 
   const { data: existingProfile } = await supabase

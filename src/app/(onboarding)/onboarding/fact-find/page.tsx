@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Check, AlertTriangle } from "lucide-react";
+import { ArrowUp, Check, AlertTriangle, Paperclip, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { FinovaLogo } from "@/components/app/FinovaLogo";
@@ -14,6 +14,7 @@ import {
   type ExtractedTopics,
 } from "@/stores/conversation";
 
+
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "income", label: "Income" },
   { key: "expenses", label: "Expenses" },
@@ -21,7 +22,7 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "goals", label: "Goals" },
   { key: "retirement", label: "Retirement" },
   { key: "investments", label: "Investments" },
-  { key: "knowledge", label: "Knowledge" },
+  { key: "risk", label: "Risk Profile" },
 ];
 
 const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
@@ -32,6 +33,7 @@ const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
   retirement: /retire|retirement|cpp|oas|pension|rsp|rrsp|age 6[0-9]|age 55/i,
   investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance/i,
   knowledge: /knowledge|experience|familiar|understand.*risk|novice|beginner|intermediate|advanced|comfortable with/i,
+  risk: /risk|volatil|market drop|decline|loss|conservative|aggressive|growth|balanced|comfort.*with.*los|react.*drop|sell everything|buy more|gut reaction/i,
 };
 
 function detectTopics(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
@@ -120,25 +122,28 @@ function SummaryCard({
   summary,
   onConfirm,
   onCorrect,
+  isSubmitting,
 }: {
   summary: Record<string, unknown>;
   onConfirm: () => void;
   onCorrect: () => void;
+  isSubmitting: boolean;
 }) {
   const formatValue = (value: unknown): string => {
     if (Array.isArray(value)) return value.join(", ");
+    if (typeof value === "object" && value !== null) return JSON.stringify(value);
     return String(value ?? "—");
   };
 
   const displayFields: { key: string; label: string }[] = [
     { key: "annual_income", label: "Annual Income" },
-    { key: "monthly_income", label: "Monthly Income" },
     { key: "monthly_expenses", label: "Monthly Expenses" },
-    { key: "total_debts", label: "Total Debts" },
-    { key: "financial_goals", label: "Financial Goals" },
-    { key: "target_retirement_age", label: "Target Retirement Age" },
-    { key: "current_investments", label: "Current Investments" },
-    { key: "knowledge_level", label: "Knowledge Level" },
+    { key: "emergency_fund_months", label: "Emergency Fund (months)" },
+    { key: "retirement_target_age", label: "Target Retirement Age" },
+    { key: "investment_knowledge", label: "Investment Knowledge" },
+    { key: "risk_score", label: "Risk Profile" },
+    { key: "province", label: "Province" },
+    { key: "family_structure", label: "Family Structure" },
   ];
 
   return (
@@ -148,9 +153,15 @@ function SummaryCard({
           <Check className="size-4 text-[var(--emerald)]" />
         </div>
         <h3 className="font-display text-[17px] font-semibold text-[var(--text-primary)]">
-          Summary Confirmed
+          Assessment Complete
         </h3>
       </div>
+
+      {typeof summary.conversational_summary === "string" && (
+        <p className="mb-4 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
+          {summary.conversational_summary}
+        </p>
+      )}
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         {displayFields.map(({ key, label }) => {
@@ -175,13 +186,15 @@ function SummaryCard({
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           onClick={onConfirm}
-          className="flex-1 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
+          disabled={isSubmitting}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-60"
         >
-          Looks right
+          {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : "Looks right — continue"}
         </button>
         <button
           onClick={onCorrect}
-          className="flex-1 rounded-lg border border-[var(--warm-200)] bg-white px-5 py-2.5 font-display text-[14px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--warm-100)]"
+          disabled={isSubmitting}
+          className="flex-1 rounded-lg border border-[var(--warm-200)] bg-white px-5 py-2.5 font-display text-[14px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--warm-100)] disabled:opacity-60"
         >
           Let me correct something
         </button>
@@ -199,6 +212,7 @@ function FactFindConversation() {
     setCurrentStep,
     completeStep,
     setComplianceAcknowledged,
+    setFactFindAccounts,
   } = useOnboardingStore();
 
   const {
@@ -222,14 +236,20 @@ function FactFindConversation() {
 
   const [inputValue, setInputValue] = useState("");
   const [isStarting, setIsStarting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isPreparingAssessment, setIsPreparingAssessment] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const errorBoundaryRef = useRef<ConversationErrorBoundary>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    completeStep("profile");
     setCurrentStep("fact-find");
-  }, [setCurrentStep]);
+  }, [completeStep, setCurrentStep]);
 
   const scrollToBottom = useCallback(() => {
     if (scrollContainerRef.current) {
@@ -287,13 +307,21 @@ function FactFindConversation() {
         const decoder = new TextDecoder();
         let buffer = "";
         let accumulated = "";
+        let lastDeltaTime = Date.now();
+        let preparingShown = false;
+
+        const preparingTimer = setInterval(() => {
+          if (!preparingShown && Date.now() - lastDeltaTime > 3000 && accumulated.length > 0) {
+            preparingShown = true;
+            setIsPreparingAssessment(true);
+          }
+        }, 1000);
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
@@ -302,52 +330,37 @@ function FactFindConversation() {
             const dataStr = line.slice(6);
             try {
               const data = JSON.parse(dataStr);
-
               switch (data.type) {
                 case "delta":
+                  lastDeltaTime = Date.now();
                   accumulated += data.text;
                   updateLastAssistantMessage(accumulated);
                   break;
-
-                case "topics":
-                  setExtractedTopics(data);
-                  break;
-
                 case "done":
-                  if (data.sessionComplete) {
+                  if (data.sessionComplete && data.extractedData) {
                     setSessionComplete(true);
-                    if (data.extractedData) {
-                      setSummaryData(data.extractedData);
-                    }
+                    setSummaryData(data.extractedData);
                   }
                   break;
-
                 case "error":
                   setError(data.message ?? "An error occurred");
                   break;
               }
             } catch {
-              // SSE parse error — skip malformed chunk
+              // SSE parse error
             }
           }
         }
-        // Check for completion tag in accumulated response
-        const completeMatch = accumulated.match(
-          /<FACT_FIND_COMPLETE>([\s\S]*?)<\/FACT_FIND_COMPLETE>/,
-        );
-        if (completeMatch) {
-          try {
-            const extractedData = JSON.parse(completeMatch[1]);
-            setSessionComplete(true);
-            setSummaryData(extractedData);
-            const cleaned = accumulated
-              .replace(/<FACT_FIND_COMPLETE>[\s\S]*?<\/FACT_FIND_COMPLETE>/, "")
-              .trim();
-            if (cleaned) {
-              updateLastAssistantMessage(cleaned);
-            }
-          } catch {
-            // JSON parse failed
+
+        clearInterval(preparingTimer);
+        setIsPreparingAssessment(false);
+
+        if (accumulated.includes("<FACT_FIND_COMPLETE>")) {
+          const cleaned = accumulated
+            .replace(/<FACT_FIND_COMPLETE>[\s\S]*/, "")
+            .trim();
+          if (cleaned) {
+            updateLastAssistantMessage(cleaned);
           }
         }
       } catch (err) {
@@ -357,6 +370,7 @@ function FactFindConversation() {
       } finally {
         setStreaming(false);
         errorBoundaryRef.current?.clearTimeout();
+        requestAnimationFrame(() => textareaRef.current?.focus());
       }
     },
     [
@@ -365,10 +379,62 @@ function FactFindConversation() {
       updateLastAssistantMessage,
       setStreaming,
       setError,
-      setExtractedTopics,
       setSessionComplete,
       setSummaryData,
     ],
+  );
+
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      if (!sessionId) return;
+
+      setIsUploadingFile(true);
+
+      addMessage({
+        id: `user-file-${Date.now()}`,
+        role: "user",
+        content: `📎 Uploaded: ${file.name}`,
+        attachmentName: file.name,
+      });
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch("/api/upload/statement", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          throw new Error(uploadData.error ?? "Upload failed");
+        }
+
+        const parsed = uploadData.parsedHoldings ?? uploadData;
+        const accounts = parsed.accounts ?? [];
+
+        let contextMessage = "I've uploaded a financial statement.";
+        if (accounts.length > 0) {
+          const accountSummaries = accounts.map(
+            (acc: { account_type: string; holdings?: { name?: string; balance?: number }[]; total_value?: number }) => {
+              const total = acc.total_value ?? acc.holdings?.reduce((s: number, h: { balance?: number }) => s + (h.balance ?? 0), 0) ?? 0;
+              return `${acc.account_type}: $${total.toLocaleString("en-CA")}`;
+            },
+          );
+          contextMessage += ` The statement shows: ${accountSummaries.join(", ")}.`;
+        }
+
+        await sendMessage(contextMessage);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to upload statement");
+      } finally {
+        setIsUploadingFile(false);
+        setPendingFile(null);
+      }
+    },
+    [sessionId, addMessage, sendMessage, setError],
   );
 
   const startConversation = useCallback(async () => {
@@ -433,9 +499,21 @@ function FactFindConversation() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    setIsSubmitting(true);
+
+    if (summaryData && typeof summaryData === "object") {
+      const data = summaryData as Record<string, unknown>;
+
+      if (Array.isArray(data.investment_accounts)) {
+        setFactFindAccounts(
+          data.investment_accounts as { account_type: string; approximate_balance: number; description: string }[],
+        );
+      }
+    }
+
     completeStep("fact-find");
-    router.push("/onboarding/holdings");
+    router.push("/onboarding/risk-profile");
   };
 
   const handleCorrect = () => {
@@ -454,7 +532,7 @@ function FactFindConversation() {
 
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRetry}>
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)]">
         <div className="shrink-0 px-4">
           <div className="mx-auto max-w-[920px]">
             <div className="flex justify-center">
@@ -481,7 +559,7 @@ function FactFindConversation() {
                 >
                   <div className="mx-auto max-w-[720px] px-4 py-6">
                     <p className="mb-6 font-body text-[12px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                      Financial Fact-Find
+                      Financial Consultation
                     </p>
 
                     <div className="space-y-4">
@@ -515,11 +593,21 @@ function FactFindConversation() {
                       </div>
                     )}
 
+                    {isPreparingAssessment && !sessionComplete && (
+                      <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
+                        <Loader2 className="size-4 animate-spin text-[var(--emerald)]" />
+                        <span className="font-body text-[14px] text-[var(--text-secondary)]">
+                          Preparing your assessment summary...
+                        </span>
+                      </div>
+                    )}
+
                     {sessionComplete && summaryData && (
                       <SummaryCard
                         summary={summaryData as unknown as Record<string, unknown>}
                         onConfirm={handleConfirm}
                         onCorrect={handleCorrect}
+                        isSubmitting={isSubmitting}
                       />
                     )}
 
@@ -529,21 +617,64 @@ function FactFindConversation() {
 
                 {!sessionComplete && (
                   <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
+                    {pendingFile && (
+                      <div className="mx-auto flex max-w-[720px] items-center gap-2 px-4 pt-3">
+                        <div className="flex items-center gap-2 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] px-3 py-1.5">
+                          <Paperclip className="size-3.5 text-[var(--text-muted)]" />
+                          <span className="font-body text-[13px] text-[var(--text-secondary)]">
+                            {pendingFile.name}
+                          </span>
+                          <button
+                            onClick={() => setPendingFile(null)}
+                            className="text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     <div className="mx-auto flex max-w-[720px] items-end gap-3 px-4 py-4">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isStreaming || isUploadingFile || !sessionId}
+                        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--warm-200)] bg-white transition-colors hover:bg-[var(--warm-100)] disabled:opacity-30"
+                        title="Attach a financial statement"
+                      >
+                        {isUploadingFile ? (
+                          <Loader2 className="size-4 animate-spin text-[var(--text-muted)]" />
+                        ) : (
+                          <Paperclip className="size-4 text-[var(--text-muted)]" />
+                        )}
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleFileUpload(file);
+                          }
+                          if (e.target) e.target.value = "";
+                        }}
+                      />
                       <textarea
                         ref={textareaRef}
+                        autoFocus
                         value={inputValue}
                         onChange={handleTextareaInput}
                         onKeyDown={handleKeyDown}
                         placeholder="Type your response..."
-                        disabled={isStreaming || !sessionId}
+                        disabled={isStreaming || isUploadingFile || !sessionId}
                         rows={1}
                         className="flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
                       />
                       <button
                         onClick={handleSend}
                         disabled={
-                          isStreaming || !inputValue.trim() || !sessionId
+                          isStreaming || isUploadingFile || !inputValue.trim() || !sessionId
                         }
                         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--slate-950)] transition-opacity hover:opacity-80 disabled:opacity-30"
                       >
@@ -551,7 +682,7 @@ function FactFindConversation() {
                       </button>
                     </div>
                     <p className="px-4 pb-3 text-center font-body text-[11px] text-[var(--text-muted)]">
-                      Your responses are encrypted and never shared.
+                      Your responses are encrypted and never shared. Attach statements anytime.
                     </p>
                   </div>
                 )}

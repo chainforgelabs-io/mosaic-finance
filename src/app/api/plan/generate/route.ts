@@ -58,19 +58,11 @@ export async function POST(req: NextRequest) {
         .single(),
     ]);
 
-    if (!financialProfile.data) {
-      return NextResponse.json(
-        { error: 'Financial profile is required before generating a plan. Please complete the fact-find first.' },
-        { status: 400 },
-      );
-    }
+    // Financial profile may not exist if onboarding profile page was minimal —
+    // the fact-find conversation data is more comprehensive anyway
 
-    if (!riskProfile.data) {
-      return NextResponse.json(
-        { error: 'Risk profile is required before generating a plan. Please complete the risk assessment first.' },
-        { status: 400 },
-      );
-    }
+    // Risk profile is populated from the fact-find conversation but may not exist
+    // if the save failed silently — proceed without it rather than blocking
 
     let marketContext = null;
     try {
@@ -83,6 +75,38 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Fetch the most recent completed fact-find session for richer data
+    const { data: factFindSession } = await supabase
+      .from('conversation_sessions')
+      .select('metadata')
+      .eq('user_id', user.id)
+      .eq('session_type', 'fact-find')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    const factFindData = typeof factFindSession?.metadata === 'object'
+      ? (factFindSession.metadata as Record<string, unknown>)?.extracted_data ?? null
+      : null;
+
+    // Fetch household members
+    const { data: householdMembers } = await supabase
+      .from('household_members')
+      .select('relationship, age, occupation, annual_income, is_dependant')
+      .eq('user_id', user.id);
+
+    // Build user flags from fact-find detected flags
+    const detectedFlags = (factFindData as Record<string, unknown> | null)?.detected_flags as Record<string, boolean> | undefined;
+    const userFlags = {
+      isDivorced: detectedFlags?.is_divorced_or_separated ?? false,
+      isBusinessOwner: detectedFlags?.is_business_owner ?? false,
+      isSelfEmployed: detectedFlags?.is_self_employed ?? (userProfile?.employment_type === 'self-employed'),
+      hasUSProperty: detectedFlags?.has_us_property ?? false,
+      hasUSIncome: detectedFlags?.has_us_income ?? false,
+      isSnowbird: detectedFlags?.is_snowbird ?? false,
+    };
+
     const userData = {
       profile: financialProfile.data,
       userProfile: userProfile ? {
@@ -94,8 +118,11 @@ export async function POST(req: NextRequest) {
       } : null,
       holdings: holdings.data,
       riskProfile: riskProfile.data,
+      factFindData,
+      householdMembers: householdMembers ?? null,
       marketContext: marketContext as Record<string, unknown> | null,
       generatedAt: new Date().toISOString(),
+      userFlags,
     };
 
     const planJson = await claudeChat(

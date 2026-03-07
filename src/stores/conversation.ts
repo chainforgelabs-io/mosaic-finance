@@ -4,6 +4,7 @@ export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  attachmentName?: string;
 }
 
 export interface ExtractedTopics {
@@ -14,6 +15,7 @@ export interface ExtractedTopics {
   retirement: boolean;
   investments: boolean;
   knowledge: boolean;
+  risk: boolean;
 }
 
 export interface ExtractedSummary {
@@ -25,6 +27,8 @@ export interface ExtractedSummary {
   target_retirement_age?: number;
   current_investments?: string;
   knowledge_level?: string;
+  risk_score?: string;
+  conversational_summary?: string;
 }
 
 interface ConversationState {
@@ -55,6 +59,7 @@ const initialTopics: ExtractedTopics = {
   retirement: false,
   investments: false,
   knowledge: false,
+  risk: false,
 };
 
 export const useConversationStore = create<ConversationState>((set) => ({
