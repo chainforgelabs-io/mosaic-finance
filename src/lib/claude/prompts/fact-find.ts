@@ -93,7 +93,7 @@ CRITICAL OUTPUT RULES:
 
 IMPORTANT:
 - Always include ALL fields in the completion JSON
-- The "investment_accounts" array should contain every account discussed, with approximate balances
+- "investment_accounts" is REQUIRED. Include every account type and approximate balance discussed (RRSP, TFSA, FHSA, non-registered, pension, etc.). If the client mentioned "I have a TFSA with about $20K," include { "account_type": "TFSA", "approximate_balance": 20000, "description": "TFSA" }. Never leave this array empty if accounts were discussed.
 - "detected_flags" must be populated based on what was discussed — these flags trigger additional planning modules
 - "conversational_summary" should be a brief narrative summary of the client's overall financial picture
 - Do NOT assess or score risk tolerance — that is handled in the next step

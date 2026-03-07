@@ -22,6 +22,8 @@ import { FinovaLogo } from "@/components/app/FinovaLogo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
+import { getFactFindAccounts } from "@/lib/actions/onboarding";
+import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import {
   ACCOUNT_TYPES,
   type AccountType,
@@ -638,6 +640,7 @@ export default function HoldingsPage() {
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [accountsFromConversation, setAccountsFromConversation] = useState(false);
   const hasPrePopulated = useRef(false);
 
   useEffect(() => {
@@ -648,10 +651,21 @@ export default function HoldingsPage() {
   }, [completeStep, setCurrentStep]);
 
   useEffect(() => {
-    if (!hasPrePopulated.current && factFindAccounts.length > 0) {
+    if (hasPrePopulated.current) return;
+
+    if (factFindAccounts.length > 0) {
       hasPrePopulated.current = true;
+      setAccountsFromConversation(true);
       setAccounts(buildPrePopulatedAccounts(factFindAccounts));
+      return;
     }
+
+    getFactFindAccounts().then((dbAccounts) => {
+      if (hasPrePopulated.current || !dbAccounts || dbAccounts.length === 0) return;
+      hasPrePopulated.current = true;
+      setAccountsFromConversation(true);
+      setAccounts(buildPrePopulatedAccounts(dbAccounts));
+    });
   }, [factFindAccounts]);
 
   const handleSaveAccount = (account: SavedAccount) => {
@@ -773,7 +787,7 @@ export default function HoldingsPage() {
               </h1>
             </div>
 
-            {factFindAccounts.length > 0 && accounts.length > 0 && (
+            {accounts.length > 0 && accounts.some((a) => a.id.startsWith("prefill-")) && (
               <div className="flex items-start gap-3 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
                 <Info className="mt-0.5 size-4 shrink-0 text-[var(--emerald)]" />
                 <p className="font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">

@@ -125,25 +125,39 @@ export async function POST(req: NextRequest) {
       userFlags,
     };
 
-    const planJson = await claudeChat(
-      [{ role: 'user', content: 'Generate the complete financial plan now.' }],
-      buildPlanGenerationPrompt(userData),
-      { maxTokens: 8000, model: 'opus' },
-    );
+    let planJson: string;
+    try {
+      planJson = await claudeChat(
+        [{ role: 'user', content: 'Generate the complete financial plan now.' }],
+        buildPlanGenerationPrompt(userData),
+        { maxTokens: 8000, model: 'opus' },
+      );
+    } catch (err) {
+      captureAPIError(err, {
+        route: 'plan/generate',
+        userId: user.id,
+        step: 'claude_chat',
+      });
+      return NextResponse.json(
+        { error: 'Plan generation failed — please try again', code: 'PLAN_GEN_FAILED' },
+        { status: 500 },
+      );
+    }
 
-    let planData;
+    let planData: Record<string, unknown>;
     try {
       const jsonMatch = planJson.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON object found in response');
-      planData = JSON.parse(jsonMatch[0]);
+      planData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
     } catch {
       captureAPIError(new Error('Plan generation produced invalid JSON'), {
         route: 'plan/generate',
         userId: user.id,
+        step: 'json_parse',
         rawLength: planJson.length,
       });
       return NextResponse.json(
-        { error: 'Plan generation failed — please try again' },
+        { error: 'Plan generation failed — please try again', code: 'PLAN_GEN_FAILED' },
         { status: 500 },
       );
     }
@@ -162,9 +176,10 @@ export async function POST(req: NextRequest) {
       captureAPIError(planError ?? new Error('Plan insert returned null'), {
         route: 'plan/generate',
         userId: user.id,
+        step: 'plan_insert',
       });
       return NextResponse.json(
-        { error: 'Failed to save plan' },
+        { error: 'Failed to save plan', code: 'PLAN_GEN_FAILED' },
         { status: 500 },
       );
     }
@@ -210,9 +225,9 @@ export async function POST(req: NextRequest) {
         'Your financial plan has been generated and submitted for CIM review. You will be notified when it is ready.',
     });
   } catch (error) {
-    captureAPIError(error, { route: 'plan/generate' });
+    captureAPIError(error, { route: 'plan/generate', step: 'unknown' });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', code: 'PLAN_GEN_FAILED' },
       { status: 500 },
     );
   }

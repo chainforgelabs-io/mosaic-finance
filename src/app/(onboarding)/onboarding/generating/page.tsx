@@ -220,7 +220,15 @@ export default function GeneratingPage() {
     hasTriggered.current = true;
 
     try {
-      const res = await fetch("/api/plan/generate", { method: "POST" });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+      const res = await fetch("/api/plan/generate", {
+        method: "POST",
+        credentials: "include",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (!res.ok) {
@@ -235,8 +243,14 @@ export default function GeneratingPage() {
         setPageState("pending_review");
         completeStep("generating");
       }
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setError(
+          "Plan generation is taking longer than expected. Please check your connection and try again.",
+        );
+      } else {
+        setError("Network error. Please try again.");
+      }
       hasTriggered.current = false;
     }
   }, [completeStep]);
@@ -288,12 +302,12 @@ export default function GeneratingPage() {
         if (user) {
           const { data } = await supabase
             .from("user_profiles")
-            .select("tier")
+            .select("subscription_tier")
             .eq("id", user.id)
             .single();
 
-          if (data?.tier) {
-            setTier(data.tier as typeof tier);
+          if (data?.subscription_tier) {
+            setTier(data.subscription_tier as typeof tier);
           }
         }
       } catch {
