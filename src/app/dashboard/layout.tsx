@@ -1,12 +1,45 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
 import { createClient } from "@/lib/supabase/client";
 
+const PROVINCE_CODE_TO_NAME: Record<string, string> = {
+  AB: "Alberta",
+  BC: "British Columbia",
+  MB: "Manitoba",
+  NB: "New Brunswick",
+  NL: "Newfoundland and Labrador",
+  NT: "Northwest Territories",
+  NS: "Nova Scotia",
+  NU: "Nunavut",
+  ON: "Ontario",
+  PE: "Prince Edward Island",
+  QC: "Quebec",
+  SK: "Saskatchewan",
+  YT: "Yukon",
+};
+
+const EMPLOYMENT_DB_TO_DISPLAY: Record<string, string> = {
+  employed: "Employed",
+  "self-employed": "Self-Employed",
+  retired: "Retired",
+  student: "Student",
+};
+
+const FAMILY_DB_TO_DISPLAY: Record<string, string> = {
+  single: "Single",
+  married: "Married",
+  "common-law": "Common-Law",
+  "single-parent": "Single Parent",
+  family: "Family",
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const { user, planStatus, setUser, setPlanStatus } = usePlanStore();
 
   useEffect(() => {
@@ -14,20 +47,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     async function loadUser() {
       const supabase = createClient();
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        router.replace("/login");
+        return;
+      }
+
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
+      if (!authUser) {
+        await supabase.auth.signOut();
+        router.replace("/login");
+        return;
+      }
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("alias, subscription_tier")
+        .select("alias, subscription_tier, age, province, employment_type, family_structure")
         .eq("id", authUser.id)
         .single();
 
       if (profile) {
+        const rawProvince = profile.province ?? "";
+        const rawEmployment = profile.employment_type ?? "";
+        const rawFamily = profile.family_structure ?? "";
+
         setUser({
           id: authUser.id,
-          alias: profile.alias,
+          alias: profile.alias ?? authUser.user_metadata?.alias ?? "User",
           tier: profile.subscription_tier ?? "free",
+          age: profile.age ?? undefined,
+          province: PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince || undefined,
+          employmentType: EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment || undefined,
+          familyStructure: FAMILY_DB_TO_DISPLAY[rawFamily] ?? rawFamily || undefined,
+        });
+      } else {
+        setUser({
+          id: authUser.id,
+          alias: authUser.user_metadata?.alias ?? "User",
+          tier: "free",
         });
       }
 
@@ -47,7 +105,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     loadUser();
-  }, [user, setUser, setPlanStatus]);
+  }, [user, setUser, setPlanStatus, router]);
 
   return (
     <div className="min-h-screen bg-[var(--warm-50)]">

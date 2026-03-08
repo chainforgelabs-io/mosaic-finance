@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import {
   Briefcase,
   GraduationCap,
@@ -21,7 +22,11 @@ import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { FinovaLogo } from "@/components/app/FinovaLogo";
 import { useOnboardingStore } from "@/stores/onboarding";
-import { saveFinancialProfile } from "@/lib/actions/onboarding";
+import {
+  saveFinancialProfile,
+  getOnboardingProgress,
+  getUserProfileData,
+} from "@/lib/actions/onboarding";
 import {
   financialProfileSchema,
   EMPLOYMENT_TYPES,
@@ -31,6 +36,21 @@ import {
   type FinancialProfileFormData,
 } from "@/lib/schemas/onboarding";
 import type { LucideIcon } from "lucide-react";
+
+const EMPLOYMENT_DB_TO_FORM: Record<string, string> = {
+  employed: "Employed",
+  "self-employed": "Self-Employed",
+  retired: "Retired",
+  student: "Student",
+};
+
+const FAMILY_DB_TO_FORM: Record<string, string> = {
+  single: "Single",
+  married: "Married",
+  "common-law": "Common-Law",
+  "single-parent": "Single Parent",
+  family: "Family",
+};
 
 const EMPLOYMENT_OPTIONS: { value: (typeof EMPLOYMENT_TYPES)[number]; label: string; icon: LucideIcon }[] = [
   { value: "Employed", label: "Employed", icon: Briefcase },
@@ -63,15 +83,19 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
 };
 
 export default function OnboardingProfilePage() {
-  const { currentStep, completedSteps, setCurrentStep } = useOnboardingStore();
+  const router = useRouter();
+  const { currentStep, completedSteps, setCurrentStep, completeStep } =
+    useOnboardingStore();
   const [serverError, setServerError] = useState<string | null>(null);
   const [showHousehold, setShowHousehold] = useState(false);
+  const [checkingProgress, setCheckingProgress] = useState(true);
 
   const {
     register,
     handleSubmit,
     control,
     watch,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FinancialProfileFormData>({
     resolver: zodResolver(financialProfileSchema),
@@ -95,7 +119,50 @@ export default function OnboardingProfilePage() {
 
   useEffect(() => {
     setCurrentStep("profile");
-  }, [setCurrentStep]);
+
+    async function checkAndResume() {
+      try {
+        const [progress, profile] = await Promise.all([
+          getOnboardingProgress(),
+          getUserProfileData(),
+        ]);
+
+        if (progress.profileComplete && progress.redirectPath !== "/onboarding") {
+          completeStep("profile");
+          if (progress.factFindComplete) completeStep("fact-find");
+          if (progress.riskProfileComplete) completeStep("risk-profile");
+          if (progress.holdingsExist) completeStep("holdings");
+          router.replace(progress.redirectPath);
+          return;
+        }
+
+        if (profile) {
+          const employment = profile.employment_type
+            ? EMPLOYMENT_DB_TO_FORM[profile.employment_type] ?? undefined
+            : undefined;
+          const family = profile.family_structure
+            ? FAMILY_DB_TO_FORM[profile.family_structure] ?? undefined
+            : undefined;
+
+          reset({
+            age: profile.age ?? undefined,
+            sex: (profile.sex as FinancialProfileFormData["sex"]) ?? undefined,
+            annualIncome: profile.annual_income ?? undefined,
+            employmentType: employment as FinancialProfileFormData["employmentType"],
+            occupation: profile.occupation ?? undefined,
+            familyStructure: family as FinancialProfileFormData["familyStructure"],
+            householdMembers: [],
+          });
+        }
+      } catch {
+        // If progress check fails, just show the profile form
+      } finally {
+        setCheckingProgress(false);
+      }
+    }
+
+    checkAndResume();
+  }, [setCurrentStep, completeStep, router, reset]);
 
   useEffect(() => {
     if (familyStructure && familyStructure !== "Single" && fields.length === 0) {
@@ -109,6 +176,14 @@ export default function OnboardingProfilePage() {
     if (result?.error) {
       setServerError(result.error);
     }
+  }
+
+  if (checkingProgress) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-12">
+        <Loader2 className="size-8 animate-spin text-[var(--emerald)]" />
+      </div>
+    );
   }
 
   return (

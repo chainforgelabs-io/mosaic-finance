@@ -13,6 +13,7 @@ import { signInSchema, type SignInFormData } from "@/lib/schemas/auth";
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackError = searchParams.get("error");
+  const redirectTo = searchParams.get("redirectTo");
 
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(
@@ -36,7 +37,10 @@ export default function LoginPage() {
 
   async function onSubmit(data: SignInFormData) {
     setServerError(null);
-    const result = await signIn(data);
+    const result = await signIn({
+      ...data,
+      redirectTo: redirectTo ?? undefined,
+    });
     if (result?.error) {
       setServerError(result.error);
     }

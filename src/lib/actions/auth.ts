@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { signUpSchema, signInSchema } from "@/lib/schemas/auth";
+import { getOnboardingProgress } from "@/lib/actions/onboarding";
 
 const PROVINCE_CODES: Record<string, string> = {
   "Alberta": "AB",
@@ -68,9 +69,12 @@ export async function signUp(formData: {
   redirect("/onboarding");
 }
 
+const SAFE_REDIRECT_PREFIXES = ["/dashboard", "/onboarding", "/admin"];
+
 export async function signIn(formData: {
   email: string;
   password: string;
+  redirectTo?: string;
 }): Promise<AuthResult> {
   const parsed = signInSchema.safeParse(formData);
   if (!parsed.success) {
@@ -88,22 +92,16 @@ export async function signIn(formData: {
     return { error: authError.message };
   }
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from("financial_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .single();
-
-    if (profile) {
-      redirect("/dashboard");
-    }
+  const explicit = formData.redirectTo;
+  if (
+    explicit &&
+    SAFE_REDIRECT_PREFIXES.some((p) => explicit.startsWith(p))
+  ) {
+    redirect(explicit);
   }
 
-  redirect("/onboarding");
+  const progress = await getOnboardingProgress();
+  redirect(progress.redirectPath);
 }
 
 export async function signInWithGoogle(): Promise<AuthResult> {

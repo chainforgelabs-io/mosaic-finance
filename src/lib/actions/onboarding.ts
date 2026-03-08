@@ -124,6 +124,123 @@ export async function saveFinancialProfile(formData: {
   redirect("/onboarding/fact-find");
 }
 
+export type OnboardingProgress = {
+  profileComplete: boolean;
+  factFindComplete: boolean;
+  riskProfileComplete: boolean;
+  holdingsExist: boolean;
+  planExists: boolean;
+  redirectPath: string;
+};
+
+/**
+ * Queries the DB to determine how far the user has progressed through onboarding
+ * and returns the appropriate redirect path so they can resume.
+ */
+export async function getOnboardingProgress(): Promise<OnboardingProgress> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const empty: OnboardingProgress = {
+    profileComplete: false,
+    factFindComplete: false,
+    riskProfileComplete: false,
+    holdingsExist: false,
+    planExists: false,
+    redirectPath: "/onboarding",
+  };
+
+  if (!user) return empty;
+
+  const [profileRes, factFindRes, riskRes, holdingsRes, planRes] =
+    await Promise.all([
+      supabase
+        .from("user_profiles")
+        .select("age, employment_type")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("conversation_sessions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("session_type", "fact-find")
+        .eq("status", "completed")
+        .limit(1)
+        .single(),
+      supabase
+        .from("risk_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .single(),
+      supabase
+        .from("investment_holdings")
+        .select("id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .single(),
+      supabase
+        .from("financial_plans")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single(),
+    ]);
+
+  const profileComplete = !!(
+    profileRes.data?.age && profileRes.data?.employment_type
+  );
+  const factFindComplete = !!factFindRes.data;
+  const riskProfileComplete = !!riskRes.data;
+  const holdingsExist = !!holdingsRes.data;
+  const planExists = !!planRes.data;
+
+  let redirectPath: string;
+  if (planExists) {
+    redirectPath = "/dashboard";
+  } else if (holdingsExist) {
+    redirectPath = "/onboarding/generating";
+  } else if (factFindComplete) {
+    redirectPath = "/onboarding/holdings";
+  } else if (profileComplete) {
+    redirectPath = "/onboarding/fact-find";
+  } else {
+    redirectPath = "/onboarding";
+  }
+
+  return {
+    profileComplete,
+    factFindComplete,
+    riskProfileComplete,
+    holdingsExist,
+    planExists,
+    redirectPath,
+  };
+}
+
+/**
+ * Fetch the user's existing profile data for pre-populating the onboarding form.
+ */
+export async function getUserProfileData() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data } = await supabase
+    .from("user_profiles")
+    .select("alias, age, sex, province, employment_type, family_structure, occupation, annual_income, subscription_tier")
+    .eq("id", user.id)
+    .single();
+
+  return data;
+}
+
 /**
  * Fetch investment accounts from the most recent completed fact-find session.
  * Used as a fallback when the onboarding store has no accounts (e.g. page refresh, store reset).
