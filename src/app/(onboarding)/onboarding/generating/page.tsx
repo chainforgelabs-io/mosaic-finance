@@ -220,8 +220,30 @@ export default function GeneratingPage() {
     hasTriggered.current = true;
 
     try {
+      // Check if a plan already exists before triggering a new generation
+      const latestRes = await fetch("/api/plan/latest", {
+        credentials: "include",
+      });
+
+      if (latestRes.status === 401) {
+        router.push("/login?redirectTo=/onboarding/generating");
+        return;
+      }
+
+      if (latestRes.ok) {
+        const latestData = await latestRes.json();
+        if (latestData.plan) {
+          setPlanId(latestData.plan.id);
+          if (latestData.plan.status === "pending_review" || latestData.plan.status === "delivered") {
+            setPageState("pending_review");
+            completeStep("generating");
+          }
+          return;
+        }
+      }
+
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 150000);
+      const timeoutId = setTimeout(() => controller.abort(), 200000);
 
       const res = await fetch("/api/plan/generate", {
         method: "POST",
@@ -229,6 +251,12 @@ export default function GeneratingPage() {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+
+      if (res.status === 401) {
+        router.push("/login?redirectTo=/onboarding/generating");
+        return;
+      }
+
       const data = await res.json();
 
       if (!res.ok) {
@@ -253,7 +281,7 @@ export default function GeneratingPage() {
       }
       hasTriggered.current = false;
     }
-  }, [completeStep]);
+  }, [completeStep, router]);
 
   useEffect(() => {
     triggerGeneration();

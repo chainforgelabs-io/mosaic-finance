@@ -10,6 +10,7 @@ import { captureAPIError } from '@/lib/sentry';
 export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
+  const t0 = Date.now();
   try {
     const supabase = await createClient();
     const {
@@ -17,11 +18,14 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      console.error('[plan/generate] AUTH FAILED — no user from getUser()');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log(`[plan/generate] Auth OK — user=${user.id}`);
 
     const { success } = await ratelimit.planGeneration.limit(user.id);
     if (!success) {
+      console.error(`[plan/generate] RATE LIMITED — user=${user.id}`);
       return NextResponse.json(
         {
           error:
@@ -36,6 +40,7 @@ export async function POST(req: NextRequest) {
       .select('subscription_tier, alias, age, province, employment_type, family_structure')
       .eq('id', user.id)
       .single();
+    console.log(`[plan/generate] userProfile: ${userProfile ? 'found' : 'missing'}`);
 
     const [financialProfile, holdings, riskProfile] = await Promise.all([
       supabase
@@ -57,17 +62,14 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .single(),
     ]);
-
-    // Financial profile may not exist if onboarding profile page was minimal —
-    // the fact-find conversation data is more comprehensive anyway
-
-    // Risk profile is populated from the fact-find conversation but may not exist
-    // if the save failed silently — proceed without it rather than blocking
+    console.log(`[plan/generate] financialProfile: ${financialProfile.data ? 'found' : 'missing'}, holdings: ${holdings.data?.length ?? 0} rows, riskProfile: ${riskProfile.data ? 'found' : 'missing'}`);
 
     let marketContext = null;
     try {
       marketContext = await getMarketContext();
+      console.log('[plan/generate] Market context fetched');
     } catch (err) {
+      console.error('[plan/generate] Market context fetch failed:', err);
       captureAPIError(err, {
         route: 'plan/generate',
         userId: user.id,
@@ -75,7 +77,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Fetch the most recent completed fact-find session for richer data
     const { data: factFindSession } = await supabase
       .from('conversation_sessions')
       .select('metadata')
@@ -89,14 +90,14 @@ export async function POST(req: NextRequest) {
     const factFindData = typeof factFindSession?.metadata === 'object'
       ? (factFindSession.metadata as Record<string, unknown>)?.extracted_data ?? null
       : null;
+    console.log(`[plan/generate] factFindData: ${factFindData ? 'found' : 'missing'}`);
 
-    // Fetch household members
     const { data: householdMembers } = await supabase
       .from('household_members')
       .select('relationship, age, occupation, annual_income, is_dependant')
       .eq('user_id', user.id);
+    console.log(`[plan/generate] householdMembers: ${householdMembers?.length ?? 0} rows`);
 
-    // Build user flags from fact-find detected flags
     const detectedFlags = (factFindData as Record<string, unknown> | null)?.detected_flags as Record<string, boolean> | undefined;
     const userFlags = {
       isDivorced: detectedFlags?.is_divorced_or_separated ?? false,
@@ -125,6 +126,8 @@ export async function POST(req: NextRequest) {
       userFlags,
     };
 
+    console.log(`[plan/generate] Calling Claude (maxTokens=16000)...`);
+    const tClaude = Date.now();
     let planJson: string;
     try {
       planJson = await claudeChat(
@@ -132,8 +135,10 @@ export async function POST(req: NextRequest) {
         buildPlanGenerationPrompt(userData),
         { maxTokens: 16000, model: 'opus' },
       );
+      console.log(`[plan/generate] Claude responded in ${((Date.now() - tClaude) / 1000).toFixed(1)}s — ${planJson.length} chars`);
     } catch (err) {
       const step = err instanceof ClaudeTruncationError ? 'claude_truncated' : 'claude_chat';
+      console.error(`[plan/generate] CLAUDE FAILED (${step}) after ${((Date.now() - tClaude) / 1000).toFixed(1)}s:`, err);
       captureAPIError(err, {
         route: 'plan/generate',
         userId: user.id,
@@ -150,7 +155,9 @@ export async function POST(req: NextRequest) {
       const jsonMatch = planJson.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON object found in response');
       planData = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
-    } catch {
+      console.log(`[plan/generate] JSON parsed OK — ${Object.keys(planData).length} top-level keys`);
+    } catch (parseErr) {
+      console.error(`[plan/generate] JSON PARSE FAILED — raw length=${planJson.length}, first 200 chars:`, planJson.slice(0, 200));
       captureAPIError(new Error('Plan generation produced invalid JSON'), {
         route: 'plan/generate',
         userId: user.id,
@@ -174,6 +181,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (planError || !plan) {
+      console.error('[plan/generate] DB INSERT FAILED:', planError);
       captureAPIError(planError ?? new Error('Plan insert returned null'), {
         route: 'plan/generate',
         userId: user.id,
@@ -184,6 +192,7 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+    console.log(`[plan/generate] Plan saved — id=${plan.id}`);
 
     const isPremium = userProfile?.subscription_tier === 'premium';
     const slaHours = isPremium ? 8 : 24;
@@ -201,6 +210,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (queueError) {
+      console.error('[plan/generate] Approval queue insert failed:', queueError);
       captureAPIError(queueError, {
         route: 'plan/generate',
         userId: user.id,
@@ -209,15 +219,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    await sendApprovalQueueNotification(plan.id, isPremium).catch((err) =>
+    await sendApprovalQueueNotification(plan.id, isPremium).catch((err) => {
+      console.error('[plan/generate] Approval notification failed:', err);
       captureAPIError(err, {
         route: 'plan/generate',
         userId: user.id,
         planId: plan.id,
         step: 'approval_notification',
-      }),
-    );
+      });
+    });
 
+    console.log(`[plan/generate] SUCCESS — planId=${plan.id}, total=${((Date.now() - t0) / 1000).toFixed(1)}s`);
     return NextResponse.json({
       planId: plan.id,
       status: 'pending_review',
@@ -226,6 +238,7 @@ export async function POST(req: NextRequest) {
         'Your financial plan has been generated and submitted for CIM review. You will be notified when it is ready.',
     });
   } catch (error) {
+    console.error(`[plan/generate] UNHANDLED ERROR after ${((Date.now() - t0) / 1000).toFixed(1)}s:`, error);
     captureAPIError(error, { route: 'plan/generate', step: 'unknown' });
     return NextResponse.json(
       { error: 'Internal server error', code: 'PLAN_GEN_FAILED' },

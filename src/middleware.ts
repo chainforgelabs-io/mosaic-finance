@@ -12,5 +12,6 @@ export const config = {
     '/login',
     '/signup',
     '/onboarding/:path*',
+    '/api/:path*',
   ],
 };
