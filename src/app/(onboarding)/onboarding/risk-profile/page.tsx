@@ -149,6 +149,7 @@ export default function RiskProfilePage() {
   const [convSessionId, setConvSessionId] = useState<string | null>(null);
   const [riskComplete, setRiskComplete] = useState(false);
   const [riskResult, setRiskResult] = useState<Record<string, unknown> | null>(null);
+  const [isPreparingRiskProfile, setIsPreparingRiskProfile] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedConv = useRef(false);
@@ -212,32 +213,40 @@ export default function RiskProfilePage() {
       setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
       setIsStreaming(true);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.type === "delta") {
-              accumulated += data.text;
-              setConvMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
-              );
-            }
-            if (data.type === "done" && data.sessionComplete && data.extractedData) {
-              setRiskComplete(true);
-              setRiskResult(data.extractedData as Record<string, unknown>);
-            }
-          } catch { /* skip */ }
+      const timerId = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === "delta") {
+                accumulated += data.text;
+                setConvMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
+                );
+              }
+              if (data.type === "done" && data.sessionComplete && data.extractedData) {
+                setRiskComplete(true);
+                setRiskResult(data.extractedData as Record<string, unknown>);
+              }
+            } catch { /* skip */ }
+          }
         }
+      } finally {
+        clearTimeout(timerId);
+        setIsPreparingRiskProfile(false);
       }
       setIsStreaming(false);
       requestAnimationFrame(() => textareaRef.current?.focus());
     } catch {
+      setIsPreparingRiskProfile(false);
       setConvMessages((prev) => [
         ...prev,
         { id: `err-${Date.now()}`, role: "assistant", content: "Something went wrong starting the risk conversation. You can still proceed with your questionnaire results." },
@@ -256,6 +265,8 @@ export default function RiskProfilePage() {
     const assistantId = `assistant-${Date.now()}`;
     setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
     setIsStreaming(true);
+
+    const preparingTimer = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
 
     try {
       const res = await fetch("/api/conversation/message", {
@@ -298,6 +309,8 @@ export default function RiskProfilePage() {
     } catch {
       // error
     } finally {
+      clearTimeout(preparingTimer);
+      setIsPreparingRiskProfile(false);
       setIsStreaming(false);
       requestAnimationFrame(() => textareaRef.current?.focus());
     }
@@ -488,6 +501,15 @@ export default function RiskProfilePage() {
               />
             ))}
           </div>
+
+          {isPreparingRiskProfile && !riskComplete && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
+              <Loader2 className="size-4 animate-spin text-[var(--emerald)]" />
+              <span className="font-body text-[14px] text-[var(--text-secondary)]">
+                Preparing your risk profile...
+              </span>
+            </div>
+          )}
 
           {riskComplete && (
             <div className="mt-6 rounded-lg border border-[var(--emerald)]/30 bg-white p-6">

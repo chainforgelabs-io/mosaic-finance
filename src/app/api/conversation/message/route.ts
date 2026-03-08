@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
   // Fetch user profile for context injection
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('alias, age, sex, annual_income, province, employment_type, family_structure')
+    .select('alias, age, sex, annual_income, province, employment_type, occupation, family_structure')
     .eq('id', user.id)
     .single();
 
@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
     if (profile.annual_income) profileContext.push(`Annual income: $${Number(profile.annual_income).toLocaleString()}`);
     if (profile.province) profileContext.push(`Province: ${profile.province}`);
     if (profile.employment_type) profileContext.push(`Employment: ${profile.employment_type}`);
+    if (profile.occupation) profileContext.push(`Occupation: ${profile.occupation}`);
     if (profile.family_structure) profileContext.push(`Family: ${profile.family_structure}`);
 
     if (householdMembers && householdMembers.length > 0) {

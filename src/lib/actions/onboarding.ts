@@ -29,6 +29,7 @@ export async function saveFinancialProfile(formData: {
   sex?: string;
   annualIncome?: number;
   employmentType: string;
+  occupation?: string;
   familyStructure: string;
   householdMembers?: {
     relationship: string;
@@ -62,6 +63,7 @@ export async function saveFinancialProfile(formData: {
       sex: parsed.data.sex ?? null,
       annual_income: parsed.data.annualIncome ?? 0,
       employment_type: EMPLOYMENT_DB_MAP[parsed.data.employmentType] ?? parsed.data.employmentType.toLowerCase(),
+      occupation: parsed.data.occupation ?? null,
       family_structure: FAMILY_DB_MAP[parsed.data.familyStructure] ?? parsed.data.familyStructure.toLowerCase(),
       updated_at: new Date().toISOString(),
     })

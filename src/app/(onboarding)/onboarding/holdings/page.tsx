@@ -23,7 +23,6 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
-import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import {
   ACCOUNT_TYPES,
   type AccountType,

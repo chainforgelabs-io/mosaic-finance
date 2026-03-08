@@ -80,6 +80,7 @@ export default function OnboardingProfilePage() {
       sex: undefined,
       annualIncome: undefined,
       employmentType: undefined,
+      occupation: undefined,
       familyStructure: undefined,
       householdMembers: [],
     },
@@ -250,6 +251,23 @@ export default function OnboardingProfilePage() {
                 )}
               />
               {errors.employmentType && <FieldError message={errors.employmentType.message!} />}
+            </div>
+
+            {/* Occupation */}
+            <div>
+              <label
+                htmlFor="occupation"
+                className="mb-1.5 block font-body text-sm font-medium text-[var(--text-primary)]"
+              >
+                Occupation (optional)
+              </label>
+              <input
+                id="occupation"
+                type="text"
+                placeholder="e.g. Software Engineer, Teacher"
+                className={inputClassName(false)}
+                {...register("occupation")}
+              />
             </div>
 
             {/* Family Structure */}

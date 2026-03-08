@@ -25,19 +25,22 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "risk", label: "Risk Profile" },
 ];
 
+const SLIDING_WINDOW_SIZE = 14;
+
 const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
-  income: /income|salary|earn|gross|net pay|household income|take.?home/i,
-  expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill/i,
-  debts: /debt|loan|credit|owe|balance|interest rate|line of credit|mortgage.*\$|student loan/i,
-  goals: /goal|objective|plan to|want to|hope to|saving for|priority|financial freedom/i,
-  retirement: /retire|retirement|cpp|oas|pension|rsp|rrsp|age 6[0-9]|age 55/i,
-  investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance/i,
+  income: /income|salary|earn|gross|net pay|household income|take.?home|annual income|monthly income/i,
+  expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill|monthly expenses/i,
+  debts: /debt|loan|credit|owe|balance|interest rate|line of credit|mortgage.*\$|student loan|biweekly|monthly payment/i,
+  goals: /goal|objective|plan to|want to|hope to|saving for|priority|financial freedom|target amount/i,
+  retirement: /retire|retirement age|retirement plan|cpp|oas|pension plan|rsp|rrsp|age 6[0-9]|age 55|target retirement/i,
+  investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance|dcpp|lira|registered account/i,
   knowledge: /knowledge|experience|familiar|understand.*risk|novice|beginner|intermediate|advanced|comfortable with/i,
   risk: /risk|volatil|market drop|decline|loss|conservative|aggressive|growth|balanced|comfort.*with.*los|react.*drop|sell everything|buy more|gut reaction/i,
 };
 
-function detectTopics(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
-  const allText = messages.map((m) => m.content).join(" ");
+function detectTopicsFromMessages(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
+  const windowed = messages.slice(-SLIDING_WINDOW_SIZE);
+  const allText = windowed.map((m) => m.content).join(" ");
   const detected: Partial<ExtractedTopics> = {};
   for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
     if (pattern.test(allText)) {
@@ -45,6 +48,38 @@ function detectTopics(messages: { role: string; content: string }[]): Partial<Ex
     }
   }
   return detected;
+}
+
+function deriveTopicsFromSummary(summary: Record<string, unknown>): Partial<ExtractedTopics> {
+  const topics: Partial<ExtractedTopics> = {};
+  if (summary.annual_income != null || summary.household_total_income != null || summary.spouse_annual_income != null) {
+    topics.income = true;
+  }
+  if (summary.monthly_expenses != null || summary.monthly_savings != null) {
+    topics.expenses = true;
+  }
+  const debts = summary.debts;
+  if (Array.isArray(debts) && debts.length > 0) {
+    topics.debts = true;
+  }
+  const goals = summary.goals;
+  if (Array.isArray(goals) && goals.length > 0) {
+    topics.goals = true;
+  }
+  if (summary.retirement_target_age != null) {
+    topics.retirement = true;
+  }
+  const accounts = summary.investment_accounts;
+  if (Array.isArray(accounts) && accounts.length > 0) {
+    topics.investments = true;
+  }
+  if (summary.investment_knowledge != null) {
+    topics.knowledge = true;
+  }
+  if (summary.risk_score != null) {
+    topics.risk = true;
+  }
+  return topics;
 }
 
 function ComplianceCard({ onDismiss }: { onDismiss: () => void }) {
@@ -118,6 +153,73 @@ function ProgressSidebar({ topics }: { topics: ExtractedTopics }) {
   );
 }
 
+function formatSummaryAsBullets(summary: Record<string, unknown>): string[] {
+  const bullets: string[] = [];
+
+  const income = summary.annual_income as number | undefined;
+  const spouseIncome = summary.spouse_annual_income as number | undefined;
+  const province = summary.province as string | undefined;
+  const family = summary.family_structure as string | undefined;
+  if (income != null || spouseIncome != null || province || family) {
+    const parts: string[] = [];
+    if (income != null) parts.push(`You: $${Number(income).toLocaleString("en-CA")}/yr`);
+    if (spouseIncome != null && spouseIncome > 0) parts.push(`Spouse: $${Number(spouseIncome).toLocaleString("en-CA")}/yr`);
+    if (province) parts.push(province);
+    if (family) parts.push(family);
+    bullets.push(`**You and your household:** ${parts.join(" · ")}`);
+  }
+
+  const expenses = summary.monthly_expenses as number | undefined;
+  const savings = summary.monthly_savings as number | undefined;
+  const emergency = summary.emergency_fund_months as number | undefined;
+  if (expenses != null || savings != null || emergency != null) {
+    const parts: string[] = [];
+    if (expenses != null) parts.push(`Expenses: $${Number(expenses).toLocaleString("en-CA")}/mo`);
+    if (savings != null) parts.push(`Savings: $${Number(savings).toLocaleString("en-CA")}/mo`);
+    if (emergency != null) parts.push(`Emergency fund: ${Number(emergency)} months`);
+    bullets.push(`**Monthly:** ${parts.join(" · ")}`);
+  }
+
+  const debts = summary.debts as Array<{ type: string; balance: number; rate?: number }> | undefined;
+  if (Array.isArray(debts) && debts.length > 0) {
+    const debtStrs = debts.map(
+      (d) => `${d.type}: $${Number(d.balance).toLocaleString("en-CA")}${d.rate != null ? ` @ ${d.rate}%` : ""}`,
+    );
+    bullets.push(`**Debts:** ${debtStrs.join("; ")}`);
+  }
+
+  const accounts = summary.investment_accounts as Array<{ account_type: string; approximate_balance: number }> | undefined;
+  if (Array.isArray(accounts) && accounts.length > 0) {
+    const acctStrs = accounts.map(
+      (a) => `${a.account_type}: $${Number(a.approximate_balance ?? 0).toLocaleString("en-CA")}`,
+    );
+    bullets.push(`**Savings & investments:** ${acctStrs.join("; ")}`);
+  }
+
+  const ins = summary.insurance_coverage as Record<string, { has_coverage?: boolean }> | undefined;
+  if (ins && typeof ins === "object") {
+    const parts: string[] = [];
+    if (ins.life?.has_coverage) parts.push("Life");
+    if (ins.disability?.has_coverage) parts.push("Disability");
+    if (ins.critical_illness?.has_coverage) parts.push("Critical illness");
+    if (parts.length > 0) bullets.push(`**Insurance:** ${parts.join(", ")}`);
+  }
+
+  const retireAge = summary.retirement_target_age as number | undefined;
+  if (retireAge != null) bullets.push(`**Retirement:** Target age ${retireAge}`);
+
+  const goals = summary.goals as Array<{ type: string }> | undefined;
+  const special = summary.special_situation_notes as string | undefined;
+  if ((Array.isArray(goals) && goals.length > 0) || special) {
+    const parts: string[] = [];
+    if (Array.isArray(goals)) goals.forEach((g) => parts.push(g.type));
+    if (special) parts.push(special);
+    if (parts.length > 0) bullets.push(`**Other:** ${parts.join("; ")}`);
+  }
+
+  return bullets;
+}
+
 function SummaryCard({
   summary,
   onConfirm,
@@ -135,6 +237,7 @@ function SummaryCard({
     return String(value ?? "—");
   };
 
+  const bullets = formatSummaryAsBullets(summary);
   const displayFields: { key: string; label: string }[] = [
     { key: "annual_income", label: "Annual Income" },
     { key: "monthly_expenses", label: "Monthly Expenses" },
@@ -157,10 +260,20 @@ function SummaryCard({
         </h3>
       </div>
 
-      {typeof summary.conversational_summary === "string" && (
-        <p className="mb-4 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
-          {summary.conversational_summary}
-        </p>
+      {bullets.length > 0 && (
+        <ul className="mb-4 list-inside list-disc space-y-2 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
+          {bullets.map((line, i) => {
+            const match = line.match(/\*\*(.+?)\*\*:\s*(.*)/);
+            if (match) {
+              return (
+                <li key={i}>
+                  <span className="font-semibold text-[var(--text-primary)]">{match[1]}:</span> {match[2]}
+                </li>
+              );
+            }
+            return <li key={i}>{line.replace(/\*\*/g, "")}</li>;
+          })}
+        </ul>
       )}
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
@@ -265,11 +378,14 @@ function FactFindConversation() {
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (messages.length > 0 && !isStreaming) {
-      const detected = detectTopics(messages);
+    if (sessionComplete && summaryData && typeof summaryData === "object") {
+      const derived = deriveTopicsFromSummary(summaryData as Record<string, unknown>);
+      setExtractedTopics(derived);
+    } else if (messages.length > 0 && !isStreaming) {
+      const detected = detectTopicsFromMessages(messages);
       setExtractedTopics(detected);
     }
-  }, [messages, isStreaming, setExtractedTopics]);
+  }, [messages, isStreaming, sessionComplete, summaryData, setExtractedTopics]);
 
   const sendMessage = useCallback(
     async (userMessage?: string) => {
@@ -359,9 +475,10 @@ function FactFindConversation() {
           const cleaned = accumulated
             .replace(/<FACT_FIND_COMPLETE>[\s\S]*/, "")
             .trim();
-          if (cleaned) {
-            updateLastAssistantMessage(cleaned);
-          }
+          const shortIntro = "Perfect. Let me pull everything together and make sure I've got it right.";
+          updateLastAssistantMessage(
+            cleaned && cleaned.length <= 80 ? cleaned : shortIntro,
+          );
         }
       } catch (err) {
         setError(
@@ -533,7 +650,7 @@ function FactFindConversation() {
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRetry}>
       <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)]">
-        <div className="shrink-0 px-4">
+        <div className="shrink-0 px-4 pt-8">
           <div className="mx-auto max-w-[920px]">
             <div className="flex justify-center">
               <FinovaLogo size="sm" />

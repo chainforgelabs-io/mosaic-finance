@@ -51,6 +51,7 @@ export const financialProfileSchema = z.object({
   employmentType: z.enum(EMPLOYMENT_TYPES, {
     message: "Please select your employment type",
   }),
+  occupation: z.string().optional(),
   familyStructure: z.enum(FAMILY_STRUCTURES, {
     message: "Please select your family structure",
   }),
