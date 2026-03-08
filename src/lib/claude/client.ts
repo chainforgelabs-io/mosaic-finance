@@ -22,6 +22,15 @@ const DEFAULT_MAX_TOKENS = 4096;
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
+export class ClaudeTruncationError extends Error {
+  constructor(public partialLength: number) {
+    super(
+      `Response truncated at ${partialLength} chars — max_tokens too low for this request`,
+    );
+    this.name = "ClaudeTruncationError";
+  }
+}
+
 function isRetryable(error: unknown): boolean {
   if (error instanceof Anthropic.APIError) {
     return (
@@ -70,6 +79,12 @@ export async function claudeChat(
         system: systemPrompt,
         messages,
       });
+
+      if (response.stop_reason === "max_tokens") {
+        const partial = response.content[0];
+        const text = partial?.type === "text" ? partial.text : "";
+        throw new ClaudeTruncationError(text.length);
+      }
 
       const block = response.content[0];
       return block.type === "text" ? block.text : "";

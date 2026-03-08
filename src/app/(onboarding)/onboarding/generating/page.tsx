@@ -221,7 +221,7 @@ export default function GeneratingPage() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 90000);
+      const timeoutId = setTimeout(() => controller.abort(), 150000);
 
       const res = await fetch("/api/plan/generate", {
         method: "POST",

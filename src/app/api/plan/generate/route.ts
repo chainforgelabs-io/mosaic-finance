@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { claudeChat } from '@/lib/claude/client';
+import { claudeChat, ClaudeTruncationError } from '@/lib/claude/client';
 import { buildPlanGenerationPrompt } from '@/lib/claude/prompts/plan-generation';
 import { getMarketContext } from '@/lib/market-data/alpha-vantage';
 import { sendApprovalQueueNotification } from '@/lib/resend/client';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
@@ -130,13 +130,14 @@ export async function POST(req: NextRequest) {
       planJson = await claudeChat(
         [{ role: 'user', content: 'Generate the complete financial plan now.' }],
         buildPlanGenerationPrompt(userData),
-        { maxTokens: 8000, model: 'opus' },
+        { maxTokens: 16000, model: 'opus' },
       );
     } catch (err) {
+      const step = err instanceof ClaudeTruncationError ? 'claude_truncated' : 'claude_chat';
       captureAPIError(err, {
         route: 'plan/generate',
         userId: user.id,
-        step: 'claude_chat',
+        step,
       });
       return NextResponse.json(
         { error: 'Plan generation failed — please try again', code: 'PLAN_GEN_FAILED' },

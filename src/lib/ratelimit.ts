@@ -10,7 +10,7 @@ export const ratelimit = {
   }),
   planGeneration: new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(2, "1 h"),
+    limiter: Ratelimit.slidingWindow(5, "1 h"),
   }),
   pdfDownload: new Ratelimit({
     redis,

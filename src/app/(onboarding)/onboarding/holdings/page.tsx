@@ -15,6 +15,8 @@ import {
   Info,
   ArrowLeft,
   ArrowRight,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
@@ -37,6 +39,7 @@ interface SavedAccount {
   id: string;
   accountType: AccountType;
   accountName?: string;
+  owner?: string;
   holdings: HoldingRow[];
   collapsed: boolean;
 }
@@ -173,12 +176,68 @@ function AccountCard({
   account,
   onToggle,
   onRemove,
+  onUpdate,
 }: {
   account: SavedAccount;
   onToggle: () => void;
   onRemove: () => void;
+  onUpdate: (updated: SavedAccount) => void;
 }) {
-  const total = account.holdings.reduce((sum, h) => sum + h.balance, 0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editType, setEditType] = useState<AccountType>(account.accountType);
+  const [editName, setEditName] = useState(account.accountName ?? "");
+  const [editOwner, setEditOwner] = useState(account.owner ?? "");
+  const [editHoldings, setEditHoldings] = useState<HoldingRow[]>(account.holdings);
+
+  const total = (isEditing ? editHoldings : account.holdings).reduce(
+    (sum, h) => sum + h.balance,
+    0,
+  );
+
+  const startEditing = () => {
+    setEditType(account.accountType);
+    setEditName(account.accountName ?? "");
+    setEditOwner(account.owner ?? "");
+    setEditHoldings(account.holdings.map((h) => ({ ...h })));
+    setIsEditing(true);
+  };
+
+  const saveEdits = () => {
+    const validHoldings = editHoldings.filter((h) => h.balance > 0);
+    if (validHoldings.length === 0) return;
+    onUpdate({
+      ...account,
+      accountType: editType,
+      accountName: editName || undefined,
+      owner: editOwner || undefined,
+      holdings: validHoldings,
+    });
+    setIsEditing(false);
+  };
+
+  const cancelEditing = () => setIsEditing(false);
+
+  const updateHolding = (localId: string, field: keyof HoldingFormData, value: string | number) => {
+    setEditHoldings((prev) =>
+      prev.map((h) => (h.localId === localId ? { ...h, [field]: value } : h)),
+    );
+  };
+
+  const removeHolding = (localId: string) => {
+    setEditHoldings((prev) => prev.filter((h) => h.localId !== localId));
+  };
+
+  const addHolding = () => {
+    setEditHoldings((prev) => [
+      ...prev,
+      {
+        localId: `h-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        tickerOrName: "",
+        balance: 0,
+        units: undefined,
+      },
+    ]);
+  };
 
   return (
     <div className="rounded-lg border border-[var(--warm-200)] bg-white">
@@ -189,11 +248,17 @@ function AccountCard({
       >
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
-            {account.accountType}
+            {isEditing ? editType : account.accountType}
           </span>
           <span className="font-body text-[14px] text-[var(--text-secondary)]">
-            {account.accountName || `${account.holdings.length} holding${account.holdings.length !== 1 ? "s" : ""}`}
+            {(isEditing ? editName : account.accountName) ||
+              `${account.holdings.length} holding${account.holdings.length !== 1 ? "s" : ""}`}
           </span>
+          {account.owner && !isEditing && (
+            <span className="rounded bg-[var(--warm-100)] px-2 py-0.5 font-body text-[11px] text-[var(--text-muted)]">
+              {account.owner}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="font-body text-[16px] font-semibold tabular-nums text-[var(--text-primary)]">
@@ -207,7 +272,7 @@ function AccountCard({
         </div>
       </button>
 
-      {!account.collapsed && (
+      {!account.collapsed && !isEditing && (
         <div className="border-t border-[var(--warm-200)] px-5 py-4">
           <table className="w-full">
             <thead>
@@ -242,7 +307,18 @@ function AccountCard({
               ))}
             </tbody>
           </table>
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                startEditing();
+              }}
+              className="flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)]"
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </button>
             <button
               type="button"
               onClick={onRemove}
@@ -250,6 +326,88 @@ function AccountCard({
             >
               <Trash2 className="size-3.5" />
               Remove Account
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!account.collapsed && isEditing && (
+        <div className="border-t border-[var(--warm-200)] px-5 py-4 space-y-4">
+          <div>
+            <label className="mb-2 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
+              Account Type
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {ACCOUNT_TYPES.map((type) => (
+                <AccountTypePill
+                  key={type}
+                  type={type}
+                  selected={editType === type}
+                  onClick={() => setEditType(type)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
+                Account Name (optional)
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="e.g. Wealthsimple TFSA"
+                className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
+                Account Owner (optional)
+              </label>
+              <input
+                type="text"
+                value={editOwner}
+                onChange={(e) => setEditOwner(e.target.value)}
+                placeholder="e.g. Spouse, Joint"
+                className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
+              />
+            </div>
+          </div>
+
+          <HoldingsTable
+            holdings={editHoldings}
+            onUpdate={updateHolding}
+            onRemove={removeHolding}
+            onAdd={addHolding}
+          />
+
+          <div className="flex items-center justify-between border-t border-[var(--warm-200)] pt-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveEdits}
+                className="flex items-center gap-1.5 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-[13px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
+              >
+                <Check className="size-3.5" />
+                Save Changes
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditing}
+                className="rounded-lg border border-[var(--warm-200)] px-4 py-2 font-display text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--warm-100)]"
+              >
+                Cancel
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex items-center gap-1.5 font-body text-[13px] font-medium text-[var(--error)] transition-colors hover:text-[var(--error)]/80"
+            >
+              <Trash2 className="size-3.5" />
+              Remove
             </button>
           </div>
         </div>
@@ -680,6 +838,12 @@ export default function HoldingsPage() {
     );
   };
 
+  const handleUpdateAccount = (updated: SavedAccount) => {
+    setAccounts((prev) =>
+      prev.map((a) => (a.id === updated.id ? updated : a)),
+    );
+  };
+
   const handleRemoveAccount = (id: string) => {
     setAccounts((prev) => prev.filter((a) => a.id !== id));
   };
@@ -812,6 +976,7 @@ export default function HoldingsPage() {
                 account={account}
                 onToggle={() => handleToggleAccount(account.id)}
                 onRemove={() => handleRemoveAccount(account.id)}
+                onUpdate={handleUpdateAccount}
               />
             ))}
 
