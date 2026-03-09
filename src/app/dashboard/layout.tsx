@@ -77,9 +77,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           alias: profile.alias ?? authUser.user_metadata?.alias ?? "User",
           tier: profile.subscription_tier ?? "free",
           age: profile.age ?? undefined,
-          province: PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince || undefined,
-          employmentType: EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment || undefined,
-          familyStructure: FAMILY_DB_TO_DISPLAY[rawFamily] ?? rawFamily || undefined,
+          province: (PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince) || undefined,
+          employmentType: (EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment) || undefined,
+          familyStructure: (FAMILY_DB_TO_DISPLAY[rawFamily] ?? rawFamily) || undefined,
         });
       } else {
         setUser({

@@ -196,19 +196,19 @@ export default function RiskProfilePage() {
       const primeMessage = `The client has completed a structured risk questionnaire. Here are their answers:\n${RISK_QUESTIONS.map((q) => `- ${q.text}: ${q.options.find((o) => o.value === answers[q.id])?.label ?? "Not answered"}`).join("\n")}\n\nQuestionnaire score: ${averageScore.toFixed(1)}/5 (${scoreToPrettyLabel(averageScore)})\n\nPlease now conduct a brief conversational follow-up (3-5 messages) to probe for behavioural biases and contradictions. Use concrete scenarios based on what you know about the client. When done, output the <RISK_PROFILE_COMPLETE> tag.`;
 
       const msgRes = await fetch("/api/conversation/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, message: primeMessage, sessionType: "risk-profile" }),
-      });
+        });
 
       if (!msgRes.ok) throw new Error("Failed to send");
 
       const reader = msgRes.body?.getReader();
       if (!reader) return;
 
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let accumulated = "";
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let accumulated = "";
       const assistantId = `assistant-${Date.now()}`;
       setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
       setIsStreaming(true);
@@ -347,12 +347,12 @@ export default function RiskProfilePage() {
   const progress = (Object.keys(answers).length / RISK_QUESTIONS.length) * 100;
 
   if (phase === "questionnaire") {
-    return (
+  return (
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-[640px]">
           <div className="mb-2 flex justify-center">
             <FinovaLogo size="sm" />
-          </div>
+        </div>
 
           <StepProgress
             currentStep={currentStep}
@@ -397,20 +397,20 @@ export default function RiskProfilePage() {
               <div className="space-y-3">
                 {question.options.map((option) => {
                   const isSelected = answers[question.id] === option.value;
-                  return (
+  return (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => handleAnswer(question.id, option.value)}
-                      className={cn(
+            className={cn(
                         "flex w-full items-center gap-3 rounded-lg border px-5 py-4 text-left transition-all",
                         isSelected
                           ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/20"
                           : "border-[var(--warm-200)] bg-white hover:bg-[var(--warm-100)]",
                       )}
                     >
-                      <div
-                        className={cn(
+      <div
+        className={cn(
                           "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
                           isSelected
                             ? "border-[var(--emerald)] bg-[var(--emerald)]"
@@ -418,7 +418,7 @@ export default function RiskProfilePage() {
                         )}
                       >
                         {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
-                      </div>
+        </div>
                       <span className="font-body text-[14px] text-[var(--text-primary)]">
                         {option.label}
                       </span>
@@ -441,31 +441,31 @@ export default function RiskProfilePage() {
               </button>
 
               {allAnswered ? (
-                <button
-                  type="button"
+          <button
+            type="button"
                   onClick={handleQuestionnaireSubmit}
                   className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
-                >
+          >
                   <MessageCircle className="size-4" />
                   Continue to Follow-Up
-                </button>
+          </button>
               ) : (
-                <button
-                  type="button"
+          <button
+            type="button"
                   onClick={() => currentQ < RISK_QUESTIONS.length - 1 && setCurrentQ(currentQ + 1)}
                   disabled={!answers[question.id]}
                   className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] disabled:opacity-30"
-                >
+          >
                   Next
                   <ArrowRight className="size-4" />
-                </button>
+          </button>
               )}
             </div>
           </div>
-        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // Conversation + Review phase
   return (
@@ -508,8 +508,8 @@ export default function RiskProfilePage() {
               <span className="font-body text-[14px] text-[var(--text-secondary)]">
                 Preparing your risk profile...
               </span>
-            </div>
-          )}
+          </div>
+        )}
 
           {riskComplete && (
             <div className="mt-6 rounded-lg border border-[var(--emerald)]/30 bg-white p-6">
@@ -577,9 +577,9 @@ export default function RiskProfilePage() {
             >
               <ArrowRight className="size-5" />
             </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       {riskComplete && !isSubmitting && (
         <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
@@ -609,7 +609,7 @@ export default function RiskProfilePage() {
               <ArrowRight className="size-4" />
             </button>
           </div>
-        </div>
+      </div>
       )}
     </div>
   );
