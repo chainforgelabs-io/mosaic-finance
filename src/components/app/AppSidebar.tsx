@@ -10,6 +10,7 @@ import {
   ArrowUpRight,
   LogOut,
   Video,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ interface AppSidebarProps {
   userAlias: string;
   tier: "free" | "essential" | "pro" | "premium";
   planStatus?: string;
+  planId?: string;
   className?: string;
 }
 
@@ -29,23 +31,28 @@ interface NavItem {
   requiresPlan?: boolean;
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "My Plan", href: "/dashboard/plan", icon: FileText },
-  { label: "Walkthrough", href: "/dashboard/plan/walkthrough", icon: MessageSquare, requiresPlan: true },
-  { label: "AI Meeting", href: "/dashboard/meeting", icon: Video },
-  { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
-];
+function getNavItems(planId?: string): NavItem[] {
+  return [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "My Plan", href: "/dashboard/plan", icon: FileText },
+    { label: "Assets", href: "/dashboard/assets", icon: Wallet },
+    { label: "Walkthrough", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
+    { label: "AI Meeting", href: "/dashboard/meeting", icon: Video },
+    { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
+    { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  ];
+}
 
 export function AppSidebar({
   userAlias,
   tier,
   planStatus,
+  planId,
   className,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const navItems = getNavItems(planId);
 
   async function handleSignOut() {
     await fetch("/api/auth/signout", { method: "POST" });
@@ -74,13 +81,15 @@ export function AppSidebar({
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1 px-3 max-md:flex-row max-md:gap-0 max-md:px-0">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const isActive = item.label === "Walkthrough"
+            ? pathname.includes("/walkthrough")
+            : pathname === item.href || pathname.startsWith(item.href + "/");
           const isDisabled = item.requiresPlan && planStatus !== "delivered";
 
           if (isDisabled) {
             return (
               <div
-                key={item.href}
+                key={item.label}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 opacity-40 max-md:flex-col max-md:gap-0.5 max-md:px-2 max-md:py-1.5"
                 title="Available after plan delivery"
               >
@@ -94,7 +103,7 @@ export function AppSidebar({
 
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",

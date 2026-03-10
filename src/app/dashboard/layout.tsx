@@ -114,7 +114,7 @@ function transformPlanData(
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData } = usePlanStore();
+  const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData } = usePlanStore();
 
   useEffect(() => {
     if (user) return;
@@ -227,6 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         userAlias={user?.alias ?? "User"}
         tier={user?.tier ?? "free"}
         planStatus={planStatus}
+        planId={plan?.id}
       />
       <main className="md:pl-60 min-h-screen flex flex-col pb-16 md:pb-0">
         <div className="flex-1 max-w-[1080px] w-full mx-auto px-6 py-8">
