@@ -858,13 +858,25 @@ export default function HoldingsPage() {
     0,
   );
 
+  const triggerPlanGenerationAndGoToDashboard = async () => {
+    completeStep("holdings");
+    try {
+      await fetch("/api/plan/generate", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Fire-and-forget; dashboard will poll
+    }
+    router.push("/dashboard");
+  };
+
   const handleContinue = async () => {
     setIsSubmitting(true);
     setServerError(null);
 
     if (accounts.length === 0) {
-      completeStep("holdings");
-      router.push("/onboarding/generating");
+      await triggerPlanGenerationAndGoToDashboard();
       return;
     }
 
@@ -886,7 +898,7 @@ export default function HoldingsPage() {
       setServerError(result.error);
       setIsSubmitting(false);
     } else {
-      completeStep("holdings");
+      await triggerPlanGenerationAndGoToDashboard();
     }
   };
 

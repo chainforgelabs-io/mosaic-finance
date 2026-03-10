@@ -43,6 +43,8 @@ export default function LoginPage() {
     });
     if (result?.error) {
       setServerError(result.error);
+    } else if (result?.redirectTo) {
+      window.location.href = result.redirectTo;
     }
   }
 

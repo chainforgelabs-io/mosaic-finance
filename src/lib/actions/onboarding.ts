@@ -202,7 +202,7 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
   if (planExists) {
     redirectPath = "/dashboard";
   } else if (holdingsExist) {
-    redirectPath = "/onboarding/generating";
+    redirectPath = "/dashboard";
   } else if (factFindComplete) {
     redirectPath = "/onboarding/holdings";
   } else if (profileComplete) {

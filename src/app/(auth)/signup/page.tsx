@@ -33,6 +33,8 @@ export default function SignUpPage() {
     const result = await signUp(data);
     if (result?.error) {
       setServerError(result.error);
+    } else if (result?.redirectTo) {
+      window.location.href = result.redirectTo;
     }
   }
 

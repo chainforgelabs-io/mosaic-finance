@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { HealthScore } from "@/components/app/HealthScore";
 import { FinancialCard } from "@/components/app/FinancialCard";
@@ -8,8 +9,98 @@ import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
 import { ReviewReminder } from "@/components/app/ReviewReminder";
-import { FileText, ArrowRight, Lock, TrendingUp } from "lucide-react";
+import { FileText, ArrowRight, TrendingUp, Check, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+const GENERATION_STEPS = [
+  "Analyzing your financial profile",
+  "Building retirement projections",
+  "Analyzing investment considerations",
+  "Running tax efficiency analysis",
+  "Finalizing plan...",
+] as const;
+
+const STEP_INTERVAL_MS = 1500;
+
+function DashboardGenerating() {
+  const [visibleSteps, setVisibleSteps] = useState(1);
+
+  useEffect(() => {
+    if (visibleSteps >= GENERATION_STEPS.length) return;
+    const timer = setTimeout(() => {
+      setVisibleSteps((prev) => Math.min(prev + 1, GENERATION_STEPS.length));
+    }, STEP_INTERVAL_MS);
+    return () => clearTimeout(timer);
+  }, [visibleSteps]);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border border-[var(--warm-200)] rounded-lg p-8">
+        <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-6">
+          Building your financial plan
+        </h2>
+        <div className="mb-6 space-y-3">
+          {GENERATION_STEPS.map((step, index) => {
+            const isVisible = index < visibleSteps;
+            const isComplete = index < visibleSteps - 1;
+            const isCurrent = index === visibleSteps - 1;
+            const isLast = index === GENERATION_STEPS.length - 1;
+
+            return (
+              <div
+                key={step}
+                className={cn(
+                  "flex items-center gap-3 transition-all",
+                  isVisible
+                    ? "opacity-100"
+                    : "pointer-events-none h-0 overflow-hidden opacity-0",
+                )}
+                style={
+                  isVisible
+                    ? { animation: "checklist-enter 400ms ease-out both" }
+                    : undefined
+                }
+              >
+                {isComplete ? (
+                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
+                    <Check className="size-3 text-white" strokeWidth={3} />
+                  </div>
+                ) : isCurrent && isLast ? (
+                  <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" />
+                ) : isCurrent ? (
+                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
+                    <Check className="size-3 text-white" strokeWidth={3} />
+                  </div>
+                ) : (
+                  <div className="size-5 shrink-0 rounded-full border-2 border-[var(--warm-200)]" />
+                )}
+                <span
+                  className={cn(
+                    "font-body text-[15px]",
+                    isComplete || (isCurrent && !isLast)
+                      ? "text-[var(--text-primary)]"
+                      : isCurrent && isLast
+                        ? "text-[var(--text-secondary)]"
+                        : "text-[var(--text-muted)]",
+                  )}
+                >
+                  {step}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="font-body text-[14px] text-[var(--text-muted)] mb-4">
+          This usually takes a few minutes
+        </p>
+        <p className="font-body text-[14px] text-[var(--text-secondary)]">
+          Once generated, a CIM-designated professional will review your plan before delivery.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function DashboardNoPlan() {
   return (
@@ -26,75 +117,85 @@ function DashboardNoPlan() {
 function DashboardPending() {
   const { plan } = usePlanStore();
 
-  const placeholderSections = [
-    "Executive Summary",
-    "Cash Flow Analysis",
-    "Debt Management",
-    "Retirement Projections",
-    "Investment Strategy",
-    "Tax Optimization",
-    "Insurance & Estate",
-    "Next Steps",
-  ];
+  if (!plan) {
+    return (
+      <div className="space-y-6">
+        <ApprovalStatusBanner status="pending_review" estimatedDelivery="Within 24 hours" />
+        <div className="skeleton h-44 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <ApprovalStatusBanner
         status="pending_review"
-        estimatedDelivery={plan?.estimatedDelivery ?? "Within 24 hours"}
+        estimatedDelivery={plan.estimatedDelivery ?? "Within 24 hours"}
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {placeholderSections.map((title) => (
-          <div
-            key={title}
-            className="relative bg-white border border-[var(--warm-200)] rounded-lg p-6 overflow-hidden"
-          >
-            <div className="blur-sm select-none pointer-events-none">
-              <p className="font-[family-name:var(--font-body)] text-[11px] text-[var(--text-muted)] uppercase tracking-wider mb-2">
-                {title}
-              </p>
-              <div className="skeleton h-8 w-24 mb-2" />
-              <div className="skeleton h-3 w-full mb-1" />
-              <div className="skeleton h-3 w-3/4" />
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60">
-              <Lock className="w-6 h-6 text-[var(--emerald)]" />
-            </div>
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
+        {plan.healthScore > 0 && (
+          <div className="flex flex-col items-center">
+            <HealthScore score={plan.healthScore} size="lg" />
+            <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-secondary)] mt-3">
+              Health Score
+            </p>
           </div>
-        ))}
-      </div>
-
-      <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
-        <h3 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-4">
-          While you wait
-        </h3>
-        <div className="space-y-3">
-          {[
-            {
-              title: "RRSP vs. TFSA: Which should you prioritize?",
-              desc: "Understanding the tax implications of each registered account can significantly impact your long-term wealth.",
-            },
-            {
-              title: "The power of low-MER ETFs",
-              desc: "A 1% difference in fees can cost over $100,000 over a 30-year investment horizon. Learn why MER matters.",
-            },
-            {
-              title: "Emergency fund best practices",
-              desc: "How much is enough? Most Canadians are under-prepared for unexpected expenses.",
-            },
-          ].map((tip) => (
-            <div key={tip.title} className="p-4 bg-[var(--warm-50)] rounded-lg">
-              <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] mb-1">
-                {tip.title}
-              </p>
-              <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
-                {tip.desc}
-              </p>
-            </div>
-          ))}
+        )}
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <FinancialCard label="NET WORTH" value={plan.netWorth} />
+          <FinancialCard label="MONTHLY CASH FLOW" value={plan.monthlyCashFlow} />
+          <FinancialCard label="SAVINGS RATE" value={plan.savingsRate} />
+          <FinancialCard label="RETIREMENT GAP" value={plan.retirementGap} />
         </div>
       </div>
+
+      {plan.sections.length > 0 && (
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-4">
+            Plan Sections
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {plan.sections.map((section) => (
+              <div
+                key={section.id}
+                className="bg-white border border-[var(--warm-200)] rounded-lg p-5"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-[var(--emerald)] shrink-0" />
+                  <h3 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
+                    {section.title}
+                  </h3>
+                </div>
+                {section.summary && (
+                  <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3 line-clamp-3">
+                    {section.summary}
+                  </p>
+                )}
+                {section.actionItems.length > 0 && (
+                  <div className="space-y-1.5">
+                    {section.actionItems.slice(0, 2).map((item) => (
+                      <div key={item.id} className="flex items-start gap-2">
+                        <ArrowRight className="w-3 h-3 text-[var(--emerald)] mt-1 shrink-0" />
+                        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] line-clamp-2">
+                          {item.text}
+                        </p>
+                      </div>
+                    ))}
+                    {section.actionItems.length > 2 && (
+                      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] pl-5">
+                        +{section.actionItems.length - 2} more action items
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <HouseholdCard />
     </div>
   );
 }
@@ -247,8 +348,9 @@ export default function DashboardPage() {
       </div>
 
       {planStatus === "none" && <DashboardNoPlan />}
+      {planStatus === "generating" && <DashboardGenerating />}
       {planStatus === "pending_review" && <DashboardPending />}
-      {(planStatus === "delivered" || planStatus === "generating") && <DashboardDelivered />}
+      {planStatus === "delivered" && <DashboardDelivered />}
     </div>
   );
 }

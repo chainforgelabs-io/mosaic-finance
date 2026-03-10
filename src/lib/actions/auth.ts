@@ -23,6 +23,7 @@ const PROVINCE_CODES: Record<string, string> = {
 
 export type AuthResult = {
   error?: string;
+  redirectTo?: string;
 };
 
 export async function signUp(formData: {
@@ -66,7 +67,7 @@ export async function signUp(formData: {
     }
   }
 
-  redirect("/onboarding");
+  return { redirectTo: "/onboarding" };
 }
 
 const SAFE_REDIRECT_PREFIXES = ["/dashboard", "/onboarding", "/admin"];
@@ -97,11 +98,11 @@ export async function signIn(formData: {
     explicit &&
     SAFE_REDIRECT_PREFIXES.some((p) => explicit.startsWith(p))
   ) {
-    redirect(explicit);
+    return { redirectTo: explicit };
   }
 
   const progress = await getOnboardingProgress();
-  redirect(progress.redirectPath);
+  return { redirectTo: progress.redirectPath };
 }
 
 export async function signInWithGoogle(): Promise<AuthResult> {

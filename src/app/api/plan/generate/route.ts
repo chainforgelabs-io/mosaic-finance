@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .from('financial_plans')
       .select('id, status')
       .eq('user_id', user.id)
-      .in('status', ['pending_review', 'approved', 'delivered'])
+      .in('status', ['generating', 'pending_review', 'approved', 'delivered'])
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -53,11 +53,32 @@ export async function POST(req: NextRequest) {
 
     const userId = user.id;
 
+    const { data: generatingPlan, error: insertError } = await supabase
+      .from('financial_plans')
+      .insert({
+        user_id: userId,
+        plan_data: {},
+        status: 'generating',
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !generatingPlan) {
+      console.error('[plan/generate] Initial insert failed:', insertError);
+      return NextResponse.json(
+        { error: 'Failed to start plan generation.' },
+        { status: 500 },
+      );
+    }
+
+    const planId = generatingPlan.id;
+    console.log(`[plan/generate] Inserted generating row — planId=${planId}, returning 202`);
+
     after(async () => {
       const t0 = Date.now();
+      const svc = createServiceClient();
       try {
-        console.log(`[plan/generate:bg] Starting background generation for user=${userId}`);
-        const svc = createServiceClient();
+        console.log(`[plan/generate:bg] Starting background generation for user=${userId}, planId=${planId}`);
 
         const { data: userProfile } = await svc
           .from('user_profiles')
@@ -160,6 +181,7 @@ export async function POST(req: NextRequest) {
           const step = err instanceof ClaudeTruncationError ? 'claude_truncated' : 'claude_chat';
           console.error(`[plan/generate:bg] CLAUDE FAILED (${step}) after ${((Date.now() - tClaude) / 1000).toFixed(1)}s:`, err);
           captureAPIError(err, { route: 'plan/generate:bg', userId, step });
+          await svc.from('financial_plans').delete().eq('id', planId);
           return;
         }
 
@@ -177,29 +199,28 @@ export async function POST(req: NextRequest) {
             step: 'json_parse',
             rawLength: planJson.length,
           });
+          await svc.from('financial_plans').delete().eq('id', planId);
           return;
         }
 
-        const { data: plan, error: planError } = await svc
+        const { error: updateError } = await svc
           .from('financial_plans')
-          .insert({
-            user_id: userId,
+          .update({
             plan_data: planData,
             status: 'pending_review',
           })
-          .select()
-          .single();
+          .eq('id', planId);
 
-        if (planError || !plan) {
-          console.error('[plan/generate:bg] DB INSERT FAILED:', planError);
-          captureAPIError(planError ?? new Error('Plan insert returned null'), {
+        if (updateError) {
+          console.error('[plan/generate:bg] DB UPDATE FAILED:', updateError);
+          captureAPIError(updateError, {
             route: 'plan/generate:bg',
             userId,
-            step: 'plan_insert',
+            step: 'plan_update',
           });
           return;
         }
-        console.log(`[plan/generate:bg] Plan saved — id=${plan.id}`);
+        console.log(`[plan/generate:bg] Plan updated — id=${planId}`);
 
         const isPremium = userProfile?.subscription_tier === 'premium';
         const slaHours = isPremium ? 8 : 24;
@@ -210,7 +231,7 @@ export async function POST(req: NextRequest) {
         const { error: queueError } = await svc
           .from('approval_queue')
           .insert({
-            plan_id: plan.id,
+            plan_id: planId,
             user_id: userId,
             priority: isPremium ? 'priority' : 'standard',
             sla_deadline: slaDeadline,
@@ -221,30 +242,29 @@ export async function POST(req: NextRequest) {
           captureAPIError(queueError, {
             route: 'plan/generate:bg',
             userId,
-            planId: plan.id,
+            planId,
             step: 'approval_queue_insert',
           });
         }
 
-        await sendApprovalQueueNotification(plan.id, isPremium).catch((err) => {
+        await sendApprovalQueueNotification(planId, isPremium).catch((err) => {
           console.error('[plan/generate:bg] Approval notification failed:', err);
           captureAPIError(err, {
             route: 'plan/generate:bg',
             userId,
-            planId: plan.id,
+            planId,
             step: 'approval_notification',
           });
         });
 
-        console.log(`[plan/generate:bg] SUCCESS — planId=${plan.id}, total=${((Date.now() - t0) / 1000).toFixed(1)}s`);
+        console.log(`[plan/generate:bg] SUCCESS — planId=${planId}, total=${((Date.now() - t0) / 1000).toFixed(1)}s`);
       } catch (error) {
         console.error(`[plan/generate:bg] UNHANDLED ERROR after ${((Date.now() - t0) / 1000).toFixed(1)}s:`, error);
         captureAPIError(error, { route: 'plan/generate:bg', userId, step: 'unknown' });
       }
     });
 
-    console.log(`[plan/generate] Background generation scheduled — returning 202`);
-    return NextResponse.json({ status: 'generating' }, { status: 202 });
+    return NextResponse.json({ status: 'generating', planId }, { status: 202 });
   } catch (error) {
     console.error('[plan/generate] UNHANDLED ERROR in sync phase:', error);
     captureAPIError(error, { route: 'plan/generate', step: 'sync_phase' });

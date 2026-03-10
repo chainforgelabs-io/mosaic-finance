@@ -2,10 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { holdingsSchema, toDbAccountType } from "@/lib/schemas/holdings";
-import { redirect } from "next/navigation";
 
 export type HoldingsResult = {
   error?: string;
+  ok?: boolean;
 };
 
 export async function saveHoldings(formData: {
@@ -69,5 +69,5 @@ export async function saveHoldings(formData: {
     }
   }
 
-  redirect("/onboarding/generating");
+  return { ok: true };
 }

@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data: plan } = await supabase
     .from('financial_plans')
-    .select('id, status, created_at')
+    .select('id, status, plan_data, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)

@@ -12,6 +12,7 @@ interface PlanStore {
   isLoading: boolean;
 
   setUser: (user: UserProfile) => void;
+  clearUser: () => void;
   setPlan: (plan: FinancialPlan) => void;
   setPlanStatus: (status: PlanStatus) => void;
   setMarketContext: (report: MarketContextReport) => void;
@@ -26,6 +27,7 @@ export const usePlanStore = create<PlanStore>((set) => ({
   isLoading: false,
 
   setUser: (user) => set({ user }),
+  clearUser: () => set({ user: null, plan: null, planStatus: "none" }),
   setPlan: (plan) => set({ plan, planStatus: plan.status }),
   setPlanStatus: (planStatus) => set({ planStatus }),
   setMarketContext: (marketContext) => set({ marketContext }),
