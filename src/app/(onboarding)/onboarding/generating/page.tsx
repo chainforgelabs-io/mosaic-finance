@@ -16,7 +16,7 @@ import {
 const GENERATION_STEPS = [
   "Analyzing your financial profile",
   "Building retirement projections",
-  "Structuring investment recommendations",
+  "Analyzing investment considerations",
   "Running tax efficiency analysis",
   "Finalizing plan...",
 ] as const;
@@ -94,7 +94,7 @@ function GeneratingState({
       </div>
 
       <p className="font-body text-[14px] text-[var(--text-muted)]">
-        This takes about 30 seconds
+        This usually takes a few minutes
       </p>
     </div>
   );
@@ -117,7 +117,7 @@ function PendingReviewState({ tier }: { tier: "free" | "essential" | "pro" | "pr
       </h1>
 
       <p className="mb-6 max-w-md text-center font-body text-[16px] leading-relaxed text-[var(--text-secondary)]">
-        A CIM-designated professional is reviewing your recommendations.
+        A CIM-designated professional is reviewing your plan.
         You&apos;ll receive an email when it&apos;s ready.
       </p>
 
@@ -155,7 +155,7 @@ function PendingReviewState({ tier }: { tier: "free" | "essential" | "pro" | "pr
             <ul className="space-y-2.5 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
               <li className="flex gap-2">
                 <span className="mt-1.5 block size-1.5 shrink-0 rounded-full bg-[var(--emerald)]" />
-                A CIM-designated professional reviews every recommendation for
+                A CIM-designated professional reviews every plan for
                 suitability and accuracy.
               </li>
               <li className="flex gap-2">
@@ -204,8 +204,56 @@ export default function GeneratingPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const hasTriggered = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number>(0);
+
+  const POLL_INTERVAL_MS = 5_000;
+  const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
   const { status: realtimeStatus } = usePlanStatusSubscription(planId);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const pollForPlan = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/plan/latest", { credentials: "include" });
+
+      if (res.status === 401) {
+        stopPolling();
+        router.push("/login?redirectTo=/onboarding/generating");
+        return true;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.plan) {
+          stopPolling();
+          setPlanId(data.plan.id);
+          if (data.plan.status === "pending_review" || data.plan.status === "delivered") {
+            setPageState("pending_review");
+            completeStep("generating");
+          }
+          return true;
+        }
+      }
+    } catch {
+      // Network blip — keep polling
+    }
+
+    if (Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
+      stopPolling();
+      setError("Plan generation is taking longer than expected. Please try again.");
+      hasTriggered.current = false;
+      return true;
+    }
+
+    return false;
+  }, [completeStep, router, stopPolling]);
 
   useEffect(() => {
     completeStep("profile");
@@ -220,7 +268,6 @@ export default function GeneratingPage() {
     hasTriggered.current = true;
 
     try {
-      // Check if a plan already exists before triggering a new generation
       const latestRes = await fetch("/api/plan/latest", {
         credentials: "include",
       });
@@ -242,50 +289,45 @@ export default function GeneratingPage() {
         }
       }
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 200000);
-
       const res = await fetch("/api/plan/generate", {
         method: "POST",
         credentials: "include",
-        signal: controller.signal,
       });
-      clearTimeout(timeoutId);
 
       if (res.status === 401) {
         router.push("/login?redirectTo=/onboarding/generating");
         return;
       }
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Failed to generate plan.");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.planId) {
+          setPlanId(data.planId);
+          if (data.status === "pending_review" || data.status === "delivered") {
+            setPageState("pending_review");
+            completeStep("generating");
+            return;
+          }
+        }
+      } else if (res.status !== 202) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Failed to start plan generation.");
         hasTriggered.current = false;
         return;
       }
 
-      setPlanId(data.planId);
-
-      if (data.status === "pending_review" || data.status === "delivered") {
-        setPageState("pending_review");
-        completeStep("generating");
-      }
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        setError(
-          "Plan generation is taking longer than expected. Please check your connection and try again.",
-        );
-      } else {
-        setError("Network error. Please try again.");
-      }
+      pollStartRef.current = Date.now();
+      pollRef.current = setInterval(() => { pollForPlan(); }, POLL_INTERVAL_MS);
+    } catch {
+      setError("Network error. Please try again.");
       hasTriggered.current = false;
     }
-  }, [completeStep, router]);
+  }, [completeStep, router, pollForPlan]);
 
   useEffect(() => {
     triggerGeneration();
-  }, [triggerGeneration]);
+    return () => stopPolling();
+  }, [triggerGeneration, stopPolling]);
 
   useEffect(() => {
     if (pageState !== "generating") return;

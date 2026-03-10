@@ -25,21 +25,21 @@ function generateWalkthroughIntro(section: PlanSection): string {
       section.cards.find((c) => c.label === "NET INCOME")?.value || "$6,250"
     }/month supports a healthy savings rate. ${section.summary}\n\nThe biggest insight here is that even small optimizations in your discretionary spending can have outsized effects when redirected to investments over decades.\n\nWould you like me to break down any specific expense category?`,
 
-    "debt-management": `Let's talk about your debt picture. Not all debt is created equal, and understanding the difference is key to a smart payoff strategy.\n\n${section.summary}\n\nYour mortgage is structured well — the focus area is your line of credit, where accelerating payments saves significant interest. The avalanche method (targeting highest-rate debt first) is optimal here.\n\nAny questions about the recommended debt repayment approach?`,
+    "debt-management": `Let's talk about your debt picture. Not all debt is created equal, and understanding the difference is key to a smart payoff strategy.\n\n${section.summary}\n\nYour mortgage is structured well — the focus area is your line of credit, where accelerating payments saves significant interest. The avalanche method (targeting highest-rate debt first) is optimal here.\n\nAny questions about this debt repayment approach?`,
 
     "retirement": `This is where long-term planning gets exciting. Let's look at your retirement projections.\n\n${section.summary}\n\nThe math here is powerful — by maintaining your contribution rate and optimizing your investment allocation, you could potentially retire ${
       section.cards.find((c) => c.label === "TARGET RETIREMENT")?.value || "earlier than expected"
     }. The most critical factor is consistency.\n\nWhat questions do you have about your retirement projections?`,
 
-    "investment-strategy": `Now let's dive into how your money should be invested. This is where your risk profile directly shapes the recommendations.\n\n${section.summary}\n\nThe recommended portfolio targets a ${
+    "investment-strategy": `Now let's dive into how your money should be invested. This is where your risk profile directly shapes the plan.\n\n${section.summary}\n\nThe suggested portfolio targets a ${
       section.cards.find((c) => c.label === "WEIGHTED MER")?.value || "0.18%"
-    } weighted MER, which is significantly lower than the Canadian average of ~1.5%. This fee reduction alone could add over $100,000 to your portfolio over 25 years.\n\nWould you like me to explain any of the recommended ETFs in more detail?`,
+    } weighted MER, which is significantly lower than the Canadian average of ~1.5%. This fee reduction alone could add over $100,000 to your portfolio over 25 years.\n\nWould you like me to explain any of the ETF considerations in more detail?`,
 
     "tax-optimization": `Tax optimization is often the most overlooked area of financial planning, but it can have enormous impact.\n\n${section.summary}\n\nThe priority waterfall — RRSP match, TFSA, RRSP, then non-registered — ensures you're capturing every tax advantage available. With ${
       section.cards.find((c) => c.label === "RRSP ROOM")?.value || "$18,200"
-    } of unused RRSP room, there's an immediate opportunity.\n\nDo you have questions about the recommended tax strategy?`,
+    } of unused RRSP room, there's an immediate opportunity.\n\nDo you have questions about this tax strategy?`,
 
-    "insurance-estate": `Let's review the protection side of your plan. Insurance and estate planning aren't exciting, but they protect everything else we've discussed.\n\n${section.summary}\n\nThe key message here: a $500K term life policy and a basic will are high-priority items that most Canadians delay too long. The cost is relatively modest for the protection provided.\n\nAny concerns about the insurance or estate recommendations?`,
+    "insurance-estate": `Let's review the protection side of your plan. Insurance and estate planning aren't exciting, but they protect everything else we've discussed.\n\n${section.summary}\n\nThe key message here: a $500K term life policy and a basic will are high-priority items that most Canadians delay too long. The cost is relatively modest for the protection provided.\n\nAny concerns about the insurance or estate considerations?`,
 
     "next-steps": `Finally, let's talk about turning this plan into action. A plan is only as good as its implementation.\n\n${section.summary}\n\nI've prioritized the actions by impact and urgency. The two highest-impact items you can do this week are setting up automated RRSP contributions and increasing your line of credit payments. Together, these two changes improve your projected retirement age by 2.5 years.\n\nWould you like to discuss the timeline for any of these action items?`,
   };
@@ -49,8 +49,8 @@ function generateWalkthroughIntro(section: PlanSection): string {
 
 function generateFollowUpResponse(userMessage: string, section: PlanSection): string {
   const responses = [
-    `That's a great question about your ${section.title.toLowerCase()}. Based on your plan data, ${section.prose.split(".").slice(0, 2).join(".")}.\n\nThe key thing to remember is that these recommendations are interconnected — changes in this area will positively impact your overall health score.`,
-    `I understand your concern. Let me clarify — ${section.actionItems[0]?.text || "the primary recommendation"} is prioritized because it has the highest expected impact relative to effort. However, the timeline is flexible and we can adjust based on your comfort level.\n\nWould you like to explore an alternative approach?`,
+    `That's a great question about your ${section.title.toLowerCase()}. Based on your plan data, ${section.prose.split(".").slice(0, 2).join(".")}.\n\nThe key thing to remember is that these considerations are interconnected — changes in this area will positively impact your overall health score.`,
+    `I understand your concern. Let me clarify — ${section.actionItems[0]?.text || "the primary consideration"} is prioritized because it has the highest expected impact relative to effort. However, the timeline is flexible and we can adjust based on your comfort level.\n\nWould you like to explore an alternative approach?`,
     `Absolutely. Looking at the data in your plan, ${section.prose.split(".").slice(2, 4).join(".")}.\n\nThis is one of those areas where consistency matters more than perfection. Starting with any amount is better than waiting for the "perfect" time.`,
   ];
 

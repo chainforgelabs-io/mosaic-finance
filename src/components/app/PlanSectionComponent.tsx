@@ -103,7 +103,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
         {section.etfTable && section.etfTable.length > 0 && (
           <div>
             <h4 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] uppercase tracking-wider mb-3">
-              Recommended ETFs
+              ETF Considerations
             </h4>
             <div className="overflow-x-auto rounded-lg border border-[var(--warm-200)]">
               <table className="w-full text-left">

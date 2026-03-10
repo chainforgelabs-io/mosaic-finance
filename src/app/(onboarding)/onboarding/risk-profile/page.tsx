@@ -487,7 +487,7 @@ export default function RiskProfilePage() {
           <div className="mb-4 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
             <p className="font-body text-[13px] text-[var(--text-secondary)]">
               Based on your questionnaire score of <strong>{scoreToPrettyLabel(averageScore)}</strong>,
-              our advisor will ask a few follow-up questions to understand how you&apos;d react in real scenarios.
+              we&apos;ll ask a few follow-up questions to understand how you&apos;d react in real scenarios.
             </p>
           </div>
 

@@ -41,7 +41,7 @@ ${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData, null, 2)}
 
-Generate a complete 8-section financial plan. For each section, provide detailed, personalized analysis. Do NOT use generic advice. Everything must reference the client's specific numbers, province, account types, and goals.
+Generate a complete 8-section financial plan. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the client's specific numbers, province, account types, and goals. Frame all output as educational planning considerations — not prescriptive advice.
 
 OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 
@@ -135,12 +135,13 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 }
 
 CRITICAL RULES:
+- Be concise: keep narrative strings to 2-3 sentences, action items to one sentence each, and avoid restating data the client already knows
 - Every number must be calculated from the client's actual data
 - ETF recommendations must be real Canadian-listed ETFs (XEQT, VEQT, ZAG, XBB, etc.)
 - MER values must be accurate to the best of your knowledge
 - Tax analysis must be province-specific
 - Retirement projections must include CPP and OAS estimates
-- All recommendations must be suitability-appropriate for the client's risk profile
+- All considerations must be suitability-appropriate for the client's risk profile
 - Flag any areas of uncertainty with explicit disclaimers within that section
 - Any value you cannot calculate with confidence must be flagged with "[REQUIRES ADVISOR VERIFICATION]" rather than fabricating a number
 - This output will be reviewed by a CIM professional before delivery — write as if a peer is reviewing your work

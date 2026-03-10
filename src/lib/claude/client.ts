@@ -3,6 +3,8 @@ import { captureAPIError } from "@/lib/sentry";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
+  timeout: 120_000,
+  maxRetries: 0,
 });
 
 export type ClaudeModel = "opus" | "sonnet";
@@ -11,6 +13,8 @@ interface ClaudeChatOptions {
   maxTokens?: number;
   temperature?: number;
   model?: ClaudeModel;
+  /** Per-request timeout in ms — overrides the default 120s SDK timeout. */
+  timeout?: number;
 }
 
 const MODEL_IDS: Record<ClaudeModel, string> = {
@@ -72,13 +76,20 @@ export async function claudeChat(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await anthropic.messages.create({
-        model: modelId,
-        max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-        temperature: options?.temperature,
-        system: systemPrompt,
-        messages,
-      });
+      const requestOpts = options?.timeout
+        ? { timeout: options.timeout }
+        : undefined;
+
+      const response = await anthropic.messages.create(
+        {
+          model: modelId,
+          max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+          temperature: options?.temperature,
+          system: systemPrompt,
+          messages,
+        },
+        requestOpts,
+      );
 
       if (response.stop_reason === "max_tokens") {
         const partial = response.content[0];
@@ -106,6 +117,39 @@ export async function claudeChat(
   }
 
   throw new Error("Claude chat failed after all retry attempts");
+}
+
+/**
+ * Streaming variant of claudeChat — collects the full response via SSE so the
+ * HTTP connection stays alive for long-running generations (plan generation).
+ * Avoids timeout issues because tokens flow continuously.
+ */
+export async function claudeChatStreaming(
+  messages: { role: "user" | "assistant"; content: string }[],
+  systemPrompt: string,
+  options?: ClaudeChatOptions
+): Promise<string> {
+  const model = options?.model ?? "sonnet";
+  const modelId = MODEL_IDS[model];
+
+  const stream = anthropic.messages.stream({
+    model: modelId,
+    max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
+    temperature: options?.temperature,
+    system: systemPrompt,
+    messages,
+  });
+
+  const response = await stream.finalMessage();
+
+  if (response.stop_reason === "max_tokens") {
+    const partial = response.content[0];
+    const text = partial?.type === "text" ? partial.text : "";
+    throw new ClaudeTruncationError(text.length);
+  }
+
+  const block = response.content[0];
+  return block.type === "text" ? block.text : "";
 }
 
 /**
