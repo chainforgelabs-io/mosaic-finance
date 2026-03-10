@@ -9,7 +9,21 @@ import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
 import { ReviewReminder } from "@/components/app/ReviewReminder";
-import { FileText, ArrowRight, TrendingUp, Check, Loader2 } from "lucide-react";
+import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
+import { RetirementProgressBar } from "@/components/charts/RetirementProgressBar";
+import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
+import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
+import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
+import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
+import {
+  FileText,
+  ArrowRight,
+  TrendingUp,
+  Check,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +128,120 @@ function DashboardNoPlan() {
   );
 }
 
+function ExpandablePlanSection({
+  section,
+}: {
+  section: { id: string; title: string; summary: string; actionItems: { id: string; text: string; priority: string }[] };
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleItems = expanded ? section.actionItems : section.actionItems.slice(0, 2);
+  const hasMore = section.actionItems.length > 2;
+
+  return (
+    <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5 hover:shadow-sm transition-shadow">
+      <div className="flex items-center gap-2 mb-3">
+        <FileText className="w-4 h-4 text-[var(--emerald)] shrink-0" />
+        <h3 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
+          {section.title}
+        </h3>
+      </div>
+      {section.summary && (
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3 line-clamp-3">
+          {section.summary}
+        </p>
+      )}
+      {section.actionItems.length > 0 && (
+        <div className="space-y-1.5">
+          {visibleItems.map((item) => (
+            <div key={item.id} className="flex items-start gap-2">
+              <ArrowRight className="w-3 h-3 text-[var(--emerald)] mt-1 shrink-0" />
+              <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] line-clamp-2">
+                {item.text}
+              </p>
+            </div>
+          ))}
+          {hasMore && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 font-[family-name:var(--font-body)] text-xs font-medium text-[var(--emerald)] hover:text-[#059669] pl-5 mt-1 transition-colors"
+            >
+              {expanded ? (
+                <>
+                  <ChevronUp className="w-3 h-3" />
+                  Show less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3 h-3" />
+                  +{section.actionItems.length - 2} more action items
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
+  return (
+    <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+      {plan.healthScore > 0 && (
+        <div className="flex flex-col items-center shrink-0">
+          <HealthScore score={plan.healthScore} size="lg" />
+          <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-secondary)] mt-3">
+            Health Score
+          </p>
+        </div>
+      )}
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+        <FinancialCard
+          label="NET WORTH"
+          value={plan.netWorth ?? "--"}
+          className="bg-gradient-to-br from-white to-emerald-50/40"
+        />
+        <FinancialCard
+          label="MONTHLY CASH FLOW"
+          value={plan.monthlyCashFlow ?? "--"}
+          className="bg-gradient-to-br from-white to-blue-50/40"
+        />
+        <FinancialCard
+          label="SAVINGS RATE"
+          value={plan.savingsRate ?? "--"}
+          className="bg-gradient-to-br from-white to-indigo-50/40"
+        />
+        <FinancialCard
+          label="RETIREMENT GAP"
+          value={plan.retirementGap ?? "--"}
+          className="bg-gradient-to-br from-white to-amber-50/40"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ChartGrid() {
+  return (
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RetirementIncomeChart />
+        <RetirementProgressBar />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <DebtBreakdownChart />
+        <AssetAllocationChart />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <NetWorthTimeline />
+        <ScoreBreakdownChart />
+      </div>
+    </>
+  );
+}
+
 function DashboardPending() {
   const { plan } = usePlanStore();
 
@@ -133,22 +261,8 @@ function DashboardPending() {
         estimatedDelivery={plan.estimatedDelivery ?? "Within 24 hours"}
       />
 
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-        {plan.healthScore > 0 && (
-          <div className="flex flex-col items-center">
-            <HealthScore score={plan.healthScore} size="lg" />
-            <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-secondary)] mt-3">
-              Health Score
-            </p>
-          </div>
-        )}
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <FinancialCard label="NET WORTH" value={plan.netWorth} />
-          <FinancialCard label="MONTHLY CASH FLOW" value={plan.monthlyCashFlow} />
-          <FinancialCard label="SAVINGS RATE" value={plan.savingsRate} />
-          <FinancialCard label="RETIREMENT GAP" value={plan.retirementGap} />
-        </div>
-      </div>
+      <KPIStrip plan={plan} />
+      <ChartGrid />
 
       {plan.sections.length > 0 && (
         <div>
@@ -157,39 +271,7 @@ function DashboardPending() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plan.sections.map((section) => (
-              <div
-                key={section.id}
-                className="bg-white border border-[var(--warm-200)] rounded-lg p-5"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="w-4 h-4 text-[var(--emerald)] shrink-0" />
-                  <h3 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
-                    {section.title}
-                  </h3>
-                </div>
-                {section.summary && (
-                  <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3 line-clamp-3">
-                    {section.summary}
-                  </p>
-                )}
-                {section.actionItems.length > 0 && (
-                  <div className="space-y-1.5">
-                    {section.actionItems.slice(0, 2).map((item) => (
-                      <div key={item.id} className="flex items-start gap-2">
-                        <ArrowRight className="w-3 h-3 text-[var(--emerald)] mt-1 shrink-0" />
-                        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] line-clamp-2">
-                          {item.text}
-                        </p>
-                      </div>
-                    ))}
-                    {section.actionItems.length > 2 && (
-                      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] pl-5">
-                        +{section.actionItems.length - 2} more action items
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ExpandablePlanSection key={section.id} section={section} />
             ))}
           </div>
         </div>
@@ -209,68 +291,27 @@ function DashboardDelivered() {
     ? Math.floor((Date.now() - new Date(plan.deliveredAt).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
 
-  const keyInsights = [
-    {
-      text: "Maximize RRSP contribution room ($18,200 available)",
-      detail: "Estimated $5,460 tax refund at your marginal rate",
-    },
-    {
-      text: "Consolidate to low-MER ETF portfolio (target 0.18% weighted MER)",
-      detail: "Reduces fee drag by ~$2,400/year on current portfolio",
-    },
-    {
-      text: "Accelerate line of credit repayment to $600/mo",
-      detail: "Eliminates $14,400 balance in 28 months, saves $1,840 in interest",
-    },
-  ];
-
   return (
     <div className="space-y-8">
       {daysSinceDelivery <= 7 && (
         <ApprovalStatusBanner status="delivered" planId={plan.id} />
       )}
 
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-8">
-        <div className="flex flex-col items-center">
-          <HealthScore score={plan.healthScore} size="lg" />
-          <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-secondary)] mt-3">
-            Health Score
-          </p>
-        </div>
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <FinancialCard label="NET WORTH" value={plan.netWorth} trend="+12.4%" trendDirection="up" />
-          <FinancialCard label="MONTHLY CASH FLOW" value={plan.monthlyCashFlow} trend="+$320" trendDirection="up" />
-          <FinancialCard label="SAVINGS RATE" value={plan.savingsRate} trend="+3.2%" trendDirection="up" />
-          <FinancialCard label="RETIREMENT GAP" value={plan.retirementGap} trend="-$4,200" trendDirection="down" />
-        </div>
-      </div>
+      <KPIStrip plan={plan} />
+      <ChartGrid />
 
-      <div>
-        <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-4">
-          Key Insights
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {keyInsights.map((insight) => (
-            <Link
-              key={insight.text}
-              href={`/dashboard/plan/${plan.id}`}
-              className="group bg-white border border-[var(--warm-200)] rounded-lg p-5 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-start gap-3">
-                <ArrowRight className="w-4 h-4 text-[var(--emerald)] mt-1 shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                <div>
-                  <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)] mb-1">
-                    {insight.text}
-                  </p>
-                  <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)]">
-                    {insight.detail}
-                  </p>
-                </div>
-              </div>
-            </Link>
-          ))}
+      {plan.sections.length > 0 && (
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-4">
+            Plan Sections
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {plan.sections.map((section) => (
+              <ExpandablePlanSection key={section.id} section={section} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <ReviewReminder />
 

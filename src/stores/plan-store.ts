@@ -8,6 +8,7 @@ interface PlanStore {
   user: UserProfile | null;
   plan: FinancialPlan | null;
   planStatus: PlanStatus;
+  rawPlanData: Record<string, unknown> | null;
   marketContext: MarketContextReport | null;
   isLoading: boolean;
 
@@ -15,6 +16,7 @@ interface PlanStore {
   clearUser: () => void;
   setPlan: (plan: FinancialPlan) => void;
   setPlanStatus: (status: PlanStatus) => void;
+  setRawPlanData: (data: Record<string, unknown>) => void;
   setMarketContext: (report: MarketContextReport) => void;
   loadMockData: (scenario: "none" | "pending" | "delivered") => void;
 }
@@ -23,13 +25,15 @@ export const usePlanStore = create<PlanStore>((set) => ({
   user: null,
   plan: null,
   planStatus: "none",
+  rawPlanData: null,
   marketContext: null,
   isLoading: false,
 
   setUser: (user) => set({ user }),
-  clearUser: () => set({ user: null, plan: null, planStatus: "none" }),
+  clearUser: () => set({ user: null, plan: null, planStatus: "none", rawPlanData: null }),
   setPlan: (plan) => set({ plan, planStatus: plan.status }),
   setPlanStatus: (planStatus) => set({ planStatus }),
+  setRawPlanData: (data) => set({ rawPlanData: data }),
   setMarketContext: (marketContext) => set({ marketContext }),
 
   loadMockData: (scenario) => {

@@ -114,7 +114,7 @@ function transformPlanData(
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, planStatus, setUser, clearUser, setPlan, setPlanStatus } = usePlanStore();
+  const { user, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData } = usePlanStore();
 
   useEffect(() => {
     if (user) return;
@@ -177,6 +177,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (planRes.ok) {
         const { plan: dbPlan } = await planRes.json();
         if (dbPlan && dbPlan.plan_data) {
+          const parsed = typeof dbPlan.plan_data === "string" ? JSON.parse(dbPlan.plan_data) : dbPlan.plan_data;
+          setRawPlanData(parsed);
           setPlan(transformPlanData(dbPlan));
         } else if (dbPlan) {
           setPlanStatus(dbPlan.status);
@@ -189,7 +191,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     loadUser();
-  }, [user, setUser, clearUser, setPlan, setPlanStatus, router]);
+  }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, router]);
 
   const POLL_INTERVAL_MS = 10_000;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
