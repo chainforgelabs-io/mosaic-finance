@@ -27,8 +27,15 @@ export async function GET() {
     .eq('user_id', user.id)
     .single();
 
+  const { data: fixedAssets } = await supabase
+    .from('fixed_assets')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
   return NextResponse.json({
     holdings: holdings ?? [],
     financialProfile: profile ?? null,
+    fixedAssets: fixedAssets ?? [],
   });
 }

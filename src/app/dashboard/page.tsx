@@ -184,7 +184,23 @@ function ExpandablePlanSection({
   );
 }
 
+function fmtKpi(n: number | null | undefined): string {
+  if (n == null) return "--";
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toLocaleString()}`;
+}
+
 function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
+  const rawPlanData = usePlanStore((s) => s.rawPlanData);
+  const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
+  const debtPlan = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
+
+  const totalDebt = (debtPlan?.total_debt as number) ?? 0;
+  const netWorthNum = (diag?.net_worth as number) ?? null;
+  const totalAssets = netWorthNum != null ? netWorthNum + totalDebt : null;
+  const emergencyMonths = (diag?.emergency_fund_months as number) ?? null;
+
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
       {plan.healthScore > 0 && (
@@ -195,7 +211,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
           </p>
         </div>
       )}
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
         <FinancialCard
           label="NET WORTH"
           value={plan.netWorth ?? "--"}
@@ -207,15 +223,41 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
           className="bg-gradient-to-br from-white to-blue-50/40"
         />
         <FinancialCard
-          label="SAVINGS RATE"
-          value={plan.savingsRate ?? "--"}
+          label="TOTAL ASSETS"
+          value={fmtKpi(totalAssets)}
           className="bg-gradient-to-br from-white to-indigo-50/40"
         />
         <FinancialCard
-          label="RETIREMENT GAP"
-          value={plan.retirementGap ?? "--"}
-          className="bg-gradient-to-br from-white to-amber-50/40"
+          label="TOTAL DEBT"
+          value={totalDebt ? fmtKpi(totalDebt) : "--"}
+          className="bg-gradient-to-br from-white to-red-50/30"
         />
+        <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-amber-50/40 transition-shadow hover:shadow-sm">
+          <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
+            EMERGENCY FUND
+          </p>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
+              {emergencyMonths != null ? emergencyMonths.toFixed(1) : "--"}
+            </span>
+            {emergencyMonths != null && (
+              <span className="font-body text-sm text-[var(--text-muted)]">mo</span>
+            )}
+          </div>
+          {emergencyMonths != null && (
+            <div className="mt-3">
+              <div className="w-full h-1.5 bg-[var(--warm-100)] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min((emergencyMonths / 6) * 100, 100)}%`,
+                    background: emergencyMonths >= 6 ? "var(--emerald)" : emergencyMonths >= 3 ? "#f59e0b" : "#ef4444",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -260,6 +302,22 @@ function DashboardPending() {
         status="pending_review"
         estimatedDelivery={plan.estimatedDelivery ?? "Within 24 hours"}
       />
+
+      <Link
+        href="/dashboard/plan"
+        className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4 hover:bg-emerald-100 transition-colors group"
+      >
+        <FileText className="w-5 h-5 text-[var(--emerald)] shrink-0" />
+        <div className="flex-1">
+          <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--emerald-dark)]">
+            Your draft plan is ready to view
+          </p>
+          <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mt-0.5">
+            Download a watermarked draft while it&apos;s under CIM review
+          </p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-[var(--emerald)] group-hover:translate-x-0.5 transition-transform" />
+      </Link>
 
       <KPIStrip plan={plan} />
       <ChartGrid />

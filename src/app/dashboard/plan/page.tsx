@@ -16,6 +16,7 @@ import {
   Check,
   Clock,
   Download,
+  Eye,
   FileText,
   Loader2,
   MessageCircle,
@@ -199,9 +200,31 @@ function PlanNone() {
   );
 }
 
-/* ---------- Plan KPI Strip (shared) ---------- */
+/* ---------- Plan KPI Strip (planning-focused) ---------- */
+
+function fmtPlanKpi(n: number | null | undefined): string {
+  if (n == null) return "--";
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toLocaleString()}`;
+}
 
 function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
+  const rawPlanData = usePlanStore((s) => s.rawPlanData);
+  const ret = rawPlanData?.retirement_readiness as Record<string, unknown> | undefined;
+  const tax = rawPlanData?.tax_efficiency_review as Record<string, unknown> | undefined;
+  const debt = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
+  const ins = rawPlanData?.insurance_coverage_audit as Record<string, unknown> | undefined;
+  const avalanche = debt?.avalanche_method as Record<string, unknown> | undefined;
+
+  const retTarget = (ret?.retirement_number as number) ?? 0;
+  const retCurrent = (ret?.current_trajectory as number) ?? 0;
+  const retPct = retTarget > 0 ? Math.round((retCurrent / retTarget) * 100) : null;
+  const savingsTarget = (ret?.monthly_savings_required as number) ?? null;
+  const taxSavings = (tax?.estimated_annual_tax_savings as number) ?? null;
+  const payoffMonths = (avalanche?.payoff_months as number) ?? null;
+  const insuranceGap = (ins?.life_insurance_gap as number) ?? null;
+
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
       {plan.healthScore > 0 && (
@@ -212,11 +235,60 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
           </p>
         </div>
       )}
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-        <FinancialCard label="NET WORTH" value={plan.netWorth ?? "--"} className="bg-gradient-to-br from-white to-emerald-50/40" />
-        <FinancialCard label="MONTHLY CASH FLOW" value={plan.monthlyCashFlow ?? "--"} className="bg-gradient-to-br from-white to-blue-50/40" />
-        <FinancialCard label="SAVINGS RATE" value={plan.savingsRate ?? "--"} className="bg-gradient-to-br from-white to-indigo-50/40" />
-        <FinancialCard label="RETIREMENT GAP" value={plan.retirementGap ?? "--"} className="bg-gradient-to-br from-white to-amber-50/40" />
+      <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
+        <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-emerald-50/40 transition-shadow hover:shadow-sm">
+          <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
+            RETIREMENT READINESS
+          </p>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
+              {retPct != null ? `${retPct}%` : "--"}
+            </span>
+          </div>
+          {retPct != null && (
+            <div className="mt-3">
+              <div className="w-full h-1.5 bg-[var(--warm-100)] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(retPct, 100)}%`,
+                    background: retPct >= 80 ? "var(--emerald)" : retPct >= 50 ? "#f59e0b" : "#ef4444",
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <FinancialCard
+          label="SAVINGS TARGET"
+          value={savingsTarget != null ? fmtPlanKpi(savingsTarget) : "--"}
+          unit={savingsTarget != null ? "/mo" : undefined}
+          className="bg-gradient-to-br from-white to-blue-50/40"
+        />
+        <FinancialCard
+          label="TAX SAVINGS"
+          value={taxSavings != null ? fmtPlanKpi(taxSavings) : "--"}
+          unit={taxSavings != null ? "/yr" : undefined}
+          className="bg-gradient-to-br from-white to-indigo-50/40"
+        />
+        <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-amber-50/40 transition-shadow hover:shadow-sm">
+          <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
+            DEBT PAYOFF
+          </p>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
+              {payoffMonths != null ? payoffMonths : "--"}
+            </span>
+            {payoffMonths != null && (
+              <span className="font-body text-sm text-[var(--text-muted)]">months</span>
+            )}
+          </div>
+        </div>
+        <FinancialCard
+          label="INSURANCE GAP"
+          value={insuranceGap != null ? fmtPlanKpi(insuranceGap) : "--"}
+          className="bg-gradient-to-br from-white to-red-50/30"
+        />
       </div>
     </div>
   );
@@ -287,13 +359,16 @@ function PlanPendingReview() {
               Section details will be finalized after CIM review
             </p>
           </div>
-          {plan.sections.map((section) => (
-            <PlanSectionComponent key={section.id} section={section} defaultExpanded={false} />
-          ))}
+          <div className="px-6">
+            {plan.sections.map((section) => (
+              <PlanSectionComponent key={section.id} section={section} defaultExpanded={false} />
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="flex justify-center">
+      <div className="flex justify-center gap-3">
+        <DraftDownloadButton planId={plan.id} />
         <button
           disabled
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] text-[var(--text-muted)] font-[family-name:var(--font-display)] text-sm font-semibold cursor-not-allowed"
@@ -305,6 +380,44 @@ function PlanPendingReview() {
         </button>
       </div>
     </div>
+  );
+}
+
+/* ---------- Draft Download Button ---------- */
+
+function DraftDownloadButton({ planId }: { planId: string }) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/plan/${planId}/draft-pdf`, { credentials: "include" });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `finova-draft-plan-${planId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      // could add toast
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={downloading}
+      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50"
+    >
+      {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+      {downloading ? "Generating..." : "Download Draft"}
+    </button>
   );
 }
 

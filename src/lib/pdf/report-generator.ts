@@ -4,8 +4,25 @@ import chromium from '@sparticuz/chromium';
 export async function generatePDF(
   planData: Record<string, unknown>,
   _userId: string,
+  options?: { draft?: boolean },
 ): Promise<Buffer> {
-  const html = buildReportHTML(planData);
+  let html = buildReportHTML(planData);
+
+  if (options?.draft) {
+    html = html.replace('</style>', `
+  .draft-watermark { position: fixed; top: 35%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); font-size: 120px; font-weight: 900; color: rgba(200, 0, 0, 0.08); letter-spacing: 12px; pointer-events: none; z-index: 9999; white-space: nowrap; }
+  .draft-banner { background: #fef2f2; border: 2px solid #fca5a5; padding: 12px 20px; margin: 20px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #991b1b; font-weight: 600; }
+</style>`);
+    html = html.replace('<body>', '<body><div class="draft-watermark">DRAFT</div>');
+    html = html.replace(
+      '<!-- COVER PAGE -->',
+      '<div class="draft-banner">DRAFT — This plan has not yet been reviewed by a CIM-designated professional. Content is AI-generated and unverified.</div>\n<!-- COVER PAGE -->',
+    );
+    html = html.replace(
+      'Reviewed by a CIM-Designated Professional',
+      'DRAFT — Pending CIM Professional Review',
+    );
+  }
 
   const browser = await puppeteer.launch({
     args: chromium.args,
@@ -17,14 +34,21 @@ export async function generatePDF(
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0' });
 
+  const headerText = options?.draft
+    ? 'FINOVA AI — DRAFT PLAN (UNVERIFIED)'
+    : 'FINOVA AI — CONFIDENTIAL FINANCIAL PLAN';
+  const footerText = options?.draft
+    ? 'DRAFT — This plan has NOT been reviewed by a CIM-designated professional. For educational purposes only.'
+    : 'This plan was reviewed by a CIM-designated professional. It does not constitute registered investment advice.';
+
   const pdf = await page.pdf({
     format: 'Letter',
     printBackground: true,
     margin: { top: '1in', right: '0.75in', bottom: '1in', left: '0.75in' },
     displayHeaderFooter: true,
-    headerTemplate: `<div style="font-size:9px;font-family:Arial;width:100%;text-align:center;color:#666;">FINOVA AI — CONFIDENTIAL FINANCIAL PLAN</div>`,
-    footerTemplate: `<div style="font-size:8px;font-family:Arial;width:100%;padding:0 60px;display:flex;justify-content:space-between;color:#999;">
-      <span>This plan was reviewed by a CIM-designated professional. It does not constitute registered investment advice.</span>
+    headerTemplate: `<div style="font-size:9px;font-family:Arial;width:100%;text-align:center;color:${options?.draft ? '#991b1b' : '#666'};">${headerText}</div>`,
+    footerTemplate: `<div style="font-size:8px;font-family:Arial;width:100%;padding:0 60px;display:flex;justify-content:space-between;color:${options?.draft ? '#991b1b' : '#999'};">
+      <span>${footerText}</span>
       <span><span class="pageNumber"></span> / <span class="totalPages"></span></span>
     </div>`,
   });

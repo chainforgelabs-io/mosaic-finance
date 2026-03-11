@@ -83,7 +83,9 @@ export function AppSidebar({
         {navItems.map((item) => {
           const isActive = item.label === "Walkthrough"
             ? pathname.includes("/walkthrough")
-            : pathname === item.href || pathname.startsWith(item.href + "/");
+            : item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
           const isDisabled = item.requiresPlan && planStatus !== "delivered";
 
           if (isDisabled) {
