@@ -33,9 +33,28 @@ export async function GET() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
+  const { data: userProfile } = await supabase
+    .from('user_profiles')
+    .select('annual_income')
+    .eq('id', user.id)
+    .single();
+
+  const { data: members } = await supabase
+    .from('household_members')
+    .select('annual_income')
+    .eq('user_id', user.id);
+
+  const primaryIncome = Number(userProfile?.annual_income) || 0;
+  const membersIncome = (members ?? []).reduce(
+    (sum, m) => sum + (Number(m.annual_income) || 0),
+    0,
+  );
+  const householdIncome = primaryIncome + membersIncome;
+
   return NextResponse.json({
     holdings: holdings ?? [],
     financialProfile: profile ?? null,
     fixedAssets: fixedAssets ?? [],
+    householdIncome: householdIncome > 0 ? householdIncome : null,
   });
 }

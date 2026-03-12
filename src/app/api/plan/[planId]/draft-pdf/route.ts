@@ -4,7 +4,7 @@ import { generatePDF } from '@/lib/pdf/report-generator';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function GET(
   _req: NextRequest,

@@ -539,6 +539,7 @@ export default function AssetsPage() {
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
+  const [householdIncome, setHouseholdIncome] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [showForm, setShowForm] = useState(false);
@@ -553,6 +554,7 @@ export default function AssetsPage() {
         setHoldings(data.holdings ?? []);
         setProfile(data.financialProfile ?? null);
         setFixedAssets(data.fixedAssets ?? []);
+        setHouseholdIncome(data.householdIncome ?? null);
       }
     } catch {
       // silently fail
@@ -652,12 +654,79 @@ export default function AssetsPage() {
       </div>
 
       <div className="space-y-8">
-        {/* NET WORTH SUMMARY */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <FinancialCard label="TOTAL ASSETS" value={fmt(totalAssets)} className="bg-gradient-to-br from-white to-emerald-50/40" />
-          <FinancialCard label="INVESTMENTS" value={fmt(investmentTotal)} className="bg-gradient-to-br from-white to-blue-50/40" />
-          <FinancialCard label="TOTAL LIABILITIES" value={fmt(totalDebt)} className="bg-gradient-to-br from-white to-red-50/30" />
-          <FinancialCard label="NET WORTH" value={fmt(netWorth)} className="bg-gradient-to-br from-white to-indigo-50/40" />
+        {/* NET WORTH HERO BANNER */}
+        <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
+          <div className="flex flex-col gap-6">
+            {/* Top row: Net Worth headline + metric cards */}
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+              <div className="shrink-0">
+                <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-1">Net Worth</p>
+                <p className="font-[family-name:var(--font-display)] text-[36px] md:text-[42px] font-bold tabular-nums text-white leading-none">
+                  {fmt(netWorth)}
+                </p>
+                <div className="mt-2 h-[3px] w-24 rounded-full bg-gradient-to-r from-[#c9aa71] to-[#c9aa71]/0" />
+              </div>
+              <div className="hidden md:block w-px h-16 bg-white/10" />
+              <div className="flex-1 grid grid-cols-3 gap-3 w-full">
+                <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-4">
+                  <p className="font-[family-name:var(--font-body)] text-[10px] font-medium uppercase tracking-widest text-white/40 mb-1">Investments & Liquid Assets</p>
+                  <p className="font-[family-name:var(--font-display)] text-[22px] font-bold tabular-nums text-[#10b981]">{fmt(investmentTotal)}</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-4">
+                  <p className="font-[family-name:var(--font-body)] text-[10px] font-medium uppercase tracking-widest text-white/40 mb-1">Fixed Assets</p>
+                  <p className="font-[family-name:var(--font-display)] text-[22px] font-bold tabular-nums text-[#818cf8]">{fmt(fixedTotal)}</p>
+                </div>
+                <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-4">
+                  <p className="font-[family-name:var(--font-body)] text-[10px] font-medium uppercase tracking-widest text-white/40 mb-1">Total Liabilities</p>
+                  <p className="font-[family-name:var(--font-display)] text-[22px] font-bold tabular-nums text-[#ef4444]">{fmt(totalDebt)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Asset composition bar */}
+            {totalAssets > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-[family-name:var(--font-body)] text-[10px] font-medium uppercase tracking-widest text-white/30">Asset Composition</p>
+                  <p className="font-[family-name:var(--font-body)] text-[10px] text-white/30">
+                    Total Assets: {fmt(totalAssets)}
+                  </p>
+                </div>
+                <div className="flex h-4 rounded-full overflow-hidden bg-white/5">
+                  {investmentTotal > 0 && (
+                    <div
+                      className="h-full bg-[#10b981] transition-all duration-700"
+                      style={{ width: `${(investmentTotal / totalAssets) * 100}%` }}
+                      title={`Investments & Liquid: ${fmt(investmentTotal)}`}
+                    />
+                  )}
+                  {fixedTotal > 0 && (
+                    <div
+                      className="h-full bg-[#818cf8] transition-all duration-700"
+                      style={{ width: `${(fixedTotal / totalAssets) * 100}%` }}
+                      title={`Fixed Assets: ${fmt(fixedTotal)}`}
+                    />
+                  )}
+                </div>
+                <div className="flex gap-4 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                    <span className="font-[family-name:var(--font-body)] text-[10px] text-white/40">Investments ({totalAssets > 0 ? Math.round((investmentTotal / totalAssets) * 100) : 0}%)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#818cf8]" />
+                    <span className="font-[family-name:var(--font-body)] text-[10px] text-white/40">Fixed ({totalAssets > 0 ? Math.round((fixedTotal / totalAssets) * 100) : 0}%)</span>
+                  </div>
+                  {totalDebt > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#ef4444]" />
+                      <span className="font-[family-name:var(--font-body)] text-[10px] text-white/40">Debt ({fmt(totalDebt)})</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ALLOCATION CHARTS */}
@@ -854,38 +923,52 @@ export default function AssetsPage() {
         )}
 
         {/* CASH FLOW */}
-        {profile && (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
-              <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <FinancialCard label="ANNUAL INCOME" value={fmt(profile.annual_income)} className="bg-gradient-to-br from-white to-emerald-50/40" />
-              <FinancialCard label="MONTHLY EXPENSES" value={fmt(profile.monthly_expenses)} className="bg-gradient-to-br from-white to-red-50/30" />
-              <FinancialCard label="MONTHLY SAVINGS" value={fmt(profile.monthly_savings)} className="bg-gradient-to-br from-white to-blue-50/40" />
-              <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-amber-50/40">
-                <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">EMERGENCY FUND</p>
-                <div className="mt-2 flex items-baseline gap-1.5">
-                  <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">{profile.emergency_fund_months ?? "--"}</span>
-                  <span className="font-body text-sm text-[var(--text-muted)]">months</span>
-                </div>
-                <div className="mt-3">
-                  <div className="w-full h-2 bg-[var(--warm-100)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(((profile.emergency_fund_months ?? 0) / 6) * 100, 100)}%`,
-                        background: (profile.emergency_fund_months ?? 0) >= 6 ? "var(--emerald)" : (profile.emergency_fund_months ?? 0) >= 3 ? "#f59e0b" : "#ef4444",
-                      }}
-                    />
+        {(profile || diag) && (() => {
+          const annualIncome = profile?.annual_income ?? householdIncome ?? null;
+          const monthlyExpenses = profile?.monthly_expenses ?? null;
+          const monthlySavings = profile?.monthly_savings ?? null;
+          const cashFlowMonthly = (diag?.cash_flow_monthly as number) ?? null;
+          const savingsRate = (diag?.savings_rate_percent as number) ?? null;
+          const efMonths = profile?.emergency_fund_months ?? (diag?.emergency_fund_months as number) ?? null;
+
+          return (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
+                <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <FinancialCard label="ANNUAL INCOME" value={fmt(annualIncome)} className="bg-gradient-to-br from-white to-emerald-50/40" />
+                <FinancialCard label="MONTHLY CASH FLOW" value={fmt(cashFlowMonthly ?? (monthlySavings != null && monthlyExpenses != null ? monthlySavings : null))} className="bg-gradient-to-br from-white to-blue-50/40" />
+                <FinancialCard
+                  label="SAVINGS RATE"
+                  value={savingsRate != null ? `${savingsRate}%` : (monthlyExpenses != null ? fmt(monthlyExpenses) : "--")}
+                  unit={savingsRate != null ? undefined : (monthlyExpenses != null ? "/mo expenses" : undefined)}
+                  className="bg-gradient-to-br from-white to-indigo-50/40"
+                />
+                <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-amber-50/40">
+                  <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">EMERGENCY FUND</p>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">{efMonths != null ? Number(efMonths).toFixed(1) : "--"}</span>
+                    <span className="font-body text-sm text-[var(--text-muted)]">months</span>
                   </div>
-                  <p className="font-body text-[11px] text-[var(--text-muted)] mt-1">Target: 6 months</p>
+                  <div className="mt-3">
+                    <div className="w-full h-2 bg-[var(--warm-100)] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${Math.min(((efMonths ?? 0) / 6) * 100, 100)}%`,
+                          background: (efMonths ?? 0) >= 6 ? "var(--emerald)" : (efMonths ?? 0) >= 3 ? "#f59e0b" : "#ef4444",
+                        }}
+                      />
+                    </div>
+                    <p className="font-body text-[11px] text-[var(--text-muted)] mt-1">Target: 6 months</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* FINANCIAL GOALS */}
         {profile?.financial_goals && profile.financial_goals.length > 0 && (

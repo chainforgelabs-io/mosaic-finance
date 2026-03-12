@@ -200,13 +200,52 @@ function PlanNone() {
   );
 }
 
-/* ---------- Plan KPI Strip (planning-focused) ---------- */
+/* ---------- Plan KPI Strip (planning-focused, dark hero) ---------- */
 
 function fmtPlanKpi(n: number | null | undefined): string {
   if (n == null) return "--";
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
+}
+
+function ProgressRing({ pct, size = 100, stroke = 8 }: { pct: number; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(pct, 100) / 100) * circ;
+  const color = pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke={color} strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={circ} strokeDashoffset={offset}
+        style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dashoffset 0.8s ease" }}
+      />
+      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central"
+        className="font-[family-name:var(--font-display)]" fill="white" fontSize={size * 0.26} fontWeight={700}>
+        {pct}%
+      </text>
+    </svg>
+  );
+}
+
+function DarkMetric({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: string }) {
+  return (
+    <div className="flex flex-col items-center text-center px-3 py-2">
+      <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/50 mb-1.5">
+        {label}
+      </p>
+      <div className="flex items-baseline gap-1">
+        <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: accent ?? "#c9aa71" }}>
+          {value}
+        </span>
+        {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/40">{unit}</span>}
+      </div>
+    </div>
+  );
 }
 
 function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
@@ -226,69 +265,38 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
   const insuranceGap = (ins?.life_insurance_gap as number) ?? null;
 
   return (
-    <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-      {plan.healthScore > 0 && (
-        <div className="flex flex-col items-center shrink-0">
-          <HealthScore score={plan.healthScore} size="lg" />
-          <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-secondary)] mt-3">
-            Health Score
-          </p>
-        </div>
-      )}
-      <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 w-full">
-        <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-emerald-50/40 transition-shadow hover:shadow-sm">
-          <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
-            RETIREMENT READINESS
-          </p>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
-              {retPct != null ? `${retPct}%` : "--"}
-            </span>
-          </div>
+    <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
+      <div className="flex flex-col md:flex-row items-center gap-8">
+        {/* Left: Health Score + Retirement Ring */}
+        <div className="flex items-center gap-6 shrink-0">
+          {plan.healthScore > 0 && (
+            <div className="flex flex-col items-center">
+              <HealthScore score={plan.healthScore} size="lg" />
+              <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
+                Health Score
+              </p>
+            </div>
+          )}
           {retPct != null && (
-            <div className="mt-3">
-              <div className="w-full h-1.5 bg-[var(--warm-100)] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(retPct, 100)}%`,
-                    background: retPct >= 80 ? "var(--emerald)" : retPct >= 50 ? "#f59e0b" : "#ef4444",
-                  }}
-                />
-              </div>
+            <div className="flex flex-col items-center">
+              <ProgressRing pct={retPct} size={96} stroke={7} />
+              <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
+                Retirement Ready
+              </p>
             </div>
           )}
         </div>
-        <FinancialCard
-          label="SAVINGS TARGET"
-          value={savingsTarget != null ? fmtPlanKpi(savingsTarget) : "--"}
-          unit={savingsTarget != null ? "/mo" : undefined}
-          className="bg-gradient-to-br from-white to-blue-50/40"
-        />
-        <FinancialCard
-          label="TAX SAVINGS"
-          value={taxSavings != null ? fmtPlanKpi(taxSavings) : "--"}
-          unit={taxSavings != null ? "/yr" : undefined}
-          className="bg-gradient-to-br from-white to-indigo-50/40"
-        />
-        <div className="rounded-lg border border-[var(--warm-200)] p-6 bg-gradient-to-br from-white to-amber-50/40 transition-shadow hover:shadow-sm">
-          <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
-            DEBT PAYOFF
-          </p>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
-              {payoffMonths != null ? payoffMonths : "--"}
-            </span>
-            {payoffMonths != null && (
-              <span className="font-body text-sm text-[var(--text-muted)]">months</span>
-            )}
-          </div>
+
+        {/* Vertical separator */}
+        <div className="hidden md:block w-px h-20 bg-white/10" />
+
+        {/* Right: Metric strip */}
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+          <DarkMetric label="Savings Target" value={savingsTarget != null ? fmtPlanKpi(savingsTarget) : "--"} unit={savingsTarget != null ? "/mo" : undefined} />
+          <DarkMetric label="Tax Savings" value={taxSavings != null ? fmtPlanKpi(taxSavings) : "--"} unit={taxSavings != null ? "/yr" : undefined} accent="#818cf8" />
+          <DarkMetric label="Debt Payoff" value={payoffMonths != null ? String(payoffMonths) : "--"} unit={payoffMonths != null ? "mo" : undefined} accent={payoffMonths != null && payoffMonths <= 24 ? "#10b981" : "#f59e0b"} />
+          <DarkMetric label="Insurance Gap" value={insuranceGap != null ? fmtPlanKpi(insuranceGap) : "--"} accent={insuranceGap != null && insuranceGap > 0 ? "#ef4444" : "#10b981"} />
         </div>
-        <FinancialCard
-          label="INSURANCE GAP"
-          value={insuranceGap != null ? fmtPlanKpi(insuranceGap) : "--"}
-          className="bg-gradient-to-br from-white to-red-50/30"
-        />
       </div>
     </div>
   );
@@ -333,16 +341,29 @@ function PlanPendingReview() {
     <div className="space-y-8">
       <StatusTimeline planStatus="pending_review" />
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-        <Shield className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-amber-800">
-            Under CIM Professional Review
-          </p>
-          <p className="font-[family-name:var(--font-body)] text-sm text-amber-700 mt-1">
-            Your plan has been generated and is now being reviewed by a CIM-designated professional.
-            Estimated delivery: {plan.estimatedDelivery ?? "Within 24 hours"}.
-          </p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="flex items-start gap-3 flex-1">
+          <Shield className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-amber-800">
+              Under CIM Professional Review
+            </p>
+            <p className="font-[family-name:var(--font-body)] text-sm text-amber-700 mt-1">
+              Estimated delivery: {plan.estimatedDelivery ?? "Within 24 hours"}.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <DraftDownloadButton planId={plan.id} />
+          <button
+            disabled
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--warm-200)] bg-white/60 text-[var(--text-muted)] font-[family-name:var(--font-display)] text-sm font-semibold cursor-not-allowed"
+            title="Available after CIM review"
+          >
+            <Download className="w-4 h-4" />
+            PDF
+            <span className="text-[10px] font-normal">(after review)</span>
+          </button>
         </div>
       </div>
 
@@ -366,19 +387,6 @@ function PlanPendingReview() {
           </div>
         </div>
       )}
-
-      <div className="flex justify-center gap-3">
-        <DraftDownloadButton planId={plan.id} />
-        <button
-          disabled
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] text-[var(--text-muted)] font-[family-name:var(--font-display)] text-sm font-semibold cursor-not-allowed"
-          title="Available after CIM review"
-        >
-          <Download className="w-4 h-4" />
-          Download PDF
-          <span className="text-xs font-normal">(after review)</span>
-        </button>
-      </div>
     </div>
   );
 }
@@ -413,10 +421,10 @@ function DraftDownloadButton({ planId }: { planId: string }) {
     <button
       onClick={handleDownload}
       disabled={downloading}
-      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50"
     >
       {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-      {downloading ? "Generating..." : "Download Draft"}
+      {downloading ? "Generating..." : "View Draft"}
     </button>
   );
 }

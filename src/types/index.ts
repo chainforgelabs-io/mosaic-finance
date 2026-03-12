@@ -42,15 +42,36 @@ export interface ETFRecommendation {
   rationale: string;
 }
 
+export interface ComparisonRow {
+  label: string;
+  values: string[];
+}
+
+export interface ComparisonTable {
+  title: string;
+  headers: string[];
+  rows: ComparisonRow[];
+}
+
+export interface CoverageRec {
+  type: string;
+  priority: string;
+  rationale: string;
+}
+
 export interface PlanSection {
   id: string;
   title: string;
+  subtitle?: string;
   status: "ai_generated" | "cim_reviewed";
   summary: string;
   cards: FinancialCardData[];
   prose: string;
   actionItems: ActionItem[];
   etfTable?: ETFRecommendation[];
+  tables?: ComparisonTable[];
+  coverageRecs?: CoverageRec[];
+  disclaimer?: string;
 }
 
 export interface FinancialPlan {
