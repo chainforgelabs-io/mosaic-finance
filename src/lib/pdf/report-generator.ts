@@ -41,13 +41,8 @@ export async function generatePDF(
   if (options?.draft) {
     html = html.replace('</style>', `
   .draft-watermark { position: fixed; top: 35%; left: 50%; transform: translate(-50%, -50%) rotate(-35deg); font-size: 120px; font-weight: 900; color: rgba(200, 0, 0, 0.08); letter-spacing: 12px; pointer-events: none; z-index: 9999; white-space: nowrap; }
-  .draft-banner { background: #fef2f2; border: 2px solid #fca5a5; padding: 12px 20px; margin: 20px 0; border-radius: 8px; text-align: center; font-size: 13px; color: #991b1b; font-weight: 600; }
 </style>`);
     html = html.replace('<body>', '<body><div class="draft-watermark">DRAFT</div>');
-    html = html.replace(
-      '<!-- COVER PAGE -->',
-      '<div class="draft-banner">DRAFT — This plan has not yet been reviewed by a CIM-designated professional. Content is AI-generated and unverified.</div>\n<!-- COVER PAGE -->',
-    );
     html = html.replace(
       'Reviewed by a CIM-Designated Professional',
       'DRAFT — Pending CIM Professional Review',
@@ -70,7 +65,7 @@ export async function generatePDF(
   const pdf = await page.pdf({
     format: 'Letter',
     printBackground: true,
-    margin: { top: '1in', right: '0.75in', bottom: '1in', left: '0.75in' },
+    margin: { top: '1in', bottom: '1in', left: '1in', right: '1in' },
     displayHeaderFooter: true,
     headerTemplate: `<div style="font-size:9px;font-family:Arial;width:100%;text-align:center;color:${options?.draft ? '#991b1b' : '#666'};">${headerText}</div>`,
     footerTemplate: `<div style="font-size:8px;font-family:Arial;width:100%;padding:0 60px;display:flex;justify-content:space-between;color:${options?.draft ? '#991b1b' : '#999'};">
@@ -141,11 +136,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { margin: 0; size: A4; }
+  @page { margin: 1in; size: Letter; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a202c; line-height: 1.65; font-size: 13px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a202c; line-height: 1.55; font-size: 11px; orphans: 3; widows: 3; }
 
-  .cover { page-break-after: always; height: 100vh; background: #0f1923; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; }
+  .cover { height: 9in; background: #0f1923; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; }
   .cover::before { content: ''; position: absolute; top: -40%; right: -20%; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(201,170,113,0.08) 0%, transparent 70%); }
   .cover::after { content: ''; position: absolute; bottom: -30%; left: -10%; width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 70%); }
   .cover-inner { position: relative; z-index: 1; text-align: center; }
@@ -155,78 +150,80 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   .cover .gold-line { width: 80px; height: 2px; background: #c9aa71; margin: 32px auto; }
   .cover .meta { font-size: 11px; color: #6b7280; margin-top: 8px; }
 
-  .page { page-break-before: always; padding: 48px 56px; min-height: 100vh; position: relative; }
-  .page::after { content: ''; position: absolute; bottom: 0; left: 56px; right: 56px; height: 1px; background: #e5e7eb; }
+  .page { page-break-before: always; page-break-inside: auto; position: relative; padding: 4px 0; }
+  .page::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: #e5e7eb; }
 
-  .sh { margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid #f3f4f6; }
-  .sh-accent { width: 48px; height: 3px; border-radius: 2px; margin-bottom: 12px; }
-  .sh h2 { font-size: 22px; font-weight: 800; color: #0f1923; letter-spacing: -0.3px; }
-  .sh p { font-size: 12px; color: #9ca3af; margin-top: 4px; letter-spacing: 0.2px; }
+  .sh { margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f3f4f6; page-break-inside: avoid; page-break-after: avoid; }
+  .sh-accent { width: 40px; height: 3px; border-radius: 2px; margin-bottom: 10px; }
+  .sh h2 { font-size: 20px; font-weight: 800; color: #0f1923; letter-spacing: -0.3px; }
+  .sh p { font-size: 11px; color: #9ca3af; margin-top: 3px; letter-spacing: 0.2px; }
 
-  .kpi-row { display: flex; gap: 14px; margin: 20px 0; }
-  .kpi { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; position: relative; overflow: hidden; }
+  h3 { page-break-after: avoid; }
+  .kpi-row { display: flex; gap: 14px; margin: 16px 0; page-break-inside: avoid; page-break-after: avoid; }
+  .kpi { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; position: relative; overflow: hidden; }
   .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 2px 2px 0; }
   .kpi-green::before { background: #10b981; }
   .kpi-gold::before { background: #c9aa71; }
   .kpi-blue::before { background: #3b82f6; }
   .kpi-red::before { background: #ef4444; }
   .kpi-purple::before { background: #8b5cf6; }
-  .kpi .kl { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
-  .kpi .kv { font-size: 24px; font-weight: 800; color: #0f1923; margin-top: 4px; }
-  .kpi .ku { font-size: 11px; color: #9ca3af; font-weight: 400; }
+  .kpi .kl { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
+  .kpi .kv { font-size: 22px; font-weight: 800; color: #0f1923; margin-top: 3px; }
+  .kpi .ku { font-size: 10px; color: #9ca3af; font-weight: 400; }
 
-  .score-ring { width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(#10b981 0deg, #10b981 calc(var(--pct) * 3.6deg), #e5e7eb calc(var(--pct) * 3.6deg)); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
-  .score-ring-inner { width: 96px; height: 96px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #0f1923; }
+  .score-ring { width: 100px; height: 100px; border-radius: 50%; background: conic-gradient(#10b981 0deg, #10b981 calc(var(--pct) * 3.6deg), #e5e7eb calc(var(--pct) * 3.6deg)); display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
+  .score-ring-inner { width: 80px; height: 80px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: #0f1923; }
 
-  .prose-block { background: #f8fafc; border-left: 3px solid #c9aa71; border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 16px 0; }
-  .prose-block strong { color: #0f1923; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-  .prose-block p { font-size: 12.5px; color: #374151; line-height: 1.7; }
+  .prose-block { background: #f8fafc; border-left: 3px solid #c9aa71; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 12px 0; page-break-inside: avoid; }
+  .prose-block strong { color: #0f1923; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
+  .prose-block p { font-size: 11px; color: #374151; line-height: 1.6; }
 
-  .bar-chart { margin: 16px 0; }
-  .bar-row { display: flex; align-items: center; margin-bottom: 10px; }
-  .bar-label { width: 140px; font-size: 11px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
-  .bar-track { flex: 1; height: 24px; background: #f3f4f6; border-radius: 6px; overflow: hidden; position: relative; }
-  .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 11px; font-weight: 700; color: white; min-width: 36px; }
-  .bar-val { width: 60px; text-align: right; font-size: 12px; font-weight: 700; color: #0f1923; margin-left: 10px; flex-shrink: 0; }
+  .bar-chart { margin: 12px 0; page-break-inside: avoid; }
+  .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
+  .bar-label { width: 130px; font-size: 10px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 20px; background: #f3f4f6; border-radius: 6px; overflow: hidden; position: relative; }
+  .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; font-weight: 700; color: white; min-width: 32px; }
+  .bar-val { width: 56px; text-align: right; font-size: 11px; font-weight: 700; color: #0f1923; margin-left: 8px; flex-shrink: 0; }
 
-  .progress-bar { height: 10px; background: #f3f4f6; border-radius: 5px; overflow: hidden; margin: 8px 0; }
-  .progress-fill { height: 100%; border-radius: 5px; }
+  .progress-bar { height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .progress-fill { height: 100%; border-radius: 4px; }
 
-  .tbl { width: 100%; border-collapse: separate; border-spacing: 0; margin: 16px 0; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; }
-  .tbl th { background: #0f1923; color: white; padding: 12px 16px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
-  .tbl td { padding: 11px 16px; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #374151; }
+  .tbl { width: 100%; border-collapse: separate; border-spacing: 0; margin: 12px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+  .tbl th { background: #0f1923; color: white; padding: 8px 12px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .tbl td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 11px; color: #374151; }
   .tbl tr:last-child td { border-bottom: none; }
   .tbl tr:nth-child(even) td { background: #f8fafc; }
-  .tbl .ticker { font-weight: 700; color: #10b981; font-size: 13px; }
+  .tbl .ticker { font-weight: 700; color: #10b981; font-size: 12px; }
 
-  .action-list { margin: 16px 0; }
-  .ai { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; background: #f8fafc; }
-  .ai-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
-  .ai-text { font-size: 12px; color: #374151; line-height: 1.6; flex: 1; }
+  .action-section { page-break-inside: avoid; }
+  .action-list { margin: 12px 0; page-break-before: avoid; }
+  .ai { display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; background: #f8fafc; page-break-inside: avoid; }
+  .ai-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: white; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .ai-text { font-size: 11px; color: #374151; line-height: 1.55; flex: 1; }
 
-  .insight-card { background: linear-gradient(135deg, #0f1923 0%, #1a2b3c 100%); border-radius: 12px; padding: 20px 24px; color: white; margin: 16px 0; }
-  .insight-card h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #c9aa71; margin-bottom: 8px; }
-  .insight-card p { font-size: 12.5px; line-height: 1.7; color: #d1d5db; }
+  .insight-card { background: linear-gradient(135deg, #0f1923 0%, #1a2b3c 100%); border-radius: 10px; padding: 16px 20px; color: white; margin: 12px 0; page-break-inside: avoid; }
+  .insight-card h4 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #c9aa71; margin-bottom: 6px; }
+  .insight-card p { font-size: 11px; line-height: 1.6; color: #d1d5db; }
 
-  .cov-card { display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 8px; align-items: flex-start; }
-  .cov-badge { padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
+  .cov-card { display: flex; gap: 10px; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 6px; align-items: flex-start; page-break-inside: avoid; }
+  .cov-badge { padding: 2px 6px; border-radius: 4px; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
 
-  .timeline { position: relative; padding-left: 28px; margin: 16px 0; }
-  .timeline::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 2px; background: #e5e7eb; }
-  .tl-item { position: relative; margin-bottom: 20px; }
-  .tl-dot { position: absolute; left: -24px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #c9aa71; border: 2px solid white; box-shadow: 0 0 0 2px #c9aa71; }
-  .tl-age { font-size: 11px; font-weight: 700; color: #c9aa71; text-transform: uppercase; letter-spacing: 0.5px; }
-  .tl-val { font-size: 16px; font-weight: 800; color: #0f1923; }
-  .tl-desc { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .timeline { position: relative; padding-left: 24px; margin: 12px 0; }
+  .timeline::before { content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px; width: 2px; background: #e5e7eb; }
+  .tl-item { position: relative; margin-bottom: 16px; page-break-inside: avoid; }
+  .tl-dot { position: absolute; left: -20px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #c9aa71; border: 2px solid white; box-shadow: 0 0 0 2px #c9aa71; }
+  .tl-age { font-size: 10px; font-weight: 700; color: #c9aa71; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tl-val { font-size: 14px; font-weight: 800; color: #0f1923; }
+  .tl-desc { font-size: 10px; color: #6b7280; margin-top: 2px; }
 
-  .disclaimer { margin-top: 32px; padding: 16px 20px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; font-size: 10px; color: #92400e; line-height: 1.6; }
+  .disclaimer { margin-top: 24px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 9px; color: #92400e; line-height: 1.5; }
 
-  .exec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
-  .exec-metric { text-align: center; padding: 20px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
-  .exec-metric .em-val { font-size: 28px; font-weight: 800; color: #0f1923; }
-  .exec-metric .em-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .exec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; page-break-inside: avoid; }
+  .exec-metric { text-align: center; padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .exec-metric .em-val { font-size: 24px; font-weight: 800; color: #0f1923; }
+  .exec-metric .em-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; page-break-inside: avoid; }
 </style>
 </head>
 <body>
@@ -318,9 +315,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>` : ''}
 
   ${(fhd.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(fhd.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -358,9 +357,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   ${rr.gap_analysis ? `<div class="insight-card"><h4>Gap Analysis</h4><p>${rr.gap_analysis}</p></div>` : ''}
 
   ${(rr.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(rr.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -400,9 +401,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   ${(ipb.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(ipb.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -427,9 +430,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   ${ter.income_splitting_opportunities ? `<div class="prose-block"><strong>Income Splitting</strong><p>${ter.income_splitting_opportunities}</p></div>` : ''}
 
   ${(ter.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(ter.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -470,9 +475,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   ${dep.refinancing_analysis ? `<div class="prose-block"><strong>Refinancing Analysis</strong><p>${dep.refinancing_analysis}</p></div>` : ''}
 
   ${(dep.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(dep.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -509,9 +516,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>`).join('')}` : ''}
 
   ${(ica.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(ica.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
 </div>
 
@@ -576,14 +585,13 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   ${lfr.decade_by_decade_summary ? `<div class="insight-card"><h4>Long-Term Outlook</h4><p>${lfr.decade_by_decade_summary}</p></div>` : ''}
 
   ${(lfr.action_items as string[])?.length > 0 ? `
+  <div class="action-section">
   <h3 style="font-size:13px;">Action Items</h3>
   <div class="action-list">
     ${(lfr.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+  </div>
   </div>` : ''}
-</div>
 
-<!-- FINAL DISCLAIMER -->
-<div style="padding:48px 56px;">
   <div class="disclaimer">
     <strong>IMPORTANT DISCLAIMER:</strong> This report was generated by Finova AI, an artificial intelligence financial planning tool, and reviewed by a CIM-designated professional. It does not constitute registered investment advice under applicable Canadian securities legislation. The information contained herein is for educational and planning purposes only. Past performance of any investment referenced is not indicative of future results. Users should consult a registered investment advisor, tax professional, and insurance specialist before acting on any information contained in this report. Finova AI is a product of ChainForge Labs. Generated: ${new Date().toISOString()}
   </div>
