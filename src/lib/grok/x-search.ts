@@ -25,16 +25,13 @@ Return ONLY valid JSON, no markdown.`;
     {
       temperature: 0.3,
       maxTokens: 4096,
-      searchParameters: {
-        mode: "on",
-        sources: [{ type: "x" }],
-        maxResults: 20,
-      },
+      tools: [{ type: "x_search" }],
     },
   );
 
   try {
-    const parsed = JSON.parse(response);
+    const cleaned = response.replace(/```(?:json)?\s*/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
     const posts: SocialPost[] = (parsed.posts || []).map(
       (p: Record<string, unknown>, idx: number) => ({
         id: `x-${ticker}-${idx}-${Date.now()}`,
@@ -86,16 +83,13 @@ Return ONLY valid JSON, no markdown.`;
     {
       temperature: 0.3,
       maxTokens: 4096,
-      searchParameters: {
-        mode: "on",
-        sources: [{ type: "x" }],
-        maxResults: 30,
-      },
+      tools: [{ type: "x_search" }],
     },
   );
 
   try {
-    const parsed = JSON.parse(response);
+    const cleaned = response.replace(/```(?:json)?\s*/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
     const posts: SocialPost[] = (parsed.posts || []).map(
       (p: Record<string, unknown>, idx: number) => ({
         id: `x-market-${idx}-${Date.now()}`,

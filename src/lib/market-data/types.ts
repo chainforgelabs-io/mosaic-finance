@@ -66,6 +66,21 @@ export type NewsCategory =
 
 export type NewsPeriod = "today" | "week" | "month";
 
+const CATEGORY_RULES: [RegExp, NewsCategory][] = [
+  [/\b(crypto|bitcoin|btc|ethereum|eth|blockchain|defi|nft|altcoin|stablecoin|binance|coinbase)\b/i, "crypto"],
+  [/\b(oil|crude|gold|silver|copper|natural gas|commodity|commodities|wheat|lumber|palladium|platinum|wti|brent)\b/i, "commodities"],
+  [/\b(tsx|canada|canadian|bank of canada|loonie|cad|toronto stock|bmo|td bank|rbc|scotiabank|cibc|shopify\.to|enbridge)\b/i, "canadian"],
+  [/\b(fed|federal reserve|inflation|gdp|unemployment|interest rate|treasury|cpi|ppi|fomc|monetary policy|fiscal|recession|tariff|trade war|jobs report|payroll|central bank|economic)\b/i, "macro"],
+];
+
+export function classifyNewsCategory(title: string, summary?: string): NewsCategory {
+  const text = `${title} ${summary || ""}`;
+  for (const [pattern, category] of CATEGORY_RULES) {
+    if (pattern.test(text)) return category;
+  }
+  return "general";
+}
+
 export interface SectorPerformance {
   sector: string;
   changePercent: number;

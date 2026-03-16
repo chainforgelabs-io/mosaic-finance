@@ -1,4 +1,4 @@
-import type { Quote, NewsArticle, CompanyProfile, MarketMover } from "./types";
+import { classifyNewsCategory, type Quote, type NewsArticle, type CompanyProfile, type MarketMover, type SearchResult } from "./types";
 
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
 const API_KEY = process.env.FINNHUB_API_KEY;
@@ -139,7 +139,7 @@ export async function getMarketNews(
     source: item.source,
     sourceUrl: item.url,
     imageUrl: item.image || undefined,
-    category: "general" as const,
+    category: classifyNewsCategory(item.headline, item.summary),
     relatedTickers: item.related ? item.related.split(",") : [],
     sentimentScore: null,
     publishedAt: new Date(item.datetime * 1000).toISOString(),
@@ -182,11 +182,30 @@ export async function getPeers(symbol: string): Promise<string[]> {
   return data.filter((s) => s !== symbol).slice(0, 10);
 }
 
+interface FinnhubSearchResult {
+  count: number;
+  result: Array<{
+    description: string;
+    displaySymbol: string;
+    symbol: string;
+    type: string;
+  }>;
+}
+
+export async function searchSymbols(query: string): Promise<SearchResult[]> {
+  const data = await finnhubFetch<FinnhubSearchResult>("/search", { q: query });
+
+  return (data.result || []).slice(0, 10).map((r) => ({
+    symbol: r.symbol,
+    name: r.description,
+    exchange: r.displaySymbol,
+    type: r.type || "stock",
+  }));
+}
+
 export async function getMarketMovers(): Promise<{
   gainers: MarketMover[];
   losers: MarketMover[];
 }> {
-  // Finnhub doesn't have a direct movers endpoint on free tier,
-  // so we fall through to FMP for this. Return empty as signal to aggregator.
   return { gainers: [], losers: [] };
 }

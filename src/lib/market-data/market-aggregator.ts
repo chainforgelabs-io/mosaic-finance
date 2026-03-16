@@ -185,11 +185,25 @@ export async function searchTickers(query: string): Promise<SearchResult[]> {
   const cached = await getCached<SearchResult[]>(cacheKey);
   if (cached) return cached;
 
-  const results = await fmp.searchTickers(query);
-  if (results.length > 0) {
-    await setCache(cacheKey, results, CACHE_TTL.search);
+  try {
+    const results = await fmp.searchTickers(query);
+    if (results.length > 0) {
+      await setCache(cacheKey, results, CACHE_TTL.search);
+      return results;
+    }
+  } catch (error) {
+    console.error("FMP search failed, falling back to Finnhub:", error);
   }
-  return results;
+
+  try {
+    const results = await finnhub.searchSymbols(query);
+    if (results.length > 0) {
+      await setCache(cacheKey, results, CACHE_TTL.search);
+    }
+    return results;
+  } catch {
+    return [];
+  }
 }
 
 export async function getAggregatedNews(

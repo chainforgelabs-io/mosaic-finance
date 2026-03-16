@@ -1,50 +1,35 @@
 const XAI_BASE = "https://api.x.ai/v1";
 const API_KEY = process.env.XAI_API_KEY;
-const DEFAULT_MODEL = "grok-4.1-fast";
+const DEFAULT_MODEL = "grok-3-fast-latest";
 
 export interface GrokMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
 
-export interface GrokTool {
-  type: "function";
-  function: {
-    name: string;
-    parameters?: Record<string, unknown>;
-  };
-}
+export type GrokSearchTool =
+  | { type: "web_search"; allowed_domains?: string[]; excluded_domains?: string[] }
+  | { type: "x_search"; allowed_x_handles?: string[]; excluded_x_handles?: string[]; from_date?: string; to_date?: string };
 
 interface GrokChatOptions {
   model?: string;
   maxTokens?: number;
   temperature?: number;
-  tools?: GrokTool[];
-  searchParameters?: {
-    mode?: "auto" | "on" | "off";
-    sources?: Array<{ type: "web" | "x" | "news" | "rss" }>;
-    allowedDomains?: string[];
-    excludedDomains?: string[];
-    fromDate?: string;
-    toDate?: string;
-    maxResults?: number;
-  };
+  tools?: GrokSearchTool[];
 }
 
-interface GrokChoice {
-  message: {
-    role: string;
-    content: string;
-  };
-  finish_reason: string;
+interface GrokResponseOutput {
+  type: string;
+  text?: string;
+  content?: Array<{ type: string; text?: string }>;
 }
 
-interface GrokChatResponse {
+interface GrokResponseBody {
   id: string;
-  choices: GrokChoice[];
+  output: GrokResponseOutput[];
   usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
     total_tokens: number;
   };
 }
@@ -55,20 +40,19 @@ export async function grokChat(
 ): Promise<string> {
   const body: Record<string, unknown> = {
     model: options?.model ?? DEFAULT_MODEL,
-    messages,
-    max_tokens: options?.maxTokens ?? 2048,
+    input: messages,
     temperature: options?.temperature ?? 0.7,
   };
 
-  if (options?.tools) {
+  if (options?.maxTokens) {
+    body.max_output_tokens = options.maxTokens;
+  }
+
+  if (options?.tools && options.tools.length > 0) {
     body.tools = options.tools;
   }
 
-  if (options?.searchParameters) {
-    body.search_parameters = options.searchParameters;
-  }
-
-  const res = await fetch(`${XAI_BASE}/chat/completions`, {
+  const res = await fetch(`${XAI_BASE}/responses`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,6 +66,20 @@ export async function grokChat(
     throw new Error(`Grok API error ${res.status}: ${errorText}`);
   }
 
-  const data: GrokChatResponse = await res.json();
-  return data.choices[0]?.message?.content ?? "";
+  const data: GrokResponseBody = await res.json();
+
+  for (const item of data.output) {
+    if (item.type === "message" && item.content) {
+      for (const block of item.content) {
+        if (block.type === "output_text" && block.text) {
+          return block.text;
+        }
+      }
+    }
+    if (item.type === "output_text" && item.text) {
+      return item.text;
+    }
+  }
+
+  return "";
 }

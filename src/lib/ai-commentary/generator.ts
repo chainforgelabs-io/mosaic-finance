@@ -37,11 +37,7 @@ Be specific with numbers, percentages, and names. This will be used as input for
       {
         temperature: 0.3,
         maxTokens: 3000,
-        searchParameters: {
-          mode: "on",
-          sources: [{ type: "web" }, { type: "x" }, { type: "news" }],
-          maxResults: 20,
-        },
+        tools: [{ type: "web_search" }, { type: "x_search" }],
       },
     );
 

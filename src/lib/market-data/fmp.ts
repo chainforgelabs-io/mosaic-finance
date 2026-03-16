@@ -1,11 +1,12 @@
-import type {
-  Quote,
-  HistoricalPrice,
-  CompanyProfile,
-  SectorPerformance,
-  MarketMover,
-  SearchResult,
-  NewsArticle,
+import {
+  classifyNewsCategory,
+  type Quote,
+  type HistoricalPrice,
+  type CompanyProfile,
+  type SectorPerformance,
+  type MarketMover,
+  type SearchResult,
+  type NewsArticle,
 } from "./types";
 
 const FMP_BASE = "https://financialmodelingprep.com/api/v3";
@@ -273,7 +274,7 @@ export async function getStockNews(
     source: item.site,
     sourceUrl: item.url,
     imageUrl: item.image || undefined,
-    category: "equities" as const,
+    category: classifyNewsCategory(item.title, item.text),
     relatedTickers: item.tickers ? item.tickers.split(",") : [],
     sentimentScore: null,
     publishedAt: item.publishedDate,

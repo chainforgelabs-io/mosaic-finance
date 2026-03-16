@@ -8,7 +8,7 @@ export async function searchFinancialNews(
   const prompt = `Search for the latest financial news about: "${query}". 
 Return a JSON object with:
 - "summary": a 2-3 sentence overview of the current situation
-- "articles": an array of the most relevant news items, each with:
+- "articles": an array of up to ${maxResults} most relevant news items, each with:
   - "title": headline
   - "summary": 1-2 sentence summary
   - "source": publication name
@@ -24,16 +24,13 @@ Return ONLY valid JSON, no markdown.`;
     {
       temperature: 0.3,
       maxTokens: 4096,
-      searchParameters: {
-        mode: "on",
-        sources: [{ type: "web" }, { type: "news" }],
-        maxResults,
-      },
+      tools: [{ type: "web_search" }],
     },
   );
 
   try {
-    const parsed = JSON.parse(response);
+    const cleaned = response.replace(/```(?:json)?\s*/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
     const articles: NewsArticle[] = (parsed.articles || []).map(
       (a: Record<string, unknown>, idx: number) => ({
         id: `grok-web-${idx}-${Date.now()}`,
