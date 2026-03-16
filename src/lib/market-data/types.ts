@@ -1,0 +1,147 @@
+export interface Quote {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+  previousClose: number;
+  open: number;
+  high: number;
+  low: number;
+  latestTradingDay: string;
+  source: "finnhub" | "fmp" | "alpha_vantage";
+  fetchedAt: string;
+}
+
+export interface HistoricalPrice {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface CompanyProfile {
+  symbol: string;
+  name: string;
+  description: string;
+  exchange: string;
+  currency: string;
+  country: string;
+  sector: string;
+  industry: string;
+  marketCap: number;
+  peRatio: number | null;
+  dividendYield: number | null;
+  weekHigh52: number;
+  weekLow52: number;
+  avgVolume: number;
+  website: string;
+  logo: string;
+}
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  sourceUrl: string;
+  imageUrl?: string;
+  category: NewsCategory;
+  relatedTickers: string[];
+  sentimentScore: number | null;
+  publishedAt: string;
+  fetchedAt: string;
+}
+
+export type NewsCategory =
+  | "macro"
+  | "equities"
+  | "crypto"
+  | "commodities"
+  | "canadian"
+  | "general";
+
+export type NewsPeriod = "today" | "week" | "month";
+
+export interface SectorPerformance {
+  sector: string;
+  changePercent: number;
+}
+
+export interface MarketMover {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+export type Timeframe = "1D" | "1W" | "1M" | "3M" | "1Y" | "5Y";
+
+export interface SearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  type: string;
+}
+
+export interface SocialPost {
+  id: string;
+  text: string;
+  author: string;
+  authorHandle: string;
+  timestamp: string;
+  likes: number;
+  reposts: number;
+  sentiment: "bullish" | "bearish" | "neutral";
+}
+
+export interface SocialSentiment {
+  topic: string;
+  posts: SocialPost[];
+  overallSentiment: "bullish" | "bearish" | "neutral";
+  summary: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  userId: string;
+  symbol: string;
+  addedAt: string;
+}
+
+export interface InvestorCommentary {
+  id: string;
+  persona: PersonaSlug;
+  modelUsed: "sonnet" | "opus";
+  outlook: "very_bullish" | "bullish" | "neutral" | "bearish" | "very_bearish";
+  summary: string;
+  keyThemes: string[];
+  riskAssessment: string;
+  actionableInsights: string[];
+  generatedAt: string;
+  period: "daily" | "weekly";
+}
+
+export type PersonaSlug =
+  | "ray_dalio"
+  | "warren_buffett"
+  | "cathie_wood"
+  | "howard_marks"
+  | "peter_lynch"
+  | "canadian_perspective";
+
+export interface NewsletterEdition {
+  id: string;
+  periodStart: string;
+  periodEnd: string;
+  marketRecap: string;
+  topMovers: MarketMover[];
+  newsSummary: string;
+  aiHighlights: string[];
+  generatedAt: string;
+  sentAt: string | null;
+}

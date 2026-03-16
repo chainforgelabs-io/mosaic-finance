@@ -7,6 +7,18 @@
     "src/app/api/pdf/**/route.ts": {
       "maxDuration": 30,
       "memory": 1024
+    },
+    "src/app/api/market/commentary/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/newsletter/generate/route.ts": {
+      "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/newsletter/generate",
+      "schedule": "0 13 * * 1"
+    }
+  ]
 }
