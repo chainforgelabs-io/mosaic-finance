@@ -31,7 +31,7 @@ const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
   income: /income|salary|earn|gross|net pay|household income|take.?home|annual income|monthly income/i,
   expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill|monthly expenses/i,
   debts: /debt|loan|credit|owe|balance|interest rate|line of credit|mortgage.*\$|student loan|biweekly|monthly payment/i,
-  goals: /goal|objective|plan to|want to|hope to|saving for|priority|financial freedom|target amount/i,
+  goals: /\bgoal\b|objective|plan to (buy|save|retire|pay|invest)|saving for|priority|financial freedom|target amount|debt.?free/i,
   retirement: /retire|retirement age|retirement plan|cpp|oas|pension plan|rsp|rrsp|age 6[0-9]|age 55|target retirement/i,
   investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance|dcpp|lira|registered account/i,
   knowledge: /knowledge|experience|familiar|understand.*risk|novice|beginner|intermediate|advanced|comfortable with/i,
@@ -39,7 +39,9 @@ const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
 };
 
 function detectTopicsFromMessages(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
-  const windowed = messages.slice(-SLIDING_WINDOW_SIZE);
+  const userMessages = messages.filter((m) => m.role === "user");
+  if (userMessages.length < 2) return {};
+  const windowed = userMessages.slice(-SLIDING_WINDOW_SIZE);
   const allText = windowed.map((m) => m.content).join(" ");
   const detected: Partial<ExtractedTopics> = {};
   for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
@@ -626,6 +628,28 @@ function FactFindConversation() {
         setFactFindAccounts(
           data.investment_accounts as { account_type: string; approximate_balance: number; description: string }[],
         );
+      }
+
+      if (Array.isArray(data.fixed_assets)) {
+        for (const asset of data.fixed_assets as Record<string, unknown>[]) {
+          try {
+            await fetch("/api/fixed-assets", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                category: asset.category ?? "other",
+                name: asset.name ?? "Unknown Asset",
+                estimated_value: Number(asset.estimated_value ?? 0),
+                purchase_price: asset.purchase_price != null ? Number(asset.purchase_price) : null,
+                is_primary_residence: asset.is_primary_residence ?? false,
+                notes: asset.notes ?? null,
+              }),
+            });
+          } catch {
+            // Non-blocking — fixed assets are supplementary data
+          }
+        }
       }
     }
 

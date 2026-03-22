@@ -18,7 +18,7 @@ interface ClaudeChatOptions {
 }
 
 const MODEL_IDS: Record<ClaudeModel, string> = {
-  opus: "claude-opus-4-20250918",
+  opus: "claude-sonnet-4-5-20250929",
   sonnet: "claude-sonnet-4-5-20250929",
 };
 

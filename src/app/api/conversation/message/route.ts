@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { anthropic } from '@/lib/claude/client';
+import { claudeStream } from '@/lib/claude/client';
 import { FACT_FIND_SYSTEM_PROMPT } from '@/lib/claude/prompts/fact-find';
 import { RISK_PROFILE_SYSTEM_PROMPT } from '@/lib/claude/prompts/risk-profile';
 import { ANNUAL_REVIEW_SYSTEM_PROMPT } from '@/lib/claude/prompts/annual-review';
@@ -209,12 +209,10 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const response = anthropic.messages.stream({
-          model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: claudeMessages,
-        });
+        const response = claudeStream(
+          claudeMessages,
+          systemPrompt,
+        );
 
         response.on('text', (text) => {
           fullResponse += text;

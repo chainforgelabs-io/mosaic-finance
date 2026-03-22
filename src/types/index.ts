@@ -1,6 +1,6 @@
 export type Tier = "free" | "essential" | "pro" | "premium";
 
-export type PlanStatus = "none" | "generating" | "pending_review" | "delivered";
+export type PlanStatus = "none" | "generating" | "failed" | "pending_review" | "delivered";
 
 export type RiskLabel =
   | "Conservative"

@@ -128,6 +128,49 @@ function DashboardNoPlan() {
   );
 }
 
+function DashboardFailed() {
+  const [retrying, setRetrying] = useState(false);
+  const { setPlanStatus } = usePlanStore();
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      const res = await fetch("/api/plan/generate", { method: "POST", credentials: "include" });
+      if (res.ok) {
+        setPlanStatus("generating");
+      }
+    } catch {
+      // stay on failed
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border border-[var(--warm-200)] rounded-lg p-8 text-center">
+        <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-red-50">
+          <FileText className="size-6 text-[var(--error)]" />
+        </div>
+        <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-2">
+          Plan generation failed
+        </h2>
+        <p className="font-[family-name:var(--font-body)] text-[14px] text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
+          Something went wrong while generating your financial plan. This is usually temporary — please try again.
+        </p>
+        <button
+          onClick={handleRetry}
+          disabled={retrying}
+          className="inline-flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-[family-name:var(--font-display)] text-[14px] font-semibold text-white transition-colors hover:bg-[#059669] disabled:opacity-60"
+        >
+          {retrying ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
+          {retrying ? "Retrying..." : "Retry Plan Generation"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ExpandablePlanSection({
   section,
 }: {
@@ -451,6 +494,7 @@ export default function DashboardPage() {
 
       {planStatus === "none" && <DashboardNoPlan />}
       {planStatus === "generating" && <DashboardGenerating />}
+      {planStatus === "failed" && <DashboardFailed />}
       {planStatus === "pending_review" && <DashboardPending />}
       {planStatus === "delivered" && <DashboardDelivered />}
     </div>

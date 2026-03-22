@@ -438,14 +438,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const res = await fetch("/api/plan/latest", { credentials: "include" });
       if (res.status === 401) return;
       if (!res.ok) return;
-      const { plan } = await res.json();
-      if (plan && plan.status !== "generating") {
-        setPlanStatus(plan.status);
+      const { plan: latestPlan } = await res.json();
+      if (!latestPlan) {
+        setPlanStatus("failed");
+        return;
+      }
+      if (latestPlan.status !== "generating") {
+        if (latestPlan.plan_data && Object.keys(latestPlan.plan_data).length > 0) {
+          setRawPlanData(latestPlan.plan_data);
+          setPlan(transformPlanData(latestPlan));
+        } else {
+          setPlanStatus(latestPlan.status);
+        }
       }
     } catch {
       // Ignore network errors, poll again
     }
-  }, [setPlanStatus]);
+  }, [setPlanStatus, setPlan, setRawPlanData]);
 
   useEffect(() => {
     if (planStatus !== "generating") return;

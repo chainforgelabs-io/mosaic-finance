@@ -39,7 +39,10 @@ export function DebtBreakdownChart() {
   const totalDebt = (debtPlan.total_debt as number) ?? 0;
   const payoffMonths = (avalanche?.payoff_months as number) ?? 0;
   const totalInterest = (avalanche?.total_interest_paid as number) ?? 0;
-  const method = (debtPlan.recommended_method as string) ?? "Avalanche";
+  const rawMethod = (debtPlan.recommended_method as string) ?? "Avalanche";
+  const colonIdx = rawMethod.indexOf(":");
+  const methodLabel = colonIdx > 0 ? rawMethod.slice(0, colonIdx).trim() : rawMethod.split(/[.!,]/)[0].trim();
+  const methodDescription = colonIdx > 0 ? rawMethod.slice(colonIdx + 1).trim() : "";
 
   const debts = order.map(parseDebtString).filter((d) => d.amount > 0);
   if (debts.length === 0) return null;
@@ -52,13 +55,18 @@ export function DebtBreakdownChart() {
         <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)]">
           Debt Breakdown
         </h3>
-        <span className="font-[family-name:var(--font-body)] text-xs font-medium text-white bg-[var(--emerald)] px-2 py-0.5 rounded-full">
-          {method}
+        <span className="font-[family-name:var(--font-body)] text-xs font-medium text-white bg-[var(--emerald)] px-2 py-0.5 rounded-full whitespace-nowrap">
+          {methodLabel}
         </span>
       </div>
-      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
+      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-2">
         Total: {fmtCompact(totalDebt)} &middot; Payoff: {payoffMonths} months &middot; Interest: {fmtCompact(totalInterest)}
       </p>
+      {methodDescription && (
+        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
+          {methodDescription}
+        </p>
+      )}
 
       <div className="h-[160px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>

@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
           const step = err instanceof ClaudeTruncationError ? 'claude_truncated' : 'claude_chat';
           console.error(`[plan/generate:bg] CLAUDE FAILED (${step}) after ${((Date.now() - tClaude) / 1000).toFixed(1)}s:`, err);
           captureAPIError(err, { route: 'plan/generate:bg', userId, step });
-          await svc.from('financial_plans').delete().eq('id', planId);
+          await svc.from('financial_plans').update({ status: 'failed' }).eq('id', planId);
           return;
         }
 
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
             step: 'json_parse',
             rawLength: planJson.length,
           });
-          await svc.from('financial_plans').delete().eq('id', planId);
+          await svc.from('financial_plans').update({ status: 'failed' }).eq('id', planId);
           return;
         }
 
