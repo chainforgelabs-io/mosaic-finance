@@ -78,16 +78,26 @@ export function calculateTFSARoom(
 }
 
 export type AccountType =
-  | 'RRSP'
-  | 'TFSA'
-  | 'FHSA'
-  | 'non-registered'
-  | 'pension'
-  | 'LIRA'
-  | 'RESP';
+  // Registered Personal
+  | 'RRSP' | 'TFSA' | 'FHSA' | 'RESP' | 'RDSP' | 'RRIF'
+  // Registered Pension Plans
+  | 'DB-RPP' | 'DC-RPP' | 'Hybrid-RPP' | 'Target-Benefit'
+  // Employer-Sponsored
+  | 'Group-RRSP' | 'Group-TFSA' | 'DPSP' | 'EPSP' | 'PRPP' | 'VRSP' | 'SPP'
+  // Employee Equity / Stock
+  | 'ESOP' | 'ESPP' | 'DSPP' | 'RSU' | 'Stock-Options' | 'Phantom-Stock' | 'EOT'
+  // Locked-In Accounts
+  | 'LIRA' | 'LRSP' | 'RLSP' | 'LIF' | 'LRIF' | 'PRIF' | 'RLIF'
+  // Non-Registered / Other
+  | 'non-registered' | 'Joint' | 'Corporate' | 'In-Trust' | 'Annuity';
 
 export const VALID_ACCOUNT_TYPES: AccountType[] = [
-  'RRSP', 'TFSA', 'FHSA', 'non-registered', 'pension', 'LIRA', 'RESP',
+  'RRSP', 'TFSA', 'FHSA', 'RESP', 'RDSP', 'RRIF',
+  'DB-RPP', 'DC-RPP', 'Hybrid-RPP', 'Target-Benefit',
+  'Group-RRSP', 'Group-TFSA', 'DPSP', 'EPSP', 'PRPP', 'VRSP', 'SPP',
+  'ESOP', 'ESPP', 'DSPP', 'RSU', 'Stock-Options', 'Phantom-Stock', 'EOT',
+  'LIRA', 'LRSP', 'RLSP', 'LIF', 'LRIF', 'PRIF', 'RLIF',
+  'non-registered', 'Joint', 'Corporate', 'In-Trust', 'Annuity',
 ];
 
 export function isValidAccountType(type: string): type is AccountType {

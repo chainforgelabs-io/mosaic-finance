@@ -26,9 +26,11 @@ import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import {
-  ACCOUNT_TYPES,
+  ACCOUNT_CATEGORIES,
   type AccountType,
   type HoldingFormData,
+  getAccountLabel,
+  fromDbAccountType,
 } from "@/lib/schemas/holdings";
 
 interface HoldingRow extends HoldingFormData {
@@ -44,28 +46,32 @@ interface SavedAccount {
   collapsed: boolean;
 }
 
-function AccountTypePill({
-  type,
-  selected,
-  onClick,
+function AccountTypeSelect({
+  value,
+  onChange,
 }: {
-  type: AccountType;
-  selected: boolean;
-  onClick: () => void;
+  value: string | null;
+  onChange: (v: AccountType) => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-4 py-2 font-body text-[13px] font-medium transition-all",
-        selected
-          ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/30 text-[var(--emerald-dark)]"
-          : "border-[var(--warm-200)] bg-white text-[var(--text-secondary)] hover:bg-[var(--warm-100)]",
-      )}
+    <select
+      value={value ?? ""}
+      onChange={(e) => onChange(e.target.value as AccountType)}
+      className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2.5 font-body text-[13px] text-[var(--text-primary)] focus:border-[var(--emerald)] focus:outline-none focus:ring-1 focus:ring-[var(--emerald)]"
     >
-      {type}
-    </button>
+      <option value="" disabled>
+        Select account type…
+      </option>
+      {Object.entries(ACCOUNT_CATEGORIES).map(([group, items]) => (
+        <optgroup key={group} label={group}>
+          {items.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
   );
 }
 
@@ -248,7 +254,7 @@ function AccountCard({
       >
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
-            {isEditing ? editType : account.accountType}
+            {getAccountLabel(isEditing ? editType : account.accountType)}
           </span>
           <span className="font-body text-[14px] text-[var(--text-secondary)]">
             {(isEditing ? editName : account.accountName) ||
@@ -337,16 +343,7 @@ function AccountCard({
             <label className="mb-2 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
               Account Type
             </label>
-            <div className="flex flex-wrap gap-2">
-              {ACCOUNT_TYPES.map((type) => (
-                <AccountTypePill
-                  key={type}
-                  type={type}
-                  selected={editType === type}
-                  onClick={() => setEditType(type)}
-                />
-              ))}
-            </div>
+            <AccountTypeSelect value={editType} onChange={setEditType} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -457,20 +454,10 @@ function UploadDropZone({
           return;
         }
 
-        const DB_TO_DISPLAY: Record<string, AccountType> = {
-          "non-registered": "Non-Reg",
-          "pension": "Pension",
-          "RRSP": "RRSP",
-          "TFSA": "TFSA",
-          "FHSA": "FHSA",
-          "LIRA": "LIRA",
-          "RESP": "RESP",
-        };
-
         const newAccounts: SavedAccount[] = rawAccounts.map(
           (acc: { account_type: string; holdings?: { ticker?: string; name?: string; balance?: number; units?: number }[]; total_value?: number }, i: number) => ({
             id: `acc-upload-${Date.now()}-${i}`,
-            accountType: DB_TO_DISPLAY[acc.account_type] ?? "Non-Reg",
+            accountType: fromDbAccountType(acc.account_type),
             accountName: uploadNote || undefined,
             holdings: (acc.holdings ?? []).map(
               (h: { ticker?: string; name?: string; balance?: number; units?: number }, j: number) => ({
@@ -681,16 +668,7 @@ function ManualEntryForm({
         <label className="mb-2 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
           Account Type
         </label>
-        <div className="flex flex-wrap gap-2">
-          {ACCOUNT_TYPES.map((type) => (
-            <AccountTypePill
-              key={type}
-              type={type}
-              selected={selectedType === type}
-              onClick={() => setSelectedType(type)}
-            />
-          ))}
-        </div>
+        <AccountTypeSelect value={selectedType} onChange={setSelectedType} />
       </div>
 
       <div className="mb-4">
@@ -762,30 +740,22 @@ function ManualEntryForm({
 }
 
 function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
-  const DB_TO_DISPLAY: Record<string, AccountType> = {
-    "RRSP": "RRSP",
-    "TFSA": "TFSA",
-    "FHSA": "FHSA",
-    "non-registered": "Non-Reg",
-    "pension": "Pension",
-    "LIRA": "LIRA",
-    "RESP": "RESP",
-  };
-
-  return factFindAccounts.map((acc, i) => ({
-    id: `prefill-${i}-${Date.now()}`,
-    accountType: DB_TO_DISPLAY[acc.account_type] ?? "Non-Reg",
-    accountName: acc.description || undefined,
-    holdings: [
-      {
-        localId: `prefill-h-${i}-${Date.now()}`,
-        tickerOrName: "",
-        balance: acc.approximate_balance ?? 0,
-        units: undefined,
-      },
-    ],
-    collapsed: false,
-  }));
+  return factFindAccounts
+    .filter((acc) => acc.account_type !== "DB-RPP")
+    .map((acc, i) => ({
+      id: `prefill-${i}-${Date.now()}`,
+      accountType: fromDbAccountType(acc.account_type),
+      accountName: acc.description || undefined,
+      holdings: [
+        {
+          localId: `prefill-h-${i}-${Date.now()}`,
+          tickerOrName: "",
+          balance: acc.approximate_balance ?? 0,
+          units: undefined,
+        },
+      ],
+      collapsed: false,
+    }));
 }
 
 export default function HoldingsPage() {

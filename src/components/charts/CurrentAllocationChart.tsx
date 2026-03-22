@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { getAccountLabel } from "@/lib/schemas/holdings";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#6366f1", "#ec4899", "#64748b", "#14b8a6", "#f97316"];
 
@@ -17,7 +18,8 @@ interface AccountRow {
   total_value: number;
 }
 
-function fmtFull(n: number): string {
+function fmtFull(n: number | null | undefined): string {
+  if (n == null) return "--";
   return `$${n.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
@@ -55,7 +57,7 @@ export function CurrentAllocationChart() {
   if (totalValue === 0) return null;
 
   const data = accounts.map((a) => ({
-    name: a.account_type,
+    name: getAccountLabel(a.account_type),
     value: a.total_value,
     pct: Math.round((a.total_value / totalValue) * 100),
   }));

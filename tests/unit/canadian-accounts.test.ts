@@ -192,10 +192,20 @@ describe('Account Type Validation', () => {
     expect(VALID_ACCOUNT_TYPES).toContain('RRSP');
     expect(VALID_ACCOUNT_TYPES).toContain('TFSA');
     expect(VALID_ACCOUNT_TYPES).toContain('FHSA');
-    expect(VALID_ACCOUNT_TYPES).toContain('non-registered');
-    expect(VALID_ACCOUNT_TYPES).toContain('pension');
-    expect(VALID_ACCOUNT_TYPES).toContain('LIRA');
     expect(VALID_ACCOUNT_TYPES).toContain('RESP');
+    expect(VALID_ACCOUNT_TYPES).toContain('RDSP');
+    expect(VALID_ACCOUNT_TYPES).toContain('RRIF');
+    expect(VALID_ACCOUNT_TYPES).toContain('non-registered');
+    expect(VALID_ACCOUNT_TYPES).toContain('LIRA');
+    expect(VALID_ACCOUNT_TYPES).toContain('DC-RPP');
+    expect(VALID_ACCOUNT_TYPES).toContain('DB-RPP');
+    expect(VALID_ACCOUNT_TYPES).toContain('Group-RRSP');
+    expect(VALID_ACCOUNT_TYPES).toContain('ESOP');
+    expect(VALID_ACCOUNT_TYPES).toContain('RSU');
+    expect(VALID_ACCOUNT_TYPES).toContain('Joint');
+    expect(VALID_ACCOUNT_TYPES).toContain('Corporate');
+    expect(VALID_ACCOUNT_TYPES).toContain('Annuity');
+    expect(VALID_ACCOUNT_TYPES.length).toBe(36);
   });
 });
 

@@ -1,24 +1,91 @@
 import { z } from "zod";
 
-export const ACCOUNT_TYPES = [
-  "RRSP",
-  "TFSA",
-  "FHSA",
-  "Non-Reg",
-  "Pension",
-  "LIRA",
-  "RESP",
-] as const;
+export const ACCOUNT_CATEGORIES = {
+  "Registered Personal": [
+    { value: "RRSP", label: "RRSP" },
+    { value: "TFSA", label: "TFSA" },
+    { value: "FHSA", label: "FHSA" },
+    { value: "RESP", label: "RESP" },
+    { value: "RDSP", label: "RDSP" },
+    { value: "RRIF", label: "RRIF" },
+  ],
+  "Registered Pension Plans": [
+    { value: "DB-RPP", label: "Defined Benefit (DB) Pension" },
+    { value: "DC-RPP", label: "Defined Contribution (DC) Pension" },
+    { value: "Hybrid-RPP", label: "Hybrid / Combination RPP" },
+    { value: "Target-Benefit", label: "Target Benefit / Shared-Risk" },
+  ],
+  "Employer-Sponsored": [
+    { value: "Group-RRSP", label: "Group RRSP" },
+    { value: "Group-TFSA", label: "Group TFSA" },
+    { value: "DPSP", label: "DPSP" },
+    { value: "EPSP", label: "EPSP" },
+    { value: "PRPP", label: "PRPP" },
+    { value: "VRSP", label: "VRSP (Quebec)" },
+    { value: "SPP", label: "SPP (Saskatchewan)" },
+  ],
+  "Employee Equity / Stock": [
+    { value: "ESOP", label: "ESOP" },
+    { value: "ESPP", label: "ESPP" },
+    { value: "DSPP", label: "DSPP" },
+    { value: "RSU", label: "RSU" },
+    { value: "Stock-Options", label: "Stock Options" },
+    { value: "Phantom-Stock", label: "Phantom Stock / SARs" },
+    { value: "EOT", label: "EOT" },
+  ],
+  "Locked-In Accounts": [
+    { value: "LIRA", label: "LIRA" },
+    { value: "LRSP", label: "LRSP" },
+    { value: "RLSP", label: "RLSP" },
+    { value: "LIF", label: "LIF" },
+    { value: "LRIF", label: "LRIF" },
+    { value: "PRIF", label: "PRIF" },
+    { value: "RLIF", label: "RLIF" },
+  ],
+  "Non-Registered / Other": [
+    { value: "Non-Reg", label: "Non-Registered / Cash / Margin" },
+    { value: "Joint", label: "Joint Investment Account" },
+    { value: "Corporate", label: "Corporate Investment Account" },
+    { value: "In-Trust", label: "In-Trust Account" },
+    { value: "Annuity", label: "Prescribed Annuity" },
+  ],
+} as const;
 
-export type AccountType = (typeof ACCOUNT_TYPES)[number];
+type CategoryEntries = typeof ACCOUNT_CATEGORIES;
+type AllEntries = CategoryEntries[keyof CategoryEntries][number];
+export type AccountType = AllEntries["value"];
+
+export const ACCOUNT_TYPES = Object.values(ACCOUNT_CATEGORIES)
+  .flat()
+  .map((e) => e.value) as unknown as readonly [AccountType, ...AccountType[]];
+
+export function getAccountLabel(value: string): string {
+  for (const entries of Object.values(ACCOUNT_CATEGORIES)) {
+    const match = entries.find((e) => e.value === value);
+    if (match) return match.label;
+  }
+  return value;
+}
 
 const ACCOUNT_TYPE_DB_MAP: Record<string, string> = {
   "Non-Reg": "non-registered",
-  "Pension": "pension",
+};
+
+const DB_TO_DISPLAY_MAP: Record<string, string> = {
+  "non-registered": "Non-Reg",
+  "pension": "DC-RPP",
 };
 
 export function toDbAccountType(displayType: string): string {
   return ACCOUNT_TYPE_DB_MAP[displayType] ?? displayType;
+}
+
+export function fromDbAccountType(dbType: string): AccountType {
+  const mapped = DB_TO_DISPLAY_MAP[dbType];
+  if (mapped) return mapped as AccountType;
+  const allValues = ACCOUNT_TYPES as readonly string[];
+  if (allValues.includes(dbType)) return dbType as AccountType;
+  return "Non-Reg";
 }
 
 export const holdingSchema = z.object({
@@ -31,9 +98,7 @@ export const holdingSchema = z.object({
 
 export const accountSchema = z.object({
   id: z.string(),
-  accountType: z.enum(ACCOUNT_TYPES, {
-    message: "Please select an account type",
-  }),
+  accountType: z.string().min(1, "Please select an account type"),
   accountName: z.string().max(100).optional(),
   holdings: z.array(holdingSchema).min(1, "Add at least one holding"),
 });

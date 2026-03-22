@@ -84,14 +84,24 @@ function fmt(n: number | null | undefined): string {
   return `$${n.toLocaleString()}`;
 }
 
-function fmtFull(n: number): string {
+function fmtFull(n: number | null | undefined): string {
+  if (n == null) return "--";
   return `$${n.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 const ACCOUNT_LABELS: Record<string, string> = {
-  RRSP: "RRSP", TFSA: "TFSA", FHSA: "FHSA",
-  "non-registered": "Non-Registered", pension: "Pension",
-  LIRA: "LIRA", RESP: "RESP", "Non-Reg": "Non-Registered",
+  RRSP: "RRSP", TFSA: "TFSA", FHSA: "FHSA", RESP: "RESP", RDSP: "RDSP", RRIF: "RRIF",
+  "DB-RPP": "Defined Benefit Pension", "DC-RPP": "Defined Contribution Pension",
+  "Hybrid-RPP": "Hybrid RPP", "Target-Benefit": "Target Benefit",
+  "Group-RRSP": "Group RRSP", "Group-TFSA": "Group TFSA",
+  DPSP: "DPSP", EPSP: "EPSP", PRPP: "PRPP", VRSP: "VRSP", SPP: "SPP",
+  ESOP: "ESOP", ESPP: "ESPP", DSPP: "DSPP", RSU: "RSU",
+  "Stock-Options": "Stock Options", "Phantom-Stock": "Phantom Stock / SARs", EOT: "EOT",
+  LIRA: "LIRA", LRSP: "LRSP", RLSP: "RLSP", LIF: "LIF", LRIF: "LRIF", PRIF: "PRIF", RLIF: "RLIF",
+  "non-registered": "Non-Registered", "Non-Reg": "Non-Registered",
+  Joint: "Joint Account", Corporate: "Corporate Account",
+  "In-Trust": "In-Trust Account", Annuity: "Prescribed Annuity",
+  pension: "Pension",
 };
 
 const CATEGORIES = ["real_estate", "vehicle", "land", "precious_metals", "collectibles", "other"] as const;

@@ -1,14 +1,5 @@
 import { z } from 'zod';
-
-const ACCOUNT_TYPES = [
-  'RRSP',
-  'TFSA',
-  'FHSA',
-  'non-registered',
-  'pension',
-  'LIRA',
-  'RESP',
-] as const;
+import { ACCOUNT_TYPES } from '@/lib/schemas/holdings';
 
 const HoldingItemSchema = z.object({
   ticker: z.string().min(1).max(10),

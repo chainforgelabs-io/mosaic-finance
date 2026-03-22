@@ -66,7 +66,7 @@ When the full fact-find is complete, output a structured result wrapped in <FACT
   "investment_knowledge": "novice|intermediate|advanced",
   "province": string,
   "family_structure": string,
-  "investment_accounts": [{ "account_type": "RRSP|TFSA|FHSA|non-registered|pension|LIRA|RESP", "approximate_balance": number, "description": string }],
+  "investment_accounts": [{ "account_type": "RRSP|TFSA|FHSA|RESP|RDSP|RRIF|DB-RPP|DC-RPP|Hybrid-RPP|Target-Benefit|Group-RRSP|Group-TFSA|DPSP|EPSP|PRPP|VRSP|SPP|ESOP|ESPP|DSPP|RSU|Stock-Options|Phantom-Stock|EOT|LIRA|LRSP|RLSP|LIF|LRIF|PRIF|RLIF|non-registered|Joint|Corporate|In-Trust|Annuity", "approximate_balance": number, "description": string }],
   "fixed_assets": [{ "category": "real_estate|vehicle|land|precious_metals|collectibles|other", "name": string, "estimated_value": number, "is_primary_residence": boolean, "purchase_price": number | null, "notes": string | null }],
   "insurance_coverage": {
     "life": { "has_coverage": boolean, "type": string | null, "amount": number | null, "source": "employer|personal|both|none" },
@@ -95,7 +95,7 @@ CRITICAL OUTPUT RULES:
 
 IMPORTANT:
 - Always include ALL fields in the completion JSON
-- "investment_accounts" is REQUIRED. If the client mentioned any accounts (RRSP, TFSA, FHSA, DCPP, LIRA, pension, non-registered, RESP, etc.), you MUST include each in investment_accounts with approximate_balance. Never leave investment_accounts empty when accounts were discussed. Example: client says "I have a LIRA with about $190K and a DCPP at $250K" → include both with approximate_balance in dollars.
+- "investment_accounts" is REQUIRED. If the client mentioned any accounts (RRSP, TFSA, FHSA, DC-RPP, LIRA, non-registered, RESP, Group-RRSP, ESOP, RSU, etc.), you MUST include each in investment_accounts with approximate_balance. Never leave investment_accounts empty when accounts were discussed. Example: client says "I have a LIRA with about $190K and a DC pension at $250K" → include both with approximate_balance in dollars. IMPORTANT: Defined Benefit (DB) pensions are retirement income sources, NOT investment accounts — do NOT include DB pensions in investment_accounts. Instead, note them in the conversational_summary as a retirement income source. Only Defined Contribution (DC-RPP) and other pension plans where the member holds an account balance belong in investment_accounts.
 - "fixed_assets" is REQUIRED. Include any real estate (home, rental, cottage, cabin), vehicles, recreational assets (trailer, boat), land, precious metals, or collectibles discussed. For real estate, set is_primary_residence to true if the client lives there. For non-primary-residence properties, purchase_price is critical for capital gains tax planning — always capture it if mentioned. If no fixed assets were discussed, use an empty array.
 - "detected_flags" must be populated based on what was discussed — these flags trigger additional planning modules
 - "conversational_summary" should be a brief narrative summary of the client's overall financial picture (used for the confirmation card)
