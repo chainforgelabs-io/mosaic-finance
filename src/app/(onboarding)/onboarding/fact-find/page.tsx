@@ -25,8 +25,6 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "risk", label: "Risk Profile" },
 ];
 
-const SLIDING_WINDOW_SIZE = 14;
-
 const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
   income: /income|salary|earn|gross|net pay|household income|take.?home|annual income|monthly income/i,
   expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill|monthly expenses/i,
@@ -39,17 +37,34 @@ const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
 };
 
 function detectTopicsFromMessages(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
-  const userMessages = messages.filter((m) => m.role === "user");
-  if (userMessages.length < 2) return {};
-  const windowed = userMessages.slice(-SLIDING_WINDOW_SIZE);
-  const allText = windowed.map((m) => m.content).join(" ");
+  if (messages.length < 3) return {};
   const detected: Partial<ExtractedTopics> = {};
-  for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
-    if (pattern.test(allText)) {
-      detected[key as keyof ExtractedTopics] = true;
+
+  for (let i = 0; i < messages.length - 1; i++) {
+    const ai = messages[i];
+    const user = messages[i + 1];
+    if (ai.role !== "assistant" || user.role !== "user") continue;
+    if (user.content.trim().length === 0) continue;
+
+    for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
+      if (!detected[key as keyof ExtractedTopics] && pattern.test(ai.content)) {
+        detected[key as keyof ExtractedTopics] = true;
+      }
     }
   }
   return detected;
+}
+
+const ASSET_CATEGORY_MAP: Record<string, string> = {
+  real_estate: "real_estate", property: "real_estate", home: "real_estate", house: "real_estate",
+  vehicle: "vehicle", car: "vehicle", truck: "vehicle", auto: "vehicle",
+  land: "land",
+  precious_metals: "precious_metals", gold: "precious_metals", silver: "precious_metals",
+  collectibles: "collectibles",
+};
+
+function mapToValidAssetCategory(raw: string): string {
+  return ASSET_CATEGORY_MAP[raw.toLowerCase()] ?? "other";
 }
 
 function deriveTopicsFromSummary(summary: Record<string, unknown>): Partial<ExtractedTopics> {
@@ -633,21 +648,31 @@ function FactFindConversation() {
       if (Array.isArray(data.fixed_assets)) {
         for (const asset of data.fixed_assets as Record<string, unknown>[]) {
           try {
-            await fetch("/api/fixed-assets", {
+            const category = mapToValidAssetCategory(String(asset.category ?? "other"));
+            const name = String(asset.name ?? "Unknown Asset");
+            const isHome = category === "real_estate" &&
+              (asset.is_primary_residence === true ||
+               /home|house|residence|condo|townhouse|primary/i.test(name));
+
+            const res = await fetch("/api/fixed-assets", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               credentials: "include",
               body: JSON.stringify({
-                category: asset.category ?? "other",
-                name: asset.name ?? "Unknown Asset",
+                category,
+                name,
                 estimated_value: Number(asset.estimated_value ?? 0),
                 purchase_price: asset.purchase_price != null ? Number(asset.purchase_price) : null,
-                is_primary_residence: asset.is_primary_residence ?? false,
-                notes: asset.notes ?? null,
+                is_primary_residence: isHome,
+                notes: asset.notes != null ? String(asset.notes) : null,
               }),
             });
-          } catch {
-            // Non-blocking — fixed assets are supplementary data
+            if (!res.ok) {
+              const errBody = await res.json().catch(() => ({}));
+              console.warn("[fact-find] Failed to save fixed asset:", name, errBody);
+            }
+          } catch (err) {
+            console.warn("[fact-find] Failed to save fixed asset:", asset.name, err);
           }
         }
       }

@@ -351,7 +351,7 @@ function transformPlanData(
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData } = usePlanStore();
+  const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData } = usePlanStore();
 
   useEffect(() => {
     if (user) return;
@@ -425,10 +425,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       } else {
         setPlanStatus("none");
       }
+
+      const currentStatus = usePlanStore.getState().planStatus;
+      if (currentStatus === "none" || currentStatus === "generating" || currentStatus === "failed") {
+        const { data: fp } = await supabase
+          .from("financial_profiles")
+          .select("annual_income, monthly_expenses, emergency_fund_months, total_debt, retirement_target_age")
+          .eq("user_id", authUser.id)
+          .single();
+
+        const { data: holdings } = await supabase
+          .from("investment_holdings")
+          .select("balance")
+          .eq("user_id", authUser.id);
+
+        if (fp || (holdings && holdings.length > 0)) {
+          setPrePlanData({
+            annualIncome: fp?.annual_income ?? null,
+            monthlyExpenses: fp?.monthly_expenses ?? null,
+            emergencyFundMonths: fp?.emergency_fund_months ?? null,
+            totalInvestments: holdings?.reduce((sum, h) => sum + (Number(h.balance) || 0), 0) ?? null,
+            totalDebt: fp?.total_debt ?? null,
+            retirementAge: fp?.retirement_target_age ?? null,
+          });
+        }
+      }
     }
 
     loadUser();
-  }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, router]);
+  }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData, router]);
 
   const POLL_INTERVAL_MS = 10_000;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);

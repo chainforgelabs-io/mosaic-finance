@@ -37,8 +37,19 @@ const GENERATION_STEPS = [
 
 const STEP_INTERVAL_MS = 1500;
 
+function fmtSnapshotValue(n: number | null, prefix = "$"): string {
+  if (n == null) return "--";
+  if (prefix === "$") {
+    if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(n) >= 1_000) return `$${Math.round(n).toLocaleString()}`;
+    return `$${n.toLocaleString()}`;
+  }
+  return String(n);
+}
+
 function DashboardGenerating() {
   const [visibleSteps, setVisibleSteps] = useState(1);
+  const prePlanData = usePlanStore((s) => s.prePlanData);
 
   useEffect(() => {
     if (visibleSteps >= GENERATION_STEPS.length) return;
@@ -112,6 +123,44 @@ function DashboardGenerating() {
           Once generated, a CIM-designated professional will review your plan before delivery.
         </p>
       </div>
+
+      {prePlanData && (
+        <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
+          <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-4">
+            Your Financial Snapshot
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Annual Income</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">{fmtSnapshotValue(prePlanData.annualIncome)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Monthly Expenses</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">{fmtSnapshotValue(prePlanData.monthlyExpenses)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Investments</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--emerald)] tabular-nums">{fmtSnapshotValue(prePlanData.totalInvestments)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Total Debt</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums" style={{ color: prePlanData.totalDebt && prePlanData.totalDebt > 0 ? "var(--error)" : "var(--text-primary)" }}>{fmtSnapshotValue(prePlanData.totalDebt)}</p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Emergency Fund</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums" style={{ color: prePlanData.emergencyFundMonths != null && prePlanData.emergencyFundMonths >= 3 ? "var(--emerald)" : "var(--error)" }}>
+                {prePlanData.emergencyFundMonths != null ? `${prePlanData.emergencyFundMonths.toFixed(1)} mo` : "--"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Target Retirement</p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">
+                {prePlanData.retirementAge != null ? `Age ${prePlanData.retirementAge}` : "--"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
