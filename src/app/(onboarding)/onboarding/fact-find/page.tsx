@@ -13,6 +13,7 @@ import {
   useConversationStore,
   type ExtractedTopics,
 } from "@/stores/conversation";
+import { createClient } from "@/lib/supabase/client";
 
 
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
@@ -24,36 +25,6 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "investments", label: "Investments" },
   { key: "risk", label: "Risk Profile" },
 ];
-
-const TOPIC_KEYWORDS: Record<keyof ExtractedTopics, RegExp> = {
-  income: /income|salary|earn|gross|net pay|household income|take.?home|annual income|monthly income/i,
-  expenses: /expense|spending|cost|rent|mortgage payment|groceries|utilities|monthly bill|monthly expenses/i,
-  debts: /debt|loan|credit|owe|balance|interest rate|line of credit|mortgage.*\$|student loan|biweekly|monthly payment/i,
-  goals: /\bgoal\b|objective|plan to (buy|save|retire|pay|invest)|saving for|priority|financial freedom|target amount|debt.?free/i,
-  retirement: /retire|retirement age|retirement plan|cpp|oas|pension plan|rsp|rrsp|age 6[0-9]|age 55|target retirement/i,
-  investments: /invest|portfolio|etf|stock|bond|tfsa|rrsp|fhsa|esop|mutual fund|account.*balance|dcpp|lira|registered account/i,
-  knowledge: /knowledge|experience|familiar|understand.*risk|novice|beginner|intermediate|advanced|comfortable with/i,
-  risk: /risk|volatil|market drop|decline|loss|conservative|aggressive|growth|balanced|comfort.*with.*los|react.*drop|sell everything|buy more|gut reaction/i,
-};
-
-function detectTopicsFromMessages(messages: { role: string; content: string }[]): Partial<ExtractedTopics> {
-  if (messages.length < 3) return {};
-  const detected: Partial<ExtractedTopics> = {};
-
-  for (let i = 0; i < messages.length - 1; i++) {
-    const ai = messages[i];
-    const user = messages[i + 1];
-    if (ai.role !== "assistant" || user.role !== "user") continue;
-    if (user.content.trim().length === 0) continue;
-
-    for (const [key, pattern] of Object.entries(TOPIC_KEYWORDS)) {
-      if (!detected[key as keyof ExtractedTopics] && pattern.test(ai.content)) {
-        detected[key as keyof ExtractedTopics] = true;
-      }
-    }
-  }
-  return detected;
-}
 
 const ASSET_CATEGORY_MAP: Record<string, string> = {
   real_estate: "real_estate", property: "real_estate", home: "real_estate", house: "real_estate",
@@ -395,14 +366,30 @@ function FactFindConversation() {
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
+    async function seedTopics() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("annual_income")
+        .eq("id", user.id)
+        .single();
+      const seeded: Partial<ExtractedTopics> = {};
+      if (profile?.annual_income != null && profile.annual_income > 0) {
+        seeded.income = true;
+      }
+      if (Object.keys(seeded).length > 0) setExtractedTopics(seeded);
+    }
+    seedTopics();
+  }, [setExtractedTopics]);
+
+  useEffect(() => {
     if (sessionComplete && summaryData && typeof summaryData === "object") {
       const derived = deriveTopicsFromSummary(summaryData as Record<string, unknown>);
       setExtractedTopics(derived);
-    } else if (messages.length > 0 && !isStreaming) {
-      const detected = detectTopicsFromMessages(messages);
-      setExtractedTopics(detected);
     }
-  }, [messages, isStreaming, sessionComplete, summaryData, setExtractedTopics]);
+  }, [sessionComplete, summaryData, setExtractedTopics]);
 
   const sendMessage = useCallback(
     async (userMessage?: string) => {

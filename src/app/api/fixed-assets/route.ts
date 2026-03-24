@@ -15,7 +15,7 @@ const PROVINCES = [
   'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT',
 ] as const;
 
-const fixedAssetSchema = z.object({
+const fixedAssetBaseSchema = z.object({
   category: z.enum(CATEGORIES),
   name: z.string().min(1).max(200),
   estimated_value: z.number().min(0),
@@ -30,7 +30,9 @@ const fixedAssetSchema = z.object({
   property_bathrooms: z.number().min(0).optional().nullable(),
   property_year_built: z.number().int().min(1800).max(2100).optional().nullable(),
   property_features: z.array(z.string()).optional().nullable(),
-}).refine(
+});
+
+const fixedAssetSchema = fixedAssetBaseSchema.refine(
   (data) => {
     if (data.category === 'real_estate' && !data.is_primary_residence) {
       return data.purchase_price != null && data.purchase_price > 0;
@@ -40,7 +42,7 @@ const fixedAssetSchema = z.object({
   { message: 'Purchase price is required for non-primary-residence real estate (needed for capital gains tax planning)', path: ['purchase_price'] },
 );
 
-const patchSchema = fixedAssetSchema.partial().extend({
+const patchSchema = fixedAssetBaseSchema.partial().extend({
   id: z.string().uuid(),
 });
 

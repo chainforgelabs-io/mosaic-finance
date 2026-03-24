@@ -167,14 +167,14 @@ export async function POST(req: NextRequest) {
           userFlags,
         };
 
-        console.log(`[plan/generate:bg] Calling Claude via streaming (maxTokens=32000)...`);
+        console.log(`[plan/generate:bg] Calling Claude via streaming (maxTokens=16000)...`);
         const tClaude = Date.now();
         let planJson: string;
         try {
           planJson = await claudeChatStreaming(
             [{ role: 'user', content: 'Generate the complete financial plan now.' }],
             buildPlanGenerationPrompt(userData),
-            { maxTokens: 32000, model: 'opus' },
+            { maxTokens: 16000, model: 'opus' },
           );
           console.log(`[plan/generate:bg] Claude responded in ${((Date.now() - tClaude) / 1000).toFixed(1)}s — ${planJson.length} chars`);
         } catch (err) {

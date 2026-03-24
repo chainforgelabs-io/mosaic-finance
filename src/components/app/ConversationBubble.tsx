@@ -1,5 +1,6 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
 interface ConversationBubbleProps {
@@ -63,15 +64,15 @@ export function ConversationBubble({
           {showTypingIndicator ? (
             <TypingIndicator />
           ) : (
-            <span>
-              {content}
+            <div className="prose prose-sm max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
+              <ReactMarkdown>{content}</ReactMarkdown>
               {isStreaming && content && (
                 <span
                   className="ml-0.5 inline-block h-[1.1em] w-[2px] translate-y-[2px] bg-[var(--emerald)]"
                   style={{ animation: "blink-cursor 0.8s step-end infinite" }}
                 />
               )}
-            </span>
+            </div>
           )}
         </div>
       </div>
