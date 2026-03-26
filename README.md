@@ -4,11 +4,11 @@ Conversational AI financial advisor for the Canadian market. Built by ChainForge
 
 ## What This Is
 
-An AI-powered financial planning platform that conducts a structured, conversational fact-find with users and produces an institutional-grade financial plan, reviewed by a CIM-designated professional before delivery.
+An AI-powered financial planning platform that conducts a structured, conversational fact-find with users and produces an institutional-grade financial plan, reviewed by a registered financial professional before delivery.
 
 **Non-negotiable principles:**
 - **Privacy-first:** no SIN, no account numbers, no full legal names at MVP
-- **Compliance-first:** every AI recommendation routes through a CIM approval queue before user delivery
+- **Compliance-first:** every AI recommendation routes through a professional approval queue before user delivery
 - **Canadian-specific:** all tax logic (RRSP, TFSA, FHSA, CPP, OAS), provincial nuance, CIRO awareness
 - **Institutional quality:** outputs must feel like Goldman Sachs, not a calculator
 
@@ -16,7 +16,7 @@ An AI-powered financial planning platform that conducts a structured, conversati
 
 - **AI Fact-Find** -- Conversational interview that builds a complete financial profile (income, debts, goals, risk tolerance)
 - **Financial Plan Generation** -- Claude-powered institutional-grade plans with tax optimization, retirement projections, insurance audit, and investment blueprints
-- **CIM Approval Queue** -- Every plan is reviewed and approved by a CIM-designated professional before delivery
+- **Professional approval queue** -- Every plan is reviewed and approved by a registered financial professional before delivery
 - **Interactive Plan Walkthrough** -- Section-by-section guided walkthrough with AI Q&A
 - **Market Context Hub** -- Real-time market data, stock lookup, multi-source news aggregation, and social sentiment
 - **AI Commentary** -- AI personas modeled after prolific investors (Ray Dalio, Warren Buffett, Cathie Wood, Howard Marks, Peter Lynch, Canadian Perspective) providing market assessments through their investment philosophies
@@ -126,7 +126,7 @@ src/
 │   │   ├── assets/                # Holdings & fixed assets
 │   │   ├── meeting/               # Meeting scheduler
 │   │   └── settings/              # User settings
-│   ├── admin/approval-queue/      # CIM reviewer approval interface
+│   ├── admin/approval-queue/      # Professional reviewer approval interface
 │   └── api/
 │       ├── market/                # quotes, search, historical, movers,
 │       │                          # sectors, news, social, commentary,
@@ -134,7 +134,7 @@ src/
 │       ├── newsletter/generate/   # Weekly newsletter generation (Vercel Cron)
 │       ├── plan/                  # Plan generation, retrieval, PDF export
 │       ├── conversation/          # AI fact-find chat sessions
-│       ├── approval/              # CIM approval queue actions
+│       ├── approval/              # Approval queue actions
 │       ├── stripe/                # Checkout + webhook
 │       ├── holdings/              # Portfolio CRUD
 │       └── risk-profile/          # Risk assessment
@@ -202,7 +202,7 @@ When deploying, ensure all environment variables from `.env.example` are set in 
 
 ## Compliance Note
 
-Every AI-generated financial plan is reviewed by a CIM-designated professional before delivery. No plan reaches a user with status other than `delivered`. See `ARCHITECTURE.md` for the full compliance model.
+Every AI-generated financial plan is reviewed by a registered financial professional before delivery. No plan reaches a user with status other than `delivered`. See `ARCHITECTURE.md` for the full compliance model.
 
 ## Architecture
 

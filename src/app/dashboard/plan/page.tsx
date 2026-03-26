@@ -33,21 +33,21 @@ function getTimelineSteps(planStatus: string): TimelineStep[] {
   if (planStatus === "delivered") {
     return [
       { label: "Plan Generated", status: "complete" },
-      { label: "CIM Review", status: "complete" },
+      { label: "Professional review", status: "complete" },
       { label: "Delivered", status: "complete" },
     ];
   }
   if (planStatus === "pending_review") {
     return [
       { label: "Plan Generated", status: "complete" },
-      { label: "CIM Review", status: "active" },
+      { label: "Professional review", status: "active" },
       { label: "Delivered", status: "pending" },
     ];
   }
   if (planStatus === "generating") {
     return [
       { label: "Generating Plan", status: "active" },
-      { label: "CIM Review", status: "pending" },
+      { label: "Professional review", status: "pending" },
       { label: "Delivered", status: "pending" },
     ];
   }
@@ -135,7 +135,7 @@ function PlanNone() {
     <EmptyState
       icon={FileText}
       title="No financial plan yet"
-      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a CIM professional."
+      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
       ctaLabel="Complete Setup"
       ctaHref="/onboarding"
     />
@@ -288,7 +288,7 @@ function PlanPendingReview() {
           <Shield className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-amber-800">
-              Under CIM Professional Review
+              Under professional review
             </p>
             <p className="font-[family-name:var(--font-body)] text-sm text-amber-700 mt-1">
               Estimated delivery: {plan.estimatedDelivery ?? "Within 24 hours"}.
@@ -300,7 +300,7 @@ function PlanPendingReview() {
           <button
             disabled
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--warm-200)] bg-white/60 text-[var(--text-muted)] font-[family-name:var(--font-display)] text-sm font-semibold cursor-not-allowed"
-            title="Available after CIM review"
+            title="Available after professional review"
           >
             <Download className="w-4 h-4" />
             PDF
@@ -319,7 +319,7 @@ function PlanPendingReview() {
               Plan Preview
             </h2>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mt-1">
-              Section details will be finalized after CIM review
+              Section details will be finalized after professional review
             </p>
           </div>
           <div className="px-6">
@@ -450,7 +450,7 @@ function PlanDelivered() {
           <div className="flex items-center gap-1.5 mb-6">
             <Check className="w-3.5 h-3.5 text-[var(--emerald)]" />
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-              CIM Reviewed
+              Professionally reviewed
             </span>
           </div>
           <nav className="space-y-0.5 mb-8">
@@ -487,7 +487,7 @@ function PlanDelivered() {
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            AI Walkthrough
+            Walkthrough with Charlie
           </Link>
         </div>
 
@@ -498,7 +498,7 @@ function PlanDelivered() {
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-                CIM Reviewed
+                Professionally reviewed
               </span>
               <span className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] ml-auto">
                 {new Date(plan.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}

@@ -25,8 +25,8 @@ const STEPS = [
   },
   {
     num: 5,
-    title: "A CIM professional reviews it",
-    desc: "Every plan is reviewed by a Chartered Investment Manager before you see it. Then the AI walks you through it section by section.",
+    title: "A registered financial professional reviews it",
+    desc: "Every plan is reviewed by a registered financial professional before you see it. Then the AI walks you through it section by section.",
   },
 ];
 

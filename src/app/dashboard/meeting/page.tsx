@@ -222,10 +222,10 @@ export default function MeetingPage() {
               </div>
             </div>
             <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
-              AI Meeting Room
+              Charlie
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
-              Meet with your AI financial planner for reviews, questions, or updates to your plan.
+              Chat with Charlie for reviews, questions, or updates to your plan.
             </p>
           </div>
 
@@ -261,9 +261,9 @@ export default function MeetingPage() {
             <div className="flex items-start gap-3">
               <Shield className="mt-0.5 size-4 shrink-0 text-[var(--text-muted)]" />
               <p className="font-body text-[12px] leading-relaxed text-[var(--text-muted)]">
-                All conversations are private and stored securely. Your AI planner provides
+                All conversations are private and stored securely. Charlie provides
                 assessments and educational information, not personalized financial advice.
-                All plans are reviewed by a CIM-designated professional.
+                All plans are reviewed by a registered financial professional.
               </p>
             </div>
           </div>

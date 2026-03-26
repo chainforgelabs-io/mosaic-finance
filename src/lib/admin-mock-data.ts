@@ -3,7 +3,7 @@ import { mockPlanSections } from "./mock-data";
 
 export const mockReviewer: ReviewerProfile = {
   id: "reviewer-1",
-  name: "Sarah Chen, CIM",
+  name: "Sarah Chen, Registered Financial Professional",
   email: "s.chen@finova.ai",
   role: "cim_reviewer",
 };

@@ -306,6 +306,23 @@ export default function RiskProfilePage() {
           } catch { /* skip */ }
         }
       }
+      if (buffer.startsWith("data: ")) {
+        try {
+          const data = JSON.parse(buffer.slice(6));
+          if (data.type === "delta" && typeof data.text === "string") {
+            accumulated += data.text;
+            setConvMessages((prev) =>
+              prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
+            );
+          }
+          if (data.type === "done" && data.sessionComplete && data.extractedData) {
+            setRiskComplete(true);
+            setRiskResult(data.extractedData as Record<string, unknown>);
+          }
+        } catch {
+          /* incomplete trailing line */
+        }
+      }
     } catch {
       // error
     } finally {

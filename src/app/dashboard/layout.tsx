@@ -439,22 +439,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const supabase = createClient();
       const { data: fp } = await supabase
         .from("financial_profiles")
-        .select("annual_income, monthly_expenses, emergency_fund_months, total_debt, retirement_target_age")
+        .select("annual_income, monthly_expenses, emergency_fund_months, major_debts, retirement_target_age")
         .eq("user_id", user!.id)
         .single();
 
       const { data: holdings } = await supabase
         .from("investment_holdings")
-        .select("balance")
+        .select("total_value")
         .eq("user_id", user!.id);
+
+      const majorDebts = fp?.major_debts as
+        | { amount?: number; balance?: number }[]
+        | null
+        | undefined;
+      const totalDebtFromProfile =
+        Array.isArray(majorDebts) && majorDebts.length > 0
+          ? majorDebts.reduce(
+              (s, row) =>
+                s + (Number(row.amount ?? row.balance ?? 0) || 0),
+              0,
+            )
+          : null;
 
       if (fp || (holdings && holdings.length > 0)) {
         setPrePlanData({
           annualIncome: fp?.annual_income ?? null,
           monthlyExpenses: fp?.monthly_expenses ?? null,
           emergencyFundMonths: fp?.emergency_fund_months ?? null,
-          totalInvestments: holdings?.reduce((sum, h) => sum + (Number(h.balance) || 0), 0) ?? null,
-          totalDebt: fp?.total_debt ?? null,
+          totalInvestments:
+            holdings?.reduce((sum, h) => sum + (Number(h.total_value) || 0), 0) ?? null,
+          totalDebt: totalDebtFromProfile,
           retirementAge: fp?.retirement_target_age ?? null,
         });
       }
@@ -463,7 +477,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     loadPrePlanData();
   }, [user, setPrePlanData]);
 
-  const POLL_INTERVAL_MS = 10_000;
+  const POLL_INTERVAL_MS = 15_000;
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const pollPlanStatus = useCallback(async () => {

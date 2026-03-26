@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 const TIERS = [
   {
@@ -27,7 +28,7 @@ const TIERS = [
       "8-section plan",
       "Monthly market update",
       "PDF download",
-      "CIM review",
+      "Professional review",
     ],
     cta: "Get Started",
     style: "dark" as const,
@@ -57,7 +58,7 @@ const TIERS = [
     features: [
       "Everything in Pro",
       "Voice interface",
-      "Same-day CIM review",
+      "Same-day professional review",
       "Tax year-end report",
     ],
     cta: "Get Started",
@@ -117,7 +118,7 @@ export function PricingSection() {
           className="mb-14 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Every plan reviewed by a CIM professional. Cancel anytime.
+          Every plan reviewed by a registered financial professional. Cancel anytime.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -164,8 +165,8 @@ export function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <a
-                href="/register"
+              <Link
+                href="/signup"
                 className={`block w-full rounded-full py-2.5 text-center font-display text-sm font-semibold transition-colors ${
                   tier.style === "emerald"
                     ? "bg-emerald text-white hover:bg-emerald-dark"
@@ -175,7 +176,7 @@ export function PricingSection() {
                 }`}
               >
                 {tier.cta}
-              </a>
+              </Link>
             </div>
           ))}
         </div>

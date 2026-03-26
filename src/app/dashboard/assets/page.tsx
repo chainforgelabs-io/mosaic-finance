@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocationChart";
@@ -183,11 +183,17 @@ function AccountCard({ account }: { account: AccountRow }) {
 /* ---------- Debt helpers ---------- */
 
 function parseDebtFromPlan(raw: string): { name: string; amount: number; rate: string } {
-  const nameMatch = raw.match(/^([^(]+)/);
   const amountMatch = raw.match(/\$([0-9,]+)/);
   const rateMatch = raw.match(/([\d.]+%)/);
+  const dollarAt = raw.indexOf("$");
+  let name = raw;
+  if (dollarAt > 0) {
+    name = raw.slice(0, dollarAt).replace(/[-–—:\s]+$/g, "").trim();
+  } else {
+    name = raw.split("(")[0]?.trim() ?? raw;
+  }
   return {
-    name: nameMatch?.[1]?.trim() ?? raw,
+    name: name || raw,
     amount: amountMatch ? parseInt(amountMatch[1].replace(/,/g, ""), 10) : 0,
     rate: rateMatch?.[1] ?? "",
   };
@@ -557,11 +563,18 @@ export default function AssetsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<FixedAsset | null>(null);
   const [saving, setSaving] = useState(false);
+  const lastHoldingsFetchAt = useRef<number>(0);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastHoldingsFetchAt.current < 30_000) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch("/api/holdings", { credentials: "include" });
       if (res.ok) {
+        lastHoldingsFetchAt.current = Date.now();
         const data = await res.json();
         setHoldings(data.holdings ?? []);
         setProfile(data.financialProfile ?? null);
@@ -575,7 +588,9 @@ export default function AssetsPage() {
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    loadData(true);
+  }, [loadData]);
 
   async function handleSaveAsset(formData: AssetFormData) {
     setSaving(true);
@@ -611,6 +626,7 @@ export default function AssetsPage() {
       setShowForm(false);
       setEditingAsset(null);
     }
+    await loadData(true);
   }
 
   async function handleDeleteAsset(id: string) {
@@ -620,6 +636,7 @@ export default function AssetsPage() {
     } catch {
       // silently fail
     }
+    await loadData(true);
   }
 
   const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
@@ -630,7 +647,26 @@ export default function AssetsPage() {
   const investmentTotal = holdings.reduce((sum, a) => sum + a.total_value, 0);
   const fixedTotal = fixedAssets.reduce((sum, a) => sum + a.estimated_value, 0);
   const totalAssets = investmentTotal + fixedTotal;
-  const totalDebt = (debtPlan?.total_debt as number) ?? (profile?.major_debts ?? []).reduce((s, d) => s + d.amount, 0);
+  const profileDebtTotal = (profile?.major_debts ?? []).reduce(
+    (s, d) =>
+      s +
+      (Number(
+        (d as { amount?: number; balance?: number }).amount ??
+          (d as { balance?: number }).balance ??
+          0,
+      ) || 0),
+    0,
+  );
+  const planTotalDebt = debtPlan?.total_debt;
+  const planDebtNum =
+    typeof planTotalDebt === "number" && !Number.isNaN(planTotalDebt) ? planTotalDebt : null;
+  // Prefer plan when it shows debt; if plan says 0 but profile has debts, use profile (plan parse can miss debt)
+  const totalDebt =
+    planDebtNum != null && planDebtNum > 0
+      ? planDebtNum
+      : profileDebtTotal > 0
+        ? profileDebtTotal
+        : planDebtNum ?? profileDebtTotal;
   const netWorth = (diag?.net_worth as number) ?? totalAssets - totalDebt;
 
   const parsedDebts = debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);

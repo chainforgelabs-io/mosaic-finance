@@ -68,7 +68,7 @@ export function PlanSection({
                 : "bg-[var(--warm-100)] text-[var(--text-muted)]",
             )}
           >
-            {status === "cim_reviewed" ? "CIM Reviewed" : "AI Generated"}
+            {status === "cim_reviewed" ? "Professionally reviewed" : "AI Generated"}
           </span>
         </div>
         <ChevronDown

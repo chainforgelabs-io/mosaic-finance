@@ -145,4 +145,4 @@ Eight principles that govern financial planning professionals:
 7. **Diligence** — Due care and prudence in handling client affairs; timely and thorough
 8. **Professionalism** — Conduct that inspires confidence and respect
 
-> **FINOVA APPLICATION:** These principles should be embedded in the AI's conversational tone and reflected in the mandatory disclaimer language. The CIM review layer is the structural enforcement mechanism.
+> **FINOVA APPLICATION:** These principles should be embedded in the AI's conversational tone and reflected in the mandatory disclaimer language. The human professional review layer is the structural enforcement mechanism.

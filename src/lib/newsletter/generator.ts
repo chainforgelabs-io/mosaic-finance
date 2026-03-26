@@ -150,7 +150,7 @@ function buildNewsletterHtml(content: NewsletterContent): string {
 
       <div style="text-align:center;padding:20px 0;color:#9CA3AF;font-size:11px">
         <p>This newsletter is for educational context only. Not investment advice.</p>
-        <p>Finova · Plans reviewed by a CIM professional</p>
+        <p>Finova · Plans reviewed by a registered financial professional</p>
       </div>
     </div>
   `;

@@ -34,7 +34,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
               {section.status === "cim_reviewed" ? (
                 <>
                   <CheckCircle2 className="w-3 h-3" />
-                  CIM Reviewed
+                  Professionally reviewed
                 </>
               ) : (
                 <>

@@ -56,7 +56,7 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-body)] font-medium text-[14px] text-[var(--text-muted)]">
-                CIM Review Dashboard
+                Review Dashboard
               </span>
             </div>
           </div>

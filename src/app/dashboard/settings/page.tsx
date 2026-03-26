@@ -172,8 +172,8 @@ const tierFeatures: {
     price: "$0/mo",
     features: [
       "1 financial plan",
-      "Basic AI walkthrough",
-      "48-hour CIM review",
+      "Basic walkthrough with Charlie",
+      "48-hour professional review",
       "Weekly market context",
     ],
   },
@@ -182,8 +182,8 @@ const tierFeatures: {
     price: "$14.99/mo",
     features: [
       "2 plan revisions/year",
-      "Full AI walkthrough",
-      "24-hour CIM review",
+      "Full walkthrough with Charlie",
+      "24-hour professional review",
       "Weekly market context",
     ],
   },
@@ -192,8 +192,8 @@ const tierFeatures: {
     price: "$29.99/mo",
     features: [
       "Quarterly re-plans",
-      "Priority AI walkthrough",
-      "12-hour CIM review",
+      "Priority walkthrough with Charlie",
+      "12-hour professional review",
       "Personalized market context",
     ],
   },
@@ -202,8 +202,8 @@ const tierFeatures: {
     price: "$59.99/mo",
     features: [
       "Unlimited re-plans",
-      "Full AI walkthrough + follow-ups",
-      "8-hour CIM review",
+      "Full walkthrough with Charlie + follow-ups",
+      "8-hour professional review",
       "Personalized market context",
       "Priority support",
     ],

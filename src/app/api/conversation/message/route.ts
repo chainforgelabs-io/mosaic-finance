@@ -207,6 +207,7 @@ export async function POST(req: NextRequest) {
   let fullResponse = '';
   let flushedUpTo = 0;
 
+  /** While streaming: hold back a suffix in case a completion/topics tag is still forming. */
   function getVisibleEnd(fr: string): number {
     let end = fr.length;
     if (TAG_OPEN) {
@@ -224,6 +225,20 @@ export async function POST(req: NextRequest) {
       } else {
         end = Math.min(end, Math.max(0, fr.length - TOPICS_TAG_OPEN.length));
       }
+    }
+    return end;
+  }
+
+  /** After the model stream completes: do not hold back characters — only cut at actual tag starts. */
+  function getFinalVisibleEnd(fr: string): number {
+    let end = fr.length;
+    if (TAG_OPEN) {
+      const i = fr.indexOf(TAG_OPEN);
+      if (i !== -1) end = Math.min(end, i);
+    }
+    if (sessionType === 'fact-find') {
+      const i = fr.indexOf(TOPICS_TAG_OPEN);
+      if (i !== -1) end = Math.min(end, i);
     }
     return end;
   }
@@ -266,9 +281,9 @@ export async function POST(req: NextRequest) {
 
         await response.finalMessage();
 
-        // Flush remaining visible text
+        // Flush remaining visible text (use getFinalVisibleEnd so we never drop the tail when no tag appears)
         if (TAG_OPEN || sessionType === 'fact-find') {
-          const visibleEnd = getVisibleEnd(fullResponse);
+          const visibleEnd = getFinalVisibleEnd(fullResponse);
           if (flushedUpTo < visibleEnd) {
             const remaining = fullResponse.slice(flushedUpTo, visibleEnd);
             controller.enqueue(

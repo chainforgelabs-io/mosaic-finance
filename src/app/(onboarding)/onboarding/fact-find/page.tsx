@@ -82,7 +82,7 @@ function ComplianceCard({ onDismiss }: { onDismiss: () => void }) {
             </h3>
             <p className="mt-1.5 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
               Finova AI is a financial planning tool, not a registered investment
-              advisor. All plans are reviewed by a CIM professional before
+              advisor. All plans are reviewed by a registered financial professional before
               delivery.
             </p>
           </div>
@@ -483,6 +483,41 @@ function FactFindConversation() {
           }
         }
 
+        // Trailing chunk may leave an unparsed `data:` line (no final newline)
+        if (buffer.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(buffer.slice(6));
+            if (data.type === "delta" && typeof data.text === "string") {
+              lastDeltaTime = Date.now();
+              accumulated += data.text;
+              updateLastAssistantMessage(accumulated);
+            }
+            if (data.type === "done") {
+              if (data.sessionComplete && data.extractedData) {
+                setSessionComplete(true);
+                setSummaryData(data.extractedData);
+              }
+              if (data.topicsCovered && Array.isArray(data.topicsCovered)) {
+                const derived: Partial<ExtractedTopics> = {};
+                const current = useConversationStore.getState().extractedTopics;
+                for (const t of data.topicsCovered) {
+                  if (typeof t === "string" && t in current) {
+                    (derived as Record<string, boolean>)[t] = true;
+                  }
+                }
+                if (Object.keys(derived).length > 0) {
+                  setExtractedTopics(derived);
+                }
+              }
+            }
+            if (data.type === "error") {
+              setError(data.message ?? "An error occurred");
+            }
+          } catch {
+            /* incomplete JSON in buffer */
+          }
+        }
+
         clearInterval(preparingTimer);
         setIsPreparingAssessment(false);
 
@@ -679,6 +714,20 @@ function FactFindConversation() {
             console.warn("[fact-find] Failed to save fixed asset:", asset.name, err);
           }
         }
+      }
+
+      try {
+        const res = await fetch("/api/financial-profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) {
+          console.warn("[fact-find] Failed to persist financial profile");
+        }
+      } catch (e) {
+        console.warn("[fact-find] financial-profile request failed", e);
       }
     }
 

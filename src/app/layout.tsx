@@ -19,7 +19,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Finova AI — AI-Powered Financial Planning for Canadians",
   description:
-    "A conversational AI that builds you a real financial plan — investment analysis, tax strategy, retirement projections — reviewed by a CIM professional.",
+    "A conversational AI that builds you a real financial plan — investment analysis, tax strategy, retirement projections — reviewed by a registered financial professional.",
 };
 
 export default function RootLayout({

@@ -208,7 +208,7 @@ function DashboardGenerating() {
         <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" aria-hidden />
         <p className="font-[family-name:var(--font-body)] text-[14px] text-[var(--text-secondary)]">
           Your personalized financial plan is being generated in the background. Some metrics will update when
-          ready; a CIM-designated professional will review your plan before delivery.
+          ready; a registered financial professional will review your plan before delivery.
         </p>
       </div>
 
@@ -314,7 +314,7 @@ function DashboardNoPlan() {
     <EmptyState
       icon={FileText}
       title="Your financial plan will appear here once you complete setup."
-      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a CIM professional."
+      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
       ctaLabel="Complete Setup"
       ctaHref="/onboarding"
     />
@@ -529,7 +529,7 @@ function DashboardPending() {
             Your draft plan is ready to view
           </p>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mt-0.5">
-            Download a watermarked draft while it&apos;s under CIM review
+            Download a watermarked draft while it&apos;s under professional review
           </p>
         </div>
         <ArrowRight className="w-4 h-4 text-[var(--emerald)] group-hover:translate-x-0.5 transition-transform" />

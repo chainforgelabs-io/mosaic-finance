@@ -49,7 +49,7 @@ export function ConversationBubble({
           <div className="mb-1 flex items-center gap-1.5">
             <span className="block size-1.5 rounded-full bg-[var(--emerald)]" />
             <span className="font-body text-[11px] text-[var(--text-muted)]">
-              finova ai
+              Charlie
             </span>
           </div>
         )}

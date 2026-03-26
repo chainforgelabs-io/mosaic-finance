@@ -72,7 +72,7 @@ export function MeetingHistory() {
 
       {sessions.length === 0 ? (
         <p className="font-body text-[13px] text-[var(--text-muted)]">
-          No meetings yet. Start your first AI meeting to see history here.
+          No meetings yet. Start your first session with Charlie to see history here.
         </p>
       ) : (
         <div className="space-y-2">

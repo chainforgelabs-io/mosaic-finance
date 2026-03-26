@@ -36,7 +36,7 @@ export interface PlanGenerationInput {
 export function buildPlanGenerationPrompt(userData: PlanGenerationInput): string {
   const knowledgeContext = buildKnowledgeContext('plan-generation', userData.userFlags ?? {});
 
-  return `You are a CIM-designated senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a CIM-designated professional before delivery.
+  return `You are a senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a registered financial professional before delivery.
 ${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData)}
@@ -144,6 +144,6 @@ CRITICAL RULES:
 - All considerations must be suitability-appropriate for the client's risk profile
 - Flag any areas of uncertainty with explicit disclaimers within that section
 - Any value you cannot calculate with confidence must be flagged with "[REQUIRES ADVISOR VERIFICATION]" rather than fabricating a number
-- This output will be reviewed by a CIM professional before delivery — write as if a peer is reviewing your work
+- This output will be reviewed by a registered financial professional before delivery — write as if a peer is reviewing your work
 - Return ONLY the JSON object — no markdown fences, no commentary before or after`;
 }

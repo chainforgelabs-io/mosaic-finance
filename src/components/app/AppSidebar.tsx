@@ -37,7 +37,7 @@ function getNavItems(planId?: string): NavItem[] {
     { label: "My Plan", href: "/dashboard/plan", icon: FileText },
     { label: "Assets", href: "/dashboard/assets", icon: Wallet },
     { label: "Walkthrough", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
-    { label: "AI Meeting", href: "/dashboard/meeting", icon: Video },
+    { label: "Charlie", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
@@ -160,7 +160,7 @@ export function AppSidebar({
       {/* Compliance note */}
       <div className="px-4 pb-4 max-md:hidden md:max-lg:hidden">
         <p className="font-body text-[10px] leading-tight text-[var(--text-muted)]">
-          Plans reviewed by a CIM professional
+          Plans reviewed by a registered financial professional
         </p>
       </div>
     </aside>

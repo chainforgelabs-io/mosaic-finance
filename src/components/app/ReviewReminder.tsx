@@ -70,7 +70,7 @@ export function ReviewReminder() {
               ? `It's been ${daysSinceLastReview} days since your last review. `
               : ""}
             Regular reviews ensure your financial plan stays aligned with your life. Schedule a quick
-            meeting with your AI planner to check in.
+            session with Charlie to check in.
           </p>
           <Link
             href="/dashboard/meeting"

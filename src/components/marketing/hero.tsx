@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
@@ -53,17 +54,17 @@ export function Hero() {
         >
           A conversational AI that builds you a real financial plan —
           investment analysis, tax strategy, retirement projections — then walks
-          you through it like an advisor would. Reviewed by a CIM professional
-          before you see it.
+          you through it like an advisor would. Reviewed by a registered financial
+          professional before you see it.
         </p>
 
         <div data-animate className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <a
-            href="/register"
+          <Link
+            href="/signup"
             className="rounded-full bg-emerald px-8 py-3.5 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
           >
             Start Your Free Plan
-          </a>
+          </Link>
           <a
             href="#how-it-works"
             className="rounded-full border border-white/20 px-8 py-3.5 font-display text-sm font-semibold text-white transition-colors hover:border-white/40"
@@ -73,7 +74,7 @@ export function Hero() {
         </div>
 
         <p data-animate className="mt-6 font-body text-[13px] text-text-muted">
-          No credit card required · CIM-reviewed · Privacy-first
+          No credit card required · Professionally reviewed · Privacy-first
         </p>
       </div>
     </section>

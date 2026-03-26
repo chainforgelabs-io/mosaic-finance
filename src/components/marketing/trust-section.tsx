@@ -6,8 +6,8 @@ import { Award, Lock, MapPin } from "lucide-react";
 const PILLARS = [
   {
     icon: Award,
-    title: "CIM-Reviewed",
-    desc: "Every plan is reviewed by a Chartered Investment Manager before delivery. Not a disclaimer — a structural requirement.",
+    title: "Professionally reviewed",
+    desc: "Every plan is reviewed by a registered financial professional before delivery. Not a disclaimer — a structural requirement.",
   },
   {
     icon: Lock,

@@ -77,7 +77,7 @@ function SectionPanel({
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--emerald-soft)] text-[var(--emerald-dark)]">
             <CheckCircle2 className="w-2.5 h-2.5" />
-            CIM Reviewed
+            Professionally reviewed
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -227,7 +227,7 @@ function ConversationPanel({
     <div className="h-full flex flex-col bg-[var(--warm-50)]">
       <div className="px-5 py-3 border-b border-[var(--warm-200)] bg-white">
         <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
-          AI Walkthrough
+          Walkthrough with Charlie
         </p>
         <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
           Discussing: {section.title}
@@ -431,7 +431,7 @@ export default function WalkthroughPage() {
     return (
       <EmptyState
         icon={FileText}
-        title="Complete your plan setup to access the AI walkthrough."
+        title="Complete your plan setup to access the walkthrough with Charlie."
         description="Once your financial plan has been reviewed and delivered, you can walk through it with AI guidance."
       />
     );

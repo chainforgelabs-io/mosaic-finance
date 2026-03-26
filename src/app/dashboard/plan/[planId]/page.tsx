@@ -32,7 +32,7 @@ function PlanNav({
       <div className="flex items-center gap-1.5 mb-6">
         <CheckCircle2 className="w-3.5 h-3.5 text-[var(--emerald)]" />
         <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-          CIM Reviewed
+          Professionally reviewed
         </span>
       </div>
 
@@ -138,7 +138,7 @@ export default function PlanViewPage() {
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 className="w-4 h-4 text-[var(--emerald)]" />
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-              CIM Reviewed
+              Professionally reviewed
             </span>
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] ml-auto">
               {new Date(plan.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
@@ -179,7 +179,7 @@ export default function PlanViewPage() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            Start AI Walkthrough
+            Start walkthrough with Charlie
           </Link>
         </div>
       </div>

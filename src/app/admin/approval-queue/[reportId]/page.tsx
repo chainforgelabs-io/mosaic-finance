@@ -89,14 +89,14 @@ function ConfirmationModal({
   const config = {
     approve: {
       title: "Approve & Deliver Plan",
-      description: "This will mark the plan as CIM-reviewed and deliver it to the user. A PDF will be generated and an email notification sent.",
+      description: "This will mark the plan as professionally reviewed and deliver it to the user. A PDF will be generated and an email notification sent.",
       confirmLabel: "Approve & Deliver",
       confirmStyle: "bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] text-white",
       icon: <CheckCircle2 className="w-6 h-6 text-[var(--emerald)]" />,
     },
     edit_approve: {
       title: "Edit & Approve Plan",
-      description: "This will apply your edits, mark the plan as CIM-reviewed, and deliver it to the user.",
+      description: "This will apply your edits, mark the plan as professionally reviewed, and deliver it to the user.",
       confirmLabel: "Save & Deliver",
       confirmStyle: "bg-[var(--slate-950)] hover:bg-[var(--slate-950)]/90 text-white",
       icon: <Edit3 className="w-6 h-6 text-[var(--text-primary)]" />,
