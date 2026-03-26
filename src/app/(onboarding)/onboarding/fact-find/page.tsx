@@ -346,7 +346,6 @@ function FactFindConversation() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const errorBoundaryRef = useRef<ConversationErrorBoundary>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     completeStep("profile");
     setCurrentStep("fact-find");
@@ -461,6 +460,18 @@ function FactFindConversation() {
                     setSessionComplete(true);
                     setSummaryData(data.extractedData);
                   }
+                  if (data.topicsCovered && Array.isArray(data.topicsCovered)) {
+                    const derived: Partial<ExtractedTopics> = {};
+                    const current = useConversationStore.getState().extractedTopics;
+                    for (const t of data.topicsCovered) {
+                      if (typeof t === "string" && t in current) {
+                        (derived as Record<string, boolean>)[t] = true;
+                      }
+                    }
+                    if (Object.keys(derived).length > 0) {
+                      setExtractedTopics(derived);
+                    }
+                  }
                   break;
                 case "error":
                   setError(data.message ?? "An error occurred");
@@ -474,6 +485,11 @@ function FactFindConversation() {
 
         clearInterval(preparingTimer);
         setIsPreparingAssessment(false);
+
+        accumulated = accumulated
+          .replace(/<TOPICS_COVERED>[\s\S]*?<\/TOPICS_COVERED>/g, "")
+          .trim();
+        updateLastAssistantMessage(accumulated);
 
         if (accumulated.includes("<FACT_FIND_COMPLETE>")) {
           const cleaned = accumulated
@@ -502,6 +518,7 @@ function FactFindConversation() {
       setError,
       setSessionComplete,
       setSummaryData,
+      setExtractedTopics,
     ],
   );
 

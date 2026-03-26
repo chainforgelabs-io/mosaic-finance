@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
+import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocationChart";
 import { CurrentAllocationChart } from "@/components/charts/CurrentAllocationChart";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { FinancialCard } from "@/components/app/FinancialCard";
@@ -551,6 +552,7 @@ export default function AssetsPage() {
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
   const [householdIncome, setHouseholdIncome] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [allocationView, setAllocationView] = useState<"account" | "asset-class">("account");
 
   const [showForm, setShowForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<FixedAsset | null>(null);
@@ -755,7 +757,39 @@ export default function AssetsPage() {
 
         {/* ALLOCATION CHARTS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CurrentAllocationChart />
+          <div className="space-y-3">
+            <div className="flex rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] p-1">
+              <button
+                type="button"
+                onClick={() => setAllocationView("account")}
+                className={cn(
+                  "flex-1 rounded-md px-3 py-2 font-[family-name:var(--font-display)] text-xs font-semibold transition-colors",
+                  allocationView === "account"
+                    ? "bg-white text-[var(--text-primary)] shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                By Account
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllocationView("asset-class")}
+                className={cn(
+                  "flex-1 rounded-md px-3 py-2 font-[family-name:var(--font-display)] text-xs font-semibold transition-colors",
+                  allocationView === "asset-class"
+                    ? "bg-white text-[var(--text-primary)] shadow-sm"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]",
+                )}
+              >
+                By Asset Class
+              </button>
+            </div>
+            {allocationView === "account" ? (
+              <CurrentAllocationChart />
+            ) : (
+              <AssetClassAllocationChart accounts={holdings} />
+            )}
+          </div>
           <AssetAllocationChart />
         </div>
 

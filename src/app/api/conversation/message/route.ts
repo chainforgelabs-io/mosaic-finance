@@ -202,9 +202,31 @@ export async function POST(req: NextRequest) {
   }
 
   const TAG_OPEN = config.tagOpen;
+  const TOPICS_TAG_OPEN = '<TOPICS_COVERED>';
   const encoder = new TextEncoder();
   let fullResponse = '';
   let flushedUpTo = 0;
+
+  function getVisibleEnd(fr: string): number {
+    let end = fr.length;
+    if (TAG_OPEN) {
+      const i = fr.indexOf(TAG_OPEN);
+      if (i !== -1) {
+        end = Math.min(end, i);
+      } else {
+        end = Math.min(end, Math.max(0, fr.length - TAG_OPEN.length));
+      }
+    }
+    if (sessionType === 'fact-find') {
+      const i = fr.indexOf(TOPICS_TAG_OPEN);
+      if (i !== -1) {
+        end = Math.min(end, i);
+      } else {
+        end = Math.min(end, Math.max(0, fr.length - TOPICS_TAG_OPEN.length));
+      }
+    }
+    return end;
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -217,31 +239,16 @@ export async function POST(req: NextRequest) {
         response.on('text', (text) => {
           fullResponse += text;
 
-          if (TAG_OPEN) {
-            const tagIdx = fullResponse.indexOf(TAG_OPEN);
-
-            if (tagIdx !== -1) {
-              if (flushedUpTo < tagIdx) {
-                const visibleChunk = fullResponse.slice(flushedUpTo, tagIdx);
-                controller.enqueue(
-                  encoder.encode(
-                    `data: ${JSON.stringify({ type: 'delta', text: visibleChunk })}\n\n`,
-                  ),
-                );
-                flushedUpTo = tagIdx;
-              }
-              return;
-            }
-
-            const safeEnd = Math.max(flushedUpTo, fullResponse.length - TAG_OPEN.length);
-            if (safeEnd > flushedUpTo) {
-              const chunk = fullResponse.slice(flushedUpTo, safeEnd);
+          if (TAG_OPEN || sessionType === 'fact-find') {
+            const visibleEnd = getVisibleEnd(fullResponse);
+            if (visibleEnd > flushedUpTo) {
+              const chunk = fullResponse.slice(flushedUpTo, visibleEnd);
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`,
                 ),
               );
-              flushedUpTo = safeEnd;
+              flushedUpTo = visibleEnd;
             }
           } else {
             // No tag to buffer — stream everything
@@ -260,9 +267,8 @@ export async function POST(req: NextRequest) {
         await response.finalMessage();
 
         // Flush remaining visible text
-        if (TAG_OPEN) {
-          const tagIdx = fullResponse.indexOf(TAG_OPEN);
-          const visibleEnd = tagIdx !== -1 ? tagIdx : fullResponse.length;
+        if (TAG_OPEN || sessionType === 'fact-find') {
+          const visibleEnd = getVisibleEnd(fullResponse);
           if (flushedUpTo < visibleEnd) {
             const remaining = fullResponse.slice(flushedUpTo, visibleEnd);
             controller.enqueue(
@@ -270,6 +276,7 @@ export async function POST(req: NextRequest) {
                 `data: ${JSON.stringify({ type: 'delta', text: remaining })}\n\n`,
               ),
             );
+            flushedUpTo = visibleEnd;
           }
         } else if (flushedUpTo < fullResponse.length) {
           const remaining = fullResponse.slice(flushedUpTo);
@@ -297,9 +304,25 @@ export async function POST(req: NextRequest) {
         }
 
         const stripPattern = config.stripTag;
-        const cleanedResponse = stripPattern
-          ? fullResponse.replace(stripPattern, '').trim()
-          : fullResponse.trim();
+        const TOPICS_STRIP = /<TOPICS_COVERED>[\s\S]*?<\/TOPICS_COVERED>/g;
+        let cleanedResponse = fullResponse.trim();
+        if (stripPattern) {
+          cleanedResponse = cleanedResponse.replace(stripPattern, '');
+        }
+        cleanedResponse = cleanedResponse.replace(TOPICS_STRIP, '').trim();
+
+        const topicsMatch = fullResponse.match(/<TOPICS_COVERED>([\s\S]*?)<\/TOPICS_COVERED>/);
+        let topicsCovered: string[] | null = null;
+        if (topicsMatch) {
+          try {
+            const parsed = JSON.parse(topicsMatch[1].trim());
+            if (Array.isArray(parsed)) {
+              topicsCovered = parsed.filter((x): x is string => typeof x === 'string');
+            }
+          } catch {
+            /* invalid JSON */
+          }
+        }
 
         await supabase.from('conversation_messages').insert({
           session_id: sessionId,
@@ -325,6 +348,7 @@ export async function POST(req: NextRequest) {
               type: 'done',
               sessionComplete: sessionStatus === 'completed',
               extractedData,
+              topicsCovered,
             })}\n\n`,
           ),
         );

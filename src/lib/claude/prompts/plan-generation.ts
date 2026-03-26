@@ -39,7 +39,7 @@ export function buildPlanGenerationPrompt(userData: PlanGenerationInput): string
   return `You are a CIM-designated senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a CIM-designated professional before delivery.
 ${knowledgeContext}
 CLIENT DATA:
-${JSON.stringify(userData, null, 2)}
+${JSON.stringify(userData)}
 
 Generate a complete 8-section financial plan. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the client's specific numbers, province, account types, and goals. Frame all output as educational planning considerations — not prescriptive advice.
 

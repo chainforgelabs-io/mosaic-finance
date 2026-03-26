@@ -25,16 +25,6 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const GENERATION_STEPS = [
-  "Analyzing your financial profile",
-  "Building retirement projections",
-  "Analyzing investment considerations",
-  "Running tax efficiency analysis",
-  "Finalizing plan...",
-] as const;
-
-const STEP_INTERVAL_MS = 1500;
-
 /* ---------- Status Timeline ---------- */
 
 type TimelineStep = { label: string; status: "complete" | "active" | "pending" };
@@ -117,70 +107,22 @@ function StatusTimeline({ planStatus }: { planStatus: string }) {
 /* ---------- Generating State ---------- */
 
 function PlanGenerating() {
-  const [visibleSteps, setVisibleSteps] = useState(1);
-
-  useEffect(() => {
-    if (visibleSteps >= GENERATION_STEPS.length) return;
-    const timer = setTimeout(() => {
-      setVisibleSteps((prev) => Math.min(prev + 1, GENERATION_STEPS.length));
-    }, STEP_INTERVAL_MS);
-    return () => clearTimeout(timer);
-  }, [visibleSteps]);
-
   return (
     <div className="space-y-6">
       <StatusTimeline planStatus="generating" />
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-8">
-        <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-6">
-          Building your financial plan
-        </h2>
-        <div className="mb-6 space-y-3">
-          {GENERATION_STEPS.map((step, index) => {
-            const isVisible = index < visibleSteps;
-            const isComplete = index < visibleSteps - 1;
-            const isCurrent = index === visibleSteps - 1;
-            const isLast = index === GENERATION_STEPS.length - 1;
-            return (
-              <div
-                key={step}
-                className={cn(
-                  "flex items-center gap-3 transition-all",
-                  isVisible ? "opacity-100" : "pointer-events-none h-0 overflow-hidden opacity-0",
-                )}
-                style={isVisible ? { animation: "checklist-enter 400ms ease-out both" } : undefined}
-              >
-                {isComplete ? (
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
-                    <Check className="size-3 text-white" strokeWidth={3} />
-                  </div>
-                ) : isCurrent && isLast ? (
-                  <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" />
-                ) : isCurrent ? (
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
-                    <Check className="size-3 text-white" strokeWidth={3} />
-                  </div>
-                ) : (
-                  <div className="size-5 shrink-0 rounded-full border-2 border-[var(--warm-200)]" />
-                )}
-                <span
-                  className={cn(
-                    "font-body text-[15px]",
-                    isComplete || (isCurrent && !isLast)
-                      ? "text-[var(--text-primary)]"
-                      : isCurrent && isLast
-                        ? "text-[var(--text-secondary)]"
-                        : "text-[var(--text-muted)]",
-                  )}
-                >
-                  {step}
-                </span>
-              </div>
-            );
-          })}
+        <div className="flex items-start gap-3">
+          <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)] mt-0.5" aria-hidden />
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-2">
+              Your plan is being generated
+            </h2>
+            <p className="font-body text-[14px] text-[var(--text-secondary)] leading-relaxed">
+              Your plan is currently being generated. You&apos;ll be able to view and download it here once it&apos;s
+              ready. Your Dashboard shows live snapshot metrics while generation runs in the background.
+            </p>
+          </div>
         </div>
-        <p className="font-body text-[14px] text-[var(--text-muted)]">
-          This usually takes a few minutes. Once generated, a CIM-designated professional will review your plan.
-        </p>
       </div>
     </div>
   );

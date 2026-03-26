@@ -79,8 +79,6 @@ export function getModulesForStage(
   }
 
   if (stage === "plan-generation") {
-    modules.push("fact-find");
-    modules.push("risk-profiling");
     modules.push("insurance");
     if (!modules.includes("family-law") && (userFlags.isDivorced || userFlags.isSeparated)) {
       modules.push("family-law");

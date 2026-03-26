@@ -90,18 +90,20 @@ export async function POST(req: NextRequest) {
         const [financialProfile, holdings, riskProfile] = await Promise.all([
           svc
             .from('financial_profiles')
-            .select('*')
+            .select(
+              'annual_income, monthly_expenses, monthly_savings, emergency_fund_months, major_debts, financial_goals, retirement_target_age',
+            )
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(1)
             .single(),
           svc
             .from('investment_holdings')
-            .select('*')
+            .select('account_type, holdings, total_value')
             .eq('user_id', userId),
           svc
             .from('risk_profiles')
-            .select('*')
+            .select('risk_score, conversational_insights')
             .eq('user_id', userId)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -128,9 +130,19 @@ export async function POST(req: NextRequest) {
           .limit(1)
           .single();
 
-        const factFindData = typeof factFindSession?.metadata === 'object'
-          ? (factFindSession.metadata as Record<string, unknown>)?.extracted_data ?? null
-          : null;
+        const rawExtracted =
+          typeof factFindSession?.metadata === 'object'
+            ? (factFindSession.metadata as Record<string, unknown>)?.extracted_data
+            : null;
+        const factFindData =
+          rawExtracted && typeof rawExtracted === 'object'
+            ? {
+                insurance_coverage: (rawExtracted as Record<string, unknown>).insurance_coverage,
+                detected_flags: (rawExtracted as Record<string, unknown>).detected_flags,
+                special_situation_notes: (rawExtracted as Record<string, unknown>).special_situation_notes,
+                investment_knowledge: (rawExtracted as Record<string, unknown>).investment_knowledge,
+              }
+            : null;
         console.log(`[plan/generate:bg] factFindData: ${factFindData ? 'found' : 'missing'}`);
 
         const { data: householdMembers } = await svc
@@ -167,14 +179,14 @@ export async function POST(req: NextRequest) {
           userFlags,
         };
 
-        console.log(`[plan/generate:bg] Calling Claude via streaming (maxTokens=16000)...`);
+        console.log(`[plan/generate:bg] Calling Claude via streaming (maxTokens=12000)...`);
         const tClaude = Date.now();
         let planJson: string;
         try {
           planJson = await claudeChatStreaming(
             [{ role: 'user', content: 'Generate the complete financial plan now.' }],
             buildPlanGenerationPrompt(userData),
-            { maxTokens: 16000, model: 'opus' },
+            { maxTokens: 12000, model: 'opus' },
           );
           console.log(`[plan/generate:bg] Claude responded in ${((Date.now() - tClaude) / 1000).toFixed(1)}s — ${planJson.length} chars`);
         } catch (err) {

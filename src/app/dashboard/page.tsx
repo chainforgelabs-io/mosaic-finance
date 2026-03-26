@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePlanStore } from "@/stores/plan-store";
+import { useState } from "react";
+import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
 import { HealthScore } from "@/components/app/HealthScore";
 import { FinancialCard } from "@/components/app/FinancialCard";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -19,7 +19,6 @@ import {
   FileText,
   ArrowRight,
   TrendingUp,
-  Check,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -27,15 +26,32 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-const GENERATION_STEPS = [
-  "Analyzing your financial profile",
-  "Building retirement projections",
-  "Analyzing investment considerations",
-  "Running tax efficiency analysis",
-  "Finalizing plan...",
+const GENERATING_CHART_PLACEHOLDERS = [
+  {
+    title: "Retirement Income Sources",
+    subtitle: "Estimated monthly income at retirement",
+  },
+  {
+    title: "Retirement Readiness",
+    subtitle: "Current trajectory vs. target retirement number",
+  },
+  {
+    title: "Debt Breakdown",
+    subtitle: "Balances and payoff strategy",
+  },
+  {
+    title: "Recommended Allocation",
+    subtitle: "Target portfolio mix from your plan",
+  },
+  {
+    title: "Net Worth Trajectory",
+    subtitle: "Projected milestones by age",
+  },
+  {
+    title: "Health Score Breakdown",
+    subtitle: "Performance across financial dimensions",
+  },
 ] as const;
-
-const STEP_INTERVAL_MS = 1500;
 
 function fmtSnapshotValue(n: number | null, prefix = "$"): string {
   if (n == null) return "--";
@@ -47,81 +63,173 @@ function fmtSnapshotValue(n: number | null, prefix = "$"): string {
   return String(n);
 }
 
-function DashboardGenerating() {
-  const [visibleSteps, setVisibleSteps] = useState(1);
-  const prePlanData = usePlanStore((s) => s.prePlanData);
+function fmtKpi(n: number | null | undefined): string {
+  if (n == null) return "--";
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toLocaleString()}`;
+}
 
-  useEffect(() => {
-    if (visibleSteps >= GENERATION_STEPS.length) return;
-    const timer = setTimeout(() => {
-      setVisibleSteps((prev) => Math.min(prev + 1, GENERATION_STEPS.length));
-    }, STEP_INTERVAL_MS);
-    return () => clearTimeout(timer);
-  }, [visibleSteps]);
+function DashGlassCard({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: string }) {
+  return (
+    <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5 hover:bg-white/[0.09] transition-colors">
+      <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
+        {label}
+      </p>
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: accent ?? "#c9aa71" }}>
+          {value}
+        </span>
+        {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+function ChartPlaceholder({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
+      <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
+        {title}
+      </h3>
+      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
+        {subtitle}
+      </p>
+      <div
+        className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--warm-200)] bg-[var(--warm-50)]/50 px-4 py-8"
+        aria-hidden
+      >
+        <Loader2 className="mb-2 size-6 animate-spin text-[var(--emerald)] opacity-70" />
+        <p className="font-[family-name:var(--font-body)] text-center text-xs font-medium text-[var(--text-secondary)]">
+          Generating…
+        </p>
+        <p className="mt-1 font-[family-name:var(--font-body)] text-center text-[11px] text-[var(--text-muted)]">
+          Available after plan generation
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
+  let netWorthDisplay = "--";
+  if (data?.totalInvestments != null && data?.totalDebt != null) {
+    netWorthDisplay = fmtKpi(data.totalInvestments - data.totalDebt);
+  }
+
+  let cashFlowDisplay = "--";
+  if (data?.annualIncome != null && data?.monthlyExpenses != null) {
+    cashFlowDisplay = fmtKpi(data.annualIncome / 12 - data.monthlyExpenses);
+  }
+
+  const totalAssetsDisplay = data?.totalInvestments != null ? fmtKpi(data.totalInvestments) : "--";
+  const totalDebtNum = data?.totalDebt ?? null;
+  const totalDebtDisplay =
+    totalDebtNum != null ? fmtKpi(totalDebtNum) : "--";
+  const emergencyMonths = data?.emergencyFundMonths ?? null;
+
+  return (
+    <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
+      <div className="flex flex-col md:flex-row items-center gap-6">
+        <div className="flex flex-col items-center shrink-0">
+          <div className="flex size-[88px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
+            <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
+              --
+            </span>
+          </div>
+          <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
+            Health Score
+          </p>
+          <p className="font-[family-name:var(--font-body)] text-[10px] text-amber-400/90 mt-0.5">
+            Pending plan
+          </p>
+        </div>
+
+        <div className="hidden md:block w-px h-20 bg-white/10" />
+
+        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
+          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
+          <DashGlassCard label="Cash Flow" value={cashFlowDisplay} unit="/mo" accent="#818cf8" />
+          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
+          <DashGlassCard
+            label="Total Debt"
+            value={totalDebtDisplay}
+            accent={totalDebtNum != null && totalDebtNum > 0 ? "#ef4444" : "#c9aa71"}
+          />
+          <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
+            <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
+              Emergency Fund
+            </p>
+            <div className="flex items-baseline gap-1.5">
+              <span
+                className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums"
+                style={{
+                  color:
+                    emergencyMonths != null && emergencyMonths >= 6
+                      ? "#10b981"
+                      : emergencyMonths != null && emergencyMonths >= 3
+                        ? "#f59e0b"
+                        : "#c9aa71",
+                }}
+              >
+                {emergencyMonths != null ? emergencyMonths.toFixed(1) : "--"}
+              </span>
+              {emergencyMonths != null && (
+                <span className="font-[family-name:var(--font-body)] text-xs text-white/35">mo</span>
+              )}
+            </div>
+            {emergencyMonths != null && (
+              <div className="mt-3">
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min((emergencyMonths / 6) * 100, 100)}%`,
+                      background:
+                        emergencyMonths >= 6 ? "#10b981" : emergencyMonths >= 3 ? "#f59e0b" : "#ef4444",
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardGenerating() {
+  const prePlanData = usePlanStore((s) => s.prePlanData);
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-[var(--warm-200)] rounded-lg p-8">
-        <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-6">
-          Building your financial plan
-        </h2>
-        <div className="mb-6 space-y-3">
-          {GENERATION_STEPS.map((step, index) => {
-            const isVisible = index < visibleSteps;
-            const isComplete = index < visibleSteps - 1;
-            const isCurrent = index === visibleSteps - 1;
-            const isLast = index === GENERATION_STEPS.length - 1;
+      <div className="flex flex-col gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/90 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
+        <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" aria-hidden />
+        <p className="font-[family-name:var(--font-body)] text-[14px] text-[var(--text-secondary)]">
+          Your personalized financial plan is being generated in the background. Some metrics will update when
+          ready; a CIM-designated professional will review your plan before delivery.
+        </p>
+      </div>
 
-            return (
-              <div
-                key={step}
-                className={cn(
-                  "flex items-center gap-3 transition-all",
-                  isVisible
-                    ? "opacity-100"
-                    : "pointer-events-none h-0 overflow-hidden opacity-0",
-                )}
-                style={
-                  isVisible
-                    ? { animation: "checklist-enter 400ms ease-out both" }
-                    : undefined
-                }
-              >
-                {isComplete ? (
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
-                    <Check className="size-3 text-white" strokeWidth={3} />
-                  </div>
-                ) : isCurrent && isLast ? (
-                  <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" />
-                ) : isCurrent ? (
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)]">
-                    <Check className="size-3 text-white" strokeWidth={3} />
-                  </div>
-                ) : (
-                  <div className="size-5 shrink-0 rounded-full border-2 border-[var(--warm-200)]" />
-                )}
-                <span
-                  className={cn(
-                    "font-body text-[15px]",
-                    isComplete || (isCurrent && !isLast)
-                      ? "text-[var(--text-primary)]"
-                      : isCurrent && isLast
-                        ? "text-[var(--text-secondary)]"
-                        : "text-[var(--text-muted)]",
-                  )}
-                >
-                  {step}
-                </span>
-              </div>
-            );
-          })}
+      <PrePlanKPIStrip data={prePlanData} />
+
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {GENERATING_CHART_PLACEHOLDERS.slice(0, 2).map((c) => (
+            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
+          ))}
         </div>
-        <p className="font-body text-[14px] text-[var(--text-muted)] mb-4">
-          This usually takes a few minutes
-        </p>
-        <p className="font-body text-[14px] text-[var(--text-secondary)]">
-          Once generated, a CIM-designated professional will review your plan before delivery.
-        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {GENERATING_CHART_PLACEHOLDERS.slice(2, 4).map((c) => (
+            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {GENERATING_CHART_PLACEHOLDERS.slice(4, 6).map((c) => (
+            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
+          ))}
+        </div>
       </div>
 
       {prePlanData && (
@@ -131,29 +239,65 @@ function DashboardGenerating() {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Annual Income</p>
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">{fmtSnapshotValue(prePlanData.annualIncome)}</p>
-            </div>
-            <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Monthly Expenses</p>
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">{fmtSnapshotValue(prePlanData.monthlyExpenses)}</p>
-            </div>
-            <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Investments</p>
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--emerald)] tabular-nums">{fmtSnapshotValue(prePlanData.totalInvestments)}</p>
-            </div>
-            <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Total Debt</p>
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums" style={{ color: prePlanData.totalDebt && prePlanData.totalDebt > 0 ? "var(--error)" : "var(--text-primary)" }}>{fmtSnapshotValue(prePlanData.totalDebt)}</p>
-            </div>
-            <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Emergency Fund</p>
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums" style={{ color: prePlanData.emergencyFundMonths != null && prePlanData.emergencyFundMonths >= 3 ? "var(--emerald)" : "var(--error)" }}>
-                {prePlanData.emergencyFundMonths != null ? `${prePlanData.emergencyFundMonths.toFixed(1)} mo` : "--"}
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Annual Income
+              </p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">
+                {fmtSnapshotValue(prePlanData.annualIncome)}
               </p>
             </div>
             <div className="rounded-lg bg-[var(--warm-50)] p-4">
-              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">Target Retirement</p>
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Monthly Expenses
+              </p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">
+                {fmtSnapshotValue(prePlanData.monthlyExpenses)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Investments
+              </p>
+              <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--emerald)] tabular-nums">
+                {fmtSnapshotValue(prePlanData.totalInvestments)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Total Debt
+              </p>
+              <p
+                className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums"
+                style={{
+                  color:
+                    prePlanData.totalDebt && prePlanData.totalDebt > 0 ? "var(--error)" : "var(--text-primary)",
+                }}
+              >
+                {fmtSnapshotValue(prePlanData.totalDebt)}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Emergency Fund
+              </p>
+              <p
+                className="font-[family-name:var(--font-display)] text-xl font-bold tabular-nums"
+                style={{
+                  color:
+                    prePlanData.emergencyFundMonths != null && prePlanData.emergencyFundMonths >= 3
+                      ? "var(--emerald)"
+                      : "var(--error)",
+                }}
+              >
+                {prePlanData.emergencyFundMonths != null
+                  ? `${prePlanData.emergencyFundMonths.toFixed(1)} mo`
+                  : "--"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-[var(--warm-50)] p-4">
+              <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)] mb-1">
+                Target Retirement
+              </p>
               <p className="font-[family-name:var(--font-display)] text-xl font-bold text-[var(--text-primary)] tabular-nums">
                 {prePlanData.retirementAge != null ? `Age ${prePlanData.retirementAge}` : "--"}
               </p>
@@ -272,29 +416,6 @@ function ExpandablePlanSection({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-function fmtKpi(n: number | null | undefined): string {
-  if (n == null) return "--";
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
-}
-
-function DashGlassCard({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: string }) {
-  return (
-    <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5 hover:bg-white/[0.09] transition-colors">
-      <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
-        {label}
-      </p>
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: accent ?? "#c9aa71" }}>
-          {value}
-        </span>
-        {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">{unit}</span>}
-      </div>
     </div>
   );
 }
