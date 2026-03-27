@@ -37,7 +37,7 @@ function getNavItems(planId?: string): NavItem[] {
     { label: "My Plan", href: "/dashboard/plan", icon: FileText },
     { label: "Assets", href: "/dashboard/assets", icon: Wallet },
     { label: "Walkthrough", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
-    { label: "Charlie", href: "/dashboard/meeting", icon: Video },
+    { label: "Meeting/Review", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ];

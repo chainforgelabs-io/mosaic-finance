@@ -222,7 +222,7 @@ export default function MeetingPage() {
               </div>
             </div>
             <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
-              Charlie
+              Have a meeting with Charlie
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
               Chat with Charlie for reviews, questions, or updates to your plan.
