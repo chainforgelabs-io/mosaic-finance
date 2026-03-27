@@ -36,7 +36,7 @@ function getNavItems(planId?: string): NavItem[] {
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "My Plan", href: "/dashboard/plan", icon: FileText },
     { label: "Assets", href: "/dashboard/assets", icon: Wallet },
-    { label: "Walkthrough", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
+    { label: "Guided Review", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
     { label: "Meeting/Review", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
@@ -81,7 +81,7 @@ export function AppSidebar({
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1 px-3 max-md:flex-row max-md:gap-0 max-md:px-0">
         {navItems.map((item) => {
-          const isActive = item.label === "Walkthrough"
+          const isActive = item.label === "Guided Review"
             ? pathname.includes("/walkthrough")
             : item.href === "/dashboard"
               ? pathname === "/dashboard"

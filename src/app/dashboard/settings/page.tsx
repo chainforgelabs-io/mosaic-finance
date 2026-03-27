@@ -172,7 +172,7 @@ const tierFeatures: {
     price: "$0/mo",
     features: [
       "1 financial plan",
-      "Basic walkthrough with Charlie",
+      "Basic guided plan review with Charlie",
       "48-hour professional review",
       "Weekly market context",
     ],
@@ -182,7 +182,7 @@ const tierFeatures: {
     price: "$14.99/mo",
     features: [
       "2 plan revisions/year",
-      "Full walkthrough with Charlie",
+      "Full guided plan review with Charlie",
       "24-hour professional review",
       "Weekly market context",
     ],
@@ -192,7 +192,7 @@ const tierFeatures: {
     price: "$29.99/mo",
     features: [
       "Quarterly re-plans",
-      "Priority walkthrough with Charlie",
+      "Priority guided plan review with Charlie",
       "12-hour professional review",
       "Personalized market context",
     ],
@@ -202,7 +202,7 @@ const tierFeatures: {
     price: "$59.99/mo",
     features: [
       "Unlimited re-plans",
-      "Full walkthrough with Charlie + follow-ups",
+      "Full guided plan review with Charlie + follow-ups",
       "8-hour professional review",
       "Personalized market context",
       "Priority support",

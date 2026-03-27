@@ -17,7 +17,7 @@ const TYPE_LABELS: Record<string, string> = {
   "risk-profile": "Risk Assessment",
   "annual-review": "Annual Review",
   "ad-hoc": "Financial Q&A",
-  walkthrough: "Plan Walkthrough",
+  walkthrough: "Guided Plan Review",
   followup: "Follow-up",
 };
 

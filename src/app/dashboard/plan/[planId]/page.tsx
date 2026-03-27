@@ -169,17 +169,17 @@ export default function PlanViewPage() {
           </div>
         ))}
 
-        {/* Sticky walkthrough CTA */}
+        {/* Sticky guided review CTA */}
         <div className="sticky bottom-0 left-0 right-0 mt-8 -mx-6 px-6 py-4 bg-[var(--warm-100)] border-t border-[var(--warm-200)] flex items-center justify-between">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
-            Want me to walk you through this?
+            Want a guided review of your plan?
           </p>
           <Link
             href={`/dashboard/plan/${planId}/walkthrough`}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            Start walkthrough with Charlie
+            Start guided plan review with Charlie
           </Link>
         </div>
       </div>

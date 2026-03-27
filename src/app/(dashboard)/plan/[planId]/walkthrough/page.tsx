@@ -3,5 +3,5 @@ export default function WalkthroughPage({
 }: {
   params: Promise<{ planId: string }>;
 }) {
-  return <div>Plan Walkthrough</div>;
+  return <div>Guided Plan Review with Charlie</div>;
 }

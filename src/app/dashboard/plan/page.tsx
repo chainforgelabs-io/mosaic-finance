@@ -487,7 +487,7 @@ function PlanDelivered() {
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            Walkthrough with Charlie
+            Guided Plan Review with Charlie
           </Link>
         </div>
 
@@ -527,7 +527,7 @@ function PlanDelivered() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold"
               >
                 <MessageCircle className="w-4 h-4" />
-                Walkthrough
+                Guided Review
               </Link>
             </div>
           </div>

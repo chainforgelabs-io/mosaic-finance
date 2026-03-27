@@ -227,7 +227,7 @@ function ConversationPanel({
     <div className="h-full flex flex-col bg-[var(--warm-50)]">
       <div className="px-5 py-3 border-b border-[var(--warm-200)] bg-white">
         <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
-          Walkthrough with Charlie
+          Guided Plan Review with Charlie
         </p>
         <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
           Discussing: {section.title}
@@ -249,7 +249,7 @@ function ConversationPanel({
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="w-5 h-5 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)]">
-                Walkthrough Complete
+                Guided Review Complete
               </span>
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3">
@@ -299,7 +299,7 @@ function ConversationPanel({
             className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50"
           >
             <CheckCircle2 className="w-4 h-4" />
-            Finish Walkthrough
+            Complete Review
           </button>
         )}
 
@@ -431,8 +431,8 @@ export default function WalkthroughPage() {
     return (
       <EmptyState
         icon={FileText}
-        title="Complete your plan setup to access the walkthrough with Charlie."
-        description="Once your financial plan has been reviewed and delivered, you can walk through it with AI guidance."
+        title="Complete your plan setup to access the guided plan review with Charlie."
+        description="Once your financial plan has been reviewed and delivered, you can review it section by section with Charlie."
       />
     );
   }
