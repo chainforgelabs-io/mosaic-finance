@@ -2,7 +2,7 @@
 
 import { useMarketStore } from "@/stores/market-store";
 import { useCommentary, useGenerateCommentary } from "../hooks/useCommentary";
-import { PERSONAS, getPersona } from "@/lib/ai-commentary/personas";
+import { PERSONA_GROUPS, getPersona } from "@/lib/ai-commentary/personas";
 import { InvestorCard } from "./InvestorCard";
 import { CommentaryDetail } from "./CommentaryDetail";
 import { AlertTriangle, Brain } from "lucide-react";
@@ -69,48 +69,39 @@ export function AICommentary() {
         </div>
       )}
 
-      {/* Persona cards grid */}
-      {commentariesLoading && commentaries.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="bg-white border border-[var(--warm-200)] rounded-lg p-5 animate-pulse"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-[var(--warm-100)]" />
-                <div>
-                  <div className="h-4 w-28 bg-[var(--warm-100)] rounded" />
-                  <div className="h-3 w-40 bg-[var(--warm-50)] rounded mt-1" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-[var(--warm-50)] rounded" />
-                <div className="h-3 w-3/4 bg-[var(--warm-50)] rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {PERSONAS.map((persona) => {
-            const commentary = commentaries.find(
-              (c) => c.persona === persona.slug,
-            );
-
-            return (
-              <InvestorCard
-                key={persona.slug}
-                persona={persona}
-                commentary={commentary || null}
-                onExpand={() => setSelectedPersona(persona.slug)}
-                onGenerate={() => generate(persona.slug)}
-                isGenerating={generating === persona.slug}
-              />
-            );
-          })}
-        </div>
+      {commentariesLoading && (
+        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
+          Loading any saved commentary from your account…
+        </p>
       )}
+
+      {/* Persona cards: static list renders immediately; generation is per-card */}
+      <div className="space-y-8">
+        {PERSONA_GROUPS.map((group) => (
+          <div key={group.label} className="space-y-3">
+            <h3 className="font-[family-name:var(--font-display)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              {group.label}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {group.slugs.map((slug) => {
+                const persona = getPersona(slug);
+                if (!persona) return null;
+                const commentary = commentaries.find((c) => c.persona === slug);
+                return (
+                  <InvestorCard
+                    key={slug}
+                    persona={persona}
+                    commentary={commentary || null}
+                    onExpand={() => setSelectedPersona(slug)}
+                    onGenerate={() => generate(slug)}
+                    isGenerating={generating === slug}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

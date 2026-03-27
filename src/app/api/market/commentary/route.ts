@@ -3,17 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ratelimit } from "@/lib/ratelimit";
 import { captureAPIError } from "@/lib/sentry";
 import { generateAndStoreCommentary } from "@/lib/ai-commentary/generator";
-import { getModelForTier } from "@/lib/ai-commentary/personas";
+import { ALL_PERSONA_SLUGS, getModelForTier } from "@/lib/ai-commentary/personas";
 import type { PersonaSlug } from "@/lib/market-data/types";
-
-const VALID_PERSONAS: PersonaSlug[] = [
-  "ray_dalio",
-  "warren_buffett",
-  "cathie_wood",
-  "howard_marks",
-  "peter_lynch",
-  "canadian_perspective",
-];
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,7 +33,7 @@ export async function GET(request: NextRequest) {
       query = query.eq("persona", persona);
     }
 
-    const { data: commentaries, error } = await query.limit(6);
+    const { data: commentaries, error } = await query.limit(64);
 
     if (error) throw error;
 
@@ -84,9 +75,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const persona = body.persona as PersonaSlug;
 
-    if (!persona || !VALID_PERSONAS.includes(persona)) {
+    if (!persona || !ALL_PERSONA_SLUGS.includes(persona)) {
       return NextResponse.json(
-        { error: "Invalid persona. Must be one of: " + VALID_PERSONAS.join(", ") },
+        { error: "Invalid persona. Must be one of: " + ALL_PERSONA_SLUGS.join(", ") },
         { status: 400 },
       );
     }

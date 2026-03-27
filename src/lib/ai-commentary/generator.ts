@@ -7,6 +7,17 @@ import { CATHIE_WOOD_PROMPT } from "./prompts/cathie-wood";
 import { HOWARD_MARKS_PROMPT } from "./prompts/howard-marks";
 import { PETER_LYNCH_PROMPT } from "./prompts/peter-lynch";
 import { CANADIAN_PERSPECTIVE_PROMPT } from "./prompts/canadian-perspective";
+import { MICHAEL_BURRY_PROMPT } from "./prompts/michael-burry";
+import { CHARLIE_MUNGER_PROMPT } from "./prompts/charlie-munger";
+import { BENJAMIN_GRAHAM_PROMPT } from "./prompts/benjamin-graham";
+import { JIM_SIMONS_PROMPT } from "./prompts/jim-simons";
+import { GEORGE_SOROS_PROMPT } from "./prompts/george-soros";
+import { JACK_BOGLE_PROMPT } from "./prompts/jack-bogle";
+import { MARK_SCHMEHL_PROMPT } from "./prompts/mark-schmehl";
+import { DAVID_DUDDING_PROMPT } from "./prompts/david-dudding";
+import { JOHN_TEMPLETON_PROMPT } from "./prompts/john-templeton";
+import { JESSE_LIVERMORE_PROMPT } from "./prompts/jesse-livermore";
+import { ALL_PERSONA_SLUGS } from "./personas";
 import type { PersonaSlug, InvestorCommentary } from "@/lib/market-data/types";
 
 const PERSONA_PROMPTS: Record<PersonaSlug, string> = {
@@ -16,6 +27,16 @@ const PERSONA_PROMPTS: Record<PersonaSlug, string> = {
   howard_marks: HOWARD_MARKS_PROMPT,
   peter_lynch: PETER_LYNCH_PROMPT,
   canadian_perspective: CANADIAN_PERSPECTIVE_PROMPT,
+  michael_burry: MICHAEL_BURRY_PROMPT,
+  charlie_munger: CHARLIE_MUNGER_PROMPT,
+  benjamin_graham: BENJAMIN_GRAHAM_PROMPT,
+  jim_simons: JIM_SIMONS_PROMPT,
+  george_soros: GEORGE_SOROS_PROMPT,
+  jack_bogle: JACK_BOGLE_PROMPT,
+  mark_schmehl: MARK_SCHMEHL_PROMPT,
+  david_dudding: DAVID_DUDDING_PROMPT,
+  john_templeton: JOHN_TEMPLETON_PROMPT,
+  jesse_livermore: JESSE_LIVERMORE_PROMPT,
 };
 
 async function gatherMarketSignal(): Promise<string> {
@@ -139,19 +160,10 @@ export async function generateAndStoreCommentary(
 export async function generateAllCommentaries(
   model: ClaudeModel = "sonnet",
 ): Promise<InvestorCommentary[]> {
-  const personas: PersonaSlug[] = [
-    "ray_dalio",
-    "warren_buffett",
-    "cathie_wood",
-    "howard_marks",
-    "peter_lynch",
-    "canadian_perspective",
-  ];
-
   const results: InvestorCommentary[] = [];
 
   // Generate sequentially to avoid rate limits
-  for (const persona of personas) {
+  for (const persona of ALL_PERSONA_SLUGS) {
     try {
       const commentary = await generateAndStoreCommentary(persona, model);
       results.push(commentary);

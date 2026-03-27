@@ -147,7 +147,17 @@ export type PersonaSlug =
   | "cathie_wood"
   | "howard_marks"
   | "peter_lynch"
-  | "canadian_perspective";
+  | "canadian_perspective"
+  | "michael_burry"
+  | "charlie_munger"
+  | "benjamin_graham"
+  | "jim_simons"
+  | "george_soros"
+  | "jack_bogle"
+  | "mark_schmehl"
+  | "david_dudding"
+  | "john_templeton"
+  | "jesse_livermore";
 
 export interface NewsletterEdition {
   id: string;

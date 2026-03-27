@@ -56,7 +56,8 @@ export function CommentaryDetail({
             {persona.name}&apos;s Market View
           </h2>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
-            {persona.title} ·{" "}
+            {persona.title}
+            {persona.fundOrCompany ? ` · ${persona.fundOrCompany}` : ""} ·{" "}
             {new Date(commentary.generatedAt).toLocaleDateString("en-CA", {
               weekday: "long",
               year: "numeric",

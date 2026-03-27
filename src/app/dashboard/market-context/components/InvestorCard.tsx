@@ -9,7 +9,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import type { InvestorCommentary, PersonaSlug } from "@/lib/market-data/types";
+import type { InvestorCommentary } from "@/lib/market-data/types";
 import type { Persona } from "@/lib/ai-commentary/personas";
 
 interface InvestorCardProps {
@@ -55,6 +55,12 @@ export function InvestorCard({
           </h3>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
             {persona.title}
+          </p>
+          <p className="font-[family-name:var(--font-body)] text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">
+            {persona.philosophySummary}
+          </p>
+          <p className="font-[family-name:var(--font-body)] text-[10px] text-[var(--text-muted)] mt-1 opacity-90">
+            {persona.fundOrCompany}
           </p>
         </div>
         {outlook && (
@@ -127,8 +133,8 @@ export function InvestorCard({
         </>
       ) : (
         <>
-          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-3">
-            {persona.philosophySummary}
+          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+            {persona.strategySummary}
           </p>
           <button
             onClick={onGenerate}
