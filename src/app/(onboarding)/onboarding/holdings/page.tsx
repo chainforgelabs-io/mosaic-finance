@@ -742,20 +742,32 @@ function ManualEntryForm({
 function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
   return factFindAccounts
     .filter((acc) => acc.account_type !== "DB-RPP")
-    .map((acc, i) => ({
-      id: `prefill-${i}-${Date.now()}`,
-      accountType: fromDbAccountType(acc.account_type),
-      accountName: acc.description || undefined,
-      holdings: [
-        {
-          localId: `prefill-h-${i}-${Date.now()}`,
-          tickerOrName: "",
-          balance: acc.approximate_balance ?? 0,
-          units: undefined,
-        },
-      ],
-      collapsed: false,
-    }));
+    .map((acc, i) => {
+      const ts = Date.now();
+      const holdingsList =
+        acc.holdings && acc.holdings.length > 0
+          ? acc.holdings.map((h, j) => ({
+              localId: `prefill-h-${i}-${j}-${ts}`,
+              tickerOrName: h.ticker || h.name || "",
+              balance: h.balance ?? 0,
+              units: h.units ?? undefined,
+            }))
+          : [
+              {
+                localId: `prefill-h-${i}-${ts}`,
+                tickerOrName: "",
+                balance: acc.approximate_balance ?? 0,
+                units: undefined,
+              },
+            ];
+      return {
+        id: `prefill-${i}-${ts}`,
+        accountType: fromDbAccountType(acc.account_type),
+        accountName: acc.description || undefined,
+        holdings: holdingsList,
+        collapsed: false,
+      };
+    });
 }
 
 export default function HoldingsPage() {

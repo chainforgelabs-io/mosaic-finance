@@ -23,7 +23,6 @@ const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
   { key: "goals", label: "Goals" },
   { key: "retirement", label: "Retirement" },
   { key: "investments", label: "Investments" },
-  { key: "risk", label: "Risk Profile" },
 ];
 
 const ASSET_CATEGORY_MAP: Record<string, string> = {
@@ -680,7 +679,12 @@ function FactFindConversation() {
 
       if (Array.isArray(data.investment_accounts)) {
         setFactFindAccounts(
-          data.investment_accounts as { account_type: string; approximate_balance: number; description: string }[],
+          data.investment_accounts as {
+            account_type: string;
+            approximate_balance: number;
+            description: string;
+            holdings?: { ticker?: string; name?: string; balance: number; units?: number | null }[];
+          }[],
         );
       }
 

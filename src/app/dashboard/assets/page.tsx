@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import Link from "next/link";
 
 /* ---------- Types ---------- */
@@ -102,6 +103,7 @@ const ACCOUNT_LABELS: Record<string, string> = {
   "non-registered": "Non-Registered", "Non-Reg": "Non-Registered",
   Joint: "Joint Account", Corporate: "Corporate Account",
   "In-Trust": "In-Trust Account", Annuity: "Prescribed Annuity",
+  "Savings-Account": "Savings / Bank Account",
   pension: "Pension",
 };
 
@@ -1007,7 +1009,7 @@ export default function AssetsPage() {
                 {avalanche?.payoff_months != null && (
                   <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
                     <p className="font-[family-name:var(--font-body)] text-sm text-[var(--emerald-dark)]">
-                      <span className="font-semibold">Payoff timeline:</span> {String(avalanche.payoff_months)} months using the {String(debtPlan?.recommended_method ?? "Avalanche")} method
+                      <span className="font-semibold">Payoff timeline:</span> {String(avalanche.payoff_months)} months using the {formatDebtRecommendedMethod(debtPlan?.recommended_method as string)}
                     </p>
                   </div>
                 )}
@@ -1027,9 +1029,16 @@ export default function AssetsPage() {
 
           return (
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
-                <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
+                  <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
+                </div>
+                <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] pl-7">
+                  {diag
+                    ? "Based on your financial plan analysis"
+                    : "Current figures from your financial profile"}
+                </p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <FinancialCard label="ANNUAL INCOME" value={fmt(annualIncome)} className="bg-gradient-to-br from-white to-emerald-50/40" />

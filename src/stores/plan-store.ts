@@ -9,6 +9,8 @@ export interface PrePlanData {
   monthlyExpenses: number | null;
   emergencyFundMonths: number | null;
   totalInvestments: number | null;
+  /** Real estate, vehicles, etc. — included in pre-plan total assets & net worth */
+  totalFixedAssets: number | null;
   totalDebt: number | null;
   retirementAge: number | null;
 }

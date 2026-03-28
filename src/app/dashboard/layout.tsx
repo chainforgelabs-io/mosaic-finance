@@ -448,6 +448,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .select("total_value")
         .eq("user_id", user!.id);
 
+      const { data: fixedAssets } = await supabase
+        .from("fixed_assets")
+        .select("estimated_value")
+        .eq("user_id", user!.id);
+
+      const totalFixedAssets =
+        fixedAssets && fixedAssets.length > 0
+          ? fixedAssets.reduce((sum, a) => sum + (Number(a.estimated_value) || 0), 0)
+          : null;
+
       const majorDebts = fp?.major_debts as
         | { amount?: number; balance?: number }[]
         | null
@@ -461,13 +471,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )
           : null;
 
-      if (fp || (holdings && holdings.length > 0)) {
+      if (fp || (holdings && holdings.length > 0) || (fixedAssets && fixedAssets.length > 0)) {
+        const totalInv =
+          holdings && holdings.length > 0
+            ? holdings.reduce((sum, h) => sum + (Number(h.total_value) || 0), 0)
+            : null;
         setPrePlanData({
           annualIncome: fp?.annual_income ?? null,
           monthlyExpenses: fp?.monthly_expenses ?? null,
           emergencyFundMonths: fp?.emergency_fund_months ?? null,
-          totalInvestments:
-            holdings?.reduce((sum, h) => sum + (Number(h.total_value) || 0), 0) ?? null,
+          totalInvestments: totalInv,
+          totalFixedAssets,
           totalDebt: totalDebtFromProfile,
           retirementAge: fp?.retirement_target_age ?? null,
         });

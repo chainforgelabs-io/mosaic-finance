@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { financialProfileSchema } from "@/lib/schemas/onboarding";
-import type { FactFindAccount } from "@/stores/onboarding";
+import type { FactFindAccount, FactFindHolding } from "@/stores/onboarding";
 
 const EMPLOYMENT_DB_MAP: Record<string, string> = {
   "Employed": "employed",
@@ -276,12 +276,30 @@ export async function getFactFindAccounts(): Promise<FactFindAccount[]> {
 
   return investmentAccounts
     .filter(
-      (acc): acc is { account_type?: string; approximate_balance?: number; description?: string } =>
+      (acc): acc is { account_type?: string; approximate_balance?: number; description?: string; holdings?: unknown } =>
         acc != null && typeof acc === "object",
     )
     .map((acc) => ({
       account_type: String(acc.account_type ?? "non-registered"),
       approximate_balance: Number(acc.approximate_balance ?? 0),
       description: String(acc.description ?? ""),
+      holdings: parseFactFindHoldings(acc.holdings),
     }));
+}
+
+function parseFactFindHoldings(raw: unknown): FactFindHolding[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const out: FactFindHolding[] = [];
+  for (const h of raw) {
+    if (h != null && typeof h === "object") {
+      const o = h as Record<string, unknown>;
+      out.push({
+        ticker: typeof o.ticker === "string" ? o.ticker : undefined,
+        name: typeof o.name === "string" ? o.name : undefined,
+        balance: Number(o.balance ?? 0),
+        units: o.units == null ? null : Number(o.units),
+      });
+    }
+  }
+  return out.length > 0 ? out : undefined;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePlanStore } from "@/stores/plan-store";
+import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
 const COLORS = ["#ef4444", "#f59e0b", "#6366f1", "#64748b", "#ec4899"];
@@ -39,9 +40,9 @@ export function DebtBreakdownChart() {
   const totalDebt = (debtPlan.total_debt as number) ?? 0;
   const payoffMonths = (avalanche?.payoff_months as number) ?? 0;
   const totalInterest = (avalanche?.total_interest_paid as number) ?? 0;
-  const rawMethod = (debtPlan.recommended_method as string) ?? "Avalanche";
+  const rawMethod = (debtPlan.recommended_method as string) ?? "avalanche";
   const colonIdx = rawMethod.indexOf(":");
-  const methodLabel = colonIdx > 0 ? rawMethod.slice(0, colonIdx).trim() : rawMethod.split(/[.!,]/)[0].trim();
+  const methodLabel = formatDebtRecommendedMethod(rawMethod);
   const methodDescription = colonIdx > 0 ? rawMethod.slice(colonIdx + 1).trim() : "";
 
   const debts = order.map(parseDebtString).filter((d) => d.amount > 0);

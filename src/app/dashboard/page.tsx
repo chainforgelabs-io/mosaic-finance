@@ -112,9 +112,14 @@ function ChartPlaceholder({ title, subtitle }: { title: string; subtitle: string
 }
 
 function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
+  const inv = data?.totalInvestments;
+  const fix = data?.totalFixedAssets;
+  const totalAssetSum = (inv ?? 0) + (fix ?? 0);
+  const hasAssetFigure = inv != null || fix != null;
+
   let netWorthDisplay = "--";
-  if (data?.totalInvestments != null && data?.totalDebt != null) {
-    netWorthDisplay = fmtKpi(data.totalInvestments - data.totalDebt);
+  if (hasAssetFigure && data?.totalDebt != null) {
+    netWorthDisplay = fmtKpi(totalAssetSum - data.totalDebt);
   }
 
   let cashFlowDisplay = "--";
@@ -122,7 +127,7 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
     cashFlowDisplay = fmtKpi(data.annualIncome / 12 - data.monthlyExpenses);
   }
 
-  const totalAssetsDisplay = data?.totalInvestments != null ? fmtKpi(data.totalInvestments) : "--";
+  const totalAssetsDisplay = hasAssetFigure ? fmtKpi(totalAssetSum) : "--";
   const totalDebtNum = data?.totalDebt ?? null;
   const totalDebtDisplay =
     totalDebtNum != null ? fmtKpi(totalDebtNum) : "--";

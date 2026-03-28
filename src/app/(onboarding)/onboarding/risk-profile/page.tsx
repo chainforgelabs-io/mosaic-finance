@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { FinovaLogo } from "@/components/app/FinovaLogo";
 import { ConversationBubble } from "@/components/app/ConversationBubble";
+import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { useConversationStore } from "@/stores/conversation";
 import { saveRiskProfile } from "@/lib/actions/risk-profile";
@@ -153,6 +154,18 @@ export default function RiskProfilePage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedConv = useRef(false);
+  const errorBoundaryRef = useRef<ConversationErrorBoundary>(null);
+
+  const handleRiskConversationRetry = () => {
+    setPhase("questionnaire");
+    hasStartedConv.current = false;
+    setConvMessages([]);
+    setConvSessionId(null);
+    setRiskComplete(false);
+    setRiskResult(null);
+    setIsStreaming(false);
+    setIsPreparingRiskProfile(false);
+  };
 
   useEffect(() => {
     completeStep("profile");
@@ -204,14 +217,27 @@ export default function RiskProfilePage() {
       if (!msgRes.ok) throw new Error("Failed to send");
 
       const reader = msgRes.body?.getReader();
-      if (!reader) return;
+      const assistantId = `assistant-${Date.now()}`;
+      setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
+      setIsStreaming(true);
+      errorBoundaryRef.current?.resetTimeout();
+
+      if (!reader) {
+        errorBoundaryRef.current?.clearTimeout();
+        setConvMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: "Something went wrong. Please try sending your message again." }
+              : m,
+          ),
+        );
+        setIsStreaming(false);
+        return;
+      }
 
         const decoder = new TextDecoder();
         let buffer = "";
         let accumulated = "";
-      const assistantId = `assistant-${Date.now()}`;
-      setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-      setIsStreaming(true);
 
       const timerId = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
 
@@ -232,6 +258,15 @@ export default function RiskProfilePage() {
                   prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
                 );
               }
+              if (data.type === "error") {
+                const errText =
+                  typeof data.message === "string"
+                    ? data.message
+                    : "Something went wrong. Please try sending your message again.";
+                setConvMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
+                );
+              }
               if (data.type === "done" && data.sessionComplete && data.extractedData) {
                 setRiskComplete(true);
                 setRiskResult(data.extractedData as Record<string, unknown>);
@@ -239,13 +274,31 @@ export default function RiskProfilePage() {
             } catch { /* skip */ }
           }
         }
+        if (buffer.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(buffer.slice(6));
+            if (data.type === "error") {
+              const errText =
+                typeof data.message === "string"
+                  ? data.message
+                  : "Something went wrong. Please try sending your message again.";
+              setConvMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
+              );
+            }
+          } catch {
+            /* incomplete trailing line */
+          }
+        }
       } finally {
         clearTimeout(timerId);
         setIsPreparingRiskProfile(false);
+        errorBoundaryRef.current?.clearTimeout();
       }
       setIsStreaming(false);
       requestAnimationFrame(() => textareaRef.current?.focus());
     } catch {
+      errorBoundaryRef.current?.clearTimeout();
       setIsPreparingRiskProfile(false);
       setConvMessages((prev) => [
         ...prev,
@@ -265,6 +318,7 @@ export default function RiskProfilePage() {
     const assistantId = `assistant-${Date.now()}`;
     setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
     setIsStreaming(true);
+    errorBoundaryRef.current?.resetTimeout();
 
     const preparingTimer = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
 
@@ -277,7 +331,17 @@ export default function RiskProfilePage() {
 
       if (!res.ok) throw new Error("Server error");
       const reader = res.body?.getReader();
-      if (!reader) return;
+      if (!reader) {
+        errorBoundaryRef.current?.clearTimeout();
+        setConvMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: "Something went wrong. Please try sending your message again." }
+              : m,
+          ),
+        );
+        return;
+      }
 
       const decoder = new TextDecoder();
       let buffer = "";
@@ -299,6 +363,15 @@ export default function RiskProfilePage() {
                 prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
               );
             }
+            if (data.type === "error") {
+              const errText =
+                typeof data.message === "string"
+                  ? data.message
+                  : "Something went wrong. Please try sending your message again.";
+              setConvMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
+              );
+            }
             if (data.type === "done" && data.sessionComplete && data.extractedData) {
               setRiskComplete(true);
               setRiskResult(data.extractedData as Record<string, unknown>);
@@ -315,6 +388,15 @@ export default function RiskProfilePage() {
               prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
             );
           }
+          if (data.type === "error") {
+            const errText =
+              typeof data.message === "string"
+                ? data.message
+                : "Something went wrong. Please try sending your message again.";
+            setConvMessages((prev) =>
+              prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
+            );
+          }
           if (data.type === "done" && data.sessionComplete && data.extractedData) {
             setRiskComplete(true);
             setRiskResult(data.extractedData as Record<string, unknown>);
@@ -324,9 +406,16 @@ export default function RiskProfilePage() {
         }
       }
     } catch {
-      // error
+      setConvMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, content: "Something went wrong. Please try sending your message again." }
+            : m,
+        ),
+      );
     } finally {
       clearTimeout(preparingTimer);
+      errorBoundaryRef.current?.clearTimeout();
       setIsPreparingRiskProfile(false);
       setIsStreaming(false);
       requestAnimationFrame(() => textareaRef.current?.focus());
@@ -486,6 +575,7 @@ export default function RiskProfilePage() {
 
   // Conversation + Review phase
   return (
+    <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRiskConversationRetry}>
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)]">
       <div className="shrink-0 bg-white">
         <div className="mx-auto max-w-[720px] px-4">
@@ -629,5 +719,6 @@ export default function RiskProfilePage() {
       </div>
       )}
     </div>
+    </ConversationErrorBoundary>
   );
 }

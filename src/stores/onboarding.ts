@@ -1,10 +1,18 @@
 import { create } from "zustand";
 import type { OnboardingStep } from "@/components/app/StepProgress";
 
+export interface FactFindHolding {
+  ticker?: string;
+  name?: string;
+  balance: number;
+  units?: number | null;
+}
+
 export interface FactFindAccount {
   account_type: string;
   approximate_balance: number;
   description: string;
+  holdings?: FactFindHolding[];
 }
 
 interface OnboardingState {

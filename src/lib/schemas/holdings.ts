@@ -44,6 +44,7 @@ export const ACCOUNT_CATEGORIES = {
   ],
   "Non-Registered / Other": [
     { value: "Non-Reg", label: "Non-Registered / Cash / Margin" },
+    { value: "Savings-Account", label: "Savings / Bank Account" },
     { value: "Joint", label: "Joint Investment Account" },
     { value: "Corporate", label: "Corporate Investment Account" },
     { value: "In-Trust", label: "In-Trust Account" },

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   TrendingUp,
@@ -8,6 +9,7 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import type { InvestorCommentary } from "@/lib/market-data/types";
 import type { Persona } from "@/lib/ai-commentary/personas";
@@ -35,12 +37,26 @@ export function InvestorCard({
   onGenerate,
   isGenerating,
 }: InvestorCardProps) {
+  const [showStrategyInfo, setShowStrategyInfo] = useState(false);
+  const strategyPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showStrategyInfo) return;
+    const handler = (e: MouseEvent) => {
+      if (strategyPopoverRef.current && !strategyPopoverRef.current.contains(e.target as Node)) {
+        setShowStrategyInfo(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showStrategyInfo]);
+
   const outlook = commentary
     ? OUTLOOK_CONFIG[commentary.outlook] || OUTLOOK_CONFIG.neutral
     : null;
 
   return (
-    <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5 hover:border-[var(--emerald)]/30 transition-all">
+    <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5 hover:border-[var(--emerald)]/30 transition-all relative">
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
         <div
@@ -49,17 +65,35 @@ export function InvestorCard({
         >
           {persona.avatarInitials}
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)]">
-            {persona.name}
-          </h3>
+        <div className="flex-1 min-w-0 relative" ref={strategyPopoverRef}>
+          <div className="flex items-start gap-1.5">
+            <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] flex-1">
+              {persona.name}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowStrategyInfo((v) => !v)}
+              className="shrink-0 rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)] hover:text-[var(--emerald)] transition-colors"
+              title="Strategy approach"
+              aria-expanded={showStrategyInfo}
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          </div>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
             {persona.title}
           </p>
-          <p className="font-[family-name:var(--font-body)] text-[11px] text-[var(--text-muted)] mt-0.5 leading-snug">
+          {showStrategyInfo && (
+            <div className="absolute z-30 left-0 right-0 top-full mt-2 rounded-lg border border-[var(--warm-200)] bg-white p-3 shadow-lg">
+              <p className="font-[family-name:var(--font-body)] text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                {persona.strategySummary}
+              </p>
+            </div>
+          )}
+          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mt-1 leading-snug">
             {persona.philosophySummary}
           </p>
-          <p className="font-[family-name:var(--font-body)] text-[10px] text-[var(--text-muted)] mt-1 opacity-90">
+          <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mt-1.5">
             {persona.fundOrCompany}
           </p>
         </div>
@@ -133,9 +167,6 @@ export function InvestorCard({
         </>
       ) : (
         <>
-          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-            {persona.strategySummary}
-          </p>
           <button
             onClick={onGenerate}
             disabled={isGenerating}

@@ -58,7 +58,13 @@ export async function POST(req: NextRequest) {
       : null;
 
   const financialGoals =
-    d.goals && d.goals.length > 0 ? d.goals : null;
+    d.goals && d.goals.length > 0
+      ? d.goals.map((g) => ({
+          goal: g.type,
+          target_amount: g.target_amount ?? null,
+          target_year: g.target_date ? parseInt(String(g.target_date), 10) || null : null,
+        }))
+      : null;
 
   const payload = {
     annual_income: annualIncome,
