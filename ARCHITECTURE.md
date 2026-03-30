@@ -1,4 +1,4 @@
-# Finova AI — Architecture & Decision Log
+# Mosaic Finance — Architecture & Decision Log
 
 Version 1.0 | ChainForge Labs | February 2026
 
@@ -8,11 +8,11 @@ Version 1.0 | ChainForge Labs | February 2026
 
 ### Why Next.js (App Router)
 
-Server Components reduce client-side JS bundle size significantly. Built-in API routes eliminate a separate Express server. Vercel deployment is frictionless. The App Router's layout system maps cleanly to Finova's auth/dashboard/admin route separation.
+Server Components reduce client-side JS bundle size significantly. Built-in API routes eliminate a separate Express server. Vercel deployment is frictionless. The App Router's layout system maps cleanly to Mosaic Finance's auth/dashboard/admin route separation.
 
 ### Why Supabase (not PlanetScale, Neon, or Railway Postgres)
 
-Three reasons specific to Finova:
+Three reasons specific to Mosaic Finance:
 
 1. **Row-Level Security (RLS)** — Native Postgres RLS is the compliance backbone. Every table is locked to the authenticated user at the database level. This is not achievable as cleanly with any other managed Postgres provider.
 2. **Auth + Storage in one platform** — Keeps the security boundary consistent. Files (blacked-out statements, generated PDFs) are tied to Supabase user sessions via RLS policies, not just application-level checks.
@@ -143,7 +143,7 @@ Supabase Auth with email/password + magic link. Server-side session validation o
 - Migrate Upstash Redis rate limiting to dedicated Redis cluster at scale
 - Separate approval queue into its own service with dedicated SLA monitoring
 - Move PDF generation to a dedicated service (Railway/Fly.io) for better memory control and no cold-start delays
-- Formal SOC 2 Type II audit (Supabase infrastructure is already compliant — Finova application layer needs independent audit)
+- Formal SOC 2 Type II audit (Supabase infrastructure is already compliant — Mosaic Finance application layer needs independent audit)
 - Evaluate Opus-only plan generation cost vs. quality tradeoff at volume
 
 ---

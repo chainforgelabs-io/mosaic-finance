@@ -2,8 +2,8 @@
 
 :root {
   /* Brand Core */
-  --slate-950: #0C0F17;
-  --slate-900: #131620;
+  --slate-950: #1F2937;
+  --slate-900: #111827;
   --emerald: #10B981;
   --emerald-dark: #059669;
   --emerald-soft: #D1FAE5;
@@ -15,7 +15,7 @@
   --warm-200: #E8E8E0;
 
   /* Text */
-  --text-primary: #0C0F17;
+  --text-primary: #1F2937;
   --text-secondary: #4B5563;
   --text-muted: #9CA3AF;
   --text-inverse: #F9FAFB;

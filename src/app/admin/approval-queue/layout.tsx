@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminStore } from "@/stores/admin-store";
 import { LogOut, Shield } from "lucide-react";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 
 export default function AdminApprovalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -44,14 +45,7 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
       <header className="bg-[var(--slate-950)] border-b border-white/10">
         <div className="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[var(--emerald)] flex items-center justify-center">
-                <span className="font-[family-name:var(--font-display)] text-white text-xs font-bold">F</span>
-              </div>
-              <span className="font-[family-name:var(--font-display)] text-white font-semibold text-base">
-                finova
-              </span>
-            </div>
+            <MosaicLogo size="sm" variant="onDark" />
             <div className="h-5 w-px bg-white/20" />
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-[var(--emerald)]" />

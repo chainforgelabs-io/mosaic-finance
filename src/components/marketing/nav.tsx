@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
-import { FinovaLogo } from "./finova-logo";
+import { MosaicLogo } from "./mosaic-logo";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "#how-it-works" },
@@ -30,7 +30,7 @@ export function Nav() {
       }`}
     >
       <div className="mx-auto flex max-w-[1180px] items-center justify-between px-6 py-4">
-        <FinovaLogo theme={scrolled ? "light" : "dark"} />
+        <MosaicLogo theme={scrolled ? "light" : "dark"} />
 
         {/* Desktop links */}
         <div className="hidden items-center gap-8 md:flex">

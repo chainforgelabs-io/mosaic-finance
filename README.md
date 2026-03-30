@@ -1,4 +1,4 @@
-# Finova AI
+# Mosaic Finance
 
 Conversational AI financial advisor for the Canadian market. Built by ChainForge Labs.
 
@@ -68,7 +68,7 @@ An AI-powered financial planning platform that conducts a structured, conversati
 
 ```bash
 git clone <repo>
-cd finova-ai
+cd mosaic-finance
 npm install
 cp .env.example .env.local
 # Fill in all values in .env.local (see Environment Variables below)

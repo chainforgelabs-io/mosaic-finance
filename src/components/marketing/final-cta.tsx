@@ -64,10 +64,10 @@ export function FinalCta() {
         >
           Questions?{" "}
           <a
-            href="mailto:hello@finova.ai"
+            href="mailto:hello@mosaicfinance.ai"
             className="underline transition-colors hover:text-text-inverse"
           >
-            hello@finova.ai
+            hello@mosaicfinance.ai
           </a>
         </p>
       </div>

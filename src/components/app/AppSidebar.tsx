@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { TierBadge } from "./TierBadge";
+import { MosaicLogo } from "./MosaicLogo";
 
 interface AppSidebarProps {
   userAlias: string;
@@ -70,12 +71,11 @@ export function AppSidebar({
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-6 max-md:hidden">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-[var(--emerald)]">
-          <span className="font-display text-sm font-bold text-white">F</span>
-        </div>
-        <span className="font-display text-sm font-semibold text-white md:max-lg:hidden">
-          Finova
-        </span>
+        <MosaicLogo
+          size="sm"
+          variant="onDark"
+          wordmarkClassName="md:max-lg:hidden"
+        />
       </div>
 
       {/* Navigation */}

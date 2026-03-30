@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
-import { FinovaLogo } from "@/components/app/FinovaLogo";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
@@ -888,7 +888,7 @@ export default function HoldingsPage() {
     <div className="flex flex-1 items-start justify-center px-4 py-12">
       <div className="w-full max-w-[800px]">
         <div className="mb-2 flex justify-center">
-          <FinovaLogo size="sm" />
+          <MosaicLogo size="sm" />
         </div>
 
         <StepProgress

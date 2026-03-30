@@ -54,7 +54,7 @@ export async function GET(
         return new NextResponse(buffer, {
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="finova-financial-plan-${planId}.pdf"`,
+            'Content-Disposition': `attachment; filename="mosaic-financial-plan-${planId}.pdf"`,
             'Cache-Control': 'private, max-age=3600',
           },
         });
@@ -69,7 +69,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="finova-financial-plan-${planId}.pdf"`,
+        'Content-Disposition': `attachment; filename="mosaic-financial-plan-${planId}.pdf"`,
       },
     });
   } catch (error) {

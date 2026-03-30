@@ -1,5 +1,5 @@
 # Risk Profiling & Behavioural Finance Reference
-## Finova AI Knowledge Module | Source: CSI FPSU (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU (2020)
 
 > **INJECTION TRIGGER:** Load this module during risk profile assessment and when generating the risk-related sections of the financial plan.
 
@@ -55,7 +55,7 @@ Risk and return are inextricably tied:
 
 ---
 
-## RISK SCORE MAPPING (FINOVA OUTPUT)
+## RISK SCORE MAPPING (MOSAIC OUTPUT)
 
 | Score | Profile | Description |
 |-------|---------|-------------|
@@ -152,4 +152,4 @@ Present hypothetical scenarios:
 ### Best Practical Allocation
 The ideal portfolio balances quantitative optimization (efficient frontier) with behavioural reality. The "best practical allocation" is one the client can actually stick with through market ups and downs — even if it's not mathematically optimal.
 
-> **FINOVA APPLICATION:** The conversational risk assessment should combine standardized questions (like the 10-question framework) with open-ended probing questions that surface emotional biases. The AI should watch for contradictory responses (e.g., wanting aggressive growth + zero loss tolerance) and address them directly. The risk summary should be shown to the user for confirmation before plan generation.
+> **MOSAIC APPLICATION:** The conversational risk assessment should combine standardized questions (like the 10-question framework) with open-ended probing questions that surface emotional biases. The AI should watch for contradictory responses (e.g., wanting aggressive growth + zero loss tolerance) and address them directly. The risk summary should be shown to the user for confirmation before plan generation.

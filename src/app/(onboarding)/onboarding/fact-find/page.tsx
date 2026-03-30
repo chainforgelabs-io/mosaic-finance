@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUp, Check, AlertTriangle, Paperclip, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
-import { FinovaLogo } from "@/components/app/FinovaLogo";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { ConversationBubble } from "@/components/app/ConversationBubble";
 import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
@@ -80,7 +80,7 @@ function ComplianceCard({ onDismiss }: { onDismiss: () => void }) {
               Before we begin
             </h3>
             <p className="mt-1.5 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
-              Finova AI is a financial planning tool, not a registered investment
+              Mosaic Finance is a financial planning tool, not a registered investment
               advisor. All plans are reviewed by a registered financial professional before
               delivery.
             </p>
@@ -759,7 +759,7 @@ function FactFindConversation() {
         <div className="shrink-0 px-4 pt-8">
           <div className="mx-auto max-w-[920px]">
             <div className="flex justify-center">
-              <FinovaLogo size="sm" />
+              <MosaicLogo size="sm" />
             </div>
             <StepProgress
               currentStep={currentStep}

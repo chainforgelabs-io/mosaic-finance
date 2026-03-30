@@ -1,5 +1,5 @@
 # Business Structures, Legal Foundations & Professional Liability
-## Finova AI Knowledge Module | Source: CSI FPSU Ch. 4–5 (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU Ch. 4–5 (2020)
 
 > **INJECTION TRIGGER:** Load this module when user indicates self-employment, business ownership, or incorporation during the fact-find, or when generating plan sections for business owners.
 
@@ -30,7 +30,7 @@
 - Quebec uses civil code system (not common law)
 - Contracts governed by Civil Code of Quebec
 - Similar principles but different terminology and procedures
-- Finova should flag Quebec-specific considerations where relevant
+- Mosaic Finance should flag Quebec-specific considerations where relevant
 
 ---
 
@@ -134,4 +134,4 @@ A fiduciary duty is the highest standard of care in law. The fiduciary must act 
 - Covers: negligence in advice, failure to act, breach of confidentiality, inadequate coverage recommendations
 - Common claims: failure to recommend adequate coverage, misrepresentation of product features, failure to disclose material information
 
-> **FINOVA APPLICATION:** When user is a business owner, the plan should address: optimal business structure for tax efficiency, salary vs. dividend decision, creditor protection strategies, disability insurance for business continuity, key person insurance needs, and succession planning considerations. For incorporated professionals (doctors, lawyers, etc.), address individual pension plans and corporate retained earnings strategy. Always recommend consultation with accountant and lawyer for structure-specific decisions.
+> **MOSAIC APPLICATION:** When user is a business owner, the plan should address: optimal business structure for tax efficiency, salary vs. dividend decision, creditor protection strategies, disability insurance for business continuity, key person insurance needs, and succession planning considerations. For incorporated professionals (doctors, lawyers, etc.), address individual pension plans and corporate retained earnings strategy. Always recommend consultation with accountant and lawyer for structure-specific decisions.

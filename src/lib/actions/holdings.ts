@@ -37,6 +37,7 @@ export async function saveHoldings(formData: {
     .eq("user_id", user.id);
 
   if (deleteError) {
+    console.error("[saveHoldings] delete investment_holdings:", deleteError);
     return { error: "Failed to update holdings. Please try again." };
   }
 
@@ -65,6 +66,7 @@ export async function saveHoldings(formData: {
       .insert(rows);
 
     if (insertError) {
+      console.error("[saveHoldings] insert investment_holdings:", insertError);
       return { error: "Failed to save holdings. Please try again." };
     }
   }

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { FinovaLogo } from "@/components/app/FinovaLogo";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { signUp, signInWithGoogle } from "@/lib/actions/auth";
 import { signUpSchema, PROVINCES, type SignUpFormData } from "@/lib/schemas/auth";
 
@@ -52,7 +52,7 @@ export default function SignUpPage() {
     <div className="w-full max-w-[480px]">
       <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 md:p-10">
         <div className="mb-8 flex flex-col items-center">
-          <FinovaLogo size="md" className="mb-6" />
+          <MosaicLogo size="md" className="mb-6" />
           <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
             Create your account
           </h1>

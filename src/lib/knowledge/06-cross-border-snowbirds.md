@@ -1,5 +1,5 @@
 # Cross-Border Planning for Canadian Snowbirds
-## Finova AI Knowledge Module | Source: CSI FPSU Ch. 11 (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU Ch. 11 (2020)
 
 > **INJECTION TRIGGER:** Load this module when user indicates U.S. property ownership, extended U.S. stays, U.S. investment income, or plans to retire/relocate to the U.S.
 
@@ -177,4 +177,4 @@ This effectively provides non-residents a proportional share of the same exempti
 - Provincial health insurance: terminated upon establishing permanent U.S. residence
 - U.S. Medicare: eligible at 65 if 10+ years of U.S. work history (40 quarters)
 
-> **FINOVA APPLICATION:** Cross-border planning is complex and high-stakes. When Finova detects U.S. connections (property, income, extended stays), the plan should flag key issues (substantial presence test, estate tax exposure, TFSA U.S. tax treatment, health insurance gaps) and strongly recommend consultation with a cross-border tax specialist. The Market Context Module should include U.S. dollar / CAD exchange rate commentary when user holds U.S. assets.
+> **MOSAIC APPLICATION:** Cross-border planning is complex and high-stakes. When Mosaic Finance detects U.S. connections (property, income, extended stays), the plan should flag key issues (substantial presence test, estate tax exposure, TFSA U.S. tax treatment, health insurance gaps) and strongly recommend consultation with a cross-border tax specialist. The Market Context Module should include U.S. dollar / CAD exchange rate commentary when user holds U.S. assets.

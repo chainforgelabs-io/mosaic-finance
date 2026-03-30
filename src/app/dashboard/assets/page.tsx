@@ -7,12 +7,14 @@ import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocat
 import { CurrentAllocationChart } from "@/components/charts/CurrentAllocationChart";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { FinancialCard } from "@/components/app/FinancialCard";
+import { EmptyState } from "@/components/app/EmptyState";
 import {
   Award,
   Car,
   ChevronDown,
   ChevronUp,
   DollarSign,
+  FileText,
   Gem,
   Home,
   Landmark,
@@ -554,7 +556,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData } = usePlanStore();
+  const { rawPlanData, planStatus } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -687,6 +689,25 @@ export default function AssetsPage() {
         <div className="space-y-4">
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-32 w-full" />)}
         </div>
+      </div>
+    );
+  }
+
+  if (planStatus === "none") {
+    return (
+      <div>
+        <div className="mb-6">
+          <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
+            Assets & Liabilities
+          </h1>
+        </div>
+        <EmptyState
+          icon={FileText}
+          title="No financial plan yet"
+          description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
+          ctaLabel="Complete Setup"
+          ctaHref="/onboarding"
+        />
       </div>
     );
   }

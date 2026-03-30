@@ -6,6 +6,32 @@ export type RiskProfileResult = {
   error?: string;
 };
 
+export type RiskProfileStatus = {
+  completed: boolean;
+};
+
+/** True when the user has already confirmed their risk profile (onboarding step done). */
+export async function getRiskProfileStatus(): Promise<RiskProfileStatus> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { completed: false };
+  }
+
+  const { data } = await supabase
+    .from("risk_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("confirmed_by_user", true)
+    .maybeSingle();
+
+  return { completed: !!data };
+}
+
 export async function saveRiskProfile(formData: {
   riskScore: string;
   conversationalInsights?: string;

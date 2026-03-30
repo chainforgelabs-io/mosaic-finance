@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Initial Database Schema
+-- Mosaic Finance — Initial Database Schema
 -- Migration 001: Core tables for the financial planning platform
 -- ============================================================
 

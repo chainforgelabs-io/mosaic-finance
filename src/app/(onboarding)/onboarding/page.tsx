@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
-import { FinovaLogo } from "@/components/app/FinovaLogo";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { useOnboardingStore } from "@/stores/onboarding";
 import {
   saveFinancialProfile,
@@ -191,7 +191,7 @@ export default function OnboardingProfilePage() {
       <div className="w-full max-w-[720px]">
         <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 md:p-10">
           <div className="mb-2 flex justify-center">
-            <FinovaLogo size="sm" />
+            <MosaicLogo size="sm" />
           </div>
 
           <StepProgress

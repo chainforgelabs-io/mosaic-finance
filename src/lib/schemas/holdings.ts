@@ -77,15 +77,83 @@ const DB_TO_DISPLAY_MAP: Record<string, string> = {
   "pension": "DC-RPP",
 };
 
+/** Lowercase snake_case keys from fact-find / AI output -> canonical display type (before DB map). */
+const AI_ALIAS_TO_DISPLAY: Record<string, string> = {
+  savings: "Savings-Account",
+  savings_account: "Savings-Account",
+  emergency_fund: "Savings-Account",
+  bank_account: "Savings-Account",
+  cash: "Savings-Account",
+  high_yield_savings: "Savings-Account",
+  hysa: "Savings-Account",
+  checking: "Savings-Account",
+  chequing: "Savings-Account",
+  pension: "DB-RPP",
+  defined_benefit: "DB-RPP",
+  dbpp: "DB-RPP",
+  db_rpp: "DB-RPP",
+  defined_benefit_pension: "DB-RPP",
+  dc_rpp: "DC-RPP",
+  defined_contribution: "DC-RPP",
+  dcpp: "DC-RPP",
+  non_registered: "Non-Reg",
+  nonreg: "Non-Reg",
+  taxable: "Non-Reg",
+  margin: "Non-Reg",
+  rrsp: "RRSP",
+  tfsa: "TFSA",
+  fhsa: "FHSA",
+  resp: "RESP",
+  rdsp: "RDSP",
+  rrif: "RRIF",
+};
+
+function normalizeAccountTypeKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/-]+/g, "_")
+    .replace(/_+/g, "_");
+}
+
+/**
+ * Maps UI / fact-find account labels to values allowed by `investment_holdings.valid_account_type`.
+ */
 export function toDbAccountType(displayType: string): string {
-  return ACCOUNT_TYPE_DB_MAP[displayType] ?? displayType;
+  const trimmed = displayType.trim();
+  if (!trimmed) return "non-registered";
+
+  if (ACCOUNT_TYPE_DB_MAP[trimmed]) {
+    return ACCOUNT_TYPE_DB_MAP[trimmed];
+  }
+
+  const allValues = ACCOUNT_TYPES as readonly string[];
+  const caseMatch = allValues.find((t) => t.toLowerCase() === trimmed.toLowerCase());
+  if (caseMatch) {
+    return ACCOUNT_TYPE_DB_MAP[caseMatch] ?? caseMatch;
+  }
+
+  const key = normalizeAccountTypeKey(trimmed);
+  const aliasDisplay = AI_ALIAS_TO_DISPLAY[key];
+  if (aliasDisplay) {
+    return ACCOUNT_TYPE_DB_MAP[aliasDisplay] ?? aliasDisplay;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.warn(
+      "[toDbAccountType] Unknown account type; defaulting to non-registered:",
+      displayType,
+    );
+  }
+  return "non-registered";
 }
 
 export function fromDbAccountType(dbType: string): AccountType {
-  const mapped = DB_TO_DISPLAY_MAP[dbType];
+  const db = toDbAccountType(dbType);
+  const mapped = DB_TO_DISPLAY_MAP[db];
   if (mapped) return mapped as AccountType;
   const allValues = ACCOUNT_TYPES as readonly string[];
-  if (allValues.includes(dbType)) return dbType as AccountType;
+  if (allValues.includes(db)) return db as AccountType;
   return "Non-Reg";
 }
 

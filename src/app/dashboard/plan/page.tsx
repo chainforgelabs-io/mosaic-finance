@@ -347,7 +347,7 @@ function DraftDownloadButton({ planId }: { planId: string }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `finova-draft-plan-${planId}.pdf`;
+      a.download = `mosaic-draft-plan-${planId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -418,7 +418,7 @@ function PlanDelivered() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `finova-financial-plan-${plan.id}.pdf`;
+      a.download = `mosaic-financial-plan-${plan.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

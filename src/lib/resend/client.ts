@@ -2,9 +2,9 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'plans@finova.ai';
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'plans@mosaicfinance.ai';
 const CIM_REVIEWER_EMAIL = process.env.CIM_REVIEWER_EMAIL!;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://finova.ai';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://mosaicfinance.ai';
 
 export async function sendApprovalQueueNotification(
   planId: string,
@@ -18,7 +18,7 @@ export async function sendApprovalQueueNotification(
       : 'New financial plan awaiting professional review',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
-        <div style="font-size:12px;letter-spacing:3px;color:#c9aa71;margin-bottom:8px;">FINOVA AI</div>
+        <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">New Plan Pending Review</h2>
         <p>A new financial plan has been submitted for professional review.</p>
         ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">⚡ PRIORITY — Premium client (8-hour SLA)</p>' : '<p>Standard review — 24-hour SLA</p>'}
@@ -40,10 +40,10 @@ export async function sendPlanDeliveryEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: userEmail,
-    subject: 'Your Finova AI Financial Plan is Ready',
+    subject: 'Your Mosaic Finance Financial Plan is Ready',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
-        <div style="font-size:12px;letter-spacing:3px;color:#c9aa71;margin-bottom:8px;">FINOVA AI</div>
+        <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">Your Financial Plan is Ready</h2>
         <p>Great news — your personalized financial plan has been reviewed by a registered financial professional and is now available.</p>
         <a href="${APP_URL}/dashboard/plan/${planId}"
@@ -65,10 +65,10 @@ export async function sendPlanRejectionEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: userEmail,
-    subject: 'Your Finova AI Plan Requires Additional Information',
+    subject: 'Your Mosaic Finance Plan Requires Additional Information',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
-        <div style="font-size:12px;letter-spacing:3px;color:#c9aa71;margin-bottom:8px;">FINOVA AI</div>
+        <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">Additional Information Needed</h2>
         <p>Our reviewer has flagged your plan as needing additional information before it can be finalized.</p>
         <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:16px 0;">

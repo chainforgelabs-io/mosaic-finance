@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Session Cleanup Cron Job
+-- Mosaic Finance — Session Cleanup Cron Job
 -- Migration 005: Mark conversations as abandoned after 7 days
 -- of inactivity. Requires pg_cron extension enabled in Supabase
 -- dashboard (Database > Extensions).

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /**
- * Integration tests for the complete Finova AI user journey.
+ * Integration tests for the complete Mosaic Finance user journey.
  * These tests run against a live dev server and exercise the full stack:
  * signup → onboarding → fact-find → holdings → risk profile → plan → approval → delivery
  *
@@ -11,9 +11,9 @@ import { test, expect, type Page } from '@playwright/test';
  *   - Test user credentials in environment variables
  */
 
-const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'test@finova-test.local';
+const TEST_EMAIL = process.env.TEST_USER_EMAIL || 'test@mosaic-test.local';
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD || 'TestPassword123!';
-const REVIEWER_EMAIL = process.env.TEST_REVIEWER_EMAIL || 'reviewer@finova-test.local';
+const REVIEWER_EMAIL = process.env.TEST_REVIEWER_EMAIL || 'reviewer@mosaic-test.local';
 const REVIEWER_PASSWORD = process.env.TEST_REVIEWER_PASSWORD || 'ReviewerPassword123!';
 
 test.describe('User Signup & Authentication', () => {

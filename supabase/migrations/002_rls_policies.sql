@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Row-Level Security Policies
+-- Mosaic Finance — Row-Level Security Policies
 -- Migration 002: RLS is the compliance backbone of this application
 -- ============================================================
 

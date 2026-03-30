@@ -1,5 +1,5 @@
 # Insurance Planning Reference
-## Finova AI Knowledge Module | Source: CSI FPSU Ch. 7–10 (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU Ch. 7–10 (2020)
 
 > **INJECTION TRIGGER:** Load this module when generating the Insurance Coverage Audit section of the financial plan, or when user discusses insurance needs during the fact-find.
 
@@ -222,7 +222,7 @@ Total monthly recurring expenses of household = minimum monthly benefit needed
 
 ---
 
-## FINOVA APPLICATION NOTES
+## MOSAIC APPLICATION NOTES
 
 ### Insurance Coverage Audit — Report Section Should Include:
 1. **Life insurance gap analysis** using capital needs method with user's actual data
@@ -231,7 +231,7 @@ Total monthly recurring expenses of household = minimum monthly benefit needed
 4. **LTC consideration** — mention for clients 45+ as planning consideration
 5. **Group benefits review** — ensure user understands what employer covers vs. personal responsibility
 6. **Beneficiary review prompt** — remind to verify beneficiary designations are current
-7. **Insurance-specific disclaimers** — Finova cannot sell insurance; recommend consultation with licensed insurance advisor for specific product recommendations
+7. **Insurance-specific disclaimers** — Mosaic Finance cannot sell insurance; recommend consultation with licensed insurance advisor for specific product recommendations
 
 ### Key Conversational Probes for Fact-Find
 - "Do you have life insurance through your employer? Do you know the coverage amount?"

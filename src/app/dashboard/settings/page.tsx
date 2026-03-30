@@ -327,7 +327,7 @@ function PrivacyTab() {
     <div className="space-y-6">
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
         <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-3">
-          What Finova stores
+          What Mosaic Finance stores
         </h3>
         <ul className="space-y-2">
           {[
@@ -351,7 +351,7 @@ function PrivacyTab() {
 
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
         <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-3">
-          What Finova never collects
+          What Mosaic Finance never collects
         </h3>
         <ul className="space-y-2">
           {[

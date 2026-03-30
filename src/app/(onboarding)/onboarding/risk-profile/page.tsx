@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check, Loader2, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
-import { FinovaLogo } from "@/components/app/FinovaLogo";
+import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { ConversationBubble } from "@/components/app/ConversationBubble";
 import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { useConversationStore } from "@/stores/conversation";
-import { saveRiskProfile } from "@/lib/actions/risk-profile";
+import { getRiskProfileStatus, saveRiskProfile } from "@/lib/actions/risk-profile";
 
 interface QuestionOption {
   value: number;
@@ -155,6 +155,7 @@ export default function RiskProfilePage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStartedConv = useRef(false);
   const errorBoundaryRef = useRef<ConversationErrorBoundary>(null);
+  const [checkingExistingProfile, setCheckingExistingProfile] = useState(true);
 
   const handleRiskConversationRetry = () => {
     setPhase("questionnaire");
@@ -172,6 +173,23 @@ export default function RiskProfilePage() {
     completeStep("fact-find");
     setCurrentStep("risk-profile");
   }, [completeStep, setCurrentStep]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { completed } = await getRiskProfileStatus();
+      if (cancelled) return;
+      if (completed) {
+        completeStep("risk-profile");
+        router.replace("/onboarding/holdings");
+        return;
+      }
+      setCheckingExistingProfile(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [completeStep, router]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -452,12 +470,23 @@ export default function RiskProfilePage() {
   const allAnswered = Object.keys(answers).length === RISK_QUESTIONS.length;
   const progress = (Object.keys(answers).length / RISK_QUESTIONS.length) * 100;
 
+  if (checkingExistingProfile) {
+    return (
+      <div className="flex min-h-[50vh] flex-1 items-center justify-center px-4 py-12">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-8 animate-spin text-[var(--emerald)]" />
+          <p className="font-body text-sm text-[var(--text-muted)]">Loading your progress…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "questionnaire") {
   return (
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-[640px]">
           <div className="mb-2 flex justify-center">
-            <FinovaLogo size="sm" />
+            <MosaicLogo size="sm" />
         </div>
 
           <StepProgress
@@ -580,7 +609,7 @@ export default function RiskProfilePage() {
       <div className="shrink-0 bg-white">
         <div className="mx-auto max-w-[720px] px-4">
           <div className="flex items-center justify-center py-3">
-            <FinovaLogo size="sm" />
+            <MosaicLogo size="sm" />
           </div>
           <StepProgress
             currentStep={currentStep}

@@ -4,7 +4,7 @@ import { claudeChat } from "@/lib/claude/client";
 import { resend } from "@/lib/resend/client";
 import type { MarketMover } from "@/lib/market-data/types";
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "plans@finova.ai";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "plans@mosaicfinance.ai";
 
 interface NewsletterContent {
   marketRecap: string;
@@ -117,8 +117,8 @@ function buildNewsletterHtml(content: NewsletterContent): string {
   return `
     <div style="font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#FAFAF8">
       <div style="text-align:center;margin-bottom:32px">
-        <div style="display:inline-block;background:#10B981;color:white;font-weight:bold;padding:8px 14px;border-radius:8px;font-size:16px">F</div>
-        <h1 style="margin:12px 0 4px;font-size:24px;color:#0C0F17">Finova Weekly Market Recap</h1>
+        <div style="display:inline-block;line-height:0"><svg width="48" height="48" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="rotate(45 16 16)"><rect x="8" y="8" width="8" height="8" fill="#10B981"/><rect x="16" y="8" width="8" height="8" fill="#1F2937"/><rect x="8" y="16" width="8" height="8" fill="#1F2937"/><rect x="16" y="16" width="8" height="8" fill="#10B981"/><rect x="14" y="14" width="4" height="4" fill="#EAB308"/></g></svg></div>
+        <h1 style="margin:12px 0 4px;font-size:24px;color:#1F2937">Mosaic Finance Weekly Market Recap</h1>
         <p style="color:#9CA3AF;font-size:14px;margin:0">${content.weekStart} — ${content.weekEnd}</p>
       </div>
 
@@ -150,7 +150,7 @@ function buildNewsletterHtml(content: NewsletterContent): string {
 
       <div style="text-align:center;padding:20px 0;color:#9CA3AF;font-size:11px">
         <p>This newsletter is for educational context only. Not investment advice.</p>
-        <p>Finova · Plans reviewed by a registered financial professional</p>
+        <p>Mosaic Finance · Plans reviewed by a registered financial professional</p>
       </div>
     </div>
   `;
@@ -193,7 +193,7 @@ export async function generateAndSendNewsletter(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: recipientEmails,
-    subject: `Finova Weekly Market Recap — ${content.weekStart} to ${content.weekEnd}`,
+    subject: `Mosaic Finance Weekly Market Recap — ${content.weekStart} to ${content.weekEnd}`,
     html,
   });
 

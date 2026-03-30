@@ -1,5 +1,5 @@
 # Family Law & Divorce Impact on Financial Planning
-## Finova AI Knowledge Module | Source: CSI FPSU Ch. 6 (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU Ch. 6 (2020)
 
 > **INJECTION TRIGGER:** Load this module when user indicates divorce, separation, or relationship breakdown during the fact-find, or when generating plan sections for clients with blended families or support obligations.
 
@@ -127,4 +127,4 @@
 | **Arbitration** | Private decision-maker renders binding decision | Moderate-high | Low |
 | **Litigation** | Court decides all issues | Highest | Lowest |
 
-> **FINOVA APPLICATION:** The AI should not provide legal advice on divorce proceedings. When divorce/separation is identified, the plan should flag affected areas (property division, support obligations, insurance, estate documents) and recommend consultation with a family law lawyer. The financial plan should incorporate existing support obligations as fixed expenses and adjust projections accordingly.
+> **MOSAIC APPLICATION:** The AI should not provide legal advice on divorce proceedings. When divorce/separation is identified, the plan should flag affected areas (property division, support obligations, insurance, estate documents) and recommend consultation with a family law lawyer. The financial plan should incorporate existing support obligations as fixed expenses and adjust projections accordingly.

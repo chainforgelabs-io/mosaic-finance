@@ -53,8 +53,8 @@ export async function GET(
     );
 
     const filename = isDraft
-      ? `finova-draft-plan-${planId}.pdf`
-      : `finova-financial-plan-${planId}.pdf`;
+      ? `mosaic-draft-plan-${planId}.pdf`
+      : `mosaic-financial-plan-${planId}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {

@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Expand Account Types & Add Failed Plan Status
+-- Mosaic Finance — Expand Account Types & Add Failed Plan Status
 -- Migration 016:
 --   1. Drop old account_type CHECK so UPDATE can proceed
 --   2. Migrate legacy 'pension' rows to 'DC-RPP'

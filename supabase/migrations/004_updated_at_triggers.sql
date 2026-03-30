@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Auto-update Triggers
+-- Mosaic Finance — Auto-update Triggers
 -- Migration 004: Without this, updated_at always equals created_at
 -- ============================================================
 

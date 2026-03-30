@@ -1,4 +1,4 @@
-# Finova AI — MVP Test Checklist
+# Mosaic Finance — MVP Test Checklist
 
 Complete step-by-step testing guide. Work through each block in order.
 Every test assumes a **fresh Supabase database** (all tables cleared, migrations re-applied).
@@ -34,7 +34,7 @@ Every test assumes a **fresh Supabase database** (all tables cleared, migrations
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
-| 1.8 | On `/onboarding/fact-find`, see compliance notice card | Card shows: "Finova AI is a financial planning tool... All plans are verified by a registered financial professional" | [ ] |
+| 1.8 | On `/onboarding/fact-find`, see compliance notice card | Card shows: "Mosaic Finance is a financial planning tool... All plans are verified by a registered financial professional" | [ ] |
 | 1.9 | Click "I understand, let's start" | Compliance card dismissed, conversation begins | [ ] |
 | 1.10 | AI sends first message | Warm, professional greeting. Asks an opening question | [ ] |
 | 1.11 | Respond with SK-specific info: employed at $85,000, mention RRSP, TFSA, mortgage | AI acknowledges, asks follow-up. Topic sidebar updates | [ ] |
@@ -323,7 +323,7 @@ Test on a real phone (or Chrome DevTools mobile emulation at 375px width).
 | 5.12 | Emerald accent color (#10B981) used consistently | Buttons, badges, accents, charts all use emerald | [ ] |
 | 5.13 | Typography: Plus Jakarta Sans for headings, DM Sans for body | Fonts load and render correctly | [ ] |
 | 5.14 | Warm white background throughout | No jarring white/gray mismatches | [ ] |
-| 5.15 | "finova ai" branding is lowercase where used | Marketing pages use lowercase | [ ] |
+| 5.15 | "mosaic finance" wordmark is lowercase where used | Marketing pages use lowercase | [ ] |
 | 5.16 | No broken images or missing icons | All visual elements render | [ ] |
 | 5.17 | Consistent border radius, spacing, card styles across pages | Visual harmony | [ ] |
 
@@ -437,4 +437,4 @@ These were identified during the codebase audit. They must be resolved before Bl
 
 ---
 
-*Finova AI · ChainForge Labs · March 2026 · Confidential*
+*Mosaic Finance · ChainForge Labs · March 2026 · Confidential*

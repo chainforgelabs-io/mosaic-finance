@@ -1,5 +1,5 @@
 -- ============================================================
--- Finova AI — Performance Indexes
+-- Mosaic Finance — Performance Indexes
 -- Migration 003: Without these, approval queue and conversation
 -- lookups will table-scan at scale
 -- ============================================================

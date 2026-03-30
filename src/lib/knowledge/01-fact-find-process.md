@@ -1,5 +1,5 @@
 # Financial Planning Process — Fact-Find Reference
-## Finova AI Knowledge Module | Source: CSI FPSU (2020)
+## Mosaic Finance Knowledge Module | Source: CSI FPSU (2020)
 
 > **INJECTION TRIGGER:** Load this module during the conversational fact-find stage — from first user interaction through data collection completion.
 
@@ -106,7 +106,7 @@ Financial planning follows two activities across six steps:
 | **Comprehensive** | Thorough analysis covering all financial goals. Extensive data collection, detailed budgets, cash flow, net worth, tax summaries. Long-term horizon. | High-net-worth clients, complex situations |
 | **Modular / Goal-Based** | Simplified approach focusing on current or pending life-cycle stage. Addresses 1–2 primary objectives. Intermediate time horizon. Defers other goals to future updates. | Most clients, especially accumulation/consolidation stage |
 
-> **FINOVA APPLICATION:** The modular approach maps directly to Finova's tiered product — Essential tier users get a modular plan focused on their 1–2 most pressing goals; Pro/Premium users can receive more comprehensive analysis over time through quarterly re-plans.
+> **MOSAIC APPLICATION:** The modular approach maps directly to Mosaic Finance's tiered product — Essential tier users get a modular plan focused on their 1–2 most pressing goals; Pro/Premium users can receive more comprehensive analysis over time through quarterly re-plans.
 
 ---
 
@@ -145,4 +145,4 @@ Eight principles that govern financial planning professionals:
 7. **Diligence** — Due care and prudence in handling client affairs; timely and thorough
 8. **Professionalism** — Conduct that inspires confidence and respect
 
-> **FINOVA APPLICATION:** These principles should be embedded in the AI's conversational tone and reflected in the mandatory disclaimer language. The human professional review layer is the structural enforcement mechanism.
+> **MOSAIC APPLICATION:** These principles should be embedded in the AI's conversational tone and reflected in the mandatory disclaimer language. The human professional review layer is the structural enforcement mechanism.
