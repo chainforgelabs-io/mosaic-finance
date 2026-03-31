@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app/AppSidebar";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
@@ -349,8 +349,27 @@ function transformPlanData(
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+function applyLatestPlanFromDb(
+  dbPlan: { id: string; status: string; plan_data: unknown; created_at: string } | null | undefined,
+  setPlan: (plan: FinancialPlan) => void,
+  setPlanStatus: (status: PlanStatus) => void,
+  setRawPlanData: (data: Record<string, unknown>) => void,
+) {
+  if (dbPlan && dbPlan.plan_data) {
+    const parsed =
+      typeof dbPlan.plan_data === "string" ? JSON.parse(dbPlan.plan_data) : dbPlan.plan_data;
+    setRawPlanData(parsed as Record<string, unknown>);
+    setPlan(transformPlanData(dbPlan as Parameters<typeof transformPlanData>[0]));
+  } else if (dbPlan) {
+    setPlanStatus(dbPlan.status as PlanStatus);
+  } else {
+    setPlanStatus("none");
+  }
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData } = usePlanStore();
 
   useEffect(() => {
@@ -413,15 +432,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       if (planRes.ok) {
         const { plan: dbPlan } = await planRes.json();
-        if (dbPlan && dbPlan.plan_data) {
-          const parsed = typeof dbPlan.plan_data === "string" ? JSON.parse(dbPlan.plan_data) : dbPlan.plan_data;
-          setRawPlanData(parsed);
-          setPlan(transformPlanData(dbPlan));
-        } else if (dbPlan) {
-          setPlanStatus(dbPlan.status);
-        } else {
-          setPlanStatus("none");
-        }
+        applyLatestPlanFromDb(dbPlan, setPlan, setPlanStatus, setRawPlanData);
       } else {
         setPlanStatus("none");
       }
@@ -432,8 +443,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, router]);
 
   useEffect(() => {
-    const { prePlanData, planStatus: ps } = usePlanStore.getState();
-    if (!user || prePlanData || (ps !== "none" && ps !== "generating" && ps !== "failed")) return;
+    if (!user) return;
+    if (!pathname.startsWith("/dashboard")) return;
+
+    let cancelled = false;
+    async function refreshPlanFromServer() {
+      const planRes = await fetch("/api/plan/latest", { credentials: "include" });
+      if (cancelled) return;
+      if (planRes.status === 401) {
+        clearUser();
+        router.replace("/login");
+        return;
+      }
+      if (planRes.ok) {
+        const { plan: dbPlan } = await planRes.json();
+        applyLatestPlanFromDb(dbPlan, setPlan, setPlanStatus, setRawPlanData);
+      }
+    }
+
+    refreshPlanFromServer();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, pathname, setPlan, setPlanStatus, setRawPlanData, clearUser, router]);
+
+  useEffect(() => {
+    const { prePlanData } = usePlanStore.getState();
+    if (!user || prePlanData) return;
 
     async function loadPrePlanData() {
       const supabase = createClient();

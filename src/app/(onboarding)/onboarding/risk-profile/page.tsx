@@ -628,14 +628,20 @@ export default function RiskProfilePage() {
           </div>
 
           <div className="space-y-4">
-            {convMessages.map((msg, i) => (
-              <ConversationBubble
-                key={msg.id}
-                role={msg.role}
-                content={msg.content}
-                isStreaming={isStreaming && msg.role === "assistant" && i === convMessages.length - 1}
-              />
-            ))}
+            {convMessages.map((msg, i) => {
+              const isLast = i === convMessages.length - 1;
+              const showStreamingPlaceholder =
+                isStreaming && msg.role === "assistant" && isLast && !msg.content.trim();
+              if (!msg.content.trim() && !showStreamingPlaceholder) return null;
+              return (
+                <ConversationBubble
+                  key={msg.id}
+                  role={msg.role}
+                  content={msg.content}
+                  isStreaming={isStreaming && msg.role === "assistant" && isLast}
+                />
+              );
+            })}
           </div>
 
           {isPreparingRiskProfile && !riskComplete && (

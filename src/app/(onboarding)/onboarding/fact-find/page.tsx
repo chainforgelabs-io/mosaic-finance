@@ -14,6 +14,7 @@ import {
   type ExtractedTopics,
 } from "@/stores/conversation";
 import { createClient } from "@/lib/supabase/client";
+import { shouldExcludeFromInvestmentHoldings } from "@/lib/schemas/holdings";
 
 
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
@@ -678,17 +679,56 @@ function FactFindConversation() {
       const data = summaryData as Record<string, unknown>;
 
       if (Array.isArray(data.investment_accounts)) {
-        setFactFindAccounts(
-          data.investment_accounts as {
-            account_type: string;
-            approximate_balance: number;
-            description: string;
-            holdings?: { ticker?: string; name?: string; balance: number; units?: number | null }[];
-          }[],
+        type InvAcc = {
+          account_type: string;
+          approximate_balance: number;
+          description: string;
+          holdings?: { ticker?: string; name?: string; balance: number; units?: number | null }[];
+        };
+        const accounts: InvAcc[] = (data.investment_accounts as InvAcc[])
+          .map((a) => ({
+            ...a,
+            account_type:
+              a.account_type === "Savings-Account" ? "Bank-Account" : a.account_type,
+          }))
+          .filter(
+            (a) => !shouldExcludeFromInvestmentHoldings(a.account_type, a.description),
+          );
+
+        const hasBankAccount = accounts.some(
+          (a) => a.account_type === "Bank-Account" || a.account_type === "Savings-Account",
         );
+
+        if (!hasBankAccount) {
+          const efMonths = Number(data.emergency_fund_months ?? 0);
+          const monthlyExp = Number(data.monthly_expenses ?? 0);
+          const efBalance =
+            efMonths > 0 && monthlyExp > 0 ? Math.round(efMonths * monthlyExp) : 0;
+
+          if (efBalance > 0) {
+            accounts.push({
+              account_type: "Bank-Account",
+              approximate_balance: efBalance,
+              description: "Emergency fund / cash savings",
+              holdings: [
+                { ticker: "CASH", name: "Cash savings", balance: efBalance, units: null },
+              ],
+            });
+          }
+        }
+
+        setFactFindAccounts(accounts);
       }
 
       if (Array.isArray(data.fixed_assets)) {
+        try {
+          await fetch("/api/fixed-assets?all=true", {
+            method: "DELETE",
+            credentials: "include",
+          });
+        } catch {
+          console.warn("[fact-find] Failed to clear existing fixed assets before re-save");
+        }
         for (const asset of data.fixed_assets as Record<string, unknown>[]) {
           try {
             const category = mapToValidAssetCategory(String(asset.category ?? "other"));

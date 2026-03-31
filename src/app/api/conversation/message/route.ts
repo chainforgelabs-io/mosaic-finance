@@ -339,12 +339,14 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        await supabase.from('conversation_messages').insert({
-          session_id: sessionId,
-          user_id: user.id,
-          role: 'assistant',
-          content: cleanedResponse,
-        });
+        if (cleanedResponse) {
+          await supabase.from('conversation_messages').insert({
+            session_id: sessionId,
+            user_id: user.id,
+            role: 'assistant',
+            content: cleanedResponse,
+          });
+        }
 
         await supabase
           .from('conversation_sessions')

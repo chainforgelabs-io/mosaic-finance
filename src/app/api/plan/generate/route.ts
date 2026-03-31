@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
           .single();
         console.log(`[plan/generate:bg] userProfile: ${userProfile ? 'found' : 'missing'}`);
 
-        const [financialProfile, holdings, riskProfile] = await Promise.all([
+        const [financialProfile, holdings, riskProfile, fixedAssetsResult] = await Promise.all([
           svc
             .from('financial_profiles')
             .select(
@@ -108,8 +108,13 @@ export async function POST(req: NextRequest) {
             .order('created_at', { ascending: false })
             .limit(1)
             .single(),
+          svc
+            .from('fixed_assets')
+            .select('category, name, estimated_value, is_primary_residence, notes')
+            .eq('user_id', userId),
         ]);
-        console.log(`[plan/generate:bg] financialProfile: ${financialProfile.data ? 'found' : 'missing'}, holdings: ${holdings.data?.length ?? 0} rows, riskProfile: ${riskProfile.data ? 'found' : 'missing'}`);
+        const fixedAssets = fixedAssetsResult.data;
+        console.log(`[plan/generate:bg] financialProfile: ${financialProfile.data ? 'found' : 'missing'}, holdings: ${holdings.data?.length ?? 0} rows, riskProfile: ${riskProfile.data ? 'found' : 'missing'}, fixedAssets: ${fixedAssets?.length ?? 0} rows`);
 
         let marketContext = null;
         try {
@@ -171,6 +176,7 @@ export async function POST(req: NextRequest) {
             family_structure: userProfile.family_structure,
           } : null,
           holdings: holdings.data,
+          fixedAssets: fixedAssets ?? null,
           riskProfile: riskProfile.data,
           factFindData,
           householdMembers: householdMembers ?? null,

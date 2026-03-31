@@ -10,7 +10,6 @@ export const ACCOUNT_CATEGORIES = {
     { value: "RRIF", label: "RRIF" },
   ],
   "Registered Pension Plans": [
-    { value: "DB-RPP", label: "Defined Benefit (DB) Pension" },
     { value: "DC-RPP", label: "Defined Contribution (DC) Pension" },
     { value: "Hybrid-RPP", label: "Hybrid / Combination RPP" },
     { value: "Target-Benefit", label: "Target Benefit / Shared-Risk" },
@@ -44,7 +43,7 @@ export const ACCOUNT_CATEGORIES = {
   ],
   "Non-Registered / Other": [
     { value: "Non-Reg", label: "Non-Registered / Cash / Margin" },
-    { value: "Savings-Account", label: "Savings / Bank Account" },
+    { value: "Bank-Account", label: "Bank Account" },
     { value: "Joint", label: "Joint Investment Account" },
     { value: "Corporate", label: "Corporate Investment Account" },
     { value: "In-Trust", label: "In-Trust Account" },
@@ -54,18 +53,48 @@ export const ACCOUNT_CATEGORIES = {
 
 type CategoryEntries = typeof ACCOUNT_CATEGORIES;
 type AllEntries = CategoryEntries[keyof CategoryEntries][number];
-export type AccountType = AllEntries["value"];
+/** DB-RPP is legacy-only (not selectable); may still appear from older data or mis-tagged imports. */
+export type AccountType = AllEntries["value"] | "DB-RPP";
 
-export const ACCOUNT_TYPES = Object.values(ACCOUNT_CATEGORIES)
-  .flat()
-  .map((e) => e.value) as unknown as readonly [AccountType, ...AccountType[]];
+export const ACCOUNT_TYPES = [
+  ...Object.values(ACCOUNT_CATEGORIES).flat().map((e) => e.value),
+  "DB-RPP",
+] as unknown as readonly [AccountType, ...AccountType[]];
 
 export function getAccountLabel(value: string): string {
+  if (value === "DB-RPP") return "Defined Benefit (DB) Pension";
   for (const entries of Object.values(ACCOUNT_CATEGORIES)) {
     const match = entries.find((e) => e.value === value);
     if (match) return match.label;
   }
   return value;
+}
+
+/**
+ * Defined-benefit and pension-income streams do not belong in transferable investment holdings.
+ * Use when ingesting fact-find or pre-filling holdings so DB rows and misclassified types are dropped.
+ */
+export function shouldExcludeFromInvestmentHoldings(
+  accountType: string,
+  description: string,
+): boolean {
+  const t = accountType.trim();
+  if (t === "DB-RPP" || t.toLowerCase() === "db-rpp") return true;
+
+  const d = (description || "").toLowerCase();
+  if (!d.trim()) return false;
+
+  if (/\bdefined\s+benefit\b/.test(d)) return true;
+  if (/\bdb\s*(pension|rpp)\b/.test(d)) return true;
+  if (/\bdbpp\b/.test(d)) return true;
+  if (
+    /\bpays\s+\$[\d,]+.*\/(month|mo)\b/.test(d) &&
+    /\bpension\b/.test(d) &&
+    /\bat\s+age\b/.test(d)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 const ACCOUNT_TYPE_DB_MAP: Record<string, string> = {
@@ -74,25 +103,22 @@ const ACCOUNT_TYPE_DB_MAP: Record<string, string> = {
 
 const DB_TO_DISPLAY_MAP: Record<string, string> = {
   "non-registered": "Non-Reg",
-  "pension": "DC-RPP",
+  pension: "DC-RPP",
+  /** Legacy rows before migration 018 */
+  "Savings-Account": "Bank-Account",
 };
 
 /** Lowercase snake_case keys from fact-find / AI output -> canonical display type (before DB map). */
 const AI_ALIAS_TO_DISPLAY: Record<string, string> = {
-  savings: "Savings-Account",
-  savings_account: "Savings-Account",
-  emergency_fund: "Savings-Account",
-  bank_account: "Savings-Account",
-  cash: "Savings-Account",
-  high_yield_savings: "Savings-Account",
-  hysa: "Savings-Account",
-  checking: "Savings-Account",
-  chequing: "Savings-Account",
-  pension: "DB-RPP",
-  defined_benefit: "DB-RPP",
-  dbpp: "DB-RPP",
-  db_rpp: "DB-RPP",
-  defined_benefit_pension: "DB-RPP",
+  savings: "Bank-Account",
+  savings_account: "Bank-Account",
+  emergency_fund: "Bank-Account",
+  bank_account: "Bank-Account",
+  cash: "Bank-Account",
+  high_yield_savings: "Bank-Account",
+  hysa: "Bank-Account",
+  checking: "Bank-Account",
+  chequing: "Bank-Account",
   dc_rpp: "DC-RPP",
   defined_contribution: "DC-RPP",
   dcpp: "DC-RPP",

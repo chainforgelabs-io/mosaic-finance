@@ -24,14 +24,14 @@ Extract all visible investment holdings from this document. For each holding, ca
 - units: Number of units/shares if visible. Omit if not shown.
 
 Also identify:
-- account_type: The account type if visible (RRSP, TFSA, FHSA, RESP, RDSP, RRIF, DB-RPP, DC-RPP, Hybrid-RPP, Target-Benefit, Group-RRSP, Group-TFSA, DPSP, EPSP, PRPP, VRSP, SPP, ESOP, ESPP, DSPP, RSU, Stock-Options, Phantom-Stock, EOT, LIRA, LRSP, RLSP, LIF, LRIF, PRIF, RLIF, non-registered, Joint, Corporate, In-Trust, Annuity). If multiple accounts are on one statement, group holdings by account.
+- account_type: The account type if visible (RRSP, TFSA, FHSA, RESP, RDSP, RRIF, DC-RPP, Hybrid-RPP, Target-Benefit, Group-RRSP, Group-TFSA, DPSP, EPSP, PRPP, VRSP, SPP, ESOP, ESPP, DSPP, RSU, Stock-Options, Phantom-Stock, EOT, LIRA, LRSP, RLSP, LIF, LRIF, PRIF, RLIF, non-registered, Joint, Corporate, In-Trust, Annuity). Do not use DB-RPP — defined-benefit pensions are not investment statements. If multiple accounts are on one statement, group holdings by account.
 - total_value: Total portfolio value if shown on the statement.
 
 OUTPUT FORMAT: Return ONLY a valid JSON object:
 {
   "accounts": [
     {
-      "account_type": "RRSP" | "TFSA" | "FHSA" | "RESP" | "RDSP" | "RRIF" | "DB-RPP" | "DC-RPP" | "Hybrid-RPP" | "Target-Benefit" | "Group-RRSP" | "Group-TFSA" | "DPSP" | "EPSP" | "PRPP" | "VRSP" | "SPP" | "ESOP" | "ESPP" | "DSPP" | "RSU" | "Stock-Options" | "Phantom-Stock" | "EOT" | "LIRA" | "LRSP" | "RLSP" | "LIF" | "LRIF" | "PRIF" | "RLIF" | "non-registered" | "Joint" | "Corporate" | "In-Trust" | "Annuity" | "unknown",
+      "account_type": "RRSP" | "TFSA" | "FHSA" | "RESP" | "RDSP" | "RRIF" | "DC-RPP" | "Hybrid-RPP" | "Target-Benefit" | "Group-RRSP" | "Group-TFSA" | "DPSP" | "EPSP" | "PRPP" | "VRSP" | "SPP" | "ESOP" | "ESPP" | "DSPP" | "RSU" | "Stock-Options" | "Phantom-Stock" | "EOT" | "LIRA" | "LRSP" | "RLSP" | "LIF" | "LRIF" | "PRIF" | "RLIF" | "non-registered" | "Joint" | "Corporate" | "In-Trust" | "Annuity" | "unknown",
       "holdings": [
         { "ticker": string, "name": string, "balance": number, "units": number | null }
       ],

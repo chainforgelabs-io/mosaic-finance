@@ -23,6 +23,7 @@ import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
+import { usePlanStore } from "@/stores/plan-store";
 import { saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import {
@@ -31,6 +32,7 @@ import {
   type HoldingFormData,
   getAccountLabel,
   fromDbAccountType,
+  shouldExcludeFromInvestmentHoldings,
 } from "@/lib/schemas/holdings";
 
 interface HoldingRow extends HoldingFormData {
@@ -741,7 +743,10 @@ function ManualEntryForm({
 
 function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
   return factFindAccounts
-    .filter((acc) => acc.account_type !== "DB-RPP")
+    .filter(
+      (acc) =>
+        !shouldExcludeFromInvestmentHoldings(acc.account_type, acc.description),
+    )
     .map((acc, i) => {
       const ts = Date.now();
       const holdingsList =
@@ -843,12 +848,15 @@ export default function HoldingsPage() {
   const triggerPlanGenerationAndGoToDashboard = async () => {
     completeStep("holdings");
     try {
-      await fetch("/api/plan/generate", {
+      const res = await fetch("/api/plan/generate", {
         method: "POST",
         credentials: "include",
       });
+      if (res.ok) {
+        usePlanStore.getState().setPlanStatus("generating");
+      }
     } catch {
-      // Fire-and-forget; dashboard will poll
+      // Fire-and-forget; dashboard will refetch / poll
     }
     router.push("/dashboard");
   };

@@ -105,7 +105,7 @@ const ACCOUNT_LABELS: Record<string, string> = {
   "non-registered": "Non-Registered", "Non-Reg": "Non-Registered",
   Joint: "Joint Account", Corporate: "Corporate Account",
   "In-Trust": "In-Trust Account", Annuity: "Prescribed Annuity",
-  "Savings-Account": "Savings / Bank Account",
+  "Bank-Account": "Bank Account",
   pension: "Pension",
 };
 
@@ -671,7 +671,11 @@ export default function AssetsPage() {
       : profileDebtTotal > 0
         ? profileDebtTotal
         : planDebtNum ?? profileDebtTotal;
-  const netWorth = (diag?.net_worth as number) ?? totalAssets - totalDebt;
+  const liveNetWorth = totalAssets - totalDebt;
+  const netWorth =
+    fixedAssets.length > 0 || holdings.length > 0
+      ? liveNetWorth
+      : (diag?.net_worth as number) ?? liveNetWorth;
 
   const parsedDebts = debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
 

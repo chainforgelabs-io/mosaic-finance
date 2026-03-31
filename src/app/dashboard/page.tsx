@@ -427,12 +427,28 @@ function ExpandablePlanSection({
 
 function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
   const rawPlanData = usePlanStore((s) => s.rawPlanData);
+  const prePlanData = usePlanStore((s) => s.prePlanData);
   const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
   const debtPlan = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
 
-  const totalDebt = (debtPlan?.total_debt as number) ?? 0;
+  const planDebt = (debtPlan?.total_debt as number) ?? 0;
+  const liveInv = prePlanData?.totalInvestments ?? 0;
+  const liveFix = prePlanData?.totalFixedAssets ?? 0;
+  const liveAssets = liveInv + liveFix;
+  const hasLiveAssets =
+    prePlanData?.totalInvestments != null || prePlanData?.totalFixedAssets != null;
+
+  const totalDebt = planDebt > 0 ? planDebt : (prePlanData?.totalDebt ?? 0);
   const netWorthNum = (diag?.net_worth as number) ?? null;
-  const totalAssets = netWorthNum != null ? netWorthNum + totalDebt : null;
+  const totalAssets = hasLiveAssets
+    ? liveAssets
+    : netWorthNum != null
+      ? netWorthNum + totalDebt
+      : null;
+  const netWorthDisplay = hasLiveAssets
+    ? fmtKpi(liveAssets - totalDebt)
+    : (plan.netWorth ?? "--");
+  const totalAssetsDisplay = hasLiveAssets ? fmtKpi(totalAssets) : fmtKpi(totalAssets);
   const emergencyMonths = (diag?.emergency_fund_months as number) ?? null;
 
   return (
@@ -450,9 +466,9 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
         <div className="hidden md:block w-px h-20 bg-white/10" />
 
         <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
-          <DashGlassCard label="Net Worth" value={plan.netWorth ?? "--"} accent="#10b981" />
+          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
           <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" />
-          <DashGlassCard label="Total Assets" value={fmtKpi(totalAssets)} />
+          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
           <DashGlassCard label="Total Debt" value={totalDebt ? fmtKpi(totalDebt) : "--"} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} />
           <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
             <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">

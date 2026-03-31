@@ -113,6 +113,17 @@ export async function DELETE(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+  const all = searchParams.get('all');
+  if (all === 'true') {
+    const { error } = await supabase
+      .from('fixed_assets')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) return NextResponse.json({ error: 'Failed to delete assets' }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing asset id' }, { status: 400 });
 

@@ -22,6 +22,13 @@ export interface PlanGenerationInput {
     holdings: { ticker: string; name: string; balance: number; units?: number }[];
     total_value?: number | null;
   }[] | null;
+  fixedAssets: {
+    category: string;
+    name: string;
+    estimated_value: number;
+    is_primary_residence?: boolean;
+    notes?: string | null;
+  }[] | null;
   riskProfile: {
     risk_score: string;
     conversational_insights?: string | null;
