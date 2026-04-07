@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
 import { formatTierPrice } from "@/lib/config/pricing";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
+import type { NotificationPreferences } from "@/types";
 import {
   User,
   CreditCard,
@@ -54,18 +56,62 @@ const familyStructures = [
 // ─── Profile Tab ──────────────────────────────────────────────────
 
 function ProfileTab() {
-  const { user } = usePlanStore();
+  const { user, setUser } = usePlanStore();
 
   const [alias, setAlias] = useState(user?.alias ?? "");
   const [province, setProvince] = useState(user?.province ?? "");
   const [employment, setEmployment] = useState(user?.employmentType ?? "");
   const [family, setFamily] = useState(user?.familyStructure ?? "");
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = useCallback(() => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, []);
+  useEffect(() => {
+    if (!user) return;
+    setAlias(user.alias ?? "");
+    setProvince(user.province ?? "");
+    setEmployment(user.employmentType ?? "");
+    setFamily(user.familyStructure ?? "");
+  }, [user?.id]);
+
+  const handleSave = useCallback(async () => {
+    if (!user) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          alias,
+          province,
+          employmentType: employment,
+          familyStructure: family,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSaveError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not save profile. Please try again.",
+        );
+        return;
+      }
+      setUser({
+        ...user,
+        alias,
+        province: province || undefined,
+        employmentType: employment || undefined,
+        familyStructure: family || undefined,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  }, [alias, province, employment, family, setUser, user]);
 
   return (
     <div className="space-y-6">
@@ -144,15 +190,25 @@ function ProfileTab() {
         </div>
       </div>
 
+      {saveError && (
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--error)]">
+          {saveError}
+        </p>
+      )}
+
       <button
+        type="button"
         onClick={handleSave}
-        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[var(--slate-950)] text-white font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--slate-950)]/90 transition-colors"
+        disabled={saving}
+        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[var(--slate-950)] text-white font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--slate-950)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {saved ? (
           <>
             <Check className="w-4 h-4" />
             Saved
           </>
+        ) : saving ? (
+          "Saving…"
         ) : (
           "Save Changes"
         )}
@@ -455,16 +511,21 @@ function PrivacyTab() {
 function Toggle({
   enabled,
   onToggle,
+  disabled,
 }: {
   enabled: boolean;
   onToggle: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
+      type="button"
       onClick={onToggle}
+      disabled={disabled}
+      aria-disabled={disabled}
       className={`relative w-11 h-6 rounded-full transition-colors ${
         enabled ? "bg-[var(--emerald)]" : "bg-[var(--warm-200)]"
-      }`}
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <span
         className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
@@ -476,28 +537,104 @@ function Toggle({
 }
 
 function NotificationsTab() {
-  const [planReady, setPlanReady] = useState(true);
-  const [weeklyMarket, setWeeklyMarket] = useState(true);
-  const [quarterlyRePlan, setQuarterlyRePlan] = useState(false);
+  const { user, setUser } = usePlanStore();
+  const defaults = DEFAULT_NOTIFICATION_PREFERENCES;
+
+  const [planReady, setPlanReady] = useState(defaults.plan_ready);
+  const [weeklyMarket, setWeeklyMarket] = useState(defaults.weekly_market);
+  const [quarterlyRePlan, setQuarterlyRePlan] = useState(defaults.quarterly_replan);
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [notifSaved, setNotifSaved] = useState(false);
+
+  // Sync from server only when the signed-in user changes (avoid clobbering optimistic toggles during PATCH).
+  useEffect(() => {
+    if (!user) return;
+    const p = user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
+    setPlanReady(p.plan_ready);
+    setWeeklyMarket(p.weekly_market);
+    setQuarterlyRePlan(p.quarterly_replan);
+  }, [user?.id]);
+
+  const persist = useCallback(
+    async (next: NotificationPreferences) => {
+      if (!user) return;
+      setNotifError(null);
+      setNotifSaving(true);
+      try {
+        const res = await fetch("/api/user/profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ notifications: next }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const p = user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
+          setPlanReady(p.plan_ready);
+          setWeeklyMarket(p.weekly_market);
+          setQuarterlyRePlan(p.quarterly_replan);
+          setNotifError(
+            typeof data.error === "string"
+              ? data.error
+              : "Could not save notification preferences.",
+          );
+          return;
+        }
+        setUser({ ...user, notificationPreferences: next });
+        setNotifSaved(true);
+        setTimeout(() => setNotifSaved(false), 1500);
+      } finally {
+        setNotifSaving(false);
+      }
+    },
+    [user, setUser],
+  );
 
   const notifications = [
     {
       label: "Plan ready",
-      description: "Get notified when your financial plan has been reviewed and is ready to view.",
+      description:
+        "Get notified when your financial plan has been reviewed and is ready to view.",
       enabled: planReady,
-      onToggle: () => setPlanReady((v) => !v),
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: !planReady,
+          weekly_market: weeklyMarket,
+          quarterly_replan: quarterlyRePlan,
+        };
+        setPlanReady(next.plan_ready);
+        void persist(next);
+      },
     },
     {
       label: "Weekly market update",
       description: "Receive a summary of the weekly market context report.",
       enabled: weeklyMarket,
-      onToggle: () => setWeeklyMarket((v) => !v),
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: planReady,
+          weekly_market: !weeklyMarket,
+          quarterly_replan: quarterlyRePlan,
+        };
+        setWeeklyMarket(next.weekly_market);
+        void persist(next);
+      },
     },
     {
       label: "Quarterly re-plan reminder",
-      description: "Reminder to review and update your financial plan every quarter.",
+      description:
+        "Reminder to review and update your financial plan every quarter.",
       enabled: quarterlyRePlan,
-      onToggle: () => setQuarterlyRePlan((v) => !v),
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: planReady,
+          weekly_market: weeklyMarket,
+          quarterly_replan: !quarterlyRePlan,
+        };
+        setQuarterlyRePlan(next.quarterly_replan);
+        void persist(next);
+      },
     },
   ];
 
@@ -506,6 +643,17 @@ function NotificationsTab() {
       <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-4">
         Email notifications only at this time.
       </p>
+      {notifError && (
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--error)] mb-2">
+          {notifError}
+        </p>
+      )}
+      {notifSaved && (
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--emerald)] mb-2 flex items-center gap-1.5">
+          <Check className="w-4 h-4" />
+          Preferences saved
+        </p>
+      )}
       {notifications.map((n) => (
         <div
           key={n.label}
@@ -519,7 +667,11 @@ function NotificationsTab() {
               {n.description}
             </p>
           </div>
-          <Toggle enabled={n.enabled} onToggle={n.onToggle} />
+          <Toggle
+            enabled={n.enabled}
+            onToggle={n.onToggle}
+            disabled={notifSaving || !user}
+          />
         </div>
       ))}
     </div>

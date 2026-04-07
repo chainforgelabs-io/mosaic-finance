@@ -9,6 +9,12 @@ export type RiskLabel =
   | "Growth"
   | "Aggressive";
 
+export interface NotificationPreferences {
+  plan_ready: boolean;
+  weekly_market: boolean;
+  quarterly_replan: boolean;
+}
+
 export interface UserProfile {
   id: string;
   alias: string;
@@ -18,6 +24,7 @@ export interface UserProfile {
   employmentType?: string;
   familyStructure?: string;
   tier: Tier;
+  notificationPreferences?: NotificationPreferences;
 }
 
 export interface FinancialCardData {

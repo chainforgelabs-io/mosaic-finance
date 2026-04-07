@@ -6,38 +6,21 @@ import { AppSidebar } from "@/components/app/AppSidebar";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
 import { createClient } from "@/lib/supabase/client";
-import type { FinancialPlan, PlanStatus, PlanSection, FinancialCardData, ComparisonTable, CoverageRec } from "@/types";
-
-const PROVINCE_CODE_TO_NAME: Record<string, string> = {
-  AB: "Alberta",
-  BC: "British Columbia",
-  MB: "Manitoba",
-  NB: "New Brunswick",
-  NL: "Newfoundland and Labrador",
-  NT: "Northwest Territories",
-  NS: "Nova Scotia",
-  NU: "Nunavut",
-  ON: "Ontario",
-  PE: "Prince Edward Island",
-  QC: "Quebec",
-  SK: "Saskatchewan",
-  YT: "Yukon",
-};
-
-const EMPLOYMENT_DB_TO_DISPLAY: Record<string, string> = {
-  employed: "Employed",
-  "self-employed": "Self-Employed",
-  retired: "Retired",
-  student: "Student",
-};
-
-const FAMILY_DB_TO_DISPLAY: Record<string, string> = {
-  single: "Single",
-  married: "Married",
-  "common-law": "Common-Law",
-  "single-parent": "Single Parent",
-  family: "Family",
-};
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  EMPLOYMENT_DB_TO_DISPLAY,
+  FAMILY_DB_TO_DISPLAY,
+  PROVINCE_CODE_TO_NAME,
+} from "@/lib/config/profile-mappings";
+import type {
+  FinancialPlan,
+  PlanStatus,
+  PlanSection,
+  FinancialCardData,
+  ComparisonTable,
+  CoverageRec,
+  NotificationPreferences,
+} from "@/types";
 
 function fmt(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -398,7 +381,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("alias, subscription_tier, age, province, employment_type, family_structure")
+        .select(
+          "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences",
+        )
         .eq("id", authUser.id)
         .single();
 
@@ -406,6 +391,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const rawProvince = profile.province ?? "";
         const rawEmployment = profile.employment_type ?? "";
         const rawFamily = profile.family_structure ?? "";
+        const rawNotifs = profile.notification_preferences as
+          | Partial<NotificationPreferences>
+          | null
+          | undefined;
 
         setUser({
           id: authUser.id,
@@ -415,12 +404,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           province: (PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince) || undefined,
           employmentType: (EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment) || undefined,
           familyStructure: (FAMILY_DB_TO_DISPLAY[rawFamily] ?? rawFamily) || undefined,
+          notificationPreferences: {
+            ...DEFAULT_NOTIFICATION_PREFERENCES,
+            ...rawNotifs,
+          },
         });
       } else {
         setUser({
           id: authUser.id,
           alias: authUser.user_metadata?.alias ?? "User",
           tier: "free",
+          notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
         });
       }
 
