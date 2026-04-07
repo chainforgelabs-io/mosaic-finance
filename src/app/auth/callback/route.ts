@@ -14,6 +14,10 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        if (next === "/reset-password") {
+          return NextResponse.redirect(`${origin}/reset-password`);
+        }
+
         const { data: existingProfile } = await supabase
           .from("user_profiles")
           .select("id, onboarding_completed")

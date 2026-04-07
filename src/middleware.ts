@@ -11,6 +11,8 @@ export const config = {
     '/admin/:path*',
     '/login',
     '/signup',
+    '/forgot-password',
+    '/reset-password',
     '/onboarding/:path*',
     '/api/:path*',
   ],

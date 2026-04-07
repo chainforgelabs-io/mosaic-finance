@@ -2,7 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { signUpSchema, signInSchema } from "@/lib/schemas/auth";
+import {
+  signUpSchema,
+  signInSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "@/lib/schemas/auth";
 import { getOnboardingProgress } from "@/lib/actions/onboarding";
 
 const PROVINCE_CODES: Record<string, string> = {
@@ -124,4 +129,51 @@ export async function signInWithGoogle(): Promise<AuthResult> {
   }
 
   return { error: "Failed to initiate Google sign in" };
+}
+
+export async function resetPassword(formData: {
+  email: string;
+}): Promise<AuthResult> {
+  const parsed = forgotPasswordSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    parsed.data.email,
+    {
+      redirectTo: `${appUrl}/auth/callback?next=/reset-password`,
+    },
+  );
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return {};
+}
+
+export async function updatePassword(formData: {
+  password: string;
+  confirmPassword: string;
+}): Promise<AuthResult> {
+  const parsed = resetPasswordSchema.safeParse(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { redirectTo: "/dashboard" };
 }
