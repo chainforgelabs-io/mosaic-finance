@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
+import { formatTierPrice } from "@/lib/config/pricing";
 import {
   User,
   CreditCard,
@@ -169,7 +170,7 @@ const tierFeatures: {
 }[] = [
   {
     tier: "free",
-    price: "$0/mo",
+    price: formatTierPrice("free"),
     features: [
       "1 financial plan",
       "Basic guided plan review with Charlie",
@@ -179,7 +180,7 @@ const tierFeatures: {
   },
   {
     tier: "essential",
-    price: "$14.99/mo",
+    price: formatTierPrice("essential"),
     features: [
       "2 plan revisions/year",
       "Full guided plan review with Charlie",
@@ -189,7 +190,7 @@ const tierFeatures: {
   },
   {
     tier: "pro",
-    price: "$29.99/mo",
+    price: formatTierPrice("pro"),
     features: [
       "Quarterly re-plans",
       "Priority guided plan review with Charlie",
@@ -199,7 +200,7 @@ const tierFeatures: {
   },
   {
     tier: "premium",
-    price: "$59.99/mo",
+    price: formatTierPrice("premium"),
     features: [
       "Unlimited re-plans",
       "Full guided plan review with Charlie + follow-ups",

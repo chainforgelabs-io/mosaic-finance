@@ -2,12 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { TIER_PRICING } from "@/lib/config/pricing";
 
 const TIERS = [
   {
     name: "Free",
-    price: "$0",
-    period: "",
+    price: TIER_PRICING.free.price,
+    period: TIER_PRICING.free.period,
     tagline: "See where you stand",
     features: [
       "One financial health diagnostic",
@@ -20,8 +21,8 @@ const TIERS = [
   },
   {
     name: "Essential",
-    price: "$19",
-    period: "/mo",
+    price: TIER_PRICING.essential.price,
+    period: TIER_PRICING.essential.period,
     tagline: "Your complete financial plan",
     features: [
       "Full conversational fact-find",
@@ -36,8 +37,8 @@ const TIERS = [
   },
   {
     name: "Pro",
-    price: "$39",
-    period: "/mo",
+    price: TIER_PRICING.pro.price,
+    period: TIER_PRICING.pro.period,
     tagline: "Stay on track",
     features: [
       "Everything in Essential",
@@ -52,8 +53,8 @@ const TIERS = [
   },
   {
     name: "Premium",
-    price: "$79",
-    period: "/mo",
+    price: TIER_PRICING.premium.price,
+    period: TIER_PRICING.premium.period,
     tagline: "Full experience",
     features: [
       "Everything in Pro",
