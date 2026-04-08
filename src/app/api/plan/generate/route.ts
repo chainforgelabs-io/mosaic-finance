@@ -240,8 +240,8 @@ export async function POST(req: NextRequest) {
         }
         console.log(`[plan/generate:bg] Plan updated — id=${planId}`);
 
-        const isPremium = userProfile?.subscription_tier === 'premium';
-        const slaHours = isPremium ? 8 : 24;
+        const isAdvisor = userProfile?.subscription_tier === 'advisor';
+        const slaHours = isAdvisor ? 8 : 24;
         const slaDeadline = new Date(
           Date.now() + slaHours * 60 * 60 * 1000,
         ).toISOString();
@@ -251,7 +251,7 @@ export async function POST(req: NextRequest) {
           .insert({
             plan_id: planId,
             user_id: userId,
-            priority: isPremium ? 'priority' : 'standard',
+            priority: isAdvisor ? 'priority' : 'standard',
             sla_deadline: slaDeadline,
           });
 
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        await sendApprovalQueueNotification(planId, isPremium).catch((err) => {
+        await sendApprovalQueueNotification(planId, isAdvisor).catch((err) => {
           console.error('[plan/generate:bg] Approval notification failed:', err);
           captureAPIError(err, {
             route: 'plan/generate:bg',

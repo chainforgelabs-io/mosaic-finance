@@ -19,7 +19,7 @@ import { MosaicLogo } from "./MosaicLogo";
 
 interface AppSidebarProps {
   userAlias: string;
-  tier: "free" | "essential" | "pro" | "premium";
+  tier: "snapshot" | "plan" | "advisor";
   planStatus?: string;
   planId?: string;
   className?: string;
@@ -139,7 +139,7 @@ export function AppSidebar({
             <TierBadge tier={tier} className="mt-0.5 w-fit" />
           </div>
         </div>
-        {tier !== "premium" && (
+        {tier !== "advisor" && (
           <Link
             href="/dashboard/settings?tab=subscription"
             className="mt-3 flex items-center gap-1 font-display text-xs font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] md:max-lg:hidden"

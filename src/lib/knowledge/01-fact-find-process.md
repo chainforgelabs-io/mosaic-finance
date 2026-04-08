@@ -106,7 +106,7 @@ Financial planning follows two activities across six steps:
 | **Comprehensive** | Thorough analysis covering all financial goals. Extensive data collection, detailed budgets, cash flow, net worth, tax summaries. Long-term horizon. | High-net-worth clients, complex situations |
 | **Modular / Goal-Based** | Simplified approach focusing on current or pending life-cycle stage. Addresses 1–2 primary objectives. Intermediate time horizon. Defers other goals to future updates. | Most clients, especially accumulation/consolidation stage |
 
-> **MOSAIC APPLICATION:** The modular approach maps directly to Mosaic Finance's tiered product — Essential tier users get a modular plan focused on their 1–2 most pressing goals; Pro/Premium users can receive more comprehensive analysis over time through quarterly re-plans.
+> **MOSAIC APPLICATION:** The modular approach maps directly to Mosaic Finance's tiered product — Plan tier users get a modular plan focused on their 1–2 most pressing goals; Advisor tier users can receive more comprehensive analysis over time through quarterly re-plans.
 
 ---
 

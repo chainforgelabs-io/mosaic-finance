@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { usePlanStore } from "@/stores/plan-store";
 import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
-import { formatTierPrice } from "@/lib/config/pricing";
+import {
+  formatTierPrice,
+  type BillingInterval,
+} from "@/lib/config/pricing";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
 import type { NotificationPreferences } from "@/types";
 import {
@@ -219,66 +223,207 @@ function ProfileTab() {
 
 // ─── Subscription Tab ─────────────────────────────────────────────
 
-const tierFeatures: {
+function getTierFeatures(billing: BillingInterval): {
   tier: Tier;
   price: string;
   features: string[];
-}[] = [
-  {
-    tier: "free",
-    price: formatTierPrice("free"),
-    features: [
-      "1 financial plan",
-      "Basic guided plan review with Charlie",
-      "48-hour professional review",
-      "Weekly market context",
-    ],
-  },
-  {
-    tier: "essential",
-    price: formatTierPrice("essential"),
-    features: [
-      "2 plan revisions/year",
-      "Full guided plan review with Charlie",
-      "24-hour professional review",
-      "Weekly market context",
-    ],
-  },
-  {
-    tier: "pro",
-    price: formatTierPrice("pro"),
-    features: [
-      "Quarterly re-plans",
-      "Priority guided plan review with Charlie",
-      "12-hour professional review",
-      "Personalized market context",
-    ],
-  },
-  {
-    tier: "premium",
-    price: formatTierPrice("premium"),
-    features: [
-      "Unlimited re-plans",
-      "Full guided plan review with Charlie + follow-ups",
-      "8-hour professional review",
-      "Personalized market context",
-      "Priority support",
-    ],
-  },
-];
+}[] {
+  return [
+    {
+      tier: "snapshot",
+      price: formatTierPrice("snapshot", billing),
+      features: [
+        "Financial Health Score",
+        "Basic profile",
+        "1 monthly check-in with Charlie (score-focused)",
+        "No credit card",
+      ],
+    },
+    {
+      tier: "plan",
+      price: formatTierPrice("plan", billing),
+      features: [
+        "Full conversational fact-find",
+        "8-section plan + PDF",
+        "5 conversations/month with Charlie",
+        "Life event guidance",
+        "6-month score refresh",
+        "Professional review (48h)",
+      ],
+    },
+    {
+      tier: "advisor",
+      price: formatTierPrice("advisor", billing),
+      features: [
+        "Everything in Plan",
+        "Unlimited conversations with Charlie",
+        "Quarterly full reviews",
+        "Same-day professional review",
+        "Portfolio monitoring",
+        "Tax year-end report",
+      ],
+    },
+  ];
+}
 
-function SubscriptionTab() {
+function SubscriptionTabInner() {
   const { user } = usePlanStore();
-  const currentTier = user?.tier ?? "free";
+  const currentTier = user?.tier ?? "snapshot";
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  const handleManageBilling = () => {
-    window.alert(
-      "Stripe Customer Portal would open here. Wire to POST /api/stripe/portal for real billing management."
-    );
+  const [billingInterval, setBillingInterval] =
+    useState<BillingInterval>("monthly");
+  const tierFeatures = getTierFeatures(billingInterval);
+
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [checkoutSuccess, setCheckoutSuccess] = useState(false);
+  const [checkoutCancelled, setCheckoutCancelled] = useState(false);
+
+  useEffect(() => {
+    const c = searchParams.get("checkout");
+    if (c === "success") {
+      setCheckoutSuccess(true);
+      router.replace("/dashboard/settings", { scroll: false });
+    } else if (c === "cancelled") {
+      setCheckoutCancelled(true);
+      router.replace("/dashboard/settings", { scroll: false });
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (!checkoutSuccess && !checkoutCancelled) return;
+    const t = setTimeout(() => {
+      setCheckoutSuccess(false);
+      setCheckoutCancelled(false);
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [checkoutSuccess, checkoutCancelled]);
+
+  const handleManageBilling = async () => {
+    setBillingError(null);
+    setBillingBusy(true);
+    try {
+      const res = await fetch("/api/stripe/portal", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && typeof data.url === "string") {
+        window.location.href = data.url;
+        return;
+      }
+      if (res.status === 400 && data.error === "no_billing_account") {
+        setBillingError(
+          "No billing account yet. Subscribe to a paid plan using Upgrade below.",
+        );
+        return;
+      }
+      setBillingError(
+        typeof data.error === "string"
+          ? data.error
+          : "Could not open billing portal. Please try again.",
+      );
+    } finally {
+      setBillingBusy(false);
+    }
   };
+
+  const handleTierChange = async (targetTier: Tier) => {
+    if (targetTier === currentTier) return;
+    setBillingError(null);
+    setBillingBusy(true);
+    try {
+      if (targetTier === "snapshot" && currentTier !== "snapshot") {
+        const res = await fetch("/api/stripe/portal", {
+          method: "POST",
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && typeof data.url === "string") {
+          window.location.href = data.url;
+          return;
+        }
+        setBillingError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not open billing portal. Please try again.",
+        );
+        return;
+      }
+
+      if (
+        currentTier === "snapshot" &&
+        (targetTier === "plan" || targetTier === "advisor")
+      ) {
+        const res = await fetch("/api/stripe/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            tier: targetTier,
+            interval: billingInterval,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && typeof data.url === "string") {
+          window.location.href = data.url;
+          return;
+        }
+        setBillingError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not start checkout. Please try again.",
+        );
+        return;
+      }
+
+      if (currentTier !== "snapshot") {
+        const res = await fetch("/api/stripe/portal", {
+          method: "POST",
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && typeof data.url === "string") {
+          window.location.href = data.url;
+          return;
+        }
+        if (res.status === 400 && data.error === "no_billing_account") {
+          setBillingError(
+            "We could not find your billing account. Please contact support.",
+          );
+          return;
+        }
+        setBillingError(
+          typeof data.error === "string"
+            ? data.error
+            : "Could not open billing portal. Please try again.",
+        );
+      }
+    } finally {
+      setBillingBusy(false);
+    }
+  };
+
+  const billingPeriodLabel =
+    currentTier === "snapshot"
+      ? "No active subscription"
+      : "Active subscription · Manage in Stripe";
 
   return (
     <div className="space-y-6">
+      {checkoutSuccess && (
+        <div className="rounded-lg border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-4 py-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
+          Subscription activated! Your plan will update shortly.
+        </div>
+      )}
+      {checkoutCancelled && (
+        <div className="rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] px-4 py-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+          Checkout was cancelled. You can subscribe anytime from here.
+        </div>
+      )}
+
       <div className="flex items-center gap-4">
         <div>
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-1">
@@ -291,12 +436,48 @@ function SubscriptionTab() {
             Billing period
           </p>
           <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)]">
-            Monthly &middot; Renews Apr 4, 2026
+            {billingPeriodLabel}
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {billingError && (
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--error)]">
+          {billingError}
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
+          New subscriptions — billing
+        </span>
+        <div className="inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
+          <button
+            type="button"
+            onClick={() => setBillingInterval("monthly")}
+            className={`rounded-full px-4 py-1.5 font-[family-name:var(--font-display)] text-xs font-semibold transition-colors ${
+              billingInterval === "monthly"
+                ? "bg-[var(--slate-950)] text-white"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            onClick={() => setBillingInterval("annual")}
+            className={`rounded-full px-4 py-1.5 font-[family-name:var(--font-display)] text-xs font-semibold transition-colors ${
+              billingInterval === "annual"
+                ? "bg-[var(--slate-950)] text-white"
+                : "text-[var(--text-secondary)]"
+            }`}
+          >
+            Annual
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tierFeatures.map(({ tier, price, features }) => {
           const isCurrent = tier === currentTier;
           return (
@@ -335,7 +516,12 @@ function SubscriptionTab() {
                   Current Plan
                 </p>
               ) : (
-                <button className="mt-4 w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors">
+                <button
+                  type="button"
+                  disabled={billingBusy}
+                  onClick={() => void handleTierChange(tier)}
+                  className="mt-4 w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {tierFeatures.findIndex((t) => t.tier === tier) >
                   tierFeatures.findIndex((t) => t.tier === currentTier)
                     ? "Upgrade"
@@ -348,13 +534,29 @@ function SubscriptionTab() {
       </div>
 
       <button
-        onClick={handleManageBilling}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--emerald-dark)] transition-colors"
+        type="button"
+        disabled={billingBusy}
+        onClick={() => void handleManageBilling()}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <ExternalLink className="w-4 h-4" />
-        Manage Billing
+        {billingBusy ? "Opening…" : "Manage Billing"}
       </button>
     </div>
+  );
+}
+
+function SubscriptionTab() {
+  return (
+    <Suspense
+      fallback={
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
+          Loading subscription…
+        </p>
+      }
+    >
+      <SubscriptionTabInner />
+    </Suspense>
   );
 }
 

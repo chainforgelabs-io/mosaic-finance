@@ -260,7 +260,7 @@ test.describe('PDF Download', () => {
 });
 
 test.describe('Subscription Gating', () => {
-  test('free user sees upgrade prompt for premium features', async ({ page }) => {
+  test('snapshot-tier user sees upgrade prompt for paid features', async ({ page }) => {
     await loginAsTestUser(page);
     await page.goto('/plan');
     await page.waitForLoadState('networkidle');

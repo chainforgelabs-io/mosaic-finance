@@ -1,22 +1,67 @@
 # Mosaic Finance — MVP Test Checklist
 
-Complete step-by-step testing guide. Work through each block in order.
+Aligned with the **6-Week Validation Sprint**. Focus is on demoability, the core loop, and getting the product in front of 5 real beta users. Exhaustive QA and Phase 2 features (Stripe billing, tier-gating, mobile polish, PostHog) are explicitly deferred.
+
 Every test assumes a **fresh Supabase database** (all tables cleared, migrations re-applied).
 
 **Prerequisites before starting:**
-- [ ] Supabase database cleared and all migrations re-applied (001 through 015)
-- [ ] `npm run dev` running locally (or deployed to Vercel)
+- [ ] Supabase database cleared and all migrations re-applied (001 through 016)
+- [ ] `npm run dev` running locally (or deployed to Vercel on `mosaicfinance.ai`)
 - [ ] `.env.local` has all required keys: Supabase, Anthropic, Resend, Upstash Redis, Sentry
 - [ ] `CIM_REVIEWER_EMAIL` env var set to an email you can check
 - [ ] Browser dev tools available (Network tab, Console, Application > Cookies)
+- [ ] Admin approval queue wired to live API (see Known Issues — this blocks all of Block 1)
 
 ---
 
-## Block 1: The Core Loop (3 Full Runs)
+## Block 0: Sprint Prerequisites
 
-**Goal:** One person can go from signup to holding a plan PDF. You are this person. Do this 3 times with different profiles.
+**Goal:** The 5 dev blockers from Validation Sprint Week 1 are resolved and the landing page is live. These must pass before anything else.
 
-### Run 1: Saskatchewan Resident
+### 0A. Dev Blockers — Completed Items
+
+These were on the original launch blockers list and have been shipped. Verify they still work.
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| 0.1 | Navigate to `/forgot-password` from the login page | Forgot password page loads with email input | [ ] |
+| 0.2 | Submit a valid email on `/forgot-password` | Success message shown, reset email sent | [ ] |
+| 0.3 | Click reset link in email, set new password | Password updated, can log in with new password | [ ] |
+| 0.4 | Go to `/dashboard/settings`, change alias and province | Form accepts changes | [ ] |
+| 0.5 | Click "Save Changes" | Success toast/message shown | [ ] |
+| 0.6 | Reload `/dashboard/settings` | Changed alias and province persist (data round-tripped through Supabase) | [ ] |
+
+### 0B. Dev Blockers — Still Needed
+
+These must be built before Block 1 testing. Do not proceed until they pass.
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| 0.7 | Verify `admin-store.ts` calls `/api/approval/queue` (not mock data) | Network tab shows real API call, not imported mock | [ ] |
+| 0.8 | As adviser, approve a plan — verify plan status updates in `approval_queue` table | Row updated in Supabase (not just removed from client store) | [ ] |
+| 0.9 | Navigate to `/onboarding/generating` after submitting holdings | Real "Building your plan..." progress UI shown (not a blank redirect to dashboard) | [ ] |
+| 0.10 | Progress UI shows step indicators while plan generates | At least 3 visible steps animating/completing | [ ] |
+| 0.11 | Plan generation completes — user auto-redirected to dashboard | Dashboard loads with `pending_review` state | [ ] |
+
+### 0C. Landing Page & Go-Live
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| 0.12 | Load `mosaicfinance.ai` in browser | Landing page renders, no errors in console | [ ] |
+| 0.13 | Verify waitlist email capture form is present | Email input + province dropdown visible | [ ] |
+| 0.14 | Submit a test email + province to waitlist | Success confirmation shown | [ ] |
+| 0.15 | Check Supabase: `waitlist` table (or equivalent) | Row created with email, province, timestamp | [ ] |
+| 0.16 | Navigate to `/privacy` from footer | Privacy policy page loads with PIPEDA language | [ ] |
+| 0.17 | Navigate to `/terms` from footer | Terms of Service page loads with "Professional Review Process" section | [ ] |
+| 0.18 | Verify all footer links resolve (no 404s) | Every footer link loads a real page | [ ] |
+
+---
+
+## Block 1: The Core Loop (2 Runs)
+
+**Goal:** One person can go from signup to holding a plan PDF. You are this person. Do this twice — one thorough run with full verification, one abbreviated run to confirm a second province works.
+
+### Run 1: Saskatchewan Resident (Full Verification)
 
 #### 1A. Signup & Profile
 
@@ -72,14 +117,14 @@ Every test assumes a **fresh Supabase database** (all tables cleared, migrations
 | 1.27 | Add holdings to RRSP: XEQT $25,000 (200 units), XBB $17,000 (180 units) | Holdings appear in account card with totals | [ ] |
 | 1.28 | Add holdings to TFSA: VFV $28,000 (150 units) | Holdings appear correctly | [ ] |
 | 1.29 | Add a new FHSA account with $8,000 in CASH.TO | Account type dropdown has all 7 types (RRSP, TFSA, FHSA, Non-Reg, Pension, LIRA, RESP) | [ ] |
-| 1.30 | Click "Generate Plan" or equivalent | Redirected to dashboard, plan status = "generating" | [ ] |
+| 1.30 | Click "Generate Plan" or equivalent | Redirected to generating page with progress UI | [ ] |
 
 #### 1E. Plan Generation & Dashboard States
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
-| 1.31 | Dashboard shows "generating" state | 5-step animated progress checklist visible | [ ] |
-| 1.32 | Wait for generation to complete (2-5 minutes) | Status transitions to "pending_review". Dashboard auto-updates via polling | [ ] |
+| 1.31 | Generating page shows "Building your plan..." progress UI | Step indicators visible and animating | [ ] |
+| 1.32 | Wait for generation to complete (2-5 minutes) | Status transitions to "pending_review". User auto-redirected to dashboard | [ ] |
 | 1.33 | Dashboard now shows "pending_review" state | Approval status banner, draft plan link, KPI strip with Financial Health Score | [ ] |
 | 1.34 | Financial Health Score is visible | Score between 1-100, displayed as gauge/number | [ ] |
 | 1.35 | KPI strip shows: Net Worth, Monthly Cash Flow, Total Assets, Total Debt, Emergency Fund | All values populated with real numbers from your data | [ ] |
@@ -111,6 +156,8 @@ Every test assumes a **fresh Supabase database** (all tables cleared, migrations
 | | | | |
 
 #### 1G. Adviser Approval Flow
+
+> **PREREQUISITE:** The admin approval queue must be wired to the real API before testing this section. `src/stores/admin-store.ts` must call `/api/approval/queue` — not import from `admin-mock-data.ts`. If mock data is still in use, approve/reject will have no backend effect and every test below will be invalid. See Known Issue #1.
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
@@ -160,9 +207,9 @@ Every test assumes a **fresh Supabase database** (all tables cleared, migrations
 
 ---
 
-### Run 2: Ontario Resident
+### Run 2: Ontario Resident (Abbreviated)
 
-Repeat steps 1.1–1.71 with this profile:
+Repeat steps 1.1–1.71 with this profile. Focus on confirming the flow completes end-to-end and that province-specific content changes. Skip deep JSON verification and detailed PDF audit — those were covered in Run 1.
 
 - **Alias:** ON_Tester
 - **Province:** Ontario
@@ -177,9 +224,8 @@ Repeat steps 1.1–1.71 with this profile:
 
 **Ontario-specific checks:**
 - [ ] Ontario tax brackets/rates correct in Tax Efficiency section
-- [ ] OHIP considerations if applicable
-- [ ] ON-specific provincial tax credits mentioned
 - [ ] Self-employment deductions addressed
+- [ ] ON-specific provincial tax credits mentioned
 
 | # | Item | Pass |
 |---|------|------|
@@ -193,47 +239,13 @@ Repeat steps 1.1–1.71 with this profile:
 
 ---
 
-### Run 3: British Columbia Resident
-
-Repeat steps 1.1–1.71 with this profile:
-
-- **Alias:** BC_Tester
-- **Province:** British Columbia
-- **Age:** 28
-- **Employment:** Employed
-- **Family:** Common-Law, no children
-- **Income:** $72,000
-- **Partner income:** $68,000
-- **Holdings:** TFSA $15K in XEQT, FHSA $8K (first home buyer), no RRSP
-- **Debts:** Student loans $28K (3.5%), car loan $12K (5.9%)
-- **Goals:** Buy first home (FHSA eligible), retirement at 58, travel
-- **Special flag:** First home buyer (FHSA eligibility critical)
-
-**BC-specific checks:**
-- [ ] BC tax brackets/rates correct
-- [ ] FHSA eligibility correctly assessed (first-time buyer, under 40)
-- [ ] BC housing market referenced in context
-- [ ] Provincial tax credit considerations
-
-| # | Item | Pass |
-|---|------|------|
-| 3.1 | Full onboarding complete | [ ] |
-| 3.2 | All 8 sections generated with BC-specific content | [ ] |
-| 3.3 | FHSA strategy properly addressed | [ ] |
-| 3.4 | ETFs are real and MERs accurate | [ ] |
-| 3.5 | Plan approved and PDF generated | [ ] |
-| 3.6 | Walkthrough uses this user's numbers | [ ] |
-| 3.7 | Time to complete: _____ minutes | [ ] |
-
----
-
 ## Block 2: Security & Compliance
 
 **Goal:** The compliance backbone is sound and the product cannot leak data.
 
 ### 2A. Row-Level Security (Adversarial Testing)
 
-Requires 2 user accounts from Block 1 (e.g., SK_Tester and ON_Tester).
+Requires 2 user accounts from Block 1 (SK_Tester and ON_Tester).
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
@@ -274,7 +286,7 @@ Requires 2 user accounts from Block 1 (e.g., SK_Tester and ON_Tester).
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
-| 4.23 | Open each of the 3 generated plans from Block 1 | All 3 plans accessible | [ ] |
+| 4.23 | Open both generated plans from Block 1 | Both plans accessible | [ ] |
 | 4.24 | Search each plan for directive language: "I recommend", "you should", "you must", "I advise" | ZERO instances of directive language | [ ] |
 | 4.25 | Verify all actionable items have implementation referral notes (e.g., "discuss with a registered advisor") | Referral language present | [ ] |
 | 4.26 | Check walkthrough transcripts for directive language | AI uses "the plan suggests", "based on your numbers", "considerations" | [ ] |
@@ -294,71 +306,36 @@ Requires 2 user accounts from Block 1 (e.g., SK_Tester and ON_Tester).
 
 ---
 
-## Block 3: Polish & Mobile
+## Block 3: Polish & Error Handling
 
-**Goal:** The product looks professional on every device and handles edge cases gracefully.
+**Goal:** The product looks professional and handles edge cases gracefully during demos and beta sessions.
 
-### 3A. Mobile Responsiveness
-
-Test on a real phone (or Chrome DevTools mobile emulation at 375px width).
-
-| # | Screen | What to Check | Pass |
-|---|--------|--------------|------|
-| 5.1 | `/signup` | Form usable, fields not cut off | [ ] |
-| 5.2 | `/login` | All auth options accessible | [ ] |
-| 5.3 | `/onboarding` | Profile form scrollable, household member entry works | [ ] |
-| 5.4 | `/onboarding/fact-find` | Chat interface usable. Messages readable. Input bar accessible. Topic sidebar hidden gracefully | [ ] |
-| 5.5 | `/onboarding/risk-profile` | Questions readable, answer options tappable | [ ] |
-| 5.6 | `/onboarding/holdings` | Account cards, holdings entry, submit button all accessible | [ ] |
-| 5.7 | `/dashboard` | KPI cards stack properly. Charts readable. Plan sections expandable | [ ] |
-| 5.8 | `/dashboard/plan` | Timeline visible. Sections navigable. PDF download works | [ ] |
-| 5.9 | Plan walkthrough | Conversation view works on mobile (plan panel hidden, that's OK) | [ ] |
-| 5.10 | `/dashboard/settings` | All tabs accessible. Delete account flow works | [ ] |
-| 5.11 | PDF download on mobile | PDF opens/downloads successfully | [ ] |
-
-### 3B. Design Consistency Audit
+### 3A. Design Consistency Audit
 
 | # | Check | Expected | Pass |
 |---|-------|----------|------|
-| 5.12 | Emerald accent color (#10B981) used consistently | Buttons, badges, accents, charts all use emerald | [ ] |
-| 5.13 | Typography: Plus Jakarta Sans for headings, DM Sans for body | Fonts load and render correctly | [ ] |
-| 5.14 | Warm white background throughout | No jarring white/gray mismatches | [ ] |
-| 5.15 | "mosaic finance" wordmark is lowercase where used | Marketing pages use lowercase | [ ] |
-| 5.16 | No broken images or missing icons | All visual elements render | [ ] |
-| 5.17 | Consistent border radius, spacing, card styles across pages | Visual harmony | [ ] |
+| 5.1 | Emerald accent color (#10B981) used consistently | Buttons, badges, accents, charts all use emerald | [ ] |
+| 5.2 | Typography: Plus Jakarta Sans for headings, DM Sans for body | Fonts load and render correctly | [ ] |
+| 5.3 | Warm white background throughout | No jarring white/gray mismatches | [ ] |
+| 5.4 | "mosaic finance" wordmark is lowercase where used | Marketing pages use lowercase | [ ] |
+| 5.5 | No broken images or missing icons | All visual elements render | [ ] |
+| 5.6 | Consistent border radius, spacing, card styles across pages | Visual harmony | [ ] |
 
-### 3C. Loading & Error States
+### 3B. Loading & Error States
 
 | # | Test | Expected | Pass |
 |---|------|----------|------|
-| 5.18 | Slow network: throttle to Slow 3G, load dashboard | Skeleton loaders appear (not blank white page) | [ ] |
-| 5.19 | Kill the API (stop dev server mid-load) | Error message shown (not blank page or unhandled JS error) | [ ] |
-| 5.20 | Plan PDF generation with slow connection | Loading spinner on button, "Generating..." text | [ ] |
-| 5.21 | Fact-find with API error | Error boundary catches, retry option shown | [ ] |
-| 5.22 | Navigate to a non-existent route (e.g., `/dashboard/nonexistent`) | 404 page or graceful redirect (not blank) | [ ] |
-
-### 3D. Sentry Error Monitoring
-
-| # | Step | Expected Result | Pass |
-|---|------|----------------|------|
-| 5.23 | Trigger a deliberate client-side error (e.g., add `throw new Error("test")` temporarily) | Sentry captures the error | [ ] |
-| 5.24 | Trigger a deliberate API error (e.g., malformed request to `/api/conversation/message`) | Sentry captures server-side error | [ ] |
-| 5.25 | Check Sentry dashboard for the captured errors | Errors appear with stack traces | [ ] |
-| 5.26 | Verify no PII in Sentry events | No emails, aliases, or financial data in error payloads | [ ] |
-
-### 3E. Rate Limiting
-
-| # | Step | Expected Result | Pass |
-|---|------|----------------|------|
-| 5.27 | Send 11 messages to `/api/conversation/message` within 1 minute | 11th request returns 429 (rate limited) | [ ] |
-| 5.28 | Wait 1 minute, send another message | Request succeeds | [ ] |
-| 5.29 | Hit `/api/plan/generate` 6 times in 1 hour | 6th request returns 429 | [ ] |
+| 5.7 | Slow network: throttle to Slow 3G, load dashboard | Skeleton loaders appear (not blank white page) | [ ] |
+| 5.8 | Kill the API (stop dev server mid-load) | Error message shown (not blank page or unhandled JS error) | [ ] |
+| 5.9 | Plan PDF generation with slow connection | Loading spinner on button, "Generating..." text | [ ] |
+| 5.10 | Fact-find with API error | Error boundary catches, retry option shown | [ ] |
+| 5.11 | Navigate to a non-existent route (e.g., `/dashboard/nonexistent`) | 404 page or graceful redirect (not blank) | [ ] |
 
 ---
 
-## Block 4: Demo Prep
+## Block 4: Demo & Beta Readiness
 
-**Goal:** You have a real, polished plan you can show to anyone.
+**Goal:** You have a real, polished plan you can show to anyone — Co.learn, beta users, investors. This is the most important block for the validation sprint.
 
 ### 4A. Demo Plan Creation
 
@@ -369,7 +346,7 @@ Test on a real phone (or Chrome DevTools mobile emulation at 375px width).
 | 6.3 | Approve the plan via adviser queue | Plan delivered | [ ] |
 | 6.4 | Download the final PDF | PDF in hand | [ ] |
 | 6.5 | **Print the PDF.** Is this something you would hand to the dealer COO? | [ ] |
-| 6.6 | Walk through the entire experience as if showing your wife for the first time | Note every moment where you'd have to explain something the UI should make obvious | [ ] |
+| 6.6 | Walk through the entire experience as if showing a beta user for the first time | Note every moment where you'd have to explain something the UI should make obvious | [ ] |
 
 ### 4B. Demo Experience Check
 
@@ -383,11 +360,13 @@ Test on a real phone (or Chrome DevTools mobile emulation at 375px width).
 | 6.12 | Are there any moments where you'd lose a demo audience? | |
 | 6.13 | Total time from signup to PDF in hand: _____ minutes | |
 
-### 4C. Screen Recording
+### 4C. Screen Recording & Beta Prep
 
 | # | Step | Pass |
 |---|------|------|
-| 6.14 | Record a 3-minute screen recording of the core loop (signup → fact-find → plan → PDF → walkthrough) for the Co.Learn application | [ ] |
+| 6.14 | Record a 60-second screen recording of the core flow (signup → fact-find → plan → PDF) for Co.learn and remote beta sessions | [ ] |
+| 6.15 | Verify you can manually create a beta user account (no Stripe gate needed for beta) | [ ] |
+| 6.16 | Confirm you can act as the sole plan reviewer for 5 beta users within SLA | [ ] |
 
 ---
 
@@ -408,33 +387,135 @@ Test on a real phone (or Chrome DevTools mobile emulation at 375px width).
 
 | Block | Total Tests | Passed | Failed | Notes |
 |-------|------------|--------|--------|-------|
+| Block 0: Sprint Prerequisites | 18 | | | |
 | Block 1: Core Loop (Run 1 — SK) | 71 | | | |
 | Block 1: Core Loop (Run 2 — ON) | 7 | | | |
-| Block 1: Core Loop (Run 3 — BC) | 7 | | | |
 | Block 2: Security & Compliance | 34 | | | |
-| Block 3: Polish & Mobile | 29 | | | |
-| Block 4: Demo Prep | 14 | | | |
+| Block 3: Polish & Error Handling | 11 | | | |
+| Block 4: Demo & Beta Readiness | 16 | | | |
 | Rejection Flow | 6 | | | |
-| **TOTAL** | **168** | | | |
+| **TOTAL** | **163** | | | |
 
 ---
 
 ## Known Issues to Fix Before Testing
 
-These were identified during the codebase audit. They must be resolved before Block 1 testing begins:
+These must be resolved before Block 1 testing begins. Items marked ~~strikethrough~~ have been shipped.
 
-1. **Approval queue `processAction` doesn't call API** — `src/stores/admin-store.ts` `processAction` only removes the item from the store; it never POSTs to `/api/approval/[reportId]`. Approve/reject have no backend effect.
+1. **CRITICAL — Approval queue `processAction` doesn't call API** — `src/stores/admin-store.ts` `processAction` only removes the item from the store; it never POSTs to `/api/approval/[reportId]`. Approve/reject have no backend effect. The real API exists at `/api/approval/queue/route.ts` but is never called. **This is the #1 sprint blocker — the product cannot deliver a reviewed plan without it.**
 
-2. **Fact-find multi-session: UI doesn't restore messages** — Backend resumes sessions within 48h, but the fact-find page always starts with an empty message array. Users returning to a resumed session see no history.
+2. **Plan generation progress UI is a blank redirect** — `src/app/(onboarding)/onboarding/generating/page.tsx` just calls `router.replace("/dashboard")` and renders nothing. Users see a flash of blank page. Needs a real "Building your plan..." screen with step indicators.
 
-3. **Onboarding resumption skips risk-profile** — `getOnboardingProgress` redirects from fact-find directly to holdings, skipping the risk-profile step.
+3. **Fact-find multi-session: UI doesn't restore messages** — Backend resumes sessions within 48h, but the fact-find page always starts with an empty message array. Users returning to a resumed session see no history.
 
-4. **Fact-find guardrails missing from prompt** — No explicit instructions for handling off-topic requests, trade execution asks, or prompt injection in the fact-find system prompt.
+4. **Onboarding resumption skips risk-profile** — `getOnboardingProgress` redirects from fact-find directly to holdings, skipping the risk-profile step.
 
-5. **OAuth callback schema mismatch** — `app/auth/callback/route.ts` uses columns that don't exist (`email`, `tier`, `onboarding_completed`). New Google OAuth users will fail. Fix or disable OAuth for beta.
+5. **Fact-find guardrails missing from prompt** — No explicit instructions for handling off-topic requests, trade execution asks, or prompt injection in the fact-find system prompt.
 
-6. **Walkthrough mock data fallback** — Walkthrough falls back to `loadMockData("delivered")` when plan is missing, masking real issues.
+6. ~~**OAuth callback schema mismatch**~~ — Fixed: `app/auth/callback/route.ts` inserts only valid `user_profiles` columns (`subscription_tier: "snapshot"`) and uses `getOnboardingProgress()` for redirect.
+
+7. **Walkthrough mock data fallback** — Walkthrough falls back to `loadMockData("delivered")` when plan is missing, masking real issues.
 
 ---
 
-*Mosaic Finance · ChainForge Labs · March 2026 · Confidential*
+## Completed from Original Launch Blockers
+
+These items from the pre-sprint launch blockers list have been shipped and are verified in Block 0:
+
+- [x] **Build `/forgot-password` route** — Implemented at `src/app/(auth)/forgot-password/page.tsx`
+- [x] **Settings page persists changes to DB** — `PATCH /api/user/profile` writes to Supabase
+- [x] **Stripe billing portal** — `src/app/api/stripe/portal/route.ts` exists (not needed for validation sprint)
+- [x] **Pricing tiers aligned** — Marketing and config use Snapshot / Plan ($17/mo or $188/yr) / Advisor ($44/mo or $440/yr); see `src/lib/config/pricing.ts`
+
+---
+
+## Phase 2 — Deferred (Post-Validation Sprint)
+
+These are explicitly out of scope for the 6-week validation sprint. Only revisit if the core value proposition validates.
+
+### Mobile Responsiveness
+
+| # | Screen | What to Check | Pass |
+|---|--------|--------------|------|
+| P2.1 | `/signup` | Form usable, fields not cut off | [ ] |
+| P2.2 | `/login` | All auth options accessible | [ ] |
+| P2.3 | `/onboarding` | Profile form scrollable, household member entry works | [ ] |
+| P2.4 | `/onboarding/fact-find` | Chat interface usable. Messages readable. Input bar accessible. Topic sidebar hidden gracefully | [ ] |
+| P2.5 | `/onboarding/risk-profile` | Questions readable, answer options tappable | [ ] |
+| P2.6 | `/onboarding/holdings` | Account cards, holdings entry, submit button all accessible | [ ] |
+| P2.7 | `/dashboard` | KPI cards stack properly. Charts readable. Plan sections expandable | [ ] |
+| P2.8 | `/dashboard/plan` | Timeline visible. Sections navigable. PDF download works | [ ] |
+| P2.9 | Plan walkthrough | Conversation view works on mobile (plan panel hidden, that's OK) | [ ] |
+| P2.10 | `/dashboard/settings` | All tabs accessible. Delete account flow works | [ ] |
+| P2.11 | PDF download on mobile | PDF opens/downloads successfully | [ ] |
+
+### Sentry Error Monitoring
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| P2.12 | Trigger a deliberate client-side error | Sentry captures the error | [ ] |
+| P2.13 | Trigger a deliberate API error | Sentry captures server-side error | [ ] |
+| P2.14 | Check Sentry dashboard for captured errors | Errors appear with stack traces | [ ] |
+| P2.15 | Verify no PII in Sentry events | No emails, aliases, or financial data in error payloads | [ ] |
+
+### Rate Limiting
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| P2.16 | Send 11 messages to `/api/conversation/message` within 1 minute | 11th request returns 429 (rate limited) | [ ] |
+| P2.17 | Wait 1 minute, send another message | Request succeeds | [ ] |
+| P2.18 | Hit `/api/plan/generate` 6 times in 1 hour | 6th request returns 429 | [ ] |
+
+### Phase 2 — Advisor Conversations & Tier Gating
+
+Test after conversation credits and gating are implemented (not part of validation sprint MVP).
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| P2.19 | Snapshot user: start only one score-focused check-in with Charlie per calendar month | Additional check-ins blocked or upgrade prompt | [ ] |
+| P2.20 | Plan user: start up to 5 advisor conversations (`ad-hoc` / meeting) per month | 6th conversation blocked with upgrade to Advisor | [ ] |
+| P2.21 | Advisor user: unlimited advisor conversations | No monthly cap | [ ] |
+| P2.22 | `/dashboard/meeting` "Ask a Question" — assistant references user data from Supabase (holdings, profile) | Answers contextual to stored data | [ ] |
+| P2.23 | Life event conversation (inheritance, major purchase, etc.) persists updates to financial profile or session metadata | DB reflects new facts after conversation | [ ] |
+| P2.24 | Conversation usage counter resets on billing period or calendar month (per product spec) | Count resets predictably | [ ] |
+| P2.25 | Annual review due banner (`ReviewReminder`) and quarterly full review for Advisor tier fire on schedule | Alerts match tier rules | [ ] |
+| P2.26 | Plan tier: automated 6-month score refresh (lighter than full annual review) | User notified; score updates | [ ] |
+
+### Phase 2 — CFP Knowledge Base Integration
+
+Test after CFP course textbooks and documentation are uploaded and wired into prompts.
+
+| # | Step | Expected Result | Pass |
+|---|------|----------------|------|
+| P2.27 | Knowledge chunks load for `ad-hoc` and `annual-review` session types (and any advisor flows) | Relevant excerpts in system context | [ ] |
+| P2.28 | Charlie uses CFP-aligned planning process language (gather data, analyze, education-and-analysis recommendations) | No directive "you must buy" language | [ ] |
+| P2.29 | Life event guidance (e.g. debt vs. invest) cites framework: after-tax cost of debt, return expectations, risk tolerance, emergency fund | Structured reasoning | [ ] |
+| P2.30 | Deeper knowledge does not weaken compliance — still education-and-analysis, referrals to professionals where required | Audit sample conversations | [ ] |
+
+### Phase 2 — Founding Members Program
+
+Future implementation (not part of validation sprint MVP):
+
+- **$98** one-time lifetime Plan access (9+8=17, 1+7=8 numerology alignment)
+- Capped at **28** members (GG33 wealth number)
+- Requires: invite code flow, one-time Stripe checkout (not subscription), counter/cap enforcement server-side
+- Landing page or dedicated `/founding` route with remaining spots counter
+- Consider timing launch on a **28th** for numerological alignment
+
+### Other Deferred Work
+
+- [ ] Founding Members program ($98 lifetime, 28-member cap)
+- [ ] Instrument PostHog analytics across key flows
+- [ ] Conversation credit tracking and monthly reset (see Advisor Conversations tests above)
+- [ ] Monthly check-in conversation for Snapshot tier (score-focused)
+- [ ] Annual billing toggle on marketing pricing and Stripe price IDs in production
+- [ ] CFP knowledge base upload and prompt integration (see CFP tests above)
+- [ ] Clean up dead route stubs in `src/app/(dashboard)/`
+- [ ] Build beta invite flow with invite codes
+- [ ] Statement upload / Claude Vision parsing
+- [ ] Meeting / annual review scheduling feature
+- [ ] Newsletter system
+
+---
+
+*Mosaic Finance · ChainForge Labs · April 2026 · Confidential*

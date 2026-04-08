@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { stripe, PRICE_IDS } from '@/lib/stripe/client';
+import { stripe, priceIdForCheckout } from '@/lib/stripe/client';
 import { captureAPIError } from '@/lib/sentry';
 import { z } from 'zod';
 
 const CheckoutSchema = z.object({
-  tier: z.enum(['essential', 'pro', 'premium']),
+  tier: z.enum(['plan', 'advisor']),
+  interval: z.enum(['monthly', 'annual']).default('monthly'),
 });
 
 export async function POST(req: NextRequest) {
@@ -27,12 +28,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tier } = parsed.data;
-    const priceId = PRICE_IDS[tier];
+    const { tier, interval } = parsed.data;
+    const priceId = priceIdForCheckout(tier, interval);
 
     if (!priceId) {
       return NextResponse.json(
-        { error: 'Invalid subscription tier' },
+        { error: 'Invalid subscription tier or interval' },
         { status: 400 },
       );
     }

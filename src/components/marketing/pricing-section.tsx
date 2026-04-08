@@ -1,75 +1,74 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { TIER_PRICING } from "@/lib/config/pricing";
+import {
+  formatTierPrice,
+  type BillingInterval,
+} from "@/lib/config/pricing";
 
 const TIERS = [
   {
-    name: "Free",
-    price: TIER_PRICING.free.price,
-    period: TIER_PRICING.free.period,
+    id: "snapshot" as const,
+    name: "Snapshot",
     tagline: "See where you stand",
     features: [
-      "One financial health diagnostic",
+      "Financial Health Score",
       "Basic profile",
+      "1 monthly check-in with Charlie (score-focused)",
       "No credit card",
     ],
     cta: "Start Free",
     style: "outlined" as const,
     highlighted: false,
+    paid: false,
   },
   {
-    name: "Essential",
-    price: TIER_PRICING.essential.price,
-    period: TIER_PRICING.essential.period,
-    tagline: "Your complete financial plan",
+    id: "plan" as const,
+    name: "Plan",
+    tagline: "Your financial plan + professional review",
     features: [
       "Full conversational fact-find",
-      "8-section plan",
-      "Monthly market update",
-      "PDF download",
-      "Professional review",
+      "8-section plan + PDF",
+      "5 conversations/month with Charlie",
+      "Life event guidance",
+      "6-month score refresh",
+      "Professional review (48h)",
     ],
     cta: "Get Started",
     style: "dark" as const,
     highlighted: false,
+    paid: true,
   },
   {
-    name: "Pro",
-    price: TIER_PRICING.pro.price,
-    period: TIER_PRICING.pro.period,
-    tagline: "Stay on track",
+    id: "advisor" as const,
+    name: "Advisor",
+    tagline: "Your ongoing advisory relationship",
     features: [
-      "Everything in Essential",
-      "Unlimited plan updates",
+      "Everything in Plan",
+      "Unlimited conversations with Charlie",
+      "Quarterly full reviews",
+      "Same-day professional review",
       "Portfolio monitoring",
-      "Debt payoff tracker",
-      "Quarterly re-plan",
+      "Tax year-end report",
     ],
     cta: "Get Started",
     style: "emerald" as const,
     highlighted: true,
-  },
-  {
-    name: "Premium",
-    price: TIER_PRICING.premium.price,
-    period: TIER_PRICING.premium.period,
-    tagline: "Full experience",
-    features: [
-      "Everything in Pro",
-      "Voice interface",
-      "Same-day professional review",
-      "Tax year-end report",
-    ],
-    cta: "Get Started",
-    style: "dark" as const,
-    highlighted: false,
+    paid: true,
   },
 ];
 
+function priceLabel(
+  tierId: (typeof TIERS)[number]["id"],
+  interval: BillingInterval,
+): string {
+  return formatTierPrice(tierId, interval);
+}
+
 export function PricingSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const [billing, setBilling] = useState<BillingInterval>("monthly");
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -82,7 +81,8 @@ export function PricingSection() {
             items.forEach((item, i) => {
               const htmlItem = item as HTMLElement;
               setTimeout(() => {
-                htmlItem.style.transition = "opacity 400ms ease-out, transform 400ms ease-out";
+                htmlItem.style.transition =
+                  "opacity 400ms ease-out, transform 400ms ease-out";
                 htmlItem.style.opacity = "1";
                 htmlItem.style.transform = "translateY(0)";
               }, i * 80);
@@ -91,14 +91,18 @@ export function PricingSection() {
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <section ref={sectionRef} id="pricing" className="bg-warm-50 px-6 py-20 lg:py-[120px]">
+    <section
+      ref={sectionRef}
+      id="pricing"
+      className="bg-warm-50 px-6 py-20 lg:py-[120px]"
+    >
       <div className="mx-auto max-w-[1180px]">
         <p
           data-animate
@@ -116,13 +120,46 @@ export function PricingSection() {
         </h2>
         <p
           data-animate
-          className="mb-14 font-body text-base text-text-secondary"
+          className="mb-8 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Every plan reviewed by a registered financial professional. Cancel anytime.
+          Every plan reviewed by a registered financial professional. Cancel
+          anytime.
         </p>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          data-animate
+          className="mb-10 flex flex-wrap items-center justify-center gap-3 sm:justify-start"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          <span className="font-body text-sm text-text-muted">Billing</span>
+          <div className="inline-flex rounded-full border border-warm-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setBilling("monthly")}
+              className={`rounded-full px-4 py-1.5 font-display text-xs font-semibold transition-colors ${
+                billing === "monthly"
+                  ? "bg-slate-950 text-white"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              type="button"
+              onClick={() => setBilling("annual")}
+              className={`rounded-full px-4 py-1.5 font-display text-xs font-semibold transition-colors ${
+                billing === "annual"
+                  ? "bg-slate-950 text-white"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Annual
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {TIERS.map((tier) => (
             <div
               key={tier.name}
@@ -142,13 +179,15 @@ export function PricingSection() {
               <p className="mb-1 font-display text-sm font-semibold text-text-secondary">
                 {tier.name}
               </p>
-              <div className="mb-1 flex items-baseline">
-                <span className="font-display text-4xl font-bold text-text-primary">
-                  {tier.price}
-                </span>
-                {tier.period && (
-                  <span className="ml-0.5 font-body text-sm text-text-muted">
-                    {tier.period}
+              <div className="mb-1 flex flex-col gap-0.5">
+                <div className="flex items-baseline">
+                  <span className="font-display text-4xl font-bold text-text-primary">
+                    {priceLabel(tier.id, billing)}
+                  </span>
+                </div>
+                {tier.paid && billing === "annual" && (
+                  <span className="font-body text-[13px] text-text-muted">
+                    Billed annually
                   </span>
                 )}
               </div>
@@ -187,7 +226,8 @@ export function PricingSection() {
           className="mt-8 text-center font-body text-[13px] text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          All prices in CAD. Plans auto-renew monthly.
+          All prices in CAD. Plans auto-renew monthly or annually based on your
+          choice.
         </p>
       </div>
     </section>

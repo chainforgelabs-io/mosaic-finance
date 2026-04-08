@@ -1,4 +1,4 @@
-export type Tier = "free" | "essential" | "pro" | "premium";
+export type Tier = "snapshot" | "plan" | "advisor";
 
 export type PlanStatus = "none" | "generating" | "failed" | "pending_review" | "delivered";
 

@@ -399,7 +399,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser({
           id: authUser.id,
           alias: profile.alias ?? authUser.user_metadata?.alias ?? "User",
-          tier: profile.subscription_tier ?? "free",
+          tier: profile.subscription_tier ?? "snapshot",
           age: profile.age ?? undefined,
           province: (PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince) || undefined,
           employmentType: (EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment) || undefined,
@@ -413,7 +413,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser({
           id: authUser.id,
           alias: authUser.user_metadata?.alias ?? "User",
-          tier: "free",
+          tier: "snapshot",
           notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
         });
       }
@@ -562,7 +562,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[var(--warm-50)]">
       <AppSidebar
         userAlias={user?.alias ?? "User"}
-        tier={user?.tier ?? "free"}
+        tier={user?.tier ?? "snapshot"}
         planStatus={planStatus}
         planId={plan?.id}
       />

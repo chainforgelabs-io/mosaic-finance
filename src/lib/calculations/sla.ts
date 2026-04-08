@@ -1,4 +1,4 @@
-export type SubscriptionTier = 'free' | 'essential' | 'pro' | 'premium';
+export type SubscriptionTier = 'snapshot' | 'plan' | 'advisor';
 export type QueuePriority = 'standard' | 'priority';
 
 const SLA_HOURS: Record<QueuePriority, number> = {
@@ -9,7 +9,7 @@ const SLA_HOURS: Record<QueuePriority, number> = {
 const SLA_WARNING_THRESHOLD_HOURS = 4;
 
 export function getSLAPriority(tier: SubscriptionTier): QueuePriority {
-  return tier === 'premium' ? 'priority' : 'standard';
+  return tier === 'advisor' ? 'priority' : 'standard';
 }
 
 export function calculateSLADeadline(

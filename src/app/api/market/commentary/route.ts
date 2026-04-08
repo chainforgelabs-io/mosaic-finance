@@ -85,11 +85,11 @@ export async function POST(request: NextRequest) {
     // Determine model based on user tier
     const { data: profile } = await supabase
       .from("user_profiles")
-      .select("tier")
+      .select("subscription_tier")
       .eq("id", user.id)
       .single();
 
-    const model = getModelForTier(profile?.tier || "free");
+    const model = getModelForTier(profile?.subscription_tier ?? "snapshot");
     const commentary = await generateAndStoreCommentary(persona, model);
 
     return NextResponse.json({ commentary });

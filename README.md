@@ -33,7 +33,7 @@ An AI-powered financial planning platform that conducts a structured, conversati
 | Backend / API | Next.js API Routes (Node.js runtime) |
 | Database | PostgreSQL via Supabase (row-level security enabled) |
 | Auth | Supabase Auth (email/password + magic link) |
-| AI / LLM | Anthropic Claude -- Opus (premium plan generation) + Sonnet (fact-find, commentary, market context) |
+| AI / LLM | Anthropic Claude -- Opus (plan generation) + Sonnet (fact-find, commentary, market context for snapshot/plan tiers) |
 | Real-time Search | xAI Grok API -- `web_search` (financial news) + `x_search` (X/Twitter sentiment) |
 | Market Data | Finnhub (real-time quotes, news) + Financial Modeling Prep (historical, fundamentals, search) + Alpha Vantage (fallback) |
 | Caching / Rate Limiting | Upstash Redis |
@@ -41,7 +41,7 @@ An AI-powered financial planning platform that conducts a structured, conversati
 | Document Parsing | Claude Vision API (for blacked-out statement uploads) |
 | File Storage | Supabase Storage (encrypted, session-scoped) |
 | Email | Resend (transactional + weekly newsletters) |
-| Payments | Stripe (subscriptions: Free / Essential $19 / Pro $39 / Premium $79 CAD) |
+| Payments | Stripe (subscriptions: Snapshot $0 / Plan $17 mo or $188 yr / Advisor $44 mo or $440 yr CAD) |
 | Scheduled Jobs | Vercel Cron (weekly newsletter generation) |
 | Analytics | PostHog |
 | Error Tracking | Sentry |
@@ -192,7 +192,7 @@ The Market Context page features AI investor personas that analyze current marke
 1. **Grok gathers real-time signals** -- Uses `web_search` and `x_search` tools to pull current market data, news, and social sentiment from X/Twitter
 2. **Claude generates persona analysis** -- The market signal is fed to Claude with a persona-specific system prompt encoding the investor's philosophy
 3. **Structured output** -- Each commentary includes: outlook rating, summary, key themes, risk assessment, and actionable insights
-4. **Model tiering** -- Claude Sonnet for free/essential/pro users, Claude Opus for premium subscribers
+4. **Model tiering** -- Claude Sonnet for snapshot/plan users, Claude Opus for advisor tier (market commentary)
 
 ## Deployment
 

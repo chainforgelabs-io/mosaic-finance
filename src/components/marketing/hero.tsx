@@ -45,7 +45,7 @@ export function Hero() {
         >
           The $3,000/year advisor.
           <br />
-          Now $19/month.
+          Now $17/month.
         </h1>
 
         <p

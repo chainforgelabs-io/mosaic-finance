@@ -73,6 +73,9 @@ export async function GET(
       },
     });
   } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[plan/[planId]/pdf]', error);
+    }
     captureAPIError(error, { route: 'plan/[planId]/pdf' });
     return NextResponse.json(
       { error: 'Internal server error' },

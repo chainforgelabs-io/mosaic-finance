@@ -14,27 +14,22 @@ describe('SLA Deadline Calculation', () => {
   const baseTime = new Date('2026-03-04T12:00:00Z');
 
   describe('getSLAPriority', () => {
-    it('premium tier gets priority queue', () => {
-      expect(getSLAPriority('premium')).toBe('priority');
+    it('advisor tier gets priority queue', () => {
+      expect(getSLAPriority('advisor')).toBe('priority');
     });
 
-    it('pro tier gets standard queue', () => {
-      expect(getSLAPriority('pro')).toBe('standard');
+    it('plan tier gets standard queue', () => {
+      expect(getSLAPriority('plan')).toBe('standard');
     });
 
-    it('essential tier gets standard queue', () => {
-      expect(getSLAPriority('essential')).toBe('standard');
-    });
-
-    it('free tier gets standard queue', () => {
-      expect(getSLAPriority('free')).toBe('standard');
+    it('snapshot tier gets standard queue', () => {
+      expect(getSLAPriority('snapshot')).toBe('standard');
     });
 
     it.each<[SubscriptionTier, QueuePriority]>([
-      ['free', 'standard'],
-      ['essential', 'standard'],
-      ['pro', 'standard'],
-      ['premium', 'priority'],
+      ['snapshot', 'standard'],
+      ['plan', 'standard'],
+      ['advisor', 'priority'],
     ])('tier "%s" maps to "%s" priority', (tier, expected) => {
       expect(getSLAPriority(tier)).toBe(expected);
     });
@@ -57,7 +52,7 @@ describe('SLA Deadline Calculation', () => {
       expect(deadline.getTime()).toBe(expected.getTime());
     });
 
-    it('adds 8 hours for priority (premium)', () => {
+    it('adds 8 hours for priority (advisor)', () => {
       const deadline = calculateSLADeadline(baseTime, 'priority');
       const expected = new Date('2026-03-04T20:00:00Z');
       expect(deadline.getTime()).toBe(expected.getTime());
@@ -161,9 +156,9 @@ describe('SLA Deadline Calculation', () => {
   });
 
   describe('end-to-end SLA workflow', () => {
-    it('premium user: submit → 8hr deadline → status tracking', () => {
+    it('advisor user: submit → 8hr deadline → status tracking', () => {
       const submittedAt = new Date('2026-03-04T14:00:00Z');
-      const priority = getSLAPriority('premium');
+      const priority = getSLAPriority('advisor');
       expect(priority).toBe('priority');
 
       const deadline = calculateSLADeadline(submittedAt, priority);
@@ -180,7 +175,7 @@ describe('SLA Deadline Calculation', () => {
 
     it('standard user: submit → 24hr deadline → SLA breach', () => {
       const submittedAt = new Date('2026-03-04T14:00:00Z');
-      const priority = getSLAPriority('pro');
+      const priority = getSLAPriority('plan');
       expect(priority).toBe('standard');
 
       const deadline = calculateSLADeadline(submittedAt, priority);

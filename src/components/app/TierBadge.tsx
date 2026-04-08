@@ -1,8 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-
-type Tier = "free" | "essential" | "pro" | "premium";
+import type { Tier } from "@/types";
 
 interface TierBadgeProps {
   tier: Tier;
@@ -10,17 +9,15 @@ interface TierBadgeProps {
 }
 
 const tierStyles: Record<Tier, string> = {
-  free: "bg-gray-200 text-gray-600",
-  essential: "bg-[var(--slate-950)] text-white",
-  pro: "border border-[var(--emerald)] text-[var(--emerald)] bg-transparent",
-  premium: "bg-[var(--emerald)] text-white",
+  snapshot: "bg-gray-200 text-gray-600",
+  plan: "bg-[var(--slate-950)] text-white",
+  advisor: "bg-[var(--emerald)] text-white",
 };
 
 const tierLabels: Record<Tier, string> = {
-  free: "Free",
-  essential: "Essential",
-  pro: "Pro",
-  premium: "Premium",
+  snapshot: "Snapshot",
+  plan: "Plan",
+  advisor: "Advisor",
 };
 
 export function TierBadge({ tier, className }: TierBadgeProps) {

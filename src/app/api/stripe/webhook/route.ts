@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         const priceId = subscription.items.data[0]?.price?.id;
-        const tier = priceId ? tierFromPriceId(priceId) : 'free';
+        const tier = priceId ? tierFromPriceId(priceId) : 'snapshot';
         const isActive =
           subscription.status === 'active' ||
           subscription.status === 'trialing';
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         await supabase
           .from('user_profiles')
           .update({
-            subscription_tier: isActive ? tier : 'free',
+            subscription_tier: isActive ? tier : 'snapshot',
             stripe_subscription_id: subscription.id,
           })
           .eq('stripe_customer_id', customerId);
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         await supabase
           .from('user_profiles')
           .update({
-            subscription_tier: 'free',
+            subscription_tier: 'snapshot',
             stripe_subscription_id: null,
           })
           .eq('stripe_customer_id', customerId);

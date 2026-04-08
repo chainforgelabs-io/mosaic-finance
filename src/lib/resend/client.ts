@@ -21,7 +21,7 @@ export async function sendApprovalQueueNotification(
         <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">New Plan Pending Review</h2>
         <p>A new financial plan has been submitted for professional review.</p>
-        ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">⚡ PRIORITY — Premium client (8-hour SLA)</p>' : '<p>Standard review — 24-hour SLA</p>'}
+        ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">⚡ PRIORITY — Advisor tier (8-hour SLA)</p>' : '<p>Standard review — 24-hour SLA</p>'}
         <a href="${APP_URL}/admin/approval-queue"
            style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">
           Open Approval Queue

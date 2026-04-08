@@ -64,7 +64,7 @@ export async function signUp(formData: {
       id: authData.user.id,
       alias: parsed.data.alias,
       province: PROVINCE_CODES[parsed.data.province] ?? parsed.data.province,
-      subscription_tier: "free",
+      subscription_tier: "snapshot",
     });
 
     if (profileError) {

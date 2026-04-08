@@ -227,5 +227,5 @@ export function getPersona(slug: PersonaSlug): Persona | undefined {
 }
 
 export function getModelForTier(tier: string): ClaudeModel {
-  return tier === "premium" ? "opus" : "sonnet";
+  return tier === "advisor" ? "opus" : "sonnet";
 }

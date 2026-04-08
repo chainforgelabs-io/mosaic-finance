@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOnboardingProgress } from "@/lib/actions/onboarding";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -20,23 +21,22 @@ export async function GET(request: Request) {
 
         const { data: existingProfile } = await supabase
           .from("user_profiles")
-          .select("id, onboarding_completed")
+          .select("id")
           .eq("id", user.id)
           .single();
 
         if (!existingProfile) {
           await supabase.from("user_profiles").insert({
             id: user.id,
-            email: user.email,
-            alias: user.user_metadata?.full_name?.split(" ")[0] ?? `user_${user.id.slice(0, 6)}`,
-            tier: "free",
-            onboarding_completed: false,
+            alias:
+              user.user_metadata?.full_name?.split(" ")[0] ??
+              `user_${user.id.slice(0, 6)}`,
+            subscription_tier: "snapshot",
           });
-          return NextResponse.redirect(`${origin}/onboarding`);
         }
 
-        const redirectTo = existingProfile.onboarding_completed ? "/dashboard" : "/onboarding";
-        return NextResponse.redirect(`${origin}${redirectTo}`);
+        const progress = await getOnboardingProgress();
+        return NextResponse.redirect(`${origin}${progress.redirectPath}`);
       }
 
       return NextResponse.redirect(`${origin}${next}`);

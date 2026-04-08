@@ -13,7 +13,7 @@ export const mockUser: UserProfile = {
   age: 34,
   employmentType: "Employed",
   familyStructure: "Married",
-  tier: "pro",
+  tier: "advisor",
 };
 
 const createSection = (
