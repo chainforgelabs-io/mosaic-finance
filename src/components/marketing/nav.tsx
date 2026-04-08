@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
 
@@ -57,22 +56,22 @@ export function Nav() {
           >
             Sign In
           </a>
-          <Link
-            href="/waitlist"
+          <a
+            href="/#waitlist"
             className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
           >
             Get Started
-          </Link>
+          </a>
         </div>
 
         {/* Mobile */}
         <div className="flex items-center gap-3 md:hidden">
-          <Link
-            href="/waitlist"
+          <a
+            href="/#waitlist"
             className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
           >
             Get Started
-          </Link>
+          </a>
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className={`p-1 ${scrolled ? "text-text-primary" : "text-text-inverse"}`}

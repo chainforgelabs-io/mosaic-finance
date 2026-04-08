@@ -64,7 +64,7 @@ export function WaitlistForm({
   const successBody =
     status === "duplicate"
       ? "You're already on the list — we'll email you when early access opens."
-      : "We'll notify you when early access opens. Your plan will be reviewed by a registered financial professional.";
+      : "We'll let you know when early access opens.";
 
   if (status === "success" || status === "duplicate") {
     return (

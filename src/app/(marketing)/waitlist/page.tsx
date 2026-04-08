@@ -58,10 +58,10 @@ export default function WaitlistPage() {
               <Shield className="h-5 w-5" aria-hidden />
             </div>
             <p className="font-display text-sm font-semibold text-white">
-              CIM + CFP Reviewed
+              Professionally Reviewed
             </p>
             <p className="mt-1 font-body text-sm text-text-muted">
-              Every plan reviewed by registered financial professionals before delivery.
+              Every plan reviewed by a financial professional before delivery.
             </p>
           </div>
           <div className="flex flex-col items-center text-center">
