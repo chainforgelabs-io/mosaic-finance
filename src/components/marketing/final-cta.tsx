@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
+import { WaitlistForm } from "@/components/marketing/waitlist-form";
 
 export function FinalCta() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -49,13 +49,12 @@ export function FinalCta() {
         >
           No credit card. No personal information. Just a conversation.
         </p>
-        <div data-animate style={{ opacity: 0, transform: "translateY(16px)" }}>
-          <Link
-            href="/signup"
-            className="inline-block rounded-full bg-emerald px-10 py-4 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
-          >
-            Start Your Free Plan
-          </Link>
+        <div
+          data-animate
+          className="mx-auto max-w-[520px]"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          <WaitlistForm source="final-cta" variant="section" />
         </div>
         <p
           data-animate

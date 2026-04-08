@@ -6,9 +6,9 @@ import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
 
 const NAV_LINKS = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "For Advisors", href: "#trust" },
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Pricing", href: "/#pricing" },
+  { label: "For Advisors", href: "/#trust" },
 ];
 
 export function Nav() {
@@ -58,7 +58,7 @@ export function Nav() {
             Sign In
           </a>
           <Link
-            href="/signup"
+            href="/waitlist"
             className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
           >
             Get Started
@@ -68,7 +68,7 @@ export function Nav() {
         {/* Mobile */}
         <div className="flex items-center gap-3 md:hidden">
           <Link
-            href="/signup"
+            href="/waitlist"
             className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
           >
             Get Started

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Link from "next/link";
+import { WaitlistForm } from "@/components/marketing/waitlist-form";
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
@@ -24,7 +24,8 @@ export function Hero() {
 
   return (
     <section
-      className="relative flex min-h-screen items-center justify-center bg-slate-950 px-6"
+      id="waitlist"
+      className="relative flex min-h-screen scroll-mt-20 items-center justify-center bg-slate-950 px-6"
       style={{
         backgroundImage:
           "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
@@ -58,16 +59,11 @@ export function Hero() {
           professional before you see it.
         </p>
 
-        <div data-animate className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link
-            href="/signup"
-            className="rounded-full bg-emerald px-8 py-3.5 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
-          >
-            Start Your Free Plan
-          </Link>
+        <div data-animate className="mx-auto w-full max-w-[520px]">
+          <WaitlistForm source="hero" variant="hero" />
           <a
             href="#how-it-works"
-            className="rounded-full border border-white/20 px-8 py-3.5 font-display text-sm font-semibold text-white transition-colors hover:border-white/40"
+            className="mt-4 inline-block font-display text-sm font-semibold text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline"
           >
             See how it works
           </a>

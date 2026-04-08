@@ -206,7 +206,7 @@ export function PricingSection() {
                 ))}
               </ul>
               <Link
-                href="/signup"
+                href="/waitlist"
                 className={`block w-full rounded-full py-2.5 text-center font-display text-sm font-semibold transition-colors ${
                   tier.style === "emerald"
                     ? "bg-emerald text-white hover:bg-emerald-dark"

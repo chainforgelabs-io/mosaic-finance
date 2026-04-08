@@ -9,22 +9,7 @@ import {
   resetPasswordSchema,
 } from "@/lib/schemas/auth";
 import { getOnboardingProgress } from "@/lib/actions/onboarding";
-
-const PROVINCE_CODES: Record<string, string> = {
-  "Alberta": "AB",
-  "British Columbia": "BC",
-  "Manitoba": "MB",
-  "New Brunswick": "NB",
-  "Newfoundland and Labrador": "NL",
-  "Northwest Territories": "NT",
-  "Nova Scotia": "NS",
-  "Nunavut": "NU",
-  "Ontario": "ON",
-  "Prince Edward Island": "PE",
-  "Quebec": "QC",
-  "Saskatchewan": "SK",
-  "Yukon": "YT",
-};
+import { PROVINCE_CODE_MAP } from "@/lib/constants/provinces";
 
 export type AuthResult = {
   error?: string;
@@ -63,7 +48,7 @@ export async function signUp(formData: {
     const { error: profileError } = await supabase.from("user_profiles").insert({
       id: authData.user.id,
       alias: parsed.data.alias,
-      province: PROVINCE_CODES[parsed.data.province] ?? parsed.data.province,
+      province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
       subscription_tier: "snapshot",
     });
 

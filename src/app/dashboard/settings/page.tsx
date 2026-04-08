@@ -9,6 +9,7 @@ import {
   formatTierPrice,
   type BillingInterval,
 } from "@/lib/config/pricing";
+import { PROVINCES } from "@/lib/constants/provinces";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
 import type { NotificationPreferences } from "@/types";
 import {
@@ -30,22 +31,6 @@ const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
   { id: "subscription", label: "Subscription", icon: CreditCard },
   { id: "privacy", label: "Privacy", icon: Shield },
   { id: "notifications", label: "Notifications", icon: Bell },
-];
-
-const provinces = [
-  "Alberta",
-  "British Columbia",
-  "Manitoba",
-  "New Brunswick",
-  "Newfoundland and Labrador",
-  "Northwest Territories",
-  "Nova Scotia",
-  "Nunavut",
-  "Ontario",
-  "Prince Edward Island",
-  "Quebec",
-  "Saskatchewan",
-  "Yukon",
 ];
 
 const employmentTypes = ["Employed", "Self-Employed", "Retired", "Student"];
@@ -144,7 +129,7 @@ function ProfileTab() {
           className="w-full px-4 py-2.5 rounded-lg border border-[var(--warm-200)] bg-white font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--emerald)] focus:border-transparent transition-shadow"
         >
           <option value="">Select province</option>
-          {provinces.map((p) => (
+          {PROVINCES.map((p) => (
             <option key={p} value={p}>
               {p}
             </option>
