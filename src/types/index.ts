@@ -1,6 +1,13 @@
 export type Tier = "snapshot" | "plan" | "advisor";
 
-export type PlanStatus = "none" | "generating" | "failed" | "pending_review" | "delivered";
+export type PlanStatus =
+  | "none"
+  | "generating"
+  | "failed"
+  | "pending_review"
+  | "approved"
+  | "rejected"
+  | "delivered";
 
 export type RiskLabel =
   | "Conservative"
@@ -23,6 +30,8 @@ export interface UserProfile {
   age?: number;
   employmentType?: string;
   familyStructure?: string;
+  /** Mirrors user_profiles.role when loaded in dashboard layout */
+  role?: "user" | "admin";
   tier: Tier;
   notificationPreferences?: NotificationPreferences;
 }
@@ -135,7 +144,7 @@ export type OnboardingStep =
   | "review"
   | "complete";
 
-export type UserRole = "user" | "cim_reviewer";
+export type UserRole = "user" | "admin";
 
 export type ApprovalAction = "approve" | "edit_approve" | "reject";
 

@@ -16,12 +16,12 @@ describe('Role-Based Access Control', () => {
       expect(isValidRole('user')).toBe(true);
     });
 
-    it('accepts "cim_reviewer"', () => {
-      expect(isValidRole('cim_reviewer')).toBe(true);
-    });
-
     it('accepts "admin"', () => {
       expect(isValidRole('admin')).toBe(true);
+    });
+
+    it('rejects legacy cim_reviewer', () => {
+      expect(isValidRole('cim_reviewer')).toBe(false);
     });
 
     it('rejects unknown roles', () => {
@@ -71,8 +71,8 @@ describe('Role-Based Access Control', () => {
     });
   });
 
-  describe('CIM Reviewer role permissions', () => {
-    const role: UserRole = 'cim_reviewer';
+  describe('Admin role permissions', () => {
+    const role: UserRole = 'admin';
 
     it('has all user permissions', () => {
       const userPerms = ROLE_PERMISSIONS['user'];
@@ -93,25 +93,6 @@ describe('Role-Based Access Control', () => {
       expect(canReadAllPlans(role)).toBe(true);
     });
 
-    it('CANNOT manage users', () => {
-      expect(canManageUsers(role)).toBe(false);
-    });
-
-    it('CANNOT access analytics', () => {
-      expect(hasPermission(role, 'read:analytics')).toBe(false);
-    });
-  });
-
-  describe('Admin role permissions', () => {
-    const role: UserRole = 'admin';
-
-    it('has all CIM reviewer permissions', () => {
-      const reviewerPerms = ROLE_PERMISSIONS['cim_reviewer'];
-      for (const perm of reviewerPerms) {
-        expect(hasPermission(role, perm)).toBe(true);
-      }
-    });
-
     it('CAN manage users', () => {
       expect(canManageUsers(role)).toBe(true);
     });
@@ -119,33 +100,16 @@ describe('Role-Based Access Control', () => {
     it('CAN access analytics', () => {
       expect(hasPermission(role, 'read:analytics')).toBe(true);
     });
-
-    it('CAN access approval queue', () => {
-      expect(canAccessApprovalQueue(role)).toBe(true);
-    });
-
-    it('CAN review plans', () => {
-      expect(canReviewPlan(role)).toBe(true);
-    });
   });
 
   describe('Permission hierarchy', () => {
-    it('admin has strictly more permissions than cim_reviewer', () => {
+    it('admin has strictly more permissions than user', () => {
       const adminPerms = ROLE_PERMISSIONS['admin'];
-      const reviewerPerms = ROLE_PERMISSIONS['cim_reviewer'];
-      for (const perm of reviewerPerms) {
-        expect(adminPerms).toContain(perm);
-      }
-      expect(adminPerms.length).toBeGreaterThan(reviewerPerms.length);
-    });
-
-    it('cim_reviewer has strictly more permissions than user', () => {
-      const reviewerPerms = ROLE_PERMISSIONS['cim_reviewer'];
       const userPerms = ROLE_PERMISSIONS['user'];
       for (const perm of userPerms) {
-        expect(reviewerPerms).toContain(perm);
+        expect(adminPerms).toContain(perm);
       }
-      expect(reviewerPerms.length).toBeGreaterThan(userPerms.length);
+      expect(adminPerms.length).toBeGreaterThan(userPerms.length);
     });
   });
 
@@ -160,26 +124,21 @@ describe('Role-Based Access Control', () => {
   });
 
   describe('Approval queue access — compliance critical', () => {
-    it('only cim_reviewer and admin can access the queue', () => {
+    it('only admin can access the queue', () => {
       expect(canAccessApprovalQueue('user')).toBe(false);
-      expect(canAccessApprovalQueue('cim_reviewer')).toBe(true);
       expect(canAccessApprovalQueue('admin')).toBe(true);
     });
 
-    it('only cim_reviewer and admin can approve/reject plans', () => {
+    it('only admin can approve/reject plans', () => {
       expect(canReviewPlan('user')).toBe(false);
-      expect(canReviewPlan('cim_reviewer')).toBe(true);
       expect(canReviewPlan('admin')).toBe(true);
     });
 
     it('role field is independent of subscription tier (compliance requirement)', () => {
-      // This test documents the architectural decision: role != subscription_tier
-      // A cim_reviewer can also have a subscription for testing
-      const roles: UserRole[] = ['user', 'cim_reviewer', 'admin'];
+      const roles: UserRole[] = ['user', 'admin'];
       for (const role of roles) {
         expect(isValidRole(role)).toBe(true);
       }
-      // Subscription tiers are NOT valid roles
       expect(isValidRole('free')).toBe(false);
       expect(isValidRole('essential')).toBe(false);
       expect(isValidRole('pro')).toBe(false);

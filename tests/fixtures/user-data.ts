@@ -9,15 +9,16 @@ export const SAMPLE_USER_PROFILE = {
   role: 'user' as const,
 };
 
-export const SAMPLE_CIM_REVIEWER = {
+/** Advisor / ops user (admin role) — same capabilities as SAMPLE_ADMIN for queue tests */
+export const SAMPLE_ADVISOR = {
   id: '660e8400-e29b-41d4-a716-446655440001',
-  alias: 'Reviewer',
+  alias: 'Advisor',
   age: 45,
   province: 'ON' as const,
   employment_type: 'employed' as const,
   family_structure: 'married' as const,
   subscription_tier: 'plan' as const,
-  role: 'cim_reviewer' as const,
+  role: 'admin' as const,
 };
 
 export const SAMPLE_ADMIN = {

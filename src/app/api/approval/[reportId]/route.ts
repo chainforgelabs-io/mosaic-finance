@@ -35,7 +35,7 @@ export async function POST(
       .eq('id', user.id)
       .single();
 
-    if (reviewer?.role !== 'cim_reviewer' && reviewer?.role !== 'admin') {
+    if (reviewer?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -206,7 +206,7 @@ export async function GET(
       .eq('id', user.id)
       .single();
 
-    if (reviewer?.role !== 'cim_reviewer' && reviewer?.role !== 'admin') {
+    if (reviewer?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

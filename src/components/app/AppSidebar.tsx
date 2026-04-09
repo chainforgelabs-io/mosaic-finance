@@ -11,17 +11,22 @@ import {
   LogOut,
   Video,
   Wallet,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
 
+type AppUserRole = "user" | "admin" | null | undefined;
+
 interface AppSidebarProps {
   userAlias: string;
   tier: "snapshot" | "plan" | "advisor";
   planStatus?: string;
   planId?: string;
+  /** From user_profiles.role — used for reviewer nav and badge */
+  role?: AppUserRole;
   className?: string;
 }
 
@@ -44,16 +49,23 @@ function getNavItems(planId?: string): NavItem[] {
   ];
 }
 
+function isReviewerRole(role: AppUserRole): boolean {
+  return role === "admin";
+}
+
 export function AppSidebar({
   userAlias,
   tier,
   planStatus,
   planId,
+  role,
   className,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const navItems = getNavItems(planId);
+  const showReviewQueue = isReviewerRole(role);
+  const reviewQueueActive = pathname.startsWith("/admin");
 
   async function handleSignOut() {
     await fetch("/api/auth/signout", { method: "POST" });
@@ -80,6 +92,24 @@ export function AppSidebar({
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-1 px-3 max-md:flex-row max-md:gap-0 max-md:px-0">
+        {showReviewQueue && (
+          <Link
+            href="/admin/approval-queue"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
+              "max-md:flex-col max-md:gap-0.5 max-md:px-2 max-md:py-1.5",
+              "border border-[var(--emerald)]/40 bg-[var(--emerald)]/10",
+              reviewQueueActive
+                ? "border-[var(--emerald)] text-white"
+                : "text-[var(--emerald)] hover:bg-[var(--emerald)]/15",
+            )}
+          >
+            <Shield className="size-[18px] shrink-0" />
+            <span className="font-display text-sm font-medium md:max-lg:hidden max-md:text-[10px]">
+              Advisor Queue
+            </span>
+          </Link>
+        )}
         {navItems.map((item) => {
           const isActive = item.label === "Guided Review"
             ? pathname.includes("/walkthrough")
@@ -136,7 +166,14 @@ export function AppSidebar({
             <span className="font-display text-sm font-medium text-white">
               {userAlias}
             </span>
-            <TierBadge tier={tier} className="mt-0.5 w-fit" />
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <TierBadge tier={tier} className="w-fit" />
+              {role === "admin" && (
+                <span className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 font-display text-[10px] font-medium uppercase tracking-wide text-[var(--emerald)]">
+                  Advisor
+                </span>
+              )}
+            </div>
           </div>
         </div>
         {tier !== "advisor" && (

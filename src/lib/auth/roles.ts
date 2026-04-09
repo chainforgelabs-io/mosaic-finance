@@ -1,4 +1,4 @@
-export type UserRole = 'user' | 'cim_reviewer' | 'admin';
+export type UserRole = 'user' | 'admin';
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   user: [
@@ -9,19 +9,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'write:own_conversations',
     'read:own_holdings',
     'write:own_holdings',
-  ],
-  cim_reviewer: [
-    'read:own_profile',
-    'write:own_profile',
-    'read:own_plans',
-    'read:own_conversations',
-    'write:own_conversations',
-    'read:own_holdings',
-    'write:own_holdings',
-    'read:approval_queue',
-    'write:approval_queue',
-    'read:all_plans',
-    'write:plan_review',
   ],
   admin: [
     'read:own_profile',
@@ -62,5 +49,5 @@ export function canManageUsers(role: UserRole): boolean {
 }
 
 export function isValidRole(role: string): role is UserRole {
-  return ['user', 'cim_reviewer', 'admin'].includes(role);
+  return ['user', 'admin'].includes(role);
 }

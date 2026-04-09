@@ -2,30 +2,45 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAdminStore } from "@/stores/admin-store";
-import { LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, LogOut, Shield } from "lucide-react";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 
 export default function AdminApprovalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { reviewer, loadAdminData } = useAdminStore();
+  const { reviewer, loadAdminData, isLoading, loadError } = useAdminStore();
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!reviewer) {
-      loadAdminData();
-    }
-  }, [reviewer, loadAdminData]);
+    void loadAdminData();
+  }, [loadAdminData]);
 
   useEffect(() => {
-    if (reviewer) {
-      if (reviewer.role !== "cim_reviewer") {
+    if (!isLoading && loadError === "Not signed in") {
+      router.replace("/login");
+    }
+  }, [isLoading, loadError, router]);
+
+  useEffect(() => {
+    if (!isLoading && reviewer) {
+      if (reviewer.role !== "admin") {
         router.replace("/dashboard");
       } else {
         setAuthorized(true);
       }
     }
-  }, [reviewer, router]);
+  }, [isLoading, reviewer, router]);
+
+  if (!isLoading && loadError && loadError !== "Not signed in") {
+    return (
+      <div className="min-h-screen bg-[var(--warm-50)] flex items-center justify-center px-6">
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--error)]">
+          {loadError}
+        </p>
+      </div>
+    );
+  }
 
   if (!authorized) {
     return (
@@ -33,7 +48,7 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-[var(--emerald)] border-t-transparent rounded-full animate-spin" />
           <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
-            Verifying reviewer access…
+            Verifying advisor access…
           </span>
         </div>
       </div>
@@ -50,17 +65,28 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-body)] font-medium text-[14px] text-[var(--text-muted)]">
-                Review Dashboard
+                Advisor Dashboard
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <span className="font-[family-name:var(--font-body)] text-sm text-white/80">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors font-[family-name:var(--font-body)] text-sm"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">My Dashboard</span>
+            </Link>
+            <span className="font-[family-name:var(--font-body)] text-sm text-white/80 max-w-[140px] sm:max-w-none truncate">
               {reviewer?.name}
             </span>
             <button
-              onClick={() => router.replace("/login")}
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/signout", { method: "POST" });
+                router.replace("/login");
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors font-[family-name:var(--font-body)] text-sm"
             >
               <LogOut className="w-3.5 h-3.5" />

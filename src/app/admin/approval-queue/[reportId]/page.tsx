@@ -188,11 +188,15 @@ export default function PlanReviewPage() {
 
   const item = getItemById(reportId);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!modalAction || !item) return;
-    processAction(item.id, modalAction, notes, rejectReason);
+    const result = await processAction(item.id, modalAction, notes, rejectReason);
     setModalAction(null);
-    router.push("/admin/approval-queue");
+    if (result.ok) {
+      router.push("/admin/approval-queue");
+    } else {
+      window.alert(result.error ?? "Action failed");
+    }
   };
 
   if (!item) {

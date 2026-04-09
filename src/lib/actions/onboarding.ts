@@ -158,7 +158,7 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     await Promise.all([
       supabase
         .from("user_profiles")
-        .select("age, employment_type")
+        .select("age, employment_type, role")
         .eq("id", user.id)
         .single(),
       supabase
@@ -209,6 +209,14 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     redirectPath = "/onboarding/fact-find";
   } else {
     redirectPath = "/onboarding";
+  }
+
+  const role = profileRes.data?.role;
+  if (
+    redirectPath === "/dashboard" &&
+    role === "admin"
+  ) {
+    redirectPath = "/admin/approval-queue";
   }
 
   return {
