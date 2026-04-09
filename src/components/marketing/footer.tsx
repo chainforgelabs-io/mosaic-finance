@@ -34,7 +34,7 @@ export function Footer() {
           </div>
 
           <p className="font-body text-[13px] text-text-muted">
-            Saskatoon, Saskatchewan
+            Canada
           </p>
         </div>
 
