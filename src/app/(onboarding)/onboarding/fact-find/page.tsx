@@ -249,7 +249,7 @@ function SummaryCard({
       </div>
 
       {bullets.length > 0 && (
-        <ul className="mb-4 list-inside list-disc space-y-2 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
+        <ul className="mb-4 min-w-0 list-inside list-disc space-y-2 break-words font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
           {bullets.map((line, i) => {
             const match = line.match(/\*\*(.+?)\*\*:\s*(.*)/);
             if (match) {
@@ -276,7 +276,7 @@ function SummaryCard({
               <dt className="font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
                 {label}
               </dt>
-              <dd className="mt-0.5 font-body text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">
+              <dd className="mt-0.5 break-words font-body text-[15px] font-semibold tabular-nums text-[var(--text-primary)]">
                 {formatValue(value)}
               </dd>
             </div>
@@ -795,7 +795,7 @@ function FactFindConversation() {
 
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRetry}>
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)]">
+      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)] pb-[env(safe-area-inset-bottom)]">
         <div className="shrink-0 px-4 pt-8">
           <div className="mx-auto max-w-[920px]">
             <div className="flex justify-center">
@@ -896,7 +896,7 @@ function FactFindConversation() {
                         </div>
                       </div>
                     )}
-                    <div className="mx-auto flex max-w-[720px] items-end gap-3 px-4 py-4">
+                    <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-4">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -932,7 +932,7 @@ function FactFindConversation() {
                         placeholder="Type your response..."
                         disabled={isStreaming || isUploadingFile || !sessionId}
                         rows={1}
-                        className="flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+                        className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
                       />
                       <button
                         onClick={handleSend}

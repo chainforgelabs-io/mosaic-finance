@@ -60,10 +60,10 @@ export default function LoginForm() {
 
   return (
     <div className="w-full max-w-[480px]">
-      <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 md:p-10">
+      <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5 sm:p-8 md:p-10">
         <div className="mb-8 flex flex-col items-center">
           <MosaicLogo size="md" className="mb-6" />
-          <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
+          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)] sm:text-[28px]">
             Welcome back
           </h1>
           <p className="mt-2 text-center font-body text-[15px] text-[var(--text-secondary)]">

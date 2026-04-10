@@ -141,7 +141,7 @@ function ProfileTab() {
         <label className="block font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)] mb-1.5">
           Employment type
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {employmentTypes.map((type) => (
             <button
               key={type}
@@ -409,14 +409,14 @@ function SubscriptionTabInner() {
         </div>
       )}
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-1">
             Current plan
           </p>
           <TierBadge tier={currentTier} />
         </div>
-        <div className="ml-auto text-right">
+        <div className="text-left sm:ml-auto sm:text-right">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
             Billing period
           </p>
@@ -880,7 +880,8 @@ export default function SettingsPage() {
 
       <div className="max-w-[680px]">
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-[var(--warm-200)] mb-8">
+        <div className="-mx-1 mb-8 overflow-x-auto border-b border-[var(--warm-200)] px-1">
+          <div className="flex min-w-max gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -888,7 +889,7 @@ export default function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-sm font-medium ${
+                className={`flex items-center gap-2 px-3 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-sm font-medium sm:px-4 ${
                   isActive
                     ? "border-[var(--emerald)] text-[var(--emerald)]"
                     : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
@@ -899,6 +900,7 @@ export default function SettingsPage() {
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Tab content */}

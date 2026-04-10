@@ -189,7 +189,7 @@ export default function OnboardingProfilePage() {
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-[720px]">
-        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 md:p-10">
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:p-6 md:p-10">
           <div className="mb-2 flex justify-center">
             <MosaicLogo size="sm" />
           </div>
@@ -201,7 +201,7 @@ export default function OnboardingProfilePage() {
           />
 
           <div className="mb-8 text-center">
-            <h1 className="font-display text-[26px] font-bold text-[var(--text-primary)]">
+            <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[26px]">
               Tell us about yourself
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
@@ -217,7 +217,7 @@ export default function OnboardingProfilePage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Age + Sex row */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label
                   htmlFor="age"
@@ -289,7 +289,7 @@ export default function OnboardingProfilePage() {
                 name="employmentType"
                 control={control}
                 render={({ field }) => (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {EMPLOYMENT_OPTIONS.map((option) => {
                       const isSelected = field.value === option.value;
                       const Icon = option.icon;
@@ -354,7 +354,7 @@ export default function OnboardingProfilePage() {
                 name="familyStructure"
                 control={control}
                 render={({ field }) => (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                     {FAMILY_OPTIONS.map((option) => {
                       const isSelected = field.value === option.value;
                       const Icon = option.icon;
@@ -437,7 +437,7 @@ export default function OnboardingProfilePage() {
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
                             <label className="mb-1 block font-body text-[12px] font-medium text-[var(--text-secondary)]">
                               Relationship

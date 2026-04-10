@@ -141,12 +141,12 @@ function AccountCard({ account }: { account: AccountRow }) {
 
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
-      <button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between p-5 text-left">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-50">
+      <button onClick={() => setExpanded(!expanded)} className="flex w-full items-center justify-between gap-2 p-5 text-left">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
             <Landmark className="size-4 text-[var(--emerald)]" />
           </div>
-          <div>
+          <div className="min-w-0 text-left">
             <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">{label}</p>
             <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
               {account.holdings.length} holding{account.holdings.length !== 1 ? "s" : ""}
@@ -160,6 +160,7 @@ function AccountCard({ account }: { account: AccountRow }) {
       </button>
       {expanded && (
         <div className="border-t border-[var(--warm-200)] px-5 py-4">
+          <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--warm-100)]">
@@ -178,6 +179,7 @@ function AccountCard({ account }: { account: AccountRow }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
@@ -718,7 +720,7 @@ export default function AssetsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Assets & Liabilities</h1>
         <Link
           href="/onboarding/holdings"
@@ -742,7 +744,7 @@ export default function AssetsPage() {
                 <div className="mt-2 h-[3px] w-24 rounded-full bg-gradient-to-r from-[#c9aa71] to-[#c9aa71]/0" />
               </div>
               <div className="hidden md:block w-px h-16 bg-white/10" />
-              <div className="flex-1 grid grid-cols-3 gap-3 w-full">
+              <div className="grid w-full flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-4">
                   <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/60 mb-1">Investments & Liquid Assets</p>
                   <p className="font-[family-name:var(--font-display)] text-[22px] font-bold tabular-nums text-[#10b981]">{fmt(investmentTotal)}</p>
@@ -796,7 +798,7 @@ export default function AssetsPage() {
                       />
                     )}
                   </div>
-                  <div className="flex gap-4 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-4">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
                       <span className="font-[family-name:var(--font-body)] text-[11px] text-white/50">Investments ({invPct}%)</span>
@@ -991,6 +993,7 @@ export default function AssetsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DebtBreakdownChart />
               <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
+                <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-[var(--warm-200)]">
@@ -1031,6 +1034,7 @@ export default function AssetsPage() {
                     </tr>
                   </tfoot>
                 </table>
+                </div>
                 {avalanche?.payoff_months != null && (
                   <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
                     <p className="font-[family-name:var(--font-body)] text-sm text-[var(--emerald-dark)]">

@@ -495,9 +495,9 @@ export default function RiskProfilePage() {
             className="mb-8"
           />
 
-          <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8">
+          <div className="rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:p-6 md:p-8">
             <div className="mb-6 text-center">
-              <h1 className="font-display text-[24px] font-bold text-[var(--text-primary)]">
+              <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[24px]">
                 Risk Tolerance Assessment
               </h1>
               <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
@@ -564,7 +564,7 @@ export default function RiskProfilePage() {
             </div>
 
             {/* Navigation */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => currentQ > 0 && setCurrentQ(currentQ - 1)}
@@ -605,7 +605,7 @@ export default function RiskProfilePage() {
   // Conversation + Review phase
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRiskConversationRetry}>
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)]">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)] pb-[env(safe-area-inset-bottom)]">
       <div className="shrink-0 bg-white">
         <div className="mx-auto max-w-[720px] px-4">
           <div className="flex items-center justify-center py-3">
@@ -694,7 +694,7 @@ export default function RiskProfilePage() {
 
       {!riskComplete && (
         <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex max-w-[720px] items-end gap-3 px-4 py-4">
+          <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-4">
             <textarea
               ref={textareaRef}
               autoFocus
@@ -709,7 +709,7 @@ export default function RiskProfilePage() {
               placeholder="Type your response..."
               disabled={isStreaming || !convSessionId}
               rows={1}
-              className="flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+              className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
             />
             <button
               type="button"
@@ -725,7 +725,7 @@ export default function RiskProfilePage() {
 
       {riskComplete && !isSubmitting && (
         <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex max-w-[720px] items-center justify-between px-4 py-3">
+          <div className="mx-auto flex max-w-[720px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => {

@@ -26,7 +26,7 @@ export default function MarketContextPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] font-bold text-[28px] text-[var(--text-primary)]">
+        <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)] sm:text-[28px]">
           Market Context
         </h1>
         <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mt-1">
@@ -35,7 +35,8 @@ export default function MarketContextPage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 border-b border-[var(--warm-200)] mb-6">
+      <div className="-mx-1 mb-6 overflow-x-auto border-b border-[var(--warm-200)] px-1">
+        <div className="flex min-w-max gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -54,6 +55,7 @@ export default function MarketContextPage() {
             )}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Tab content */}

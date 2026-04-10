@@ -34,8 +34,8 @@ export function StepProgress({
   className,
 }: StepProgressProps) {
   return (
-    <div className={cn("w-full border-b border-[var(--warm-200)] px-4 py-6", className)}>
-      <div className="flex items-center justify-between">
+    <div className={cn("w-full overflow-x-auto border-b border-[var(--warm-200)] px-4 py-6", className)}>
+      <div className="flex min-w-[540px] items-center justify-between">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.includes(step.key);
           const isCurrent = step.key === currentStep;
@@ -46,21 +46,21 @@ export function StepProgress({
               <div className="flex flex-col items-center gap-1.5">
                 <div
                   className={cn(
-                    "flex size-7 items-center justify-center rounded-full transition-colors",
+                    "flex size-6 items-center justify-center rounded-full transition-colors sm:size-7",
                     isCompleted && "bg-[var(--emerald)]",
                     isCurrent && !isCompleted && "bg-[var(--emerald)]",
                     !isCurrent && !isCompleted && "border-2 border-[var(--warm-200)] bg-transparent",
                   )}
                 >
                   {isCompleted ? (
-                    <Check className="size-3.5 text-white" strokeWidth={3} />
+                    <Check className="size-3 text-white sm:size-3.5" strokeWidth={3} />
                   ) : isCurrent ? (
-                    <span className="block size-2 rounded-full bg-white" />
+                    <span className="block size-1.5 rounded-full bg-white sm:size-2" />
                   ) : null}
                 </div>
                 <span
                   className={cn(
-                    "whitespace-nowrap font-body text-[11px]",
+                    "whitespace-nowrap font-body text-[10px] sm:text-[11px]",
                     isCurrent || isCompleted
                       ? "font-medium text-[var(--text-primary)]"
                       : "text-[var(--text-muted)]",
@@ -72,7 +72,7 @@ export function StepProgress({
               {!isLast && (
                 <div
                   className={cn(
-                    "mx-2 h-[2px] flex-1 rounded-full",
+                    "mx-1.5 h-[2px] flex-1 rounded-full sm:mx-2",
                     isCompleted ? "bg-[var(--emerald)]" : "bg-[var(--warm-200)]",
                   )}
                 />

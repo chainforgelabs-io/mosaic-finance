@@ -252,13 +252,13 @@ function AccountCard({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-5 py-4"
+        className="flex w-full items-center justify-between gap-2 px-5 py-4"
       >
-        <div className="flex items-center gap-3">
-          <span className="rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="shrink-0 rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
             {getAccountLabel(isEditing ? editType : account.accountType)}
           </span>
-          <span className="font-body text-[14px] text-[var(--text-secondary)]">
+          <span className="min-w-0 truncate font-body text-[14px] text-[var(--text-secondary)]">
             {(isEditing ? editName : account.accountName) ||
               `${account.holdings.length} holding${account.holdings.length !== 1 ? "s" : ""}`}
           </span>
@@ -282,6 +282,7 @@ function AccountCard({
 
       {!account.collapsed && !isEditing && (
         <div className="border-t border-[var(--warm-200)] px-5 py-4">
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--warm-200)]/50">
@@ -315,6 +316,7 @@ function AccountCard({
               ))}
             </tbody>
           </table>
+          </div>
           <div className="mt-3 flex justify-end gap-3">
             <button
               type="button"
@@ -348,7 +350,7 @@ function AccountCard({
             <AccountTypeSelect value={editType} onChange={setEditType} />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block font-body text-[13px] font-medium text-[var(--text-secondary)]">
                 Account Name (optional)
@@ -382,8 +384,8 @@ function AccountCard({
             onAdd={addHolding}
           />
 
-          <div className="flex items-center justify-between border-t border-[var(--warm-200)] pt-4">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-3 border-t border-[var(--warm-200)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={saveEdits}
@@ -552,7 +554,7 @@ function UploadDropZone({
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          "cursor-pointer rounded-lg border-2 border-dashed p-10 text-center transition-all",
+          "cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-all sm:p-10",
           isDragging
             ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/10"
             : "border-[var(--emerald)]/40 bg-white hover:border-[var(--emerald)]/60 hover:bg-[var(--warm-100)]",
@@ -893,8 +895,8 @@ export default function HoldingsPage() {
   };
 
   return (
-    <div className="flex flex-1 items-start justify-center px-4 py-12">
-      <div className="w-full max-w-[800px]">
+    <div className="flex flex-1 items-start justify-center px-4 py-6 sm:py-12">
+      <div className="w-full max-w-[800px] pb-28 sm:pb-32">
         <div className="mb-2 flex justify-center">
           <MosaicLogo size="sm" />
         </div>
@@ -947,7 +949,7 @@ export default function HoldingsPage() {
         {activeTab === "manual" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h1 className="font-display text-[24px] font-semibold text-[var(--text-primary)]">
+              <h1 className="font-display text-xl font-semibold text-[var(--text-primary)] sm:text-[24px]">
                 Add your investment accounts
               </h1>
             </div>
@@ -1013,8 +1015,8 @@ export default function HoldingsPage() {
           </div>
         )}
 
-        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex max-w-[800px] items-center justify-between px-6 py-4">
+        <div className="fixed inset-x-0 bottom-0 z-10 border-t border-[var(--warm-200)] bg-white pb-[env(safe-area-inset-bottom)]">
+          <div className="mx-auto flex max-w-[800px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
             <button
               type="button"
               onClick={() => router.push("/onboarding/fact-find")}

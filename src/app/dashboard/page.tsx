@@ -77,7 +77,7 @@ function DashGlassCard({ label, value, unit, accent }: { label: string; value: s
         {label}
       </p>
       <div className="flex items-baseline gap-1.5">
-        <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: accent ?? "#c9aa71" }}>
+        <span className="font-[family-name:var(--font-display)] text-lg font-bold tabular-nums sm:text-[26px]" style={{ color: accent ?? "#c9aa71" }}>
           {value}
         </span>
         {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">{unit}</span>}
@@ -152,7 +152,7 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
 
         <div className="hidden md:block w-px h-20 bg-white/10" />
 
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
+        <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
           <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
           <DashGlassCard label="Cash Flow" value={cashFlowDisplay} unit="/mo" accent="#818cf8" />
           <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
@@ -167,7 +167,7 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
             </p>
             <div className="flex items-baseline gap-1.5">
               <span
-                className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums"
+                className="font-[family-name:var(--font-display)] text-lg font-bold tabular-nums sm:text-[26px]"
                 style={{
                   color:
                     emergencyMonths != null && emergencyMonths >= 6
@@ -465,7 +465,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
 
         <div className="hidden md:block w-px h-20 bg-white/10" />
 
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-5 gap-3 w-full">
+        <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
           <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
           <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" />
           <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
@@ -475,7 +475,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
               Emergency Fund
             </p>
             <div className="flex items-baseline gap-1.5">
-              <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: emergencyMonths != null && emergencyMonths >= 6 ? "#10b981" : emergencyMonths != null && emergencyMonths >= 3 ? "#f59e0b" : "#c9aa71" }}>
+              <span className="font-[family-name:var(--font-display)] text-lg font-bold tabular-nums sm:text-[26px]" style={{ color: emergencyMonths != null && emergencyMonths >= 6 ? "#10b981" : emergencyMonths != null && emergencyMonths >= 3 ? "#f59e0b" : "#c9aa71" }}>
                 {emergencyMonths != null ? emergencyMonths.toFixed(1) : "--"}
               </span>
               {emergencyMonths != null && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">mo</span>}
@@ -545,7 +545,7 @@ function DashboardPending() {
         className="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4 hover:bg-emerald-100 transition-colors group"
       >
         <FileText className="w-5 h-5 text-[var(--emerald)] shrink-0" />
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--emerald-dark)]">
             Your draft plan is ready to view
           </p>
@@ -634,7 +634,7 @@ function DashboardDelivered() {
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3">
             {marketContext.headline}
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             {marketContext.indicators.map((ind) => (
               <div key={ind.label} className="flex items-center gap-2">
                 <span className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
@@ -666,7 +666,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div className="skeleton h-44 w-full" />
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="skeleton h-28" />
           ))}

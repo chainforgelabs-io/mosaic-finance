@@ -254,8 +254,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         planId={plan?.id}
         role={user?.role}
       />
-      <main className="md:pl-60 min-h-screen flex flex-col pb-16 md:pb-0">
-        <div className="flex-1 max-w-[1080px] w-full mx-auto px-6 py-8">
+      <main className="md:pl-60 flex min-h-screen flex-col pb-20 md:pb-0">
+        <div className="mx-auto flex w-full max-w-[1080px] flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </div>
         <ComplianceFooter />

@@ -243,7 +243,7 @@ export default function MeetingPage() {
                   <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--emerald)]/10">
                     <Icon className="size-6 text-[var(--emerald)]" />
                   </div>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <h3 className="font-display text-[16px] font-semibold text-[var(--text-primary)]">
                       {option.title}
                     </h3>
@@ -276,7 +276,7 @@ export default function MeetingPage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-[var(--warm-200)] bg-white px-6 py-4">
+      <div className="shrink-0 border-b border-[var(--warm-200)] bg-white px-4 py-4 sm:px-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {meetingType === "annual-review" ? (
@@ -323,7 +323,7 @@ export default function MeetingPage() {
 
       {/* Input */}
       <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-        <div className="mx-auto flex max-w-[720px] items-end gap-3 px-4 py-4">
+        <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-4">
           <textarea
             ref={textareaRef}
             autoFocus
@@ -338,7 +338,7 @@ export default function MeetingPage() {
             placeholder={sessionComplete ? "Meeting complete" : "Type your message..."}
             disabled={isStreaming || !sessionId || sessionComplete}
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+            className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
           />
           <button
             type="button"
