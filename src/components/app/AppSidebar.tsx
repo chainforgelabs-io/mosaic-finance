@@ -86,7 +86,7 @@ export function AppSidebar({
         <MosaicLogo
           size="sm"
           variant="onDark"
-          wordmarkClassName="md:max-lg:hidden"
+          collapseToEmblem
         />
       </div>
 
