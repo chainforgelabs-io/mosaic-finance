@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
 
@@ -10,7 +11,24 @@ const NAV_LINKS = [
   { label: "For Advisors", href: "/#trust" },
 ];
 
-export function Nav() {
+/**
+ * When auth is hidden (waitlist funnel): avoid `/#...` which resolves to the home route.
+ * - On `/waitlist`, use same-page hashes (`#how-it-works`).
+ * - On `/privacy`, `/terms`, etc., deep-link to `/waitlist#...` where those sections exist.
+ */
+function navLinkHref(
+  href: string,
+  hideAuth: boolean,
+  pathname: string,
+): string {
+  if (!hideAuth || !href.startsWith("/#")) return href;
+  const hash = href.slice(1);
+  if (pathname === "/waitlist") return hash;
+  return `/waitlist${hash}`;
+}
+
+export function Nav({ hideAuth = false }: { hideAuth?: boolean }) {
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -36,7 +54,7 @@ export function Nav() {
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
-              href={link.href}
+              href={navLinkHref(link.href, hideAuth, pathname)}
               className={`font-display text-sm font-medium transition-colors ${
                 scrolled
                   ? "text-text-secondary hover:text-text-primary"
@@ -46,32 +64,38 @@ export function Nav() {
               {link.label}
             </a>
           ))}
-          <a
-            href="/login"
-            className={`font-display text-sm font-medium transition-colors ${
-              scrolled
-                ? "text-text-secondary hover:text-text-primary"
-                : "text-text-inverse/60 hover:text-text-inverse"
-            }`}
-          >
-            Sign In
-          </a>
-          <a
-            href="/#waitlist"
-            className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
-          >
-            Get Started
-          </a>
+          {!hideAuth && (
+            <>
+              <a
+                href="/login"
+                className={`font-display text-sm font-medium transition-colors ${
+                  scrolled
+                    ? "text-text-secondary hover:text-text-primary"
+                    : "text-text-inverse/60 hover:text-text-inverse"
+                }`}
+              >
+                Sign In
+              </a>
+              <a
+                href="/#waitlist"
+                className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
+              >
+                Get Started
+              </a>
+            </>
+          )}
         </div>
 
         {/* Mobile */}
         <div className="flex items-center gap-3 md:hidden">
-          <a
-            href="/#waitlist"
-            className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
-          >
-            Get Started
-          </a>
+          {!hideAuth && (
+            <a
+              href="/#waitlist"
+              className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
+            >
+              Get Started
+            </a>
+          )}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className={`p-1 ${scrolled ? "text-text-primary" : "text-text-inverse"}`}
@@ -88,19 +112,21 @@ export function Nav() {
           {NAV_LINKS.map((link) => (
             <a
               key={link.href}
-              href={link.href}
+              href={navLinkHref(link.href, hideAuth, pathname)}
               onClick={() => setMobileOpen(false)}
               className="block py-2 font-display text-sm font-medium text-text-secondary"
             >
               {link.label}
             </a>
           ))}
-          <a
-            href="/login"
-            className="block py-2 font-display text-sm font-medium text-text-secondary"
-          >
-            Sign In
-          </a>
+          {!hideAuth && (
+            <a
+              href="/login"
+              className="block py-2 font-display text-sm font-medium text-text-secondary"
+            >
+              Sign In
+            </a>
+          )}
         </div>
       )}
     </nav>

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main>
-      <Nav />
+      <Nav hideAuth />
 
       <section className="bg-slate-950 px-6 pb-16 pt-32">
         <div className="mx-auto max-w-[760px]">

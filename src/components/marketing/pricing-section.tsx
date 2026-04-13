@@ -66,7 +66,7 @@ function priceLabel(
   return formatTierPrice(tierId, interval);
 }
 
-export function PricingSection() {
+export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } = {}) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [billing, setBilling] = useState<BillingInterval>("monthly");
 
@@ -206,7 +206,7 @@ export function PricingSection() {
                 ))}
               </ul>
               <Link
-                href="/waitlist"
+                href={ctaHref}
                 className={`block w-full rounded-full py-2.5 text-center font-display text-sm font-semibold transition-colors ${
                   tier.style === "emerald"
                     ? "bg-emerald text-white hover:bg-emerald-dark"
