@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${plusJakarta.variable} ${dmSans.variable} antialiased`}
       >
         {children}
+        <Analytics />
       </body>
     </html>
   );
