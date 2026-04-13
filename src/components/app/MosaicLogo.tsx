@@ -23,8 +23,8 @@ export function MosaicLogo({
 }: MosaicLogoProps) {
   const isOnDark = variant === "onDark";
   const emblemSrc = isOnDark
-    ? "/logos/MosaicEmblemLogoWhiteBack.svg"
-    : "/logos/MosaicEmblemLogo.svg";
+    ? "/logos/MosaicEmblemLogoWhiteBack.png"
+    : "/logos/MosaicEmblemLogo.png";
   const config = sizeConfig[size];
   const letterColor = isOnDark ? "text-white" : "text-[var(--text-primary)]";
 

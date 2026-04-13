@@ -20,6 +20,14 @@ export const metadata: Metadata = {
   title: "Mosaic Finance — AI-Powered Financial Planning for Canadians",
   description:
     "A conversational AI that builds you a real financial plan — investment analysis, tax strategy, retirement projections — reviewed by a registered financial professional.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/logos/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/logos/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/logos/icon-192.png", sizes: "192x192", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

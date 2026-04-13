@@ -10,8 +10,8 @@ export function MosaicLogo({
   const isOnDark = theme === "dark";
   const color = isOnDark ? "#F9FAFB" : "#1F2937";
   const emblemSrc = isOnDark
-    ? "/logos/MosaicEmblemLogoWhiteBack.svg"
-    : "/logos/MosaicEmblemLogo.svg";
+    ? "/logos/MosaicEmblemLogoWhiteBack.png"
+    : "/logos/MosaicEmblemLogo.png";
 
   return (
     <div className="flex items-center gap-2.5">

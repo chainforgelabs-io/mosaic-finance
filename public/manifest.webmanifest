@@ -1,0 +1,20 @@
+{
+  "name": "Mosaic Finance",
+  "short_name": "Mosaic",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#10B981",
+  "icons": [
+    {
+      "src": "/logos/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logos/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
