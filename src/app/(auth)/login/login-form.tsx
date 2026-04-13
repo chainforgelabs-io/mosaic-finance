@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
+import { createClient } from "@/lib/supabase/client";
 import { signIn, signInWithGoogle } from "@/lib/actions/auth";
 import { signInSchema, type SignInFormData } from "@/lib/schemas/auth";
 
@@ -22,6 +23,15 @@ export default function LoginForm() {
       : null,
   );
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        supabase.auth.signOut({ scope: "local" });
+      }
+    });
+  }, []);
 
   const {
     register,

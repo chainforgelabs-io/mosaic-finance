@@ -39,24 +39,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData } = usePlanStore();
 
   useEffect(() => {
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "SIGNED_OUT") {
+          clearUser();
+          router.replace("/login");
+        }
+      },
+    );
+    return () => subscription.unsubscribe();
+  }, [clearUser, router]);
+
+  useEffect(() => {
     if (user) return;
 
     async function loadUser() {
       const supabase = createClient();
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        clearUser();
-        router.replace("/login");
-        return;
-      }
+      const {
+        data: { user: authUser },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      let { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) {
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        authUser = refreshData?.user ?? null;
-      }
-      if (!authUser) {
+      if (!authUser || userError) {
         clearUser();
         router.replace("/login");
         return;

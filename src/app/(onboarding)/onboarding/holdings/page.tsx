@@ -860,7 +860,10 @@ export default function HoldingsPage() {
     } catch {
       // Fire-and-forget; dashboard will refetch / poll
     }
-    router.push("/dashboard");
+    // Allow Set-Cookie headers from the API response to propagate before
+    // navigating, preventing a refresh-token-rotation race in middleware.
+    await new Promise((r) => setTimeout(r, 150));
+    window.location.href = "/dashboard";
   };
 
   const handleContinue = async () => {
