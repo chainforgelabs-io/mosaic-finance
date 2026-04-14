@@ -4,95 +4,55 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import {
   signUpSchema,
-  signInSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
 } from "@/lib/schemas/auth";
-import { getOnboardingProgress } from "@/lib/actions/onboarding";
 import { PROVINCE_CODE_MAP } from "@/lib/constants/provinces";
+
+const profileInsertSchema = signUpSchema.pick({ alias: true, province: true });
 
 export type AuthResult = {
   error?: string;
   redirectTo?: string;
 };
 
-export async function signUp(formData: {
-  email: string;
-  password: string;
+/**
+ * Inserts the user_profiles row after client-side `auth.signUp()`.
+ * Requires an authenticated session (cookies) so RLS allows the insert.
+ */
+export async function insertUserProfileAfterSignUp(formData: {
   alias: string;
   province: string;
 }): Promise<AuthResult> {
-  const parsed = signUpSchema.safeParse(formData);
+  const parsed = profileInsertSchema.safeParse(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: parsed.data.email,
-    password: parsed.data.password,
-    options: {
-      data: {
-        alias: parsed.data.alias,
-        province: parsed.data.province,
-      },
-    },
-  });
-
-  if (authError) {
-    return { error: authError.message };
+  if (!user) {
+    return {
+      error:
+        "Not signed in. If email confirmation is required, confirm your email first, then sign in to finish setup.",
+    };
   }
 
-  if (authData.user) {
-    const { error: profileError } = await supabase.from("user_profiles").insert({
-      id: authData.user.id,
-      alias: parsed.data.alias,
-      province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
-      subscription_tier: "snapshot",
-    });
+  const { error: profileError } = await supabase.from("user_profiles").insert({
+    id: user.id,
+    alias: parsed.data.alias,
+    province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
+    subscription_tier: "snapshot",
+  });
 
-    if (profileError) {
-      return { error: "Account created but profile setup failed. Please sign in." };
-    }
+  if (profileError) {
+    return { error: "Account created but profile setup failed. Please sign in." };
   }
 
   return { redirectTo: "/onboarding" };
-}
-
-const SAFE_REDIRECT_PREFIXES = ["/dashboard", "/onboarding", "/admin"];
-
-export async function signIn(formData: {
-  email: string;
-  password: string;
-  redirectTo?: string;
-}): Promise<AuthResult> {
-  const parsed = signInSchema.safeParse(formData);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message };
-  }
-
-  const supabase = await createClient();
-
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: parsed.data.email,
-    password: parsed.data.password,
-  });
-
-  if (authError) {
-    return { error: authError.message };
-  }
-
-  const explicit = formData.redirectTo;
-  if (
-    explicit &&
-    SAFE_REDIRECT_PREFIXES.some((p) => explicit.startsWith(p))
-  ) {
-    return { redirectTo: explicit };
-  }
-
-  const progress = await getOnboardingProgress();
-  return { redirectTo: progress.redirectPath };
 }
 
 export async function signInWithGoogle(): Promise<AuthResult> {

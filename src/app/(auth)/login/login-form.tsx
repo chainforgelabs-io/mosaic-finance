@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { createClient } from "@/lib/supabase/client";
-import { signIn, signInWithGoogle } from "@/lib/actions/auth";
+import { signInWithGoogle } from "@/lib/actions/auth";
 import { signInSchema, type SignInFormData } from "@/lib/schemas/auth";
 
 export default function LoginForm() {
@@ -24,15 +24,6 @@ export default function LoginForm() {
   );
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        supabase.auth.signOut({ scope: "local" });
-      }
-    });
-  }, []);
-
   const {
     register,
     handleSubmit,
@@ -47,15 +38,40 @@ export default function LoginForm() {
 
   async function onSubmit(data: SignInFormData) {
     setServerError(null);
-    const result = await signIn({
-      ...data,
-      redirectTo: redirectTo ?? undefined,
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
     });
-    if (result?.error) {
-      setServerError(result.error);
-    } else if (result?.redirectTo) {
-      window.location.href = result.redirectTo;
+    if (authError) {
+      setServerError(authError.message);
+      return;
     }
+
+    const params = new URLSearchParams();
+    if (redirectTo) {
+      params.set("redirectTo", redirectTo);
+    }
+    const query = params.toString();
+    const res = await fetch(
+      `/api/auth/redirect${query ? `?${query}` : ""}`,
+      { credentials: "include" },
+    );
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as {
+        redirectTo?: string;
+        error?: string;
+      } | null;
+      setServerError(
+        body?.error ?? "Could not determine where to go next. Please try again.",
+      );
+      if (body?.redirectTo) {
+        window.location.href = body.redirectTo;
+      }
+      return;
+    }
+    const json = (await res.json()) as { redirectTo: string };
+    window.location.href = json.redirectTo;
   }
 
   async function handleGoogleSignIn() {

@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
-import { signUp, signInWithGoogle } from "@/lib/actions/auth";
+import { insertUserProfileAfterSignUp, signInWithGoogle } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { signUpSchema, PROVINCES, type SignUpFormData } from "@/lib/schemas/auth";
 
 export default function SignUpPage() {
@@ -30,7 +31,34 @@ export default function SignUpPage() {
 
   async function onSubmit(data: SignUpFormData) {
     setServerError(null);
-    const result = await signUp(data);
+    const supabase = createClient();
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          alias: data.alias,
+          province: data.province,
+        },
+      },
+    });
+
+    if (authError) {
+      setServerError(authError.message);
+      return;
+    }
+
+    if (!authData.session) {
+      setServerError(
+        "Check your email to confirm your account. After confirming, sign in to continue onboarding.",
+      );
+      return;
+    }
+
+    const result = await insertUserProfileAfterSignUp({
+      alias: data.alias,
+      province: data.province,
+    });
     if (result?.error) {
       setServerError(result.error);
     } else if (result?.redirectTo) {
