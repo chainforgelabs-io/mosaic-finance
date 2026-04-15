@@ -2,6 +2,7 @@ import { Nav } from "@/components/marketing/nav";
 import { Hero } from "@/components/marketing/hero";
 import { ProblemSection } from "@/components/marketing/problem-section";
 import { SolutionSection } from "@/components/marketing/solution-section";
+import { ShowcaseSection } from "@/components/marketing/showcase-section";
 import { PlanSections } from "@/components/marketing/plan-sections";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { TrustSection } from "@/components/marketing/trust-section";
@@ -15,6 +16,7 @@ export default function MarketingPage() {
       <Hero />
       <ProblemSection />
       <SolutionSection />
+      <ShowcaseSection />
       <PlanSections />
       <PricingSection />
       <TrustSection />
