@@ -42,7 +42,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  const isServerAction = request.headers.has('next-action');
+
+  if (user && isAuthRoute && !isServerAction) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
