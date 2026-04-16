@@ -12,10 +12,10 @@ import { FaqSection } from "@/components/marketing/faq-section";
 import { FinalCta } from "@/components/marketing/final-cta";
 import { Footer } from "@/components/marketing/footer";
 
-export default function MarketingPage() {
+export default function TestMarketingPage() {
   return (
     <main>
-      <Nav hideAuth />
+      <Nav />
       <Hero />
       <ProblemSection />
       <ShowcaseSection />
@@ -24,7 +24,7 @@ export default function MarketingPage() {
       <AlwaysAvailableSection />
       <PositioningSection />
       <TrustSection />
-      <PricingSection ctaHref="/waitlist" />
+      <PricingSection />
       <FaqSection />
       <FinalCta />
       <Footer />

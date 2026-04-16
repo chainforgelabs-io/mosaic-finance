@@ -10,7 +10,7 @@ const SHOWCASES = [
     alt: "Fact-find onboarding screen",
   },
   {
-    label: "Get a professional-grade plan in minutes",
+    label: "Get a personalized plan in under 30 minutes",
     image: "/assets/Financial Plan Report - Executive Summary.svg",
     alt: "Financial plan executive summary",
   },
@@ -20,7 +20,7 @@ const SHOWCASES = [
     alt: "Main dashboard",
   },
   {
-    label: "Download your complete 8-section plan",
+    label: "Download your complete plan",
     image: "/assets/Dashboard - Plan Page.svg",
     alt: "Plan page with download option",
   },
@@ -59,7 +59,7 @@ export function ShowcaseSection() {
   return (
     <section
       ref={sectionRef}
-      className="bg-warm-50 px-6 py-20 lg:py-[120px]"
+      className="bg-white px-6 py-20 lg:py-[120px]"
     >
       <div className="mx-auto max-w-[1180px]">
         <p
@@ -67,14 +67,14 @@ export function ShowcaseSection() {
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          A Look Inside
+          What You Get
         </p>
         <h2
           data-animate
           className="mb-14 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px] lg:mb-16"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          See what you&apos;ll get
+          A real financial plan. A platform that grows with you.
         </h2>
 
         <div className="space-y-16 lg:space-y-20">

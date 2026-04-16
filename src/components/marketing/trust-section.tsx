@@ -1,23 +1,28 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Award, Lock, MapPin } from "lucide-react";
+import { Award, Lock, MapPin, Sparkles } from "lucide-react";
 
 const PILLARS = [
   {
+    icon: MapPin,
+    title: "Canadian-Specific",
+    desc: "RRSP, TFSA, FHSA, CPP, OAS, provincial tax rules — built in from day one, not bolted on.",
+  },
+  {
     icon: Award,
-    title: "Professionally reviewed",
-    desc: "Every plan is reviewed by a registered financial professional before delivery. Not a disclaimer — a structural requirement.",
+    title: "Professionally Validated",
+    desc: "Every plan is reviewed by a Registered Financial Professional before delivery — a structural requirement, not a disclaimer.",
+  },
+  {
+    icon: Sparkles,
+    title: "Built by Experience",
+    desc: "Designed by a Registered Financial Professional with a decade of wealth management experience.",
   },
   {
     icon: Lock,
     title: "Privacy-First",
     desc: "No legal name. No SIN. No account numbers. Alias-based profiles, encrypted data, Canadian data residency.",
-  },
-  {
-    icon: MapPin,
-    title: "Canadian-Specific",
-    desc: "RRSP, TFSA, FHSA, CPP, OAS, provincial tax rules — built in from day one, not bolted on.",
   },
 ];
 
@@ -51,24 +56,24 @@ export function TrustSection() {
   }, []);
 
   return (
-    <section ref={sectionRef} id="trust" className="bg-white px-6 py-20 lg:py-[120px]">
+    <section ref={sectionRef} id="trust" className="bg-warm-50 px-6 py-20 lg:py-[120px]">
       <div className="mx-auto max-w-[1180px]">
         <p
           data-animate
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Built for Trust
+          Why Trust Mosaic
         </p>
         <h2
           data-animate
           className="mb-14 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          AI that&apos;s accountable.
+          Built for Canadian financial rules. Not bolted on.
         </h2>
 
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {PILLARS.map((pillar) => {
             const Icon = pillar.icon;
             return (
@@ -91,6 +96,15 @@ export function TrustSection() {
             );
           })}
         </div>
+
+        <p
+          data-animate
+          className="mt-14 max-w-2xl rounded-xl border border-warm-200 bg-white px-6 py-5 font-display text-lg font-semibold leading-snug text-text-primary sm:text-xl"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          5.4 million Canadians have no financial advisor. Mosaic was built for
+          them.
+        </p>
       </div>
     </section>
   );

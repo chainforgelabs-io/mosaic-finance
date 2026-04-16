@@ -16,42 +16,42 @@ const SECTIONS = [
   {
     icon: BarChart3,
     title: "Financial Health Score",
-    desc: "Net worth, cash flow, savings rate, 1–100 score",
+    desc: "A single number that benchmarks where you stand — updated as your situation changes.",
   },
   {
     icon: Target,
-    title: "Retirement Readiness",
-    desc: "Your number, the gap, CPP/OAS timing, account strategy",
+    title: "Retirement Readiness Analysis",
+    desc: "Your number, your timeline, your gap — with CPP/OAS timing and account strategy.",
   },
   {
     icon: TrendingUp,
     title: "Investment Blueprint",
-    desc: "Asset allocation, ETF picks with MERs, rebalancing schedule",
+    desc: "Specific ETF and fund recommendations with rationale, allocation, and rebalancing you can revisit.",
   },
   {
     icon: DollarSign,
-    title: "Tax Efficiency",
-    desc: "RRSP room, TFSA strategy, FHSA, tax-loss harvesting",
+    title: "Tax Efficiency Review",
+    desc: "RRSP, TFSA, and FHSA optimization for your province — not a one-time snapshot.",
   },
   {
     icon: Building,
-    title: "Debt Elimination",
-    desc: "Avalanche vs. snowball, payoff timeline, refinancing analysis",
+    title: "Debt Elimination Plan",
+    desc: "Payoff timeline and scenario modeling so you can adjust when rates or priorities shift.",
   },
   {
     icon: Shield,
     title: "Insurance Audit",
-    desc: "Life, disability, critical illness gap analysis",
+    desc: "Life, disability, and critical illness gap analysis — so you know what's covered and what's not.",
   },
   {
     icon: Newspaper,
     title: "Market Context",
-    desc: "Weekly macro commentary relevant to your portfolio",
+    desc: "Weekly macro commentary relevant to your portfolio and your Canadian accounts.",
   },
   {
     icon: Map,
     title: "Lifetime Roadmap",
-    desc: "Decade-by-decade priorities, financial independence number",
+    desc: "Decade-by-decade milestones and your financial independence number — a living view, not a PDF in a drawer.",
   },
 ];
 
@@ -92,7 +92,7 @@ export function PlanSections() {
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Your Plan
+          Your Plan Includes
         </p>
         <h2
           data-animate

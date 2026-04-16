@@ -8,13 +8,12 @@ import { MosaicLogo } from "./mosaic-logo";
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Pricing", href: "/#pricing" },
-  { label: "For Advisors", href: "/#trust" },
+  { label: "Why Trust Us", href: "/#trust" },
 ];
 
 /**
- * When auth is hidden (waitlist funnel): avoid `/#...` which resolves to the home route.
- * - On `/waitlist`, use same-page hashes (`#how-it-works`).
- * - On `/privacy`, `/terms`, etc., deep-link to `/waitlist#...` where those sections exist.
+ * When auth is hidden: use same-page hashes on `/` (home) since sections live there.
+ * On `/privacy`, `/terms`, etc., deep-link back to `/#...`.
  */
 function navLinkHref(
   href: string,
@@ -23,11 +22,18 @@ function navLinkHref(
 ): string {
   if (!hideAuth || !href.startsWith("/#")) return href;
   const hash = href.slice(1);
-  if (pathname === "/waitlist") return hash;
-  return `/waitlist${hash}`;
+  if (pathname === "/") return hash;
+  return `/${hash}`;
 }
 
-export function Nav({ hideAuth = false }: { hideAuth?: boolean }) {
+export function Nav({
+  hideAuth = false,
+  hideNavLinks = false,
+}: {
+  hideAuth?: boolean;
+  /** Logo only — hides section links and mobile menu (e.g. focused waitlist page). */
+  hideNavLinks?: boolean;
+}) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -37,6 +43,8 @@ export function Nav({ hideAuth = false }: { hideAuth?: boolean }) {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const showLinks = !hideNavLinks;
 
   return (
     <nav
@@ -50,64 +58,69 @@ export function Nav({ hideAuth = false }: { hideAuth?: boolean }) {
         <MosaicLogo theme={scrolled ? "light" : "dark"} />
 
         {/* Desktop links */}
-        <div className="hidden items-center gap-8 md:flex">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.href}
-              href={navLinkHref(link.href, hideAuth, pathname)}
-              className={`font-display text-sm font-medium transition-colors ${
-                scrolled
-                  ? "text-text-secondary hover:text-text-primary"
-                  : "text-text-inverse/70 hover:text-text-inverse"
-              }`}
-            >
-              {link.label}
-            </a>
-          ))}
-          {!hideAuth && (
-            <>
+        {showLinks && (
+          <div className="hidden items-center gap-8 md:flex">
+            {NAV_LINKS.map((link) => (
               <a
-                href="/login"
+                key={link.href}
+                href={navLinkHref(link.href, hideAuth, pathname)}
                 className={`font-display text-sm font-medium transition-colors ${
                   scrolled
                     ? "text-text-secondary hover:text-text-primary"
-                    : "text-text-inverse/60 hover:text-text-inverse"
+                    : "text-text-inverse/70 hover:text-text-inverse"
                 }`}
               >
-                Sign In
+                {link.label}
               </a>
+            ))}
+            {!hideAuth && (
+              <>
+                <a
+                  href="/login"
+                  className={`font-display text-sm font-medium transition-colors ${
+                    scrolled
+                      ? "text-text-secondary hover:text-text-primary"
+                      : "text-text-inverse/60 hover:text-text-inverse"
+                  }`}
+                >
+                  Sign In
+                </a>
+                <a
+                  href="/#waitlist"
+                  className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
+                >
+                  Get Started
+                </a>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Mobile */}
+        {showLinks && (
+          <div className="flex items-center gap-3 md:hidden">
+            {!hideAuth && (
               <a
                 href="/#waitlist"
-                className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
+                className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
               >
                 Get Started
               </a>
-            </>
-          )}
-        </div>
-
-        {/* Mobile */}
-        <div className="flex items-center gap-3 md:hidden">
-          {!hideAuth && (
-            <a
-              href="/#waitlist"
-              className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className={`p-1 ${scrolled ? "text-text-primary" : "text-text-inverse"}`}
+              aria-label="Toggle menu"
             >
-              Get Started
-            </a>
-          )}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className={`p-1 ${scrolled ? "text-text-primary" : "text-text-inverse"}`}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-        </div>
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Mobile menu */}
-      {mobileOpen && (
+      {showLinks && mobileOpen && (
         <div className="border-b border-warm-200 bg-white px-6 pb-4 md:hidden">
           {NAV_LINKS.map((link) => (
             <a

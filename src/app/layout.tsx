@@ -20,7 +20,7 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Mosaic Finance — AI-Powered Financial Planning for Canadians",
   description:
-    "A conversational AI that builds you a real financial plan — investment analysis, tax strategy, retirement projections — reviewed by a registered financial professional.",
+    "AI-powered financial planning for every Canadian money decision. Start with a personalized plan in under 30 minutes. Plans validated by a Registered Financial Professional.",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

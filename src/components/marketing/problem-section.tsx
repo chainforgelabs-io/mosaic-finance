@@ -6,20 +6,20 @@ const CARDS = [
   {
     title: "Too Expensive",
     stat: "$3,000–$10,000",
-    subtitle: "per year for a human financial advisor",
-    body: "That's more than most Canadians under 45 can justify — so they go without.",
+    subtitle: "per year for a financial advisor",
+    body: "Professional planning costs more than most Canadians under 45 can justify — so they go without.",
   },
   {
     title: "Too Passive",
     stat: "0 conversations",
     subtitle: "with your robo-advisor last year",
-    body: "Wealthsimple and Questrade manage your money. They don't plan with you.",
+    body: "Robo-advisors manage your money. They don't plan with you through life changes.",
   },
   {
     title: "Too Generic",
-    stat: "0 Canadian context",
-    subtitle: "in ChatGPT's financial advice",
-    body: "RRSP vs. TFSA? FHSA eligibility? CPP timing? You're on your own.",
+    stat: "0 personalization",
+    subtitle: "from a generic AI chat",
+    body: "It doesn't know your RRSP balance, your province's tax rules, or your retirement timeline — and it asks for personal data you shouldn't be sharing.",
   },
 ];
 
@@ -60,22 +60,25 @@ export function ProblemSection() {
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          The Problem
+          The Planning Gap
         </p>
         <h2
           data-animate
-          className="mb-3 max-w-2xl font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
+          className="mb-3 max-w-3xl font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          14 million Canadians are making financial decisions alone.
+          5.4 million Canadians have no financial advisor. The rest are paying
+          too much.
         </h2>
         <p
           data-animate
-          className="mb-12 max-w-xl font-body text-[17px] text-text-secondary"
+          className="mb-12 max-w-2xl font-body text-[17px] leading-relaxed text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Not because they don&apos;t care. Because the system wasn&apos;t
-          built for them.
+          You&apos;re making financial decisions worth tens of thousands of
+          dollars with no real guidance. Every year without optimized account
+          allocation, tax strategy, and a retirement projection is money left on
+          the table.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

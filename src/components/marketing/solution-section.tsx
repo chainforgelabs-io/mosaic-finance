@@ -5,28 +5,18 @@ import { useEffect, useRef } from "react";
 const STEPS = [
   {
     num: 1,
-    title: "Tell us about your situation",
-    desc: "A warm, adaptive conversation covers your income, expenses, goals, debts, and timeline. One question at a time. No forms.",
+    title: "Tell Charlie about your financial situation",
+    desc: "A warm, adaptive conversation covers your income, goals, debts, and accounts. One question at a time. No forms.",
   },
   {
     num: 2,
-    title: "Add your investments",
-    desc: "Enter your RRSP, TFSA, FHSA, and other accounts manually, or upload a blacked-out statement.",
+    title: "Get a personalized plan in minutes",
+    desc: "Investment analysis, tax strategy, retirement projections — all personalized to your numbers and your province.",
   },
   {
     num: 3,
-    title: "Get your risk profile",
-    desc: "A mix of standard questions and real-talk about how you'd actually feel if markets dropped 30%.",
-  },
-  {
-    num: 4,
-    title: "Your plan is built",
-    desc: "Eight sections: financial health, retirement, investments, tax strategy, debt, insurance, market context, and a lifetime roadmap. All personalized to your numbers.",
-  },
-  {
-    num: 5,
-    title: "A registered financial professional reviews it",
-    desc: "Every plan is reviewed by a registered financial professional before you see it. Then the AI walks you through it section by section.",
+    title: "Plans validated by a Registered Financial Professional",
+    desc: "Every plan is reviewed by a Registered Financial Professional before you see it. Then Charlie walks you through it section by section.",
   },
 ];
 
@@ -86,7 +76,7 @@ export function SolutionSection() {
           className="mb-16 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          A financial plan in one conversation.
+          A personalized plan in three steps.
         </h2>
 
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">

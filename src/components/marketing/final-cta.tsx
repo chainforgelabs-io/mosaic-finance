@@ -40,14 +40,15 @@ export function FinalCta() {
           className="mb-4 font-display text-[28px] font-bold leading-tight text-white sm:text-[36px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Your financial plan is one conversation away.
+          Stop guessing. Start planning.
         </h2>
         <p
           data-animate
           className="mb-8 font-body text-[17px] text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          No credit card. No personal information. Just a conversation.
+          Join the waitlist for AI-powered financial planning built for Canadian
+          rules. No credit card. No personal information.
         </p>
         <div
           data-animate

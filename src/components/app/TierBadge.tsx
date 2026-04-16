@@ -17,7 +17,7 @@ const tierStyles: Record<Tier, string> = {
 const tierLabels: Record<Tier, string> = {
   snapshot: "Snapshot",
   plan: "Plan",
-  advisor: "Advisor",
+  advisor: "Complete",
 };
 
 export function TierBadge({ tier, className }: TierBadgeProps) {

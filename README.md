@@ -1,6 +1,6 @@
 # Mosaic Finance
 
-Conversational AI financial advisor for the Canadian market. Built by ChainForge Labs.
+AI-powered financial planning platform for the Canadian market. Built by ChainForge Labs.
 
 ## What This Is
 

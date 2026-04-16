@@ -42,8 +42,8 @@ const TIERS = [
   },
   {
     id: "advisor" as const,
-    name: "Advisor",
-    tagline: "Your ongoing advisory relationship",
+    name: "Complete",
+    tagline: "Your complete financial planning platform",
     features: [
       "Everything in Plan",
       "Unlimited conversations with Charlie",
@@ -101,7 +101,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
     <section
       ref={sectionRef}
       id="pricing"
-      className="bg-warm-50 px-6 py-20 lg:py-[120px]"
+      className="bg-white px-6 py-20 lg:py-[120px]"
     >
       <div className="mx-auto max-w-[1180px]">
         <p
@@ -116,14 +116,14 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           className="mb-3 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Less than your monthly streaming bill.
+          Lock in Founding Member pricing.
         </h2>
         <p
           data-animate
           className="mb-8 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Every plan reviewed by a registered financial professional. Cancel
+          Every plan reviewed by a Registered Financial Professional. Cancel
           anytime.
         </p>
 
