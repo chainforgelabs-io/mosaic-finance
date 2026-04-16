@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { captureAPIError } from '@/lib/sentry';
 import { PROVINCES } from '@/lib/constants/provinces';
+import { sendWaitlistWelcomeEmail } from '@/lib/resend/client';
 
 const WaitlistSchema = z.object({
   email: z.string().email().max(320),
@@ -55,6 +56,10 @@ export async function POST(req: NextRequest) {
         { status: 500 },
       );
     }
+
+    sendWaitlistWelcomeEmail(email).catch((err) =>
+      captureAPIError(err, { route: 'waitlist', step: 'welcome-email' }),
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {

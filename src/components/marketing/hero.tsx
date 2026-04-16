@@ -25,7 +25,7 @@ export function Hero() {
   return (
     <section
       id="waitlist"
-      className="relative flex min-h-screen scroll-mt-20 items-center justify-center bg-slate-950 px-6"
+      className="relative flex min-h-screen scroll-mt-20 items-center justify-center bg-slate-950 px-6 pt-20 sm:pt-0"
       style={{
         backgroundImage:
           "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
