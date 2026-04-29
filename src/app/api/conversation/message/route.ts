@@ -10,6 +10,7 @@ import { ConversationMessageSchema } from '@/lib/validators/conversation';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
+import { buildClientSnapshot } from '@/lib/conversation/snapshot';
 
 const SESSION_TYPE_CONFIG: Record<string, {
   prompt: string;
@@ -201,6 +202,35 @@ export async function POST(req: NextRequest) {
     systemPrompt += knowledgeContext;
   }
 
+  // Full financial snapshot (ad-hoc + annual-review only; cached per session)
+  if (sessionType === 'ad-hoc' || sessionType === 'annual-review') {
+    const meta =
+      session.metadata && typeof session.metadata === 'object'
+        ? (session.metadata as Record<string, unknown>)
+        : {};
+    let snapshot =
+      typeof meta.snapshot_text === 'string' && meta.snapshot_text.length > 0
+        ? meta.snapshot_text
+        : '';
+    if (!snapshot) {
+      snapshot = await buildClientSnapshot(supabase, user.id);
+      if (snapshot) {
+        const nextMeta = {
+          ...meta,
+          snapshot_text: snapshot,
+          snapshot_cached_at: new Date().toISOString(),
+        };
+        await supabase
+          .from('conversation_sessions')
+          .update({ metadata: nextMeta })
+          .eq('id', sessionId);
+      }
+    }
+    if (snapshot) {
+      systemPrompt += `\n\n${snapshot}\n\nUse this snapshot as ground truth when it conflicts with vague client phrasing. Quote specific balances and rates from the snapshot when relevant.`;
+    }
+  }
+
   const TAG_OPEN = config.tagOpen;
   const TOPICS_TAG_OPEN = '<TOPICS_COVERED>';
   const encoder = new TextEncoder();
@@ -348,13 +378,25 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        const { data: latestSession } = await supabase
+          .from('conversation_sessions')
+          .select('metadata')
+          .eq('id', sessionId)
+          .single();
+
+        const baseMeta =
+          latestSession?.metadata && typeof latestSession.metadata === 'object'
+            ? (latestSession.metadata as Record<string, unknown>)
+            : {};
+        const nextMetadata = extractedData
+          ? { ...baseMeta, extracted_data: extractedData }
+          : baseMeta;
+
         await supabase
           .from('conversation_sessions')
           .update({
             status: sessionStatus,
-            metadata: extractedData
-              ? { ...((typeof session.metadata === 'object' && session.metadata) || {}), extracted_data: extractedData }
-              : session.metadata,
+            metadata: nextMetadata,
             last_activity_at: new Date().toISOString(),
           })
           .eq('id', sessionId);

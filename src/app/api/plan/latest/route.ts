@@ -19,9 +19,10 @@ export async function GET() {
     .from('financial_plans')
     .select('id, status, plan_data, created_at')
     .eq('user_id', user.id)
+    .neq('status', 'superseded')
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!plan) {
     return NextResponse.json({ plan: null });

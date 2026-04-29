@@ -106,8 +106,9 @@ export async function saveFinancialProfile(formData: {
     .from("financial_profiles")
     .select("id")
     .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!existingProfile) {
     const { error: financialError } = await supabase
@@ -185,9 +186,10 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
         .from("financial_plans")
         .select("id, status")
         .eq("user_id", user.id)
+        .neq("status", "superseded")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single(),
+        .maybeSingle(),
     ]);
 
   const profileComplete = !!(

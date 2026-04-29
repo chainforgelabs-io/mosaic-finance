@@ -164,7 +164,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .from("financial_profiles")
         .select("annual_income, monthly_expenses, emergency_fund_months, major_debts, retirement_target_age")
         .eq("user_id", user!.id)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       const { data: holdings } = await supabase
         .from("investment_holdings")

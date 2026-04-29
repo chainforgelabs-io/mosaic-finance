@@ -9,6 +9,7 @@ import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
 import { ReviewReminder } from "@/components/app/ReviewReminder";
+import { PendingReviewBanner } from "@/components/app/PendingReviewBanner";
 import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
 import { RetirementProgressBar } from "@/components/charts/RetirementProgressBar";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
@@ -677,6 +678,7 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <PendingReviewBanner />
       <div className="mb-6">
         <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
           Dashboard

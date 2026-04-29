@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Calendar,
   ArrowRight,
@@ -11,7 +12,6 @@ import {
   ClipboardList,
   Video,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ConversationBubble } from "@/components/app/ConversationBubble";
 
 type MeetingType = "annual-review" | "ad-hoc";
@@ -52,6 +52,7 @@ export default function MeetingPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
+  const [hasReviewExtract, setHasReviewExtract] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasStarted = useRef(false);
@@ -68,6 +69,7 @@ export default function MeetingPage() {
       hasStarted.current = true;
       setMeetingType(type);
       setIsStarting(true);
+      setHasReviewExtract(false);
 
       try {
         const res = await fetch("/api/conversation/start", {
@@ -122,6 +124,9 @@ export default function MeetingPage() {
               }
               if (data.type === "done" && data.sessionComplete) {
                 setSessionComplete(true);
+                if (type === "annual-review" && data.extractedData) {
+                  setHasReviewExtract(true);
+                }
               }
             } catch { /* skip */ }
           }
@@ -189,6 +194,9 @@ export default function MeetingPage() {
             }
             if (data.type === "done" && data.sessionComplete) {
               setSessionComplete(true);
+              if (meetingType === "annual-review" && data.extractedData) {
+                setHasReviewExtract(true);
+              }
             }
           } catch { /* skip */ }
         }
@@ -207,6 +215,7 @@ export default function MeetingPage() {
     setMessages([]);
     setInputValue("");
     setSessionComplete(false);
+    setHasReviewExtract(false);
     hasStarted.current = false;
   };
 
@@ -311,11 +320,20 @@ export default function MeetingPage() {
             />
           ))}
 
-          {sessionComplete && meetingType === "annual-review" && (
-            <div className="mt-4 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
+          {sessionComplete && meetingType === "annual-review" && sessionId && (
+            <div className="mt-4 space-y-3 rounded-lg border border-[var(--emerald)]/30 bg-[var(--emerald)]/5 px-4 py-3">
               <p className="font-body text-[13px] text-[var(--text-secondary)]">
-                Your annual review is complete. Any changes will be reflected in your updated financial plan.
+                Your annual review conversation is complete.
+                {hasReviewExtract
+                  ? " Review the updates Charlie captured, then apply them to your profile — a new plan will be sent for professional review."
+                  : " If Charlie captured structured updates, confirm them on the next step."}
               </p>
+              <Link
+                href={`/dashboard/meeting/${sessionId}/apply-changes`}
+                className="inline-flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-[13px] font-semibold text-white hover:bg-[var(--emerald-dark)]"
+              >
+                Review changes Charlie noted
+              </Link>
             </div>
           )}
         </div>
