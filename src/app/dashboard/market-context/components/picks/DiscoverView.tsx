@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useMarketStore } from "@/stores/market-store";
 import {
@@ -313,13 +314,38 @@ export function DiscoverView() {
       )}
 
       {!loading && !error && signals.length === 0 && (
-        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8 text-center">
-          <Telescope className="mx-auto mb-2 h-8 w-8 text-[var(--text-muted)]" />
-          <p className="font-[family-name:var(--font-body)] mb-1 text-sm text-[var(--text-secondary)]">
-            No signals yet.
-          </p>
-          <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
-            Run a scan to ingest tracked X accounts, news, and trends.
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-8">
+          <div className="mb-4 text-center">
+            <Telescope className="mx-auto mb-2 h-8 w-8 text-[var(--text-muted)]" />
+            <p className="font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-secondary)]">
+              No signals yet — quick start:
+            </p>
+          </div>
+          <ol className="font-[family-name:var(--font-body)] mx-auto max-w-md space-y-2 text-sm text-[var(--text-secondary)]">
+            <li>
+              <span className="font-semibold text-[var(--emerald)]">1.</span>{" "}
+              Hit <strong>Run scan</strong> above — it sweeps your tracked X
+              accounts and news for stock mentions (~1–2 min).
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--emerald)]">2.</span>{" "}
+              Tickers appear here ranked by composite score. Star the ones
+              worth following.
+            </li>
+            <li>
+              <span className="font-semibold text-[var(--emerald)]">3.</span>{" "}
+              Tune your sources in the <strong>Sources</strong> tab — add any
+              X handle that posts good stock calls.
+            </li>
+          </ol>
+          <p className="font-[family-name:var(--font-body)] mt-4 text-center text-xs text-[var(--text-muted)]">
+            <Link
+              href="/dashboard/market-context/guide"
+              className="text-[var(--emerald)] underline-offset-2 hover:underline"
+            >
+              Read the full guide
+            </Link>{" "}
+            for scoring details, modes, and tips.
           </p>
         </div>
       )}

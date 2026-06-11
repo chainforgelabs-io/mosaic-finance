@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useMarketStore } from "@/stores/market-store";
 import type { PicksMode, PicksSubTab } from "@/types/picks";
-import { Compass, Bookmark, Rss } from "lucide-react";
+import { Compass, Bookmark, Rss, HelpCircle } from "lucide-react";
 import { DiscoverView } from "./picks/DiscoverView";
 import { MyPicksView } from "./picks/MyPicksView";
 import { SourcesView } from "./picks/SourcesView";
@@ -51,11 +52,20 @@ export function PicksHub() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <ModeToggle />
-        {settingsError && (
-          <p className="font-[family-name:var(--font-body)] text-xs text-[var(--error)]">
-            {settingsError}
-          </p>
-        )}
+        <div className="flex items-center gap-4">
+          {settingsError && (
+            <p className="font-[family-name:var(--font-body)] text-xs text-[var(--error)]">
+              {settingsError}
+            </p>
+          )}
+          <Link
+            href="/dashboard/market-context/guide"
+            className="font-[family-name:var(--font-display)] inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--emerald)]"
+          >
+            <HelpCircle className="h-3.5 w-3.5" />
+            How to use
+          </Link>
+        </div>
       </div>
 
       <div className="-mx-1 overflow-x-auto border-b border-[var(--warm-200)] px-1">
