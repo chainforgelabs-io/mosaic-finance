@@ -40,4 +40,24 @@ export const ratelimit = {
     redis,
     limiter: Ratelimit.slidingWindow(5, "1 m"),
   }),
+  picksSettings: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "1 m"),
+  }),
+  picksRead: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(60, "1 m"),
+  }),
+  picksWrite: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(30, "1 m"),
+  }),
+  picksRefresh: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(3, "10 m"),
+  }),
+  picksAssess: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(10, "10 m"),
+  }),
 };

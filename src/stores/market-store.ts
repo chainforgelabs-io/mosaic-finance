@@ -13,8 +13,9 @@ import type {
   SearchResult,
   WatchlistItem,
 } from "@/lib/market-data/types";
+import type { PicksMode, PicksSubTab } from "@/types/picks";
 
-export type MarketTab = "overview" | "lookup" | "news" | "commentary";
+export type MarketTab = "overview" | "lookup" | "news" | "commentary" | "picks";
 
 interface MarketStore {
   activeTab: MarketTab;
@@ -83,6 +84,12 @@ interface MarketStore {
 
   selectedPersona: string | null;
   setSelectedPersona: (persona: string | null) => void;
+
+  picksSubTab: PicksSubTab;
+  setPicksSubTab: (tab: PicksSubTab) => void;
+
+  picksMode: PicksMode | null;
+  setPicksMode: (mode: PicksMode | null) => void;
 }
 
 export const useMarketStore = create<MarketStore>((set) => ({
@@ -148,4 +155,10 @@ export const useMarketStore = create<MarketStore>((set) => ({
 
   selectedPersona: null,
   setSelectedPersona: (selectedPersona) => set({ selectedPersona }),
+
+  picksSubTab: "discover",
+  setPicksSubTab: (picksSubTab) => set({ picksSubTab }),
+
+  picksMode: null,
+  setPicksMode: (picksMode) => set({ picksMode }),
 }));

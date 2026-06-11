@@ -15,6 +15,7 @@ const API_KEY = process.env.FMP_API_KEY;
 async function fmpFetch<T>(
   endpoint: string,
   params: Record<string, string> = {},
+  init?: RequestInit,
 ): Promise<T> {
   const url = new URL(`${FMP_BASE}${endpoint}`);
   url.searchParams.set("apikey", API_KEY!);
@@ -23,7 +24,7 @@ async function fmpFetch<T>(
   }
 
   const res = await fetch(url.toString(), {
-    next: { revalidate: 300 },
+    ...(init ?? { next: { revalidate: 300 } }),
   });
 
   if (!res.ok) {
@@ -31,6 +32,29 @@ async function fmpFetch<T>(
   }
 
   return res.json();
+}
+
+interface FMPStockListRow {
+  symbol: string;
+  name?: string;
+  exchange?: string;
+}
+
+/** Full ticker symbol universe (large payload). Bypass Next route cache when used inside jobs. */
+export async function getAllSymbols(): Promise<string[]> {
+  if (!API_KEY) {
+    throw new Error("FMP_API_KEY is not set");
+  }
+  const rows = await fmpFetch<FMPStockListRow[]>("/stock/list", {}, {
+    cache: "no-store",
+  });
+  const set = new Set<string>();
+  for (const row of rows) {
+    if (row?.symbol && typeof row.symbol === "string") {
+      set.add(row.symbol.toUpperCase());
+    }
+  }
+  return [...set];
 }
 
 interface FMPQuote {

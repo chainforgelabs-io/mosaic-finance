@@ -6,17 +6,20 @@ import {
   BarChart3,
   Search,
   Newspaper,
+  Target,
   Brain,
 } from "lucide-react";
 import { MarketOverview } from "./components/MarketOverview";
 import { StockLookup } from "./components/StockLookup";
 import { NewsHub } from "./components/NewsHub";
+import { PicksHub } from "./components/PicksHub";
 import { AICommentary } from "./components/AICommentary";
 
 const tabs: { id: MarketTab; label: string; icon: typeof BarChart3 }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "lookup", label: "Lookup", icon: Search },
   { id: "news", label: "News", icon: Newspaper },
+  { id: "picks", label: "Picks", icon: Target },
   { id: "commentary", label: "AI Commentary", icon: Brain },
 ];
 
@@ -62,6 +65,7 @@ export default function MarketContextPage() {
       {activeTab === "overview" && <MarketOverview />}
       {activeTab === "lookup" && <StockLookup />}
       {activeTab === "news" && <NewsHub />}
+      {activeTab === "picks" && <PicksHub />}
       {activeTab === "commentary" && <AICommentary />}
     </div>
   );
