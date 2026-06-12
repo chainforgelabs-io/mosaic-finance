@@ -73,9 +73,7 @@ export async function getQuotes(symbols: string[]): Promise<Quote[]> {
     const quotes: Quote[] = [];
 
     const avMap: Record<string, typeof avSummary.tsx> = {
-      "XIU.TO": avSummary.tsx,
       SPY: avSummary.sp500,
-      "ZAG.TO": avSummary.bonds,
     };
 
     for (const symbol of symbols) {
@@ -153,7 +151,13 @@ export async function getSectorPerformance(): Promise<SectorPerformance[]> {
   const cached = await getCached<SectorPerformance[]>(cacheKey);
   if (cached) return cached;
 
-  const sectors = await fmp.getSectorPerformance();
+  // Degrade to an empty panel if the FMP plan doesn't cover this endpoint
+  let sectors: SectorPerformance[] = [];
+  try {
+    sectors = await fmp.getSectorPerformance();
+  } catch {
+    return [];
+  }
   if (sectors.length > 0) {
     await setCache(cacheKey, sectors, CACHE_TTL.sectors);
   }
@@ -168,13 +172,20 @@ export async function getMarketMovers(): Promise<{
   const cached = await getCached<{ gainers: MarketMover[]; losers: MarketMover[] }>(cacheKey);
   if (cached) return cached;
 
-  const [gainers, losers] = await Promise.all([
+  // Degrade to empty panels if the FMP plan doesn't cover these endpoints
+  const [gainersResult, losersResult] = await Promise.allSettled([
     fmp.getGainers(),
     fmp.getLosers(),
   ]);
 
-  const result = { gainers, losers };
-  await setCache(cacheKey, result, CACHE_TTL.movers);
+  const result = {
+    gainers: gainersResult.status === "fulfilled" ? gainersResult.value : [],
+    losers: losersResult.status === "fulfilled" ? losersResult.value : [],
+  };
+
+  if (result.gainers.length > 0 || result.losers.length > 0) {
+    await setCache(cacheKey, result, CACHE_TTL.movers);
+  }
   return result;
 }
 
@@ -249,11 +260,16 @@ export async function getAggregatedNews(
   return result;
 }
 
+/**
+ * Overview cards track US-listed ETF proxies (not index levels) because the
+ * free quote feeds cover them reliably. EWC/AGG replace the TSX-listed
+ * XIU.TO/ZAG.TO, which free Finnhub does not serve.
+ */
 export const DEFAULT_INDICES = [
-  { symbol: "SPY", name: "S&P 500" },
-  { symbol: "XIU.TO", name: "TSX Composite" },
-  { symbol: "QQQ", name: "NASDAQ 100" },
-  { symbol: "DIA", name: "Dow Jones" },
-  { symbol: "ZAG.TO", name: "CA Aggregate Bonds" },
-  { symbol: "GLD", name: "Gold" },
+  { symbol: "SPY", name: "S&P 500 (SPY)" },
+  { symbol: "EWC", name: "Canada (EWC)" },
+  { symbol: "QQQ", name: "NASDAQ 100 (QQQ)" },
+  { symbol: "DIA", name: "Dow Jones (DIA)" },
+  { symbol: "AGG", name: "US Bonds (AGG)" },
+  { symbol: "GLD", name: "Gold (GLD)" },
 ];

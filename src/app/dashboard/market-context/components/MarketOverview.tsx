@@ -14,13 +14,15 @@ import { RefreshCw, Plus, X, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
+// Cards track ETF proxies — labels surface the ETF symbol so prices are
+// read as ETF prices, not index levels.
 const INDEX_LABELS: Record<string, string> = {
-  SPY: "S&P 500",
-  "XIU.TO": "TSX Composite",
-  QQQ: "NASDAQ 100",
-  DIA: "Dow Jones",
-  "ZAG.TO": "CA Bonds",
-  GLD: "Gold",
+  SPY: "S&P 500 · SPY",
+  EWC: "Canada · EWC",
+  QQQ: "NASDAQ 100 · QQQ",
+  DIA: "Dow Jones · DIA",
+  AGG: "US Bonds · AGG",
+  GLD: "Gold · GLD",
 };
 
 export function MarketOverview() {
@@ -66,7 +68,7 @@ export function MarketOverview() {
           </h2>
           {indexQuotes.length > 0 && (
             <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mt-0.5">
-              Last updated{" "}
+              ETF proxies · delayed quotes · as of{" "}
               {new Date(indexQuotes[0].fetchedAt).toLocaleTimeString("en-CA", {
                 hour: "numeric",
                 minute: "2-digit",
