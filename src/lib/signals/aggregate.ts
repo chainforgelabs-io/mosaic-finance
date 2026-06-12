@@ -1,6 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { getQuotes, getCompanyProfile } from "@/lib/market-data/market-aggregator";
-import { computeScores } from "./scoring";
+import { computeScores, fanoutWeight } from "./scoring";
 import type { RawSignal, TrackedXAccount } from "@/types/picks";
 
 /** Max tickers to enrich with quotes/profiles per aggregation run. */
@@ -11,13 +11,17 @@ interface TickerBucket {
   ticker: string;
   mentions24h: number;
   mentions7d: number;
+  /** Raw counts for display */
   trackedMentions24h: number;
-  trackedWeightSum24h: number;
+  newsMentions24h: number;
+  /** Fan-out dampened values that feed the composite score */
+  trackedScoreMentions24h: number;
+  trackedScoreWeightSum24h: number;
+  newsScoreMentions24h: number;
   firehoseMentions24h: number;
   firehoseMentions7d: number;
   congressBuys30d: number;
   congressSells30d: number;
-  newsMentions24h: number;
   sentimentSum24h: number;
   sentimentCount24h: number;
 }
@@ -28,15 +32,32 @@ function emptyBucket(ticker: string): TickerBucket {
     mentions24h: 0,
     mentions7d: 0,
     trackedMentions24h: 0,
-    trackedWeightSum24h: 0,
+    newsMentions24h: 0,
+    trackedScoreMentions24h: 0,
+    trackedScoreWeightSum24h: 0,
+    newsScoreMentions24h: 0,
     firehoseMentions24h: 0,
     firehoseMentions7d: 0,
     congressBuys30d: 0,
     congressSells30d: 0,
-    newsMentions24h: 0,
     sentimentSum24h: 0,
     sentimentCount24h: 0,
   };
+}
+
+/**
+ * Tickers named per post: a roundup tweet listing 12 names fans out into 12
+ * raw_signals rows sharing (source, source_id). Used to dampen multi-ticker
+ * posts so focused calls dominate the score.
+ */
+function buildFanoutMap(signals: RawSignal[]): Map<string, number> {
+  const fanout = new Map<string, number>();
+  for (const signal of signals) {
+    if (signal.source !== "x_tracked" && signal.source !== "news") continue;
+    const key = `${signal.source}|${signal.source_id}`;
+    fanout.set(key, (fanout.get(key) || 0) + 1);
+  }
+  return fanout;
 }
 
 async function fetchRecentSignals(): Promise<RawSignal[]> {
@@ -99,6 +120,7 @@ export async function aggregateSignals(): Promise<{
   const cut7d = now - 7 * 86400_000;
 
   const buckets = new Map<string, TickerBucket>();
+  const fanoutMap = buildFanoutMap(signals);
 
   for (const signal of signals) {
     const occurred = new Date(signal.occurred_at).getTime();
@@ -116,13 +138,20 @@ export async function aggregateSignals(): Promise<{
     if (within7d) bucket.mentions7d += volume;
     if (within24h) bucket.mentions24h += volume;
 
+    const fanout =
+      fanoutMap.get(`${signal.source}|${signal.source_id}`) ?? 1;
+
     switch (signal.source) {
       case "x_tracked":
         if (within24h) {
           bucket.trackedMentions24h += 1;
-          bucket.trackedWeightSum24h +=
-            weightByHandle.get((signal.author_handle || "").toLowerCase()) ??
-            0.5;
+          // Roundup posts (many tickers) carry no per-ticker alpha signal
+          const alphaWeight = fanoutWeight(fanout, { roundupCutoff: true });
+          bucket.trackedScoreMentions24h += alphaWeight;
+          bucket.trackedScoreWeightSum24h +=
+            alphaWeight *
+            (weightByHandle.get((signal.author_handle || "").toLowerCase()) ??
+              0.5);
         }
         break;
       case "x_firehose":
@@ -138,7 +167,10 @@ export async function aggregateSignals(): Promise<{
         }
         break;
       case "news":
-        if (within24h) bucket.newsMentions24h += 1;
+        if (within24h) {
+          bucket.newsMentions24h += 1;
+          bucket.newsScoreMentions24h += fanoutWeight(fanout);
+        }
         break;
       case "price_action":
         break;
@@ -226,9 +258,10 @@ export async function aggregateSignals(): Promise<{
         : null;
     const baseline7dAvg = bucket.firehoseMentions7d / 7;
 
+    // Score inputs use fan-out dampened values; display fields stay raw
     const scores = computeScores({
-      trackedMentions24h: bucket.trackedMentions24h,
-      trackedWeightSum24h: bucket.trackedWeightSum24h,
+      trackedMentions24h: bucket.trackedScoreMentions24h,
+      trackedWeightSum24h: bucket.trackedScoreWeightSum24h,
       firehoseMentions24h: bucket.firehoseMentions24h,
       firehoseBaseline7dAvg: baseline7dAvg,
       avgSentiment24h: avgSentiment,
@@ -236,7 +269,7 @@ export async function aggregateSignals(): Promise<{
       congressSells30d: bucket.congressSells30d,
       changePct1d: quote?.changePercent ?? null,
       volumeRatio,
-      newsMentions24h: bucket.newsMentions24h,
+      newsMentions24h: bucket.newsScoreMentions24h,
       personaBullishCount: personas.bullish,
       personaBearishCount: personas.bearish,
     });

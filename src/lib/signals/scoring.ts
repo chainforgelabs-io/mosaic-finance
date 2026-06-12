@@ -22,6 +22,27 @@ export const RADAR_SCORE_THRESHOLD = 60;
 export const BIG_MOVER_CHANGE_PCT = 5;
 export const BIG_MOVER_VOLUME_RATIO = 3;
 
+/**
+ * Posts naming more than this many tickers are "roundups" (premarket movers
+ * lists, index recaps) and carry no per-ticker alpha signal.
+ */
+export const ROUNDUP_TICKER_LIMIT = 6;
+
+/**
+ * Dampening for multi-ticker posts: a post naming N tickers contributes 1/N
+ * per ticker, so a focused single-name call outweighs a 12-name roundup.
+ * With `roundupCutoff`, posts above ROUNDUP_TICKER_LIMIT contribute nothing
+ * (used for the alpha-momentum component).
+ */
+export function fanoutWeight(
+  tickerCount: number,
+  options?: { roundupCutoff?: boolean },
+): number {
+  if (tickerCount <= 0) return 0;
+  if (options?.roundupCutoff && tickerCount > ROUNDUP_TICKER_LIMIT) return 0;
+  return 1 / tickerCount;
+}
+
 function clamp(value: number, min = 0, max = 100): number {
   return Math.min(max, Math.max(min, value));
 }

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { ratelimit } from "@/lib/ratelimit";
 import { captureAPIError } from "@/lib/sentry";
-import { runScan } from "@/lib/signals/run-scan";
+import { runScan, congressDataMissing } from "@/lib/signals/run-scan";
 
 export const maxDuration = 300;
 
@@ -34,8 +34,13 @@ export async function POST(request: NextRequest) {
     const json: unknown = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(json ?? {});
 
+    // Backfill congress trades on the first-ever scan so the user doesn't
+    // wait for the daily cron to see that signal stream
+    const includeCongress = await congressDataMissing();
+
     const summary = await runScan({
       includeFirehose: parsed.success ? parsed.data.includeFirehose : undefined,
+      includeCongress,
     });
 
     return NextResponse.json({ summary });

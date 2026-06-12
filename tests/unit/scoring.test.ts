@@ -7,6 +7,8 @@ import {
   congressScore,
   priceActionScore,
   personaScore,
+  fanoutWeight,
+  ROUNDUP_TICKER_LIMIT,
   WEIGHTS,
 } from "@/lib/signals/scoring";
 import type { ScoreInputs } from "@/types/picks";
@@ -77,6 +79,32 @@ describe("sub-scores", () => {
     expect(personaScore(4, 0)).toBe(100);
     expect(personaScore(0, 4)).toBe(0);
     expect(personaScore(2, 2)).toBe(50);
+  });
+});
+
+describe("fanoutWeight", () => {
+  it("focused single-ticker post gets full weight", () => {
+    expect(fanoutWeight(1)).toBe(1);
+  });
+
+  it("multi-ticker post splits weight evenly", () => {
+    expect(fanoutWeight(4)).toBe(0.25);
+    expect(fanoutWeight(12)).toBeCloseTo(1 / 12);
+  });
+
+  it("roundup cutoff zeroes posts above the limit", () => {
+    expect(
+      fanoutWeight(ROUNDUP_TICKER_LIMIT, { roundupCutoff: true }),
+    ).toBeCloseTo(1 / ROUNDUP_TICKER_LIMIT);
+    expect(
+      fanoutWeight(ROUNDUP_TICKER_LIMIT + 1, { roundupCutoff: true }),
+    ).toBe(0);
+    expect(fanoutWeight(12, { roundupCutoff: true })).toBe(0);
+  });
+
+  it("handles zero and negative counts", () => {
+    expect(fanoutWeight(0)).toBe(0);
+    expect(fanoutWeight(-3)).toBe(0);
   });
 });
 

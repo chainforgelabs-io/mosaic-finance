@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ingestTrackedAccounts } from "./ingest-tracked";
 import { ingestFirehose } from "./ingest-firehose";
 import { ingestNews } from "./ingest-news";
+import { ingestCongressTrades } from "./ingest-congress";
 import { aggregateSignals } from "./aggregate";
 import type { PicksMode, ScanSummary } from "@/types/picks";
 
@@ -19,13 +20,30 @@ export async function getCurrentMode(): Promise<PicksMode> {
   }
 }
 
+/** True when no congress trades have ever been ingested (first-run state). */
+export async function congressDataMissing(): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
+    const { count } = await supabase
+      .from("raw_signals")
+      .select("id", { count: "exact", head: true })
+      .eq("source", "congress");
+    return (count ?? 0) === 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Full ingestion + aggregation pipeline. Firehose only runs in heavy mode
- * (or when forced) to keep light mode cheap on Grok quota.
+ * (or when forced) to keep light mode cheap on Grok quota. Congress trades
+ * normally ingest via their own daily cron; pass includeCongress to backfill
+ * on demand (e.g. very first scan).
  */
 export async function runScan(options?: {
   mode?: PicksMode;
   includeFirehose?: boolean;
+  includeCongress?: boolean;
 }): Promise<ScanSummary> {
   const startedAt = new Date().toISOString();
   const mode = options?.mode ?? (await getCurrentMode());
@@ -64,6 +82,17 @@ export async function runScan(options?: {
     } catch (err) {
       errors.push(
         `firehose: ${err instanceof Error ? err.message : "unknown"}`,
+      );
+    }
+  }
+
+  if (options?.includeCongress) {
+    try {
+      const congressResult = await ingestCongressTrades();
+      errors.push(...congressResult.errors);
+    } catch (err) {
+      errors.push(
+        `congress: ${err instanceof Error ? err.message : "unknown"}`,
       );
     }
   }
