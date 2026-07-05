@@ -1,6 +1,7 @@
 import { grokChat } from "@/lib/grok/client";
 import { extractCashtags, validateTickers } from "./ticker-extractor";
 import { insertRawSignals, sentimentToNumber, type RawSignalInsert } from "./store";
+import { EXTRACTION_MODEL, EXTRACTION_PROMPT_VERSION } from "./versions";
 
 /**
  * Broad X discovery: surfaces tickers with unusually elevated discussion
@@ -42,6 +43,7 @@ Return ONLY valid JSON, no markdown.`;
   let trends: FirehoseTrend[] = [];
   try {
     const response = await grokChat([{ role: "user", content: prompt }], {
+      model: EXTRACTION_MODEL,
       temperature: 0.3,
       maxTokens: 6144,
       tools: [{ type: "x_search" }],
@@ -91,6 +93,8 @@ Return ONLY valid JSON, no markdown.`;
       sentiment,
       engagement: mentions,
       occurred_at: now,
+      model: EXTRACTION_MODEL,
+      prompt_version: EXTRACTION_PROMPT_VERSION,
     });
   }
 

@@ -2,6 +2,7 @@ import { grokChat } from "@/lib/grok/client";
 import { createServiceClient } from "@/lib/supabase/service";
 import { extractCashtags, validateTickers } from "./ticker-extractor";
 import { insertRawSignals, sentimentToNumber, type RawSignalInsert } from "./store";
+import { EXTRACTION_MODEL, EXTRACTION_PROMPT_VERSION } from "./versions";
 import type { TrackedXAccount } from "@/types/picks";
 
 /** Grok x_search allows at most 10 handles per request. */
@@ -65,6 +66,7 @@ For every post that mentions a stock, company, ETF, or actionable market view, r
 Only include posts since ${fromDate}. Return ONLY valid JSON, no markdown.`;
 
   const response = await grokChat([{ role: "user", content: prompt }], {
+    model: EXTRACTION_MODEL,
     temperature: 0.2,
     maxTokens: 8192,
     tools: [
@@ -138,6 +140,8 @@ export async function ingestTrackedAccounts(options?: {
             sentiment,
             engagement,
             occurred_at: timestamp,
+            model: EXTRACTION_MODEL,
+            prompt_version: EXTRACTION_PROMPT_VERSION,
           });
         }
       }

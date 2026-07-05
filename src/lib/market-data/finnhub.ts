@@ -108,6 +108,7 @@ export async function getCompanyProfile(
     weekHigh52: 0,
     weekLow52: 0,
     avgVolume: 0,
+    volume: 0,
     website: data.weburl,
     logo: data.logo,
   };

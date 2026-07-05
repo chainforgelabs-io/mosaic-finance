@@ -4,6 +4,7 @@ import { ingestFirehose } from "./ingest-firehose";
 import { ingestNews } from "./ingest-news";
 import { ingestCongressTrades } from "./ingest-congress";
 import { aggregateSignals } from "./aggregate";
+import { startScanRun, finishScanRun, type ScanTrigger } from "./scan-runs";
 import type { PicksMode, ScanSummary } from "@/types/picks";
 
 /**
@@ -44,11 +45,17 @@ export async function runScan(options?: {
   mode?: PicksMode;
   includeFirehose?: boolean;
   includeCongress?: boolean;
+  trigger?: ScanTrigger;
 }): Promise<ScanSummary> {
   const startedAt = new Date().toISOString();
   const mode = options?.mode ?? (await getCurrentMode());
   const includeFirehose = options?.includeFirehose ?? mode === "heavy";
   const errors: string[] = [];
+
+  const scanRunId = await startScanRun({
+    trigger: options?.trigger ?? "manual",
+    mode,
+  });
 
   let trackedPostsIngested = 0;
   let firehosePostsIngested = 0;
@@ -98,9 +105,13 @@ export async function runScan(options?: {
   }
 
   let tickersAggregated = 0;
+  let snapshotsWritten = 0;
   try {
-    const aggResult = await aggregateSignals();
+    const aggResult = await aggregateSignals({
+      scanRunId: scanRunId ?? undefined,
+    });
     tickersAggregated = aggResult.tickersAggregated;
+    snapshotsWritten = aggResult.snapshotsWritten;
     errors.push(...aggResult.errors);
   } catch (err) {
     errors.push(
@@ -108,14 +119,18 @@ export async function runScan(options?: {
     );
   }
 
-  return {
+  const summary: ScanSummary = {
     mode,
     trackedPostsIngested,
     firehosePostsIngested,
     newsSignalsIngested,
     tickersAggregated,
+    snapshotsWritten,
     startedAt,
     finishedAt: new Date().toISOString(),
     errors,
   };
+
+  await finishScanRun(scanRunId, summary);
+  return summary;
 }

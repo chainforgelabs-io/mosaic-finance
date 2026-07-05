@@ -38,6 +38,8 @@ export interface CompanyProfile {
   weekHigh52: number;
   weekLow52: number;
   avgVolume: number;
+  /** Today's cumulative volume (FMP only; 0 when unavailable). */
+  volume: number;
   website: string;
   logo: string;
 }

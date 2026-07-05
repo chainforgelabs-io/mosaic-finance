@@ -11,6 +11,9 @@ export interface RawSignalInsert {
   sentiment?: number | null;
   engagement?: number | null;
   occurred_at: string;
+  /** Extraction provenance — set for LLM-derived sources (x_tracked, x_firehose). */
+  model?: string | null;
+  prompt_version?: string | null;
 }
 
 const CHUNK_SIZE = 200;

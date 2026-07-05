@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { captureAPIError } from "@/lib/sentry";
 import { runScan, getCurrentMode } from "@/lib/signals/run-scan";
+import { recordSkippedScan } from "@/lib/signals/scan-runs";
 import { enrichTopTickers } from "@/lib/signals/persona-takes";
 import { MODE_CONFIG } from "@/lib/signals/mode-config";
 
@@ -21,12 +22,17 @@ export async function GET(request: NextRequest) {
     const isNightly = request.nextUrl.searchParams.get("enrich") === "1";
     const mode = await getCurrentMode();
 
-    // Cron fires every 30 min; light mode only acts on the top-of-hour tick
+    // Cron fires every 30 min; light mode only acts on the top-of-hour tick.
+    // Record the skip so missed-cron detection can tell it from an outage.
     if (!isNightly && mode === "light" && new Date().getUTCMinutes() >= 15) {
+      await recordSkippedScan(mode);
       return NextResponse.json({ skipped: "light mode runs hourly" });
     }
 
-    const summary = await runScan({ mode });
+    const summary = await runScan({
+      mode,
+      trigger: isNightly ? "cron_nightly" : "cron_intraday",
+    });
 
     let enrichment: { tickersEnriched: string[]; errors: string[] } | null =
       null;

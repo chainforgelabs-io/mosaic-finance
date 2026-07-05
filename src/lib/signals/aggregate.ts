@@ -1,11 +1,20 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { getQuotes, getCompanyProfile } from "@/lib/market-data/market-aggregator";
+import {
+  getQuotes,
+  getCompanyProfileFresh,
+} from "@/lib/market-data/market-aggregator";
 import { computeScores, fanoutWeight } from "./scoring";
+import {
+  EXTRACTION_MODEL,
+  EXTRACTION_PROMPT_VERSION,
+  SCORING_CONFIG_VERSION,
+} from "./versions";
 import type { RawSignal, TrackedXAccount } from "@/types/picks";
 
 /** Max tickers to enrich with quotes/profiles per aggregation run. */
 const MAX_ENRICHED_TICKERS = 50;
 const QUOTE_BATCH_SIZE = 25;
+const PROFILE_CONCURRENCY = 8;
 
 interface TickerBucket {
   ticker: string;
@@ -81,8 +90,11 @@ async function fetchRecentSignals(): Promise<RawSignal[]> {
   return all;
 }
 
-export async function aggregateSignals(): Promise<{
+export async function aggregateSignals(options?: {
+  scanRunId?: string;
+}): Promise<{
   tickersAggregated: number;
+  snapshotsWritten: number;
   errors: string[];
 }> {
   const supabase = createServiceClient();
@@ -183,7 +195,7 @@ export async function aggregateSignals(): Promise<{
   }
 
   if (buckets.size === 0) {
-    return { tickersAggregated: 0, errors };
+    return { tickersAggregated: 0, snapshotsWritten: 0, errors };
   }
 
   // Rank by activity so quote enrichment stays bounded
@@ -194,19 +206,16 @@ export async function aggregateSignals(): Promise<{
   );
   const enriched = ranked.slice(0, MAX_ENRICHED_TICKERS);
 
-  // Existing rows: reuse name/sector to avoid refetching profiles
-  const { data: existingRows } = await supabase
-    .from("ticker_signals")
-    .select("ticker, name, sector")
-    .in("ticker", enriched.map((b) => b.ticker));
-  const existingMeta = new Map(
-    (existingRows || []).map((r) => [r.ticker, { name: r.name, sector: r.sector }]),
-  );
-
   // Batch quotes
   const quoteMap = new Map<
     string,
-    { price: number; changePercent: number; volume: number }
+    {
+      price: number;
+      changePercent: number;
+      volume: number;
+      source: string;
+      fetchedAt: string;
+    }
   >();
   for (let i = 0; i < enriched.length; i += QUOTE_BATCH_SIZE) {
     const symbols = enriched.slice(i, i + QUOTE_BATCH_SIZE).map((b) => b.ticker);
@@ -217,6 +226,8 @@ export async function aggregateSignals(): Promise<{
           price: quote.price,
           changePercent: quote.changePercent,
           volume: quote.volume,
+          source: quote.source,
+          fetchedAt: quote.fetchedAt,
         });
       }
     } catch (err) {
@@ -226,25 +237,60 @@ export async function aggregateSignals(): Promise<{
     }
   }
 
+  // Profiles for EVERY enriched ticker (not just unseen ones): avgVolume
+  // drives volume_ratio — a priceActionScore and big_mover input — and
+  // marketCap/exchange are liquidity context the research snapshots cannot
+  // backfill honestly later. Redis-cached 20 min, so this is cheap.
+  const profileMap = new Map<
+    string,
+    {
+      name: string;
+      sector: string;
+      exchange: string;
+      marketCap: number;
+      avgVolume: number;
+      volume: number;
+    }
+  >();
+  for (let i = 0; i < enriched.length; i += PROFILE_CONCURRENCY) {
+    const batch = enriched.slice(i, i + PROFILE_CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map((b) => getCompanyProfileFresh(b.ticker)),
+    );
+    results.forEach((res, idx) => {
+      if (res.status === "fulfilled" && res.value) {
+        const p = res.value;
+        profileMap.set(batch[idx].ticker, {
+          name: p.name,
+          sector: p.sector,
+          exchange: p.exchange,
+          marketCap: p.marketCap,
+          avgVolume: p.avgVolume,
+          volume: p.volume,
+        });
+      }
+    });
+  }
+
   const upserts: Record<string, unknown>[] = [];
+  const snapshots: Record<string, unknown>[] = [];
+  const scannedAt = new Date().toISOString();
 
   for (const bucket of enriched) {
     const quote = quoteMap.get(bucket.ticker);
-    let meta = existingMeta.get(bucket.ticker);
-    let volumeRatio: number | null = null;
+    const profile = profileMap.get(bucket.ticker);
+    const meta = profile
+      ? { name: profile.name, sector: profile.sector }
+      : undefined;
 
-    // Profile fetch only for unseen tickers (Redis-cached 24h downstream)
-    if (!meta?.name) {
-      try {
-        const profile = await getCompanyProfile(bucket.ticker);
-        if (profile) {
-          meta = { name: profile.name, sector: profile.sector };
-          if (quote && profile.avgVolume > 0) {
-            volumeRatio = quote.volume / profile.avgVolume;
-          }
-        }
-      } catch {
-        // Non-critical
+    // Finnhub quotes carry no volume; fall back to the FMP profile's
+    // same-day cumulative volume. Null (never 0) when genuinely unknown.
+    let volumeRatio: number | null = null;
+    if (profile && profile.avgVolume > 0) {
+      const liveVolume =
+        quote && quote.volume > 0 ? quote.volume : profile.volume;
+      if (liveVolume > 0) {
+        volumeRatio = liveVolume / profile.avgVolume;
       }
     }
 
@@ -293,7 +339,46 @@ export async function aggregateSignals(): Promise<{
       composite_score: scores.compositeScore,
       under_the_radar: scores.underTheRadar,
       big_mover: scores.bigMover,
-      last_updated_at: new Date().toISOString(),
+      last_updated_at: scannedAt,
+    });
+
+    // Append-only research snapshot: full feature vector at scan time
+    snapshots.push({
+      scan_run_id: options?.scanRunId ?? null,
+      scanned_at: scannedAt,
+      ticker: bucket.ticker,
+      cohort: "flagged",
+      composite_score: scores.compositeScore,
+      momentum_score: scores.momentumScore,
+      buzz_score: scores.buzzScore,
+      sentiment_score: scores.sentimentScore,
+      congress_score: scores.congressScore,
+      price_action_score: scores.priceActionScore,
+      news_score: scores.newsScore,
+      persona_score: scores.personaScore,
+      big_mover: scores.bigMover,
+      under_the_radar: scores.underTheRadar,
+      mention_count_24h: Math.round(bucket.mentions24h),
+      mention_count_7d: Math.round(bucket.mentions7d),
+      firehose_mentions_24h: Math.round(bucket.firehoseMentions24h),
+      tracked_weight_sum_24h: bucket.trackedScoreWeightSum24h,
+      avg_sentiment_24h: avgSentiment,
+      congress_buys_30d: bucket.congressBuys30d,
+      congress_sells_30d: bucket.congressSells30d,
+      price_at_scan: quote?.price ?? null,
+      day_change_pct: quote?.changePercent ?? null,
+      volume_ratio: volumeRatio,
+      price_source: quote?.source ?? null,
+      price_fetched_at: quote?.fetchedAt ?? null,
+      avg_dollar_volume:
+        profile && profile.avgVolume > 0 && quote && quote.price > 0
+          ? profile.avgVolume * quote.price
+          : null,
+      market_cap: profile && profile.marketCap > 0 ? profile.marketCap : null,
+      exchange: profile?.exchange || null,
+      llm_model_version: EXTRACTION_MODEL,
+      llm_prompt_version: EXTRACTION_PROMPT_VERSION,
+      scoring_config_version: SCORING_CONFIG_VERSION,
     });
   }
 
@@ -304,5 +389,18 @@ export async function aggregateSignals(): Promise<{
     if (error) throw error;
   }
 
-  return { tickersAggregated: upserts.length, errors };
+  let snapshotsWritten = 0;
+  if (snapshots.length > 0) {
+    const { error } = await supabase
+      .from("signal_snapshots")
+      .insert(snapshots);
+    if (error) {
+      // Snapshot loss is data loss — surface loudly but don't fail the scan
+      errors.push(`snapshots: ${error.message}`);
+    } else {
+      snapshotsWritten = snapshots.length;
+    }
+  }
+
+  return { tickersAggregated: upserts.length, snapshotsWritten, errors };
 }

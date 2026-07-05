@@ -173,6 +173,7 @@ interface FMPProfile {
   // stable: marketCap / averageVolume / lastDividend; legacy: mktCap / volAvg / lastDiv
   marketCap?: number;
   mktCap?: number;
+  volume?: number;
   price?: number;
   range?: string;
   website?: string;
@@ -210,6 +211,7 @@ export async function getCompanyProfile(
     weekHigh52: high52 || 0,
     weekLow52: low52 || 0,
     avgVolume: num(p.averageVolume ?? p.volAvg),
+    volume: num(p.volume),
     website: p.website || "",
     logo: p.image || "",
   };

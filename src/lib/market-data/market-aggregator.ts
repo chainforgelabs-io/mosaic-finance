@@ -18,6 +18,7 @@ const CACHE_TTL = {
   quote: 120,        // 2 minutes during market hours
   historical: 3600,  // 1 hour
   profile: 86400,    // 24 hours
+  profileLive: 1200, // 20 minutes — scan snapshots need fresh-ish volume/liquidity
   sectors: 600,      // 10 minutes
   movers: 300,       // 5 minutes
   search: 1800,      // 30 minutes
@@ -144,6 +145,32 @@ export async function getCompanyProfile(
     await setCache(cacheKey, profile, CACHE_TTL.profile);
   }
   return profile;
+}
+
+/**
+ * Fresher profile variant for the scan pipeline: 20-min cache so today's
+ * volume / market cap are usable for volume-ratio and liquidity snapshots.
+ * FMP-only — the /profile endpoint is not symbol-gated on the current plan
+ * (unlike quotes/EOD, which reject many small caps), and Finnhub profiles
+ * carry no volume data.
+ */
+export async function getCompanyProfileFresh(
+  symbol: string,
+): Promise<CompanyProfile | null> {
+  const cacheKey = `market:profile-live:${symbol}`;
+  const cached = await getCached<CompanyProfile>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const profile = await fmp.getCompanyProfile(symbol);
+    if (profile) {
+      await setCache(cacheKey, profile, CACHE_TTL.profileLive);
+      return profile;
+    }
+  } catch {
+    // Fall back to the long-lived cache path (may lack volume data)
+  }
+  return getCompanyProfile(symbol);
 }
 
 export async function getSectorPerformance(): Promise<SectorPerformance[]> {

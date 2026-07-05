@@ -158,6 +158,7 @@ export interface ScanSummary {
   firehosePostsIngested: number;
   newsSignalsIngested: number;
   tickersAggregated: number;
+  snapshotsWritten: number;
   startedAt: string;
   finishedAt: string;
   errors: string[];
