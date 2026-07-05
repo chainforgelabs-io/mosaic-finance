@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { captureAPIError } from "@/lib/sentry";
+import { authorizeExport } from "@/lib/export-auth";
 import type { RawSignal, TickerPersonaTake, TickerSignal } from "@/types/picks";
 
 /**
@@ -20,24 +21,10 @@ const MAX_LIMIT = 200;
 const DEFAULT_SINCE_HOURS = 48;
 const MAX_SINCE_HOURS = 720;
 
-function unauthorized(): NextResponse {
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const token = process.env.EXPORT_API_TOKEN?.trim();
-    if (!token) {
-      return NextResponse.json(
-        { error: "Export API not configured. Set EXPORT_API_TOKEN." },
-        { status: 503 },
-      );
-    }
-
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${token}`) {
-      return unauthorized();
-    }
+    const denied = authorizeExport(request);
+    if (denied) return denied;
 
     const params = request.nextUrl.searchParams;
     const tickersParam = params.get("tickers");

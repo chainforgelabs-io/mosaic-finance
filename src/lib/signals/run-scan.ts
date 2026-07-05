@@ -4,6 +4,7 @@ import { ingestFirehose } from "./ingest-firehose";
 import { ingestNews } from "./ingest-news";
 import { ingestCongressTrades } from "./ingest-congress";
 import { aggregateSignals } from "./aggregate";
+import { snapshotControlGroup } from "./control-group";
 import { startScanRun, finishScanRun, type ScanTrigger } from "./scan-runs";
 import type { PicksMode, ScanSummary } from "@/types/picks";
 
@@ -116,6 +117,17 @@ export async function runScan(options?: {
   } catch (err) {
     errors.push(
       `aggregate: ${err instanceof Error ? err.message : "unknown"}`,
+    );
+  }
+
+  // Control cohort: no-ops unless this is the first scan of the UTC day
+  try {
+    const controlResult = await snapshotControlGroup(scanRunId);
+    snapshotsWritten += controlResult.controlsSnapshotted;
+    errors.push(...controlResult.errors);
+  } catch (err) {
+    errors.push(
+      `control: ${err instanceof Error ? err.message : "unknown"}`,
     );
   }
 
