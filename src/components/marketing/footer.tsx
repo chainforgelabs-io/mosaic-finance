@@ -45,6 +45,26 @@ export function Footer() {
             investment advice under Canadian securities legislation. Users should
             consult a registered advisor before acting on any information contained herein.
           </p>
+          <p className="mt-4 text-center">
+            <a
+              href="https://chainforgelabs.io"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-1.5 font-body text-[11px] text-text-muted transition-colors hover:text-text-inverse"
+            >
+              <svg
+                viewBox="0 0 32 32"
+                width="12"
+                height="12"
+                fill="currentColor"
+                fillRule="evenodd"
+                aria-hidden="true"
+              >
+                <path d="M4 4h24v24H13L4 19Zm4.5 4.5v8.64l6.36 6.36h8.64V8.5Z" />
+              </svg>
+              Built by Chain Forge Labs
+            </a>
+          </p>
         </div>
       </div>
     </footer>
