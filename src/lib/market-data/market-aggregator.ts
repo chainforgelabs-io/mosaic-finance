@@ -1,3 +1,8 @@
+/**
+ * Unified market-data facade over Finnhub / FMP / Alpha Vantage with Redis TTLs.
+ * Callers should use this module rather than provider clients directly so cache
+ * keys and failover stay consistent.
+ */
 import { Redis } from "@upstash/redis";
 import * as finnhub from "./finnhub";
 import * as fmp from "./fmp";

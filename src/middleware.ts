@@ -1,3 +1,7 @@
+/**
+ * Refreshes the Supabase auth session and enforces access on matched routes
+ * (dashboard, admin, onboarding, auth pages, and API).
+ */
 import { type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 

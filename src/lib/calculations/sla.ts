@@ -1,3 +1,8 @@
+/**
+ * Approval-queue SLA helpers. Advisor tier gets an 8h priority deadline;
+ * everyone else is on a 24h standard clock. Used for queue ordering and
+ * reviewer warning badges — not user-facing countdown UI.
+ */
 export type SubscriptionTier = 'snapshot' | 'plan' | 'advisor';
 export type QueuePriority = 'standard' | 'priority';
 

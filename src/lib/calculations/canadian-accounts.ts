@@ -1,3 +1,8 @@
+/**
+ * CRA contribution limits and eligibility helpers for TFSA / FHSA / RRSP.
+ * Limits are year-stamped constants — update when CRA publishes new ceilings.
+ */
+
 export const TFSA_ANNUAL_LIMIT_2025 = 7_000;
 export const TFSA_CUMULATIVE_LIMIT_2025 = 102_000;
 

@@ -1,3 +1,7 @@
+/**
+ * Authenticated entrypoint: kicks off financial plan generation for the
+ * current user (long-running; maxDuration 300s).
+ */
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { triggerPlanGeneration } from '@/lib/plan/trigger-generation';

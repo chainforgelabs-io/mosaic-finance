@@ -1,213 +1,99 @@
 # Mosaic Finance
 
-AI-powered financial planning platform for the Canadian market. Built by ChainForge Labs.
+AI-powered financial planning for Canadians — conversational fact-find, institutional-style plan generation, and mandatory human review before delivery.
 
-## What This Is
+**Live:** [https://mosaicfinance.ai](https://mosaicfinance.ai) — portfolio demo. Not an operated consumer advice product.
 
-An AI-powered financial planning platform that conducts a structured, conversational fact-find with users and produces an institutional-grade financial plan, reviewed by a registered financial professional before delivery.
+## Overview
 
-**Non-negotiable principles:**
-- **Privacy-first:** no SIN, no account numbers, no full legal names at MVP
-- **Compliance-first:** every AI recommendation routes through a professional approval queue before user delivery
-- **Canadian-specific:** all tax logic (RRSP, TFSA, FHSA, CPP, OAS), provincial nuance, CIRO awareness
-- **Institutional quality:** outputs must feel like Goldman Sachs, not a calculator
+Most retail planning tools are either calculators or chatbots. Mosaic sits in between: a structured, multi-session AI interview builds a financial profile, then Claude generates a multi-section plan (tax accounts, retirement, debt, insurance, investment blueprint) grounded in Canadian rules (RRSP, TFSA, FHSA, CPP/OAS, provincial nuance).
 
-## Core Features
+Every plan enters a professional approval queue before the user can see it. That human-in-the-loop gate is the compliance backbone of the product, not an afterthought.
 
-- **AI Fact-Find** -- Conversational interview that builds a complete financial profile (income, debts, goals, risk tolerance)
-- **Financial Plan Generation** -- Claude-powered institutional-grade plans with tax optimization, retirement projections, insurance audit, and investment blueprints
-- **Professional approval queue** -- Every plan is reviewed and approved by a registered financial professional before delivery
-- **Interactive Plan Walkthrough** -- Section-by-section guided walkthrough with AI Q&A
-- **Market Context Hub** -- Real-time market data, stock lookup, multi-source news aggregation, and social sentiment
-- **AI Commentary** -- AI personas modeled after prolific investors (Ray Dalio, Warren Buffett, Cathie Wood, Howard Marks, Peter Lynch, Canadian Perspective) providing market assessments through their investment philosophies
-- **Weekly Newsletter** -- Automated market recap with top movers, news highlights, and AI commentary excerpts delivered via email
-- **Holdings Tracker** -- Portfolio and fixed asset tracking with statement upload parsing
-- **Risk Profiling** -- Behavioural finance-based risk assessment
+Intentionally out of scope for this demo: SIN collection, full brokerage custody, live trade execution, and unsupervised AI advice delivery. Market context, signal research exports, and newsletter automation are adjacent surfaces shipped in the same codebase.
 
-## Tech Stack
+## Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15 (App Router) |
-| UI | Tailwind CSS + shadcn/ui |
-| Backend / API | Next.js API Routes (Node.js runtime) |
-| Database | PostgreSQL via Supabase (row-level security enabled) |
-| Auth | Supabase Auth (email/password + magic link) |
-| AI / LLM | Anthropic Claude -- Opus (plan generation) + Sonnet (fact-find, commentary, market context for snapshot/plan tiers) |
-| Real-time Search | xAI Grok API -- `web_search` (financial news) + `x_search` (X/Twitter sentiment) |
-| Market Data | Finnhub (real-time quotes, news) + Financial Modeling Prep (historical, fundamentals, search) + Alpha Vantage (fallback) |
-| Caching / Rate Limiting | Upstash Redis |
-| PDF Generation | Puppeteer (server-side via @sparticuz/chromium) |
-| Document Parsing | Claude Vision API (for blacked-out statement uploads) |
-| File Storage | Supabase Storage (encrypted, session-scoped) |
-| Email | Resend (transactional + weekly newsletters) |
-| Payments | Stripe (subscriptions: Snapshot $0 / Plan $17 mo or $188 yr / Advisor $44 mo or $440 yr CAD) |
-| Scheduled Jobs | Vercel Cron (weekly newsletter generation) |
-| Analytics | PostHog |
-| Error Tracking | Sentry |
-| Form Validation | Zod + React Hook Form |
-| Client State | Zustand |
-| Hosting | Vercel (`yul1` -- Montreal) + Supabase (`ca-central-1`) |
+- **App:** Next.js 16 (App Router), React 19, TypeScript
+- **UI:** Tailwind CSS 4, Lucide, Recharts, React Hook Form + Zod
+- **Data / Auth:** Supabase (Postgres + Auth + Storage, RLS)
+- **AI:** Anthropic Claude (plan / conversation), xAI Grok (web + X search)
+- **Market data:** Finnhub, Financial Modeling Prep, Alpha Vantage
+- **Infra:** Upstash Redis, Resend, Stripe, Puppeteer + `@sparticuz/chromium` (PDF), Sentry, Vercel Analytics
+- **Jobs:** Vercel Cron (newsletter / scans)
+- **Tests:** Vitest, Playwright
 
-## Quick Start
+## Features
 
-### Prerequisites
-
-- Node.js 18+
-- Supabase account (project in `ca-central-1`)
-- Anthropic API key
-- xAI API key ([platform.x.ai](https://platform.x.ai))
-- Finnhub API key ([finnhub.io](https://finnhub.io) -- free tier)
-- Financial Modeling Prep API key ([financialmodelingprep.com](https://site.financialmodelingprep.com) -- free tier)
-- Alpha Vantage API key ([alphavantage.co](https://www.alphavantage.co) -- free tier)
-- Upstash Redis database ([upstash.com](https://upstash.com))
-- Stripe account (CAD currency, test mode to start)
-- Resend account ([resend.com](https://resend.com))
-
-### Setup
-
-```bash
-git clone <repo>
-cd mosaic-finance
-npm install
-cp .env.example .env.local
-# Fill in all values in .env.local (see Environment Variables below)
-npm run dev
-```
-
-Run the Supabase migrations against your database -- either via the Supabase CLI (`npx supabase db push`) or by pasting each file from `supabase/migrations/` into the Supabase Dashboard SQL Editor.
-
-### Key Commands
-
-```bash
-npm run dev              # Local dev server
-npm run build            # Production build
-npm run lint             # ESLint
-npm run test             # Vitest unit tests
-npm run test:watch       # Vitest watch mode
-npm run test:e2e         # Playwright E2E tests
-```
-
-### Environment Variables
-
-All required variables are listed in `.env.example`. Key groups:
-
-| Group | Variables | Notes |
-|---|---|---|
-| Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | From Supabase project settings |
-| Anthropic | `ANTHROPIC_API_KEY` | Claude API access |
-| xAI / Grok | `XAI_API_KEY` | For real-time web + X/Twitter search |
-| Market Data | `FINNHUB_API_KEY`, `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY` | Free tiers available for all three |
-| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Test keys for development |
-| Email | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CIM_REVIEWER_EMAIL` | Transactional email + newsletter delivery |
-| Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Caching and rate limiting |
-| Cron | `CRON_SECRET` | Generate with `openssl rand -hex 32`. Authenticates Vercel Cron requests. |
-| Analytics | `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` | Optional for local dev |
-| Sentry | `SENTRY_DSN`, `SENTRY_AUTH_TOKEN`, etc. | Optional for local dev |
-| App | `NEXT_PUBLIC_APP_URL`, `NODE_ENV` | Defaults to `http://localhost:3000` |
-
-Never commit `.env.local`.
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── (auth)/                    # Login, signup flows
-│   ├── (onboarding)/              # Onboarding fact-find + risk profile
-│   ├── (marketing)/               # Landing page
-│   ├── dashboard/
-│   │   ├── market-context/
-│   │   │   ├── components/        # MarketOverview, StockLookup, NewsHub,
-│   │   │   │                      # AICommentary, PriceChart, SocialFeed, etc.
-│   │   │   └── hooks/             # useMarketQuotes, useStockSearch, useNews,
-│   │   │                          # useCommentary
-│   │   ├── plan/[planId]/         # Plan viewer + walkthrough
-│   │   ├── assets/                # Holdings & fixed assets
-│   │   ├── meeting/               # Meeting scheduler
-│   │   └── settings/              # User settings
-│   ├── admin/approval-queue/      # Professional reviewer approval interface
-│   └── api/
-│       ├── market/                # quotes, search, historical, movers,
-│       │                          # sectors, news, social, commentary,
-│       │                          # watchlist, company/[symbol]
-│       ├── newsletter/generate/   # Weekly newsletter generation (Vercel Cron)
-│       ├── plan/                  # Plan generation, retrieval, PDF export
-│       ├── conversation/          # AI fact-find chat sessions
-│       ├── approval/              # Approval queue actions
-│       ├── stripe/                # Checkout + webhook
-│       ├── holdings/              # Portfolio CRUD
-│       └── risk-profile/          # Risk assessment
-├── components/
-│   ├── app/                       # Shared app components
-│   ├── charts/                    # Chart components
-│   └── marketing/                 # Landing page components
-├── lib/
-│   ├── claude/                    # Claude API client + prompt library
-│   │   ├── prompts/               # System prompts (fact-find, plan, risk, etc.)
-│   │   └── report-sections/       # Plan section generators
-│   ├── grok/                      # xAI Grok API client
-│   │   ├── client.ts              # Responses API integration
-│   │   ├── web-search.ts          # Financial news via web_search tool
-│   │   └── x-search.ts            # Social sentiment via x_search tool
-│   ├── ai-commentary/             # AI investor persona pipeline
-│   │   ├── generator.ts           # Grok signal -> Claude analysis pipeline
-│   │   ├── personas.ts            # Persona registry + metadata
-│   │   └── prompts/               # Per-persona system prompts
-│   ├── market-data/               # Market data clients + aggregator
-│   │   ├── finnhub.ts             # Real-time quotes, news, profiles, search
-│   │   ├── fmp.ts                 # Historical prices, fundamentals, sectors
-│   │   ├── alpha-vantage.ts       # Fallback quote provider
-│   │   ├── market-aggregator.ts   # Unified interface with Redis caching
-│   │   └── types.ts               # Shared market data types
-│   ├── newsletter/                # Weekly newsletter generator + Resend delivery
-│   ├── supabase/                  # Supabase clients (browser, server, service)
-│   ├── stripe/                    # Stripe client
-│   ├── resend/                    # Email client
-│   ├── pdf/                       # Puppeteer PDF generation
-│   ├── knowledge/                 # Reference documents for AI context
-│   ├── calculations/              # Financial math (tax accounts, SLA, etc.)
-│   ├── validators/                # Zod schemas
-│   ├── schemas/                   # Form validation schemas
-│   ├── security/                  # Input sanitization
-│   └── actions/                   # Server actions
-├── stores/                        # Zustand stores
-│   ├── market-store.ts            # Market context page state
-│   ├── plan-store.ts              # Financial plan state
-│   ├── conversation.ts            # Chat session state
-│   ├── onboarding.ts              # Onboarding flow state
-│   ├── walkthrough-store.ts       # Plan walkthrough state
-│   └── admin-store.ts             # Approval queue state
-├── types/                         # TypeScript type definitions
-└── middleware.ts                  # Auth + route protection
-
-supabase/
-└── migrations/                    # Postgres migration files (001-011)
-```
-
-## AI Commentary Pipeline
-
-The Market Context page features AI investor personas that analyze current market conditions through distinct investment philosophies. The pipeline works as follows:
-
-1. **Grok gathers real-time signals** -- Uses `web_search` and `x_search` tools to pull current market data, news, and social sentiment from X/Twitter
-2. **Claude generates persona analysis** -- The market signal is fed to Claude with a persona-specific system prompt encoding the investor's philosophy
-3. **Structured output** -- Each commentary includes: outlook rating, summary, key themes, risk assessment, and actionable insights
-4. **Model tiering** -- Claude Sonnet for snapshot/plan users, Claude Opus for advisor tier (market commentary)
-
-## Deployment
-
-Hosted on Vercel (`yul1` -- Montreal region). Database and storage on Supabase (`ca-central-1`). Push to `main` triggers auto-deploy via Vercel Git integration.
-
-When deploying, ensure all environment variables from `.env.example` are set in Vercel project settings. The `CRON_SECRET` must match between your Vercel environment and `vercel.json` cron configuration for newsletter automation.
-
-## Compliance Note
-
-Every AI-generated financial plan is reviewed by a registered financial professional before delivery. No plan reaches a user with status other than `delivered`. See `ARCHITECTURE.md` for the full compliance model.
+- Conversational onboarding fact-find with session continuity
+- Risk profiling and holdings / fixed-asset capture (including statement upload parsing)
+- Multi-section financial plan generation with PDF export
+- CIM-style approval queue — plans deliver only after professional review
+- Interactive plan walkthrough with follow-up Q&A
+- Market Context hub: quotes, news, social sentiment, AI investor personas
+- Weekly market newsletter via Resend
+- Machine-readable signal / research export API for external consumers
 
 ## Architecture
 
-See `ARCHITECTURE.md` for the full decision log, database schema, security model, and system design.
+Next.js owns UI and API routes. Supabase holds user data under RLS; a service-role client is used only where server jobs must bypass user JWT scope. Claude drives conversation and plan sections; Grok supplies real-time search for market commentary. Redis caches market payloads and rate-limits hot endpoints. Stripe gates subscription tiers. See `ARCHITECTURE.md` for the decision log and schema overview; see `docs/export-api.md` for the export contract.
 
----
+```
+src/
+├── app/                 # Routes: marketing, auth, onboarding, dashboard, admin, api
+├── components/          # Marketing + app UI
+├── lib/                 # Claude, Grok, market-data, signals, Stripe, PDF, validators
+├── stores/              # Zustand client state
+├── types/
+└── middleware.ts        # Session refresh + protected routes
+supabase/migrations/     # Postgres schema + RLS
+```
 
-*ChainForge Labs | 2026 | CONFIDENTIAL*
+## Getting started
+
+Requires Node.js 18+, npm, and accounts for the services listed in `.env.example` (Supabase, Anthropic, and at least one market-data key are the minimum for a meaningful local run). Full market context, Stripe checkout, email, and cron paths need their respective credentials.
+
+```bash
+npm install
+cp .env.example .env.local
+# Fill .env.local — see Environment below
+npm run dev
+```
+
+Apply migrations with the Supabase CLI (`npx supabase db push`) or by running files in `supabase/migrations/` in the dashboard SQL editor.
+
+```bash
+npm run build      # production build
+npm run lint       # ESLint
+npm run test       # Vitest
+npm run test:e2e   # Playwright (needs a running app + test setup)
+```
+
+## Environment
+
+Copy `.env.example` → `.env.local`. Required names (values never belong in git):
+
+| Group | Variables |
+|---|---|
+| Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| xAI | `XAI_API_KEY` |
+| Market data | `FINNHUB_API_KEY`, `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY` |
+| Stripe | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` |
+| Email | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `CIM_REVIEWER_EMAIL` |
+| Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
+| Cron / exports | `CRON_SECRET`, `EXPORT_API_TOKEN`, `RESEARCH_EXPORT_TOKEN` |
+| App | `NEXT_PUBLIC_APP_URL` |
+| Optional | Sentry / PostHog keys, X OAuth, congress feed URL overrides |
+
+## Portfolio note
+
+This repository is a Chain Forge Labs portfolio demo. Marketing and compliance copy on the live site reflect product intent; operating a regulated advice business requires separate legal, registration, and operational controls that are outside this repo’s scope.
+
+## Built by
+
+[cah311](https://github.com/cah311) · [Chain Forge Labs](https://chainforgelabs.io)
+
+## License
+
+MIT — see [LICENSE](./LICENSE).
