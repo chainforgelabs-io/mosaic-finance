@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 const ITEMS = [
   {
-    q: "Is this financial planning or financial advice?",
-    a: "Mosaic provides financial planning and education. It does not constitute registered investment advice. Every plan is reviewed by a Registered Financial Professional, but Mosaic does not hold itself out as a registered advisor.",
+    q: "Is this financial advice?",
+    a: "No. Mosaic is a financial tracking and education tool. Charlie explains your trajectory and options so you can learn. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
   },
   {
     q: "What data do you collect?",
@@ -18,12 +18,12 @@ const ITEMS = [
     a: "Not until we launch. Join the waitlist to lock in Founding Member pricing.",
   },
   {
-    q: "How does professional validation work?",
-    a: "Every plan is reviewed by a Registered Financial Professional before delivery. This is a structural requirement, not a disclaimer.",
+    q: "How does Charlie work?",
+    a: "Charlie is an AI education guide. You add your numbers, and Charlie helps you understand your picture, your trajectory, and options available to you — always with a reminder to speak with a licensed advisor before acting.",
   },
   {
-    q: "Can I update my plan later?",
-    a: "Yes. Life changes — so should your plan. Update anytime from your dashboard.",
+    q: "Can I update my Progress Report later?",
+    a: "Yes. Life changes — so should your tracking. Update anytime from your dashboard and regenerate your Progress Report instantly.",
   },
 ];
 

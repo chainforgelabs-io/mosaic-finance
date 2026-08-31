@@ -709,8 +709,8 @@ export default function AssetsPage() {
         </div>
         <EmptyState
           icon={FileText}
-          title="No financial plan yet"
-          description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
+          title="No Progress Report yet"
+          description="Complete onboarding to generate your Progress Report and start tracking your net worth. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
           ctaLabel="Complete Setup"
           ctaHref="/onboarding"
         />
@@ -1065,7 +1065,7 @@ export default function AssetsPage() {
                 </div>
                 <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] pl-7">
                   {diag
-                    ? "Based on your financial plan analysis"
+                    ? "Based on your Progress Report"
                     : "Current figures from your financial profile"}
                 </p>
               </div>

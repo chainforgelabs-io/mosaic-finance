@@ -1,5 +1,5 @@
 /**
- * Authenticated entrypoint: kicks off financial plan generation for the
+ * Authenticated entrypoint: kicks off Progress Report generation for the
  * current user (long-running; maxDuration 300s).
  */
 import { NextResponse } from 'next/server';

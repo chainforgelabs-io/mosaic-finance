@@ -143,7 +143,7 @@ export const VALID_PLAN_DATA: FinancialPlan = {
     portfolio_specific_opportunities: 'Favourable entry point for fixed income as rate cuts support bond prices. Canadian bank stocks trading at reasonable valuations with strong dividend yields. Dollar-cost averaging into equities reduces timing risk.',
     rate_environment_impact: 'Lower rates support equity valuations and bond prices but reduce GIC and savings account yields — reinforcing the need to deploy cash into a diversified portfolio.',
     canadian_market_context: 'TSX outperforming on relative value basis. Canadian dollar at 0.73 USD provides natural diversification benefit for US equity holdings. Housing market stabilizing following rate cuts.',
-    disclaimer: 'This market commentary is educational context only. It is not a prediction of future performance and should not be used as the sole basis for investment decisions.',
+    disclaimer: 'This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.',
   },
   lifetime_financial_roadmap: {
     current_decade_priorities: [
@@ -170,7 +170,7 @@ export const VALID_PLAN_DATA: FinancialPlan = {
     decade_by_decade_summary: 'The next 5 years focus on debt elimination and building the investment foundation. Ages 35-45 are the wealth accumulation phase, leveraging compound growth in registered accounts. Ages 45-55 focus on maximizing peak-earning contributions. The final decade before retirement shifts to capital preservation and income planning.',
     action_items: [
       'Set up automated savings splits on pay day (RRSP, TFSA, FHSA, emergency fund)',
-      'Schedule annual financial plan review each January',
+      'Schedule annual Progress Report check-in each January',
       'Revisit risk profile every 5 years or after major life events',
     ],
   },

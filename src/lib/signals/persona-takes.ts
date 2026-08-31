@@ -29,7 +29,9 @@ Respond with ONLY a JSON object:
   "outlook": "very_bullish" | "bullish" | "neutral" | "bearish" | "very_bearish",
   "summary": "3-4 sentence assessment in this investor's voice",
   "keyPoints": ["3-5 short bullet points covering valuation/trend/risk as this investor would frame them"]
-}`;
+}
+
+This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes. Never frame the take as a recommendation to buy or sell.`;
 }
 
 function buildTickerContext(

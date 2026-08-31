@@ -21,7 +21,7 @@ function generateWalkthroughIntro(section: PlanSection): string {
       section.cards.find((c) => c.label === "HEALTH SCORE")?.value || "strong"
     }, which puts you in a solid position.\n\n${section.summary}\n\nThe key takeaway here is that you have a strong foundation with clear opportunities for improvement. Your savings rate is above average, and with some strategic adjustments, we can accelerate your timeline significantly.\n\nDo you have any questions about your overall financial snapshot?`,
 
-    "cash-flow": `Now let's look at how money flows through your life each month. Understanding this is the foundation of everything else in your plan.\n\nYour net income of ${
+    "cash-flow": `Now let's look at how money flows through your life each month. Understanding this is the foundation of everything else in your Progress Report.\n\nYour net income of ${
       section.cards.find((c) => c.label === "NET INCOME")?.value || "$6,250"
     }/month supports a healthy savings rate. ${section.summary}\n\nThe biggest insight here is that even small optimizations in your discretionary spending can have outsized effects when redirected to investments over decades.\n\nWould you like me to break down any specific expense category?`,
 
@@ -31,17 +31,17 @@ function generateWalkthroughIntro(section: PlanSection): string {
       section.cards.find((c) => c.label === "TARGET RETIREMENT")?.value || "earlier than expected"
     }. The most critical factor is consistency.\n\nWhat questions do you have about your retirement projections?`,
 
-    "investment-strategy": `Now let's dive into how your money should be invested. This is where your risk profile directly shapes the plan.\n\n${section.summary}\n\nThe suggested portfolio targets a ${
+    "investment-strategy": `Now let's dive into how your money is currently invested. This is where your risk profile shapes the educational options we show.\n\n${section.summary}\n\nThe suggested portfolio targets a ${
       section.cards.find((c) => c.label === "WEIGHTED MER")?.value || "0.18%"
     } weighted MER, which is significantly lower than the Canadian average of ~1.5%. This fee reduction alone could add over $100,000 to your portfolio over 25 years.\n\nWould you like me to explain any of the ETF considerations in more detail?`,
 
-    "tax-optimization": `Tax optimization is often the most overlooked area of financial planning, but it can have enormous impact.\n\n${section.summary}\n\nThe priority waterfall — RRSP match, TFSA, RRSP, then non-registered — ensures you're capturing every tax advantage available. With ${
+    "tax-optimization": `Tax efficiency is often the most overlooked area of personal finance, but it can have enormous impact.\n\n${section.summary}\n\nThe priority waterfall — RRSP match, TFSA, RRSP, then non-registered — is an educational framework for capturing tax advantages. With ${
       section.cards.find((c) => c.label === "RRSP ROOM")?.value || "$18,200"
     } of unused RRSP room, there's an immediate opportunity.\n\nDo you have questions about this tax strategy?`,
 
-    "insurance-estate": `Let's review the protection side of your plan. Insurance and estate planning aren't exciting, but they protect everything else we've discussed.\n\n${section.summary}\n\nThe key message here: a $500K term life policy and a basic will are high-priority items that most Canadians delay too long. The cost is relatively modest for the protection provided.\n\nAny concerns about the insurance or estate considerations?`,
+    "insurance-estate": `Let's look at the protection side of your Progress Report. Insurance and estate topics aren't exciting, but they protect everything else we've discussed.\n\n${section.summary}\n\nThe key educational takeaway: a $500K term life policy and a basic will are high-priority items that most Canadians delay too long. The cost is relatively modest for the protection provided.\n\nThis is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.\n\nAny questions about the insurance or estate considerations?`,
 
-    "next-steps": `Finally, let's talk about turning this plan into action. A plan is only as good as its implementation.\n\n${section.summary}\n\nI've prioritized the actions by impact and urgency. The two highest-impact items you can do this week are setting up automated RRSP contributions and increasing your line of credit payments. Together, these two changes improve your projected retirement age by 2.5 years.\n\nWould you like to discuss the timeline for any of these action items?`,
+    "next-steps": `Finally, let's talk about turning this Progress Report into action. Tracking only helps if you follow through — with your advisor's guidance.\n\n${section.summary}\n\nI've prioritized items by impact and urgency. The two highest-impact items you could discuss this week are setting up automated RRSP contributions and increasing your line of credit payments. Together, these two changes could improve your projected retirement age by 2.5 years.\n\nThis is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.\n\nWould you like to discuss the timeline for any of these items?`,
   };
 
   return introMap[section.id] || `Let's review your ${section.title}.\n\n${section.summary}\n\nDo you have any questions about this section?`;
@@ -77,7 +77,7 @@ function SectionPanel({
           </span>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--emerald-soft)] text-[var(--emerald-dark)]">
             <CheckCircle2 className="w-2.5 h-2.5" />
-            Professionally reviewed
+            Educational Progress Report
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -227,7 +227,7 @@ function ConversationPanel({
     <div className="h-full flex flex-col bg-[var(--warm-50)]">
       <div className="px-5 py-3 border-b border-[var(--warm-200)] bg-white">
         <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
-          Guided Plan Review with Charlie
+          Guided Walkthrough with Charlie
         </p>
         <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
           Discussing: {section.title}
@@ -249,11 +249,11 @@ function ConversationPanel({
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="w-5 h-5 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)]">
-                Guided Review Complete
+                Guided Walkthrough Complete
               </span>
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3">
-              You&apos;ve reviewed all 8 sections of your financial plan. Here are your top 3 action items:
+              You&apos;ve walked through all 8 sections of your Progress Report. Here are your top 3 items to consider:
             </p>
             <ol className="space-y-2">
               <li className="flex items-start gap-2">
@@ -299,7 +299,7 @@ function ConversationPanel({
             className="w-full mb-3 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50"
           >
             <CheckCircle2 className="w-4 h-4" />
-            Complete Review
+            Complete Walkthrough
           </button>
         )}
 
@@ -431,8 +431,8 @@ export default function WalkthroughPage() {
     return (
       <EmptyState
         icon={FileText}
-        title="Complete your plan setup to access the guided plan review with Charlie."
-        description="Once your financial plan has been reviewed and delivered, you can review it section by section with Charlie."
+        title="Complete setup to access the guided walkthrough with Charlie."
+        description="Once your Progress Report is ready, you can walk through it section by section with Charlie. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
       />
     );
   }

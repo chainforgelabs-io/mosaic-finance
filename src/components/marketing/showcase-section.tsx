@@ -10,9 +10,9 @@ const SHOWCASES = [
     alt: "Fact-find onboarding screen",
   },
   {
-    label: "Get a personalized plan in under 30 minutes",
+    label: "Get a Progress Report in under 30 minutes",
     image: "/assets/Financial Plan Report - Executive Summary.svg",
-    alt: "Financial plan executive summary",
+    alt: "Progress Report executive summary",
   },
   {
     label: "Track your progress, update anytime",
@@ -20,7 +20,7 @@ const SHOWCASES = [
     alt: "Main dashboard",
   },
   {
-    label: "Download your complete plan",
+    label: "Download your complete Progress Report",
     image: "/assets/Dashboard - Plan Page.svg",
     alt: "Plan page with download option",
   },
@@ -74,7 +74,7 @@ export function ShowcaseSection() {
           className="mb-14 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px] lg:mb-16"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          A real financial plan. A platform that grows with you.
+          A net worth dashboard. A Progress Report that grows with you.
         </h2>
 
         <div className="space-y-16 lg:space-y-20">

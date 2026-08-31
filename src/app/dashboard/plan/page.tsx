@@ -32,23 +32,20 @@ type TimelineStep = { label: string; status: "complete" | "active" | "pending" }
 function getTimelineSteps(planStatus: string): TimelineStep[] {
   if (planStatus === "delivered") {
     return [
-      { label: "Plan Generated", status: "complete" },
-      { label: "Professional review", status: "complete" },
-      { label: "Delivered", status: "complete" },
+      { label: "Report generated", status: "complete" },
+      { label: "Ready", status: "complete" },
     ];
   }
   if (planStatus === "pending_review") {
     return [
-      { label: "Plan Generated", status: "complete" },
-      { label: "Professional review", status: "active" },
-      { label: "Delivered", status: "pending" },
+      { label: "Report generated", status: "complete" },
+      { label: "Preparing", status: "active" },
     ];
   }
   if (planStatus === "generating") {
     return [
-      { label: "Generating Plan", status: "active" },
-      { label: "Professional review", status: "pending" },
-      { label: "Delivered", status: "pending" },
+      { label: "Generating report", status: "active" },
+      { label: "Ready", status: "pending" },
     ];
   }
   return [];
@@ -115,10 +112,10 @@ function PlanGenerating() {
           <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)] mt-0.5" aria-hidden />
           <div>
             <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-2">
-              Your plan is being generated
+              Your Progress Report is being generated
             </h2>
             <p className="font-body text-[14px] text-[var(--text-secondary)] leading-relaxed">
-              Your plan is currently being generated. You&apos;ll be able to view and download it here once it&apos;s
+              Your Progress Report is currently being generated. You&apos;ll be able to view and download it here once it&apos;s
               ready. Your Dashboard shows live snapshot metrics while generation runs in the background.
             </p>
           </div>
@@ -134,8 +131,8 @@ function PlanNone() {
   return (
     <EmptyState
       icon={FileText}
-      title="No financial plan yet"
-      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
+      title="No Progress Report yet"
+      description="Complete onboarding to generate your Progress Report — an educational snapshot of your trajectory and options. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
       ctaLabel="Complete Setup"
       ctaHref="/onboarding"
     />
@@ -288,10 +285,10 @@ function PlanPendingReview() {
           <Shield className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-amber-800">
-              Under professional review
+              Preparing your Progress Report
             </p>
             <p className="font-[family-name:var(--font-body)] text-sm text-amber-700 mt-1">
-              Estimated delivery: {plan.estimatedDelivery ?? "Within 24 hours"}.
+              Estimated: {plan.estimatedDelivery ?? "A few minutes"}.
             </p>
           </div>
         </div>
@@ -300,11 +297,11 @@ function PlanPendingReview() {
           <button
             disabled
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--warm-200)] bg-white/60 text-[var(--text-muted)] font-[family-name:var(--font-display)] text-sm font-semibold cursor-not-allowed"
-            title="Available after professional review"
+            title="Available when your report is ready"
           >
             <Download className="w-4 h-4" />
             PDF
-            <span className="text-[10px] font-normal">(after review)</span>
+            <span className="text-[10px] font-normal">(when ready)</span>
           </button>
         </div>
       </div>
@@ -316,10 +313,10 @@ function PlanPendingReview() {
         <div className="bg-white border border-[var(--warm-200)] rounded-lg overflow-hidden">
           <div className="px-6 pt-6 pb-2">
             <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">
-              Plan Preview
+              Report Preview
             </h2>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mt-1">
-              Section details will be finalized after professional review
+              Section details will be available when generation finishes
             </p>
           </div>
           <div className="px-6">
@@ -418,7 +415,7 @@ function PlanDelivered() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `mosaic-financial-plan-${plan.id}.pdf`;
+      a.download = `mosaic-progress-report-${plan.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -442,7 +439,7 @@ function PlanDelivered() {
         {/* Sticky sidebar nav */}
         <div className="w-[220px] shrink-0 sticky top-8 self-start hidden lg:block">
           <p className="font-[family-name:var(--font-body)] font-medium text-[12px] uppercase text-[var(--text-muted)] tracking-wider mb-2">
-            Plan Sections
+            Report Sections
           </p>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mb-1">
             Generated {new Date(plan.createdAt).toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
@@ -450,7 +447,7 @@ function PlanDelivered() {
           <div className="flex items-center gap-1.5 mb-6">
             <Check className="w-3.5 h-3.5 text-[var(--emerald)]" />
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-              Professionally reviewed
+              Educational Progress Report
             </span>
           </div>
           <nav className="space-y-0.5 mb-8">
@@ -487,7 +484,7 @@ function PlanDelivered() {
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            Guided Plan Review with Charlie
+            Guided Walkthrough with Charlie
           </Link>
         </div>
 
@@ -498,7 +495,7 @@ function PlanDelivered() {
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-                Professionally reviewed
+                Educational Progress Report
               </span>
               <span className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] ml-auto">
                 {new Date(plan.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
@@ -527,7 +524,7 @@ function PlanDelivered() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold"
               >
                 <MessageCircle className="w-4 h-4" />
-                Guided Review
+                Guided Walkthrough
               </Link>
             </div>
           </div>
@@ -556,7 +553,7 @@ export default function PlanHubPage() {
     <div>
       <div className="mb-6">
         <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
-          My Plan
+          Progress Report
         </h1>
       </div>
 

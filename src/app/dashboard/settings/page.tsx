@@ -229,21 +229,20 @@ function getTierFeatures(billing: BillingInterval): {
       price: formatTierPrice("plan", billing),
       features: [
         "Full conversational fact-find",
-        "8-section plan + PDF",
+        "8-section Progress Report + PDF",
         "5 conversations/month with Charlie",
-        "Life event guidance",
+        "Life event education",
         "6-month score refresh",
-        "Professional review (48h)",
       ],
     },
     {
       tier: "advisor",
       price: formatTierPrice("advisor", billing),
       features: [
-        "Everything in Plan",
+        "Everything in Progress",
         "Unlimited conversations with Charlie",
-        "Quarterly full reviews",
-        "Same-day professional review",
+        "Quarterly check-ins",
+        "Priority report generation",
         "Portfolio monitoring",
         "Tax year-end report",
       ],
@@ -579,7 +578,7 @@ function PrivacyTab() {
             "Province, age, employment type, family structure",
             "Conversation transcripts (encrypted at rest)",
             "Investment holdings and risk profile",
-            "Generated financial plans",
+            "Generated Progress Reports",
             "Notification preferences",
           ].map((item) => (
             <li
@@ -656,8 +655,8 @@ function PrivacyTab() {
               </h3>
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-4">
-              This will permanently delete your profile, conversations, financial
-              plans, and all associated data. This action cannot be undone.
+              This will permanently delete your profile, conversations, Progress
+              Reports, and all associated data. This action cannot be undone.
             </p>
             <div className="mb-4">
               <label className="block font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)] mb-1.5">
@@ -780,9 +779,9 @@ function NotificationsTab() {
 
   const notifications = [
     {
-      label: "Plan ready",
+      label: "Progress Report ready",
       description:
-        "Get notified when your financial plan has been reviewed and is ready to view.",
+        "Get notified when your Progress Report is ready to view.",
       enabled: planReady,
       onToggle: () => {
         const next: NotificationPreferences = {
@@ -809,9 +808,9 @@ function NotificationsTab() {
       },
     },
     {
-      label: "Quarterly re-plan reminder",
+      label: "Quarterly check-in reminder",
       description:
-        "Reminder to review and update your financial plan every quarter.",
+        "Reminder to review and update your Progress Report every quarter.",
       enabled: quarterlyRePlan,
       onToggle: () => {
         const next: NotificationPreferences = {

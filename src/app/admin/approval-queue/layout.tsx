@@ -48,7 +48,7 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-[var(--emerald)] border-t-transparent rounded-full animate-spin" />
           <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
-            Verifying advisor access…
+            Verifying admin access…
           </span>
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function AdminApprovalLayout({ children }: { children: React.Reac
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-[var(--emerald)]" />
               <span className="font-[family-name:var(--font-body)] font-medium text-[14px] text-[var(--text-muted)]">
-                Advisor Dashboard
+                QA Review
               </span>
             </div>
           </div>

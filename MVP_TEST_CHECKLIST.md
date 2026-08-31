@@ -79,7 +79,7 @@ These must be built before Block 1 testing. Do not proceed until they pass.
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
-| 1.8 | On `/onboarding/fact-find`, see compliance notice card | Card shows: "Mosaic Finance is a financial planning tool... All plans are verified by a registered financial professional" | [ ] |
+| 1.8 | On `/onboarding/fact-find`, see educational notice card | Card shows Mosaic is a tracking and education tool, not a licensed advisor, and to speak with a licensed financial advisor before implementing changes | [ ] |
 | 1.9 | Click "I understand, let's start" | Compliance card dismissed, conversation begins | [ ] |
 | 1.10 | AI sends first message | Warm, professional greeting. Asks an opening question | [ ] |
 | 1.11 | Respond with SK-specific info: employed at $85,000, mention RRSP, TFSA, mortgage | AI acknowledges, asks follow-up. Topic sidebar updates | [ ] |
@@ -187,8 +187,8 @@ These must be built before Block 1 testing. Do not proceed until they pass.
 | | — Clean section breaks between all 8 sections? | [ ] | |
 | | — Charts/gauges render correctly? | [ ] | |
 | | — Financial Health Score on first page with visual gauge? | [ ] | |
-| | — Compliance footer on every page? | [ ] | |
-| | — "Verified by a Registered Financial Professional" on cover? | [ ] | |
+| | — Educational disclaimer footer on every page? | [ ] | |
+| | — "Educational information — not financial advice" on cover? | [ ] | |
 | | — Disclaimer block at end? | [ ] | |
 | | — Page numbering (Page X of Y)? | [ ] | |
 | 1.64 | **Screenshot-worthy?** Show the Financial Health Score page to someone. Would you hand this to a dealer COO? | [ ] |
@@ -289,20 +289,20 @@ Requires 2 user accounts from Block 1 (SK_Tester and ON_Tester).
 | 4.23 | Open both generated plans from Block 1 | Both plans accessible | [ ] |
 | 4.24 | Search each plan for directive language: "I recommend", "you should", "you must", "I advise" | ZERO instances of directive language | [ ] |
 | 4.25 | Verify all actionable items have implementation referral notes (e.g., "discuss with a registered advisor") | Referral language present | [ ] |
-| 4.26 | Check walkthrough transcripts for directive language | AI uses "the plan suggests", "based on your numbers", "considerations" | [ ] |
+| 4.26 | Check walkthrough transcripts for directive language | AI uses "the Progress Report shows", "based on your numbers", "considerations" | [ ] |
 
 ### 2E. Disclaimer Insertion Points
 
 | # | Step | Expected Result | Pass |
 |---|------|----------------|------|
-| 4.27 | Check `/terms` page | Terms of Service present with "Professional Review Process" section | [ ] |
+| 4.27 | Check `/terms` page | Terms of Service present with educational disclaimer (not advice; consult a licensed advisor) | [ ] |
 | 4.28 | Check `/privacy` page | Privacy policy present with PIPEDA language | [ ] |
-| 4.29 | Check fact-find compliance notice | "verified by a registered financial professional" language | [ ] |
-| 4.30 | Check PDF headers/footers (final mode) | "Verified by a Registered Financial Professional" on cover. Compliance footer on each page | [ ] |
-| 4.31 | Check PDF headers/footers (draft mode) | "DRAFT" watermark. "NOT been verified" warning | [ ] |
-| 4.32 | Check ComplianceFooter on dashboard/onboarding pages | Disclaimer text present | [ ] |
-| 4.33 | Check marketing footer | Disclaimer text present | [ ] |
-| 4.34 | Check meeting room disclaimer | "verified by a registered financial professional" language | [ ] |
+| 4.29 | Check fact-find educational notice | Tracking/education tool language; speak with a licensed financial advisor | [ ] |
+| 4.30 | Check PDF headers/footers (final mode) | "Educational information — not financial advice" on cover. Disclaimer footer on each page | [ ] |
+| 4.31 | Check PDF headers/footers (draft mode) | "DRAFT" watermark. Educational disclaimer footer | [ ] |
+| 4.32 | Check ComplianceFooter on dashboard/onboarding pages | Educational disclaimer text present | [ ] |
+| 4.33 | Check marketing footer | Educational disclaimer text present | [ ] |
+| 4.34 | Check meeting room disclaimer | Educational information, not financial advice; speak with a licensed advisor | [ ] |
 
 ---
 

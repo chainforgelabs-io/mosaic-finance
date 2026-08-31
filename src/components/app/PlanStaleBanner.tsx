@@ -49,7 +49,7 @@ export function PlanStaleBanner() {
         setError(
           typeof body.error === "string"
             ? body.error
-            : "Could not start plan regeneration.",
+            : "Could not start Progress Report regeneration.",
         );
         return;
       }
@@ -84,9 +84,8 @@ export function PlanStaleBanner() {
           </button>
         </div>
         <p className="mt-1 font-body text-[13px] text-[var(--text-secondary)]">
-          It looks newer than your last generated plan. Regenerate to refresh
-          your plan with the latest numbers; a registered financial
-          professional will review it before delivery.
+          It looks newer than your last Progress Report. Regenerate to refresh
+          your report with the latest numbers.
         </p>
         {error && (
           <p className="mt-2 font-body text-[13px] text-[var(--error)]">
@@ -104,7 +103,7 @@ export function PlanStaleBanner() {
           ) : (
             <RefreshCw className="size-4" />
           )}
-          {loading ? "Starting…" : "Regenerate plan"}
+          {loading ? "Starting…" : "Regenerate report"}
         </button>
       </div>
     </div>

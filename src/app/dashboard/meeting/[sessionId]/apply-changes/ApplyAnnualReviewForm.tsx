@@ -254,8 +254,8 @@ export function ApplyAnnualReviewForm({
         </h1>
         <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
           Toggle which updates to save to your profile. Edit the JSON if any
-          numbers need correcting. Applying will supersede your previous plan
-          row and start a new plan for professional review.
+          numbers need correcting. Applying will supersede your previous report
+          and generate a new Progress Report.
         </p>
       </div>
 
@@ -346,7 +346,7 @@ export function ApplyAnnualReviewForm({
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : null}
-          {loading ? "Applying…" : "Apply to profile & regenerate plan"}
+          {loading ? "Applying…" : "Apply to profile & regenerate report"}
         </button>
         <Link
           href="/dashboard"

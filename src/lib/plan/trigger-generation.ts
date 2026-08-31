@@ -6,7 +6,8 @@ import {
 } from "@/lib/claude/client";
 import { buildPlanGenerationPrompt } from "@/lib/claude/prompts/plan-generation";
 import { getMarketContext } from "@/lib/market-data/alpha-vantage";
-import { sendApprovalQueueNotification } from "@/lib/resend/client";
+import { generatePDF } from "@/lib/pdf/report-generator";
+import { sendPlanDeliveryEmail } from "@/lib/resend/client";
 import { captureAPIError } from "@/lib/sentry";
 
 export type TriggerPlanGenerationResult =
@@ -14,7 +15,7 @@ export type TriggerPlanGenerationResult =
   | { success: false; error: string; statusCode: number };
 
 /**
- * Starts background financial plan generation (same pipeline as POST /api/plan/generate).
+ * Starts background Progress Report generation (same pipeline as POST /api/plan/generate).
  * Uses `after()` so the caller can return HTTP response immediately.
  */
 export async function triggerPlanGeneration(
@@ -29,7 +30,7 @@ export async function triggerPlanGeneration(
     if (!success) {
       return {
         success: false,
-        error: "Plan generation limit reached. Please try again later.",
+        error: "Progress report generation limit reached. Please try again later.",
         statusCode: 429,
       };
     }
@@ -69,7 +70,7 @@ export async function triggerPlanGeneration(
     console.error("[triggerPlanGeneration] Initial insert failed:", insertError);
     return {
       success: false,
-      error: "Failed to start plan generation.",
+      error: "Failed to start progress report generation.",
       statusCode: 500,
     };
   }
@@ -217,7 +218,7 @@ async function runPlanGenerationBackground(
     let planJson: string;
     try {
       planJson = await claudeChatStreaming(
-        [{ role: "user", content: "Generate the complete financial plan now." }],
+        [{ role: "user", content: "Generate the complete progress report now." }],
         buildPlanGenerationPrompt(userData),
         { maxTokens: 12000, model: "opus" },
       );
@@ -246,11 +247,45 @@ async function runPlanGenerationBackground(
       return;
     }
 
+    let pdfPath: string | null = null;
+    try {
+      const pdfBuffer = await generatePDF(planData, userId);
+      const path = `${userId}/${planId}.pdf`;
+      const { error: uploadError } = await svc.storage
+        .from("reports")
+        .upload(path, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (uploadError) {
+        console.error("[plan/generate:bg] PDF upload failed:", uploadError);
+        captureAPIError(uploadError, {
+          route: "plan/generate:bg",
+          userId,
+          planId,
+          step: "pdf_upload",
+        });
+      } else {
+        pdfPath = path;
+      }
+    } catch (pdfErr) {
+      console.error("[plan/generate:bg] PDF generation failed:", pdfErr);
+      captureAPIError(pdfErr, {
+        route: "plan/generate:bg",
+        userId,
+        planId,
+        step: "pdf_generate",
+      });
+    }
+
+    const deliveredAt = new Date().toISOString();
     const { error: updateError } = await svc
       .from("financial_plans")
       .update({
         plan_data: planData,
-        status: "pending_review",
+        status: "delivered",
+        delivered_at: deliveredAt,
+        pdf_url: pdfPath,
       })
       .eq("id", planId);
 
@@ -265,9 +300,8 @@ async function runPlanGenerationBackground(
     }
 
     const isAdvisor = userProfile?.subscription_tier === "advisor";
-    const slaHours = isAdvisor ? 8 : 24;
     const slaDeadline = new Date(
-      Date.now() + slaHours * 60 * 60 * 1000,
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
     ).toISOString();
 
     const { error: queueError } = await svc.from("approval_queue").insert({
@@ -278,7 +312,7 @@ async function runPlanGenerationBackground(
     });
 
     if (queueError) {
-      console.error("[plan/generate:bg] Approval queue insert failed:", queueError);
+      console.error("[plan/generate:bg] QA queue insert failed:", queueError);
       captureAPIError(queueError, {
         route: "plan/generate:bg",
         userId,
@@ -287,15 +321,21 @@ async function runPlanGenerationBackground(
       });
     }
 
-    await sendApprovalQueueNotification(planId, isAdvisor).catch((err) => {
-      console.error("[plan/generate:bg] Approval notification failed:", err);
-      captureAPIError(err, {
+    try {
+      const { data: authData } = await svc.auth.admin.getUserById(userId);
+      const ownerEmail = authData.user?.email;
+      if (ownerEmail) {
+        await sendPlanDeliveryEmail(userId, ownerEmail, planId);
+      }
+    } catch (emailErr) {
+      console.error("[plan/generate:bg] Delivery email failed:", emailErr);
+      captureAPIError(emailErr, {
         route: "plan/generate:bg",
         userId,
         planId,
-        step: "approval_notification",
+        step: "delivery_email",
       });
-    });
+    }
 
     console.log(
       `[plan/generate:bg] SUCCESS planId=${planId} total=${((Date.now() - t0) / 1000).toFixed(1)}s`,

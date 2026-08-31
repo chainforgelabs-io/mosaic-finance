@@ -7,13 +7,13 @@ const CARDS = [
     title: "Too Expensive",
     stat: "$3,000–$10,000",
     subtitle: "per year for a financial advisor",
-    body: "Professional planning costs more than most Canadians under 45 can justify — so they go without.",
+    body: "Professional advice costs more than most Canadians under 45 can justify — so they go without tracking or education.",
   },
   {
     title: "Too Passive",
     stat: "0 conversations",
     subtitle: "with your robo-advisor last year",
-    body: "Robo-advisors manage your money. They don't plan with you through life changes.",
+    body: "Robo-advisors manage your money. They don't help you track, learn, or see your whole picture.",
   },
   {
     title: "Too Generic",
@@ -60,7 +60,7 @@ export function ProblemSection() {
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          The Planning Gap
+          The Tracking Gap
         </p>
         <h2
           data-animate
@@ -76,8 +76,8 @@ export function ProblemSection() {
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
           You&apos;re making financial decisions worth tens of thousands of
-          dollars with no real guidance. Every year without optimized account
-          allocation, tax strategy, and a retirement projection is money left on
+          dollars with no clear picture of your trajectory. Every year without
+          tracking your accounts, taxes, and retirement path is money left on
           the table.
         </p>
 

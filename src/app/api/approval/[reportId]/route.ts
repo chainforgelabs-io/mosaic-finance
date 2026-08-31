@@ -122,7 +122,9 @@ export async function POST(
         })
         .eq('id', queueItem.plan_id);
 
-      if (ownerEmail) {
+      const alreadyDelivered =
+        queueItem.financial_plans?.status === 'delivered';
+      if (ownerEmail && (!alreadyDelivered || action === 'edit')) {
         await sendPlanDeliveryEmail(
           queueItem.user_id,
           ownerEmail,

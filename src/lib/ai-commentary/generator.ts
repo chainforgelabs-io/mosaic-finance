@@ -73,7 +73,9 @@ export async function generateCommentary(
   persona: PersonaSlug,
   model: ClaudeModel = "sonnet",
 ): Promise<InvestorCommentary> {
-  const systemPrompt = PERSONA_PROMPTS[persona];
+  const systemPrompt = `${PERSONA_PROMPTS[persona]}
+
+DISCLAIMER: This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes. Frame analysis as educational commentary, never as a recommendation to buy or sell.`;
   if (!systemPrompt) {
     throw new Error(`Unknown persona: ${persona}`);
   }

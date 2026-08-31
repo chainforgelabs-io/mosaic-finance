@@ -11,13 +11,13 @@ const PILLARS = [
   },
   {
     icon: Award,
-    title: "Professionally Validated",
-    desc: "Every plan is reviewed by a Registered Financial Professional before delivery — a structural requirement, not a disclaimer.",
+    title: "Education-First",
+    desc: "Charlie explains your trajectory and options so you can learn. This is educational information, not financial advice — speak with a licensed advisor before implementing changes.",
   },
   {
     icon: Sparkles,
-    title: "Built by Experience",
-    desc: "Designed by a Registered Financial Professional with a decade of wealth management experience.",
+    title: "Instant Progress Reports",
+    desc: "See where you stand today, your current trajectory, and educational options — delivered the moment you finish onboarding.",
   },
   {
     icon: Lock,
@@ -102,8 +102,8 @@ export function TrustSection() {
           className="mt-14 max-w-2xl rounded-xl border border-warm-200 bg-white px-6 py-5 font-display text-lg font-semibold leading-snug text-text-primary sm:text-xl"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          5.4 million Canadians have no financial advisor. Mosaic was built for
-          them.
+          5.4 million Canadians have no financial advisor. Mosaic helps you track
+          and learn — so you show up prepared when you do speak with one.
         </p>
       </div>
     </section>

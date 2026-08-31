@@ -10,13 +10,13 @@ const STEPS = [
   },
   {
     num: 2,
-    title: "Get a personalized plan in minutes",
-    desc: "Investment analysis, tax strategy, retirement projections — all personalized to your numbers and your province.",
+    title: "Get your Progress Report instantly",
+    desc: "Net worth, trajectory, tax education, retirement projections — personalized to your numbers and your province. Ready as soon as you finish.",
   },
   {
     num: 3,
-    title: "Plans validated by a Registered Financial Professional",
-    desc: "Every plan is reviewed by a Registered Financial Professional before you see it. Then Charlie walks you through it section by section.",
+    title: "Walk through it with Charlie",
+    desc: "Charlie, your AI education guide, walks you through each section and explains your options. Speak with a licensed financial advisor before implementing any changes.",
   },
 ];
 
@@ -76,7 +76,7 @@ export function SolutionSection() {
           className="mb-16 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          A personalized plan in three steps.
+          Track your money in three steps.
         </h2>
 
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">

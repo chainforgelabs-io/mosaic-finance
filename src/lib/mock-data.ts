@@ -127,7 +127,7 @@ export const mockPlanSections: PlanSection[] = [
     ],
   }),
   createSection("insurance-estate", "Insurance & Estate Planning", {
-    summary: "Protection strategies for your financial plan.",
+    summary: "Protection strategies for your Progress Report.",
     cards: [
       { label: "LIFE INSURANCE NEED", value: "$500K" },
       { label: "DISABILITY COVERAGE", value: "60%" },
@@ -149,7 +149,7 @@ export const mockPlanSections: PlanSection[] = [
       { label: "90-DAY TARGETS", value: "5" },
       { label: "ANNUAL REVIEWS", value: "2" },
     ],
-    prose: "Your financial plan is comprehensive but implementation is what creates results. Below is a prioritized action timeline. We recommend tackling the immediate actions this week, then scheduling the 30-day items as calendar reminders.\n\nThe most impactful single action is maximizing your RRSP contribution before the March deadline — this alone generates $5,460 in tax savings and accelerates your retirement timeline. Combined with the line of credit payoff acceleration, these two changes improve your projected retirement age by 2.5 years.",
+    prose: "Your Progress Report is comprehensive but follow-through is what creates results. Below is a prioritized list of items to consider. We suggest discussing the immediate items this week with a licensed financial advisor, then scheduling the 30-day items as calendar reminders.\n\nThe most impactful single item to learn about is maximizing your RRSP contribution before the March deadline — this alone can generate $5,460 in tax savings and accelerate your retirement timeline. Combined with the line of credit payoff acceleration, these two changes improve your projected retirement age by 2.5 years. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
     actionItems: [
       { id: "h1", text: "This week: Set up automated RRSP contributions ($1,517/mo)", priority: "high" },
       { id: "h2", text: "This week: Increase line of credit payment to $600/mo", priority: "high" },

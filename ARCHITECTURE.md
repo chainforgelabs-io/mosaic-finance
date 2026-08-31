@@ -29,7 +29,7 @@ The CIM approval audit trail must be forensically defensible. Every approval act
 ### Why Anthropic Claude (Opus for plan generation, Sonnet for conversation)
 
 1. **Superior long-context structured reasoning** — Financial planning requires holding many variables simultaneously across a long conversation. Claude consistently outperforms on this task type.
-2. **Instruction-following reliability** — The advisor persona must hold across a 30+ turn conversation without breaking character. Claude's Constitutional AI training makes this more reliable than alternatives.
+2. **Instruction-following reliability** — Charlie's education-guide persona must hold across a 30+ turn conversation without breaking character. Claude's Constitutional AI training makes this more reliable than alternatives.
 3. **Lower hallucination rate on factual claims** — In a financial context, a wrong number has real consequences. Claude is more conservative about fabricating specific figures.
 4. **Market validation** — The viral X thread that validated this product concept was built on Claude specifically. There is existing user trust in Claude as a financial reasoning engine.
 5. **Tiered model usage** — Opus (`claude-opus-4-5-20250301`) for plan generation and walkthrough where reasoning quality directly affects output. Sonnet (`claude-sonnet-4-5-20250929`) for fact-find conversation and market context where speed matters more than depth. This optimizes cost without sacrificing quality on the highest-value outputs.
@@ -38,9 +38,9 @@ The CIM approval audit trail must be forensically defensible. Every approval act
 
 Canadian data residency. User financial data (even pseudonymized) must not transit through US data centres without explicit user consent under PIPEDA. Montreal region keeps all serverless function execution in Canada.
 
-### Why Human-in-the-Loop (not fully automated delivery)
+### Why Instant Delivery (with optional internal QA)
 
-Legal architecture, not product constraint. All AI-generated recommendations are routed through a CIM-designated reviewer before delivery. This keeps the advice chain anchored to a registered individual, not an unregistered AI system — which is the defensible position under Canadian securities law at MVP stage. This is also a product differentiator: users know a real professional has reviewed their plan.
+Progress Reports are educational tracking documents, not licensed financial advice. They deliver as soon as generation finishes. An internal QA queue remains for optional post-hoc review; it does not gate user access. Every report and conversation includes: this is educational information, not financial advice — speak with a licensed financial advisor before implementing any changes.
 
 ---
 
@@ -79,22 +79,20 @@ Critical indexes on:
 
 ---
 
-## Compliance Model
+## Delivery Model
 
-### Plan Lifecycle (Non-Negotiable)
+### Progress Report Lifecycle
 
 ```
 User completes fact-find
 → User inputs holdings + risk profile
-→ Claude generates plan (status: pending_review)
-→ Plan enters approval_queue
-→ CIM reviewer: approve / edit / reject
-→ PDF generated server-side (post-approval only)
-→ Plan status set to: delivered
-→ User notified + PDF available for download
+→ Claude generates Progress Report (status: generating)
+→ PDF generated server-side
+→ Status set to delivered; user notified
+→ Optional row inserted into approval_queue for internal QA
 ```
 
-A plan with any status other than `delivered` is NEVER accessible to the user. This is enforced at both RLS level and API route level.
+Users can view delivered reports immediately. The QA queue is internal only and does not gate access.
 
 ### Data Privacy Model (MVP)
 

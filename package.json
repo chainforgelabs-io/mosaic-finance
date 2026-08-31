@@ -1,7 +1,7 @@
 {
   "name": "mosaic-finance",
   "version": "0.1.0",
-  "description": "AI-powered Canadian financial planning with human-in-the-loop plan review — Chain Forge Labs portfolio demo",
+  "description": "Gamified Canadian financial tracking with AI education — Chain Forge Labs portfolio demo",
   "author": "cah311 · Chain Forge Labs (https://chainforgelabs.io)",
   "private": true,
   "scripts": {

@@ -63,20 +63,20 @@ export function ReviewReminder() {
         </div>
         <div className="flex-1">
           <h3 className="font-display text-[16px] font-semibold text-[var(--text-primary)]">
-            Annual Review Due
+            Annual Check-in Due
           </h3>
           <p className="mt-1 font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
             {daysSinceLastReview !== null
-              ? `It's been ${daysSinceLastReview} days since your last review. `
+              ? `It's been ${daysSinceLastReview} days since your last check-in. `
               : ""}
-            Regular reviews ensure your financial plan stays aligned with your life. Schedule a quick
-            session with Charlie to check in.
+            Regular check-ins keep your Progress Report aligned with your life. Chat with Charlie
+            to update your picture.
           </p>
           <Link
             href="/dashboard/meeting"
             className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-2 font-display text-[13px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
           >
-            Start Annual Review
+            Start Check-in
             <ArrowRight className="size-4" />
           </Link>
         </div>

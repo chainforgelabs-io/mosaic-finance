@@ -24,7 +24,7 @@ function PlanNav({
   return (
     <div className="w-[220px] shrink-0 sticky top-8 self-start hidden lg:block">
       <p className="font-[family-name:var(--font-body)] font-medium text-[12px] uppercase text-[var(--text-muted)] tracking-wider mb-2">
-        My Financial Plan
+        Progress Report
       </p>
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mb-1">
         Generated {new Date(createdAt).toLocaleDateString("en-CA", { month: "long", day: "numeric", year: "numeric" })}
@@ -32,7 +32,7 @@ function PlanNav({
       <div className="flex items-center gap-1.5 mb-6">
         <CheckCircle2 className="w-3.5 h-3.5 text-[var(--emerald)]" />
         <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-          Professionally reviewed
+          Educational Progress Report
         </span>
       </div>
 
@@ -114,8 +114,8 @@ export default function PlanViewPage() {
     return (
       <EmptyState
         icon={FileText}
-        title="No plan available"
-        description="Complete your financial profile to generate your personalized plan."
+        title="No Progress Report available"
+        description="Complete your financial profile to generate your Progress Report."
         ctaLabel="Go to Dashboard"
         ctaHref="/dashboard"
       />
@@ -138,7 +138,7 @@ export default function PlanViewPage() {
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 className="w-4 h-4 text-[var(--emerald)]" />
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--emerald)] font-medium">
-              Professionally reviewed
+              Educational Progress Report
             </span>
             <span className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] ml-auto">
               {new Date(plan.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}
@@ -172,14 +172,14 @@ export default function PlanViewPage() {
         {/* Sticky guided review CTA */}
         <div className="sticky bottom-0 left-0 right-0 mt-8 -mx-6 px-6 py-4 bg-[var(--warm-100)] border-t border-[var(--warm-200)] flex items-center justify-between">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
-            Want a guided review of your plan?
+            Want a guided walkthrough of your Progress Report?
           </p>
           <Link
             href={`/dashboard/plan/${planId}/walkthrough`}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >
             <MessageCircle className="w-4 h-4" />
-            Start guided plan review with Charlie
+            Start guided walkthrough with Charlie
           </Link>
         </div>
       </div>

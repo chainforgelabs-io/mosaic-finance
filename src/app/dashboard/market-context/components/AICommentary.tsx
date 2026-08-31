@@ -57,7 +57,7 @@ export function AICommentary() {
         <AlertTriangle className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" />
         <p className="font-[family-name:var(--font-body)] text-[13px] text-amber-800">
           These AI commentaries simulate investment philosophies for educational purposes.
-          They do not represent actual views of any named investor and are not investment advice.
+          They do not represent actual views of any named investor. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.
         </p>
       </div>
 

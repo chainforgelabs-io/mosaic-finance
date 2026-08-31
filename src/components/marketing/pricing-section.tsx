@@ -25,15 +25,14 @@ const TIERS = [
   },
   {
     id: "plan" as const,
-    name: "Plan",
-    tagline: "Your financial plan + professional review",
+    name: "Progress",
+    tagline: "Your Progress Report + AI education",
     features: [
       "Full conversational fact-find",
-      "8-section plan + PDF",
+      "8-section Progress Report + PDF",
       "5 conversations/month with Charlie",
-      "Life event guidance",
+      "Life event education",
       "6-month score refresh",
-      "Professional review (48h)",
     ],
     cta: "Get Started",
     style: "dark" as const,
@@ -43,12 +42,12 @@ const TIERS = [
   {
     id: "advisor" as const,
     name: "Complete",
-    tagline: "Your complete financial planning platform",
+    tagline: "Your complete tracking & education platform",
     features: [
-      "Everything in Plan",
+      "Everything in Progress",
       "Unlimited conversations with Charlie",
-      "Quarterly full reviews",
-      "Same-day professional review",
+      "Quarterly check-ins",
+      "Priority report generation",
       "Portfolio monitoring",
       "Tax year-end report",
     ],
@@ -123,8 +122,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           className="mb-8 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Every plan reviewed by a Registered Financial Professional. Cancel
-          anytime.
+          Track your money. Learn as you go. Cancel anytime.
         </p>
 
         <div

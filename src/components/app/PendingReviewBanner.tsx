@@ -46,7 +46,7 @@ export function PendingReviewBanner() {
           Charlie captured updates from your review (
           {top.changeSectionCount} section
           {top.changeSectionCount === 1 ? "" : "s"}). Confirm before they
-          are saved and your plan is regenerated.
+          are saved and your Progress Report is regenerated.
           {extra > 0
             ? ` You have ${extra} more pending review${extra === 1 ? "" : "s"}.`
             : ""}

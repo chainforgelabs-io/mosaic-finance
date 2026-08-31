@@ -39,7 +39,7 @@ export async function GET(
 
     if (error || !plan) {
       return NextResponse.json(
-        { error: 'Plan not found or not yet approved' },
+        { error: 'Progress report not found' },
         { status: 404 },
       );
     }
@@ -54,7 +54,7 @@ export async function GET(
         return new NextResponse(buffer, {
           headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="mosaic-financial-plan-${planId}.pdf"`,
+            'Content-Disposition': `attachment; filename="mosaic-progress-report-${planId}.pdf"`,
             'Cache-Control': 'private, max-age=3600',
           },
         });
@@ -69,7 +69,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="mosaic-financial-plan-${planId}.pdf"`,
+        'Content-Disposition': `attachment; filename="mosaic-progress-report-${planId}.pdf"`,
       },
     });
   } catch (error) {

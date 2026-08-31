@@ -12,7 +12,7 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Service client bypasses RLS so we can see pending_review plans
+  // Service client bypasses RLS so we can see generating/in-progress reports
   const supabase = createServiceClient();
 
   const { data: plan } = await supabase

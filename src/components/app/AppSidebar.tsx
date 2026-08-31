@@ -40,10 +40,10 @@ interface NavItem {
 function getNavItems(planId?: string): NavItem[] {
   return [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "My Plan", href: "/dashboard/plan", icon: FileText },
+    { label: "Progress Report", href: "/dashboard/plan", icon: FileText },
     { label: "Assets", href: "/dashboard/assets", icon: Wallet },
-    { label: "Guided Review", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
-    { label: "Meeting/Review", href: "/dashboard/meeting", icon: Video },
+    { label: "Guided Walkthrough", href: planId ? `/dashboard/plan/${planId}/walkthrough` : "/dashboard/plan", icon: MessageSquare, requiresPlan: true },
+    { label: "Check-in", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Settings", href: "/dashboard/settings", icon: Settings },
   ];
@@ -106,12 +106,12 @@ export function AppSidebar({
           >
             <Shield className="size-[18px] shrink-0" />
             <span className="font-display text-sm font-medium md:max-lg:hidden max-md:text-[10px]">
-              Advisor Queue
+              QA Queue
             </span>
           </Link>
         )}
         {navItems.map((item) => {
-          const isActive = item.label === "Guided Review"
+          const isActive = item.label === "Guided Walkthrough"
             ? pathname.includes("/walkthrough")
             : item.href === "/dashboard"
               ? pathname === "/dashboard"
@@ -123,7 +123,7 @@ export function AppSidebar({
               <div
                 key={item.label}
                 className="flex items-center gap-3 rounded-lg px-3 py-2.5 opacity-40 max-md:flex-col max-md:gap-0.5 max-md:px-2 max-md:py-1.5"
-                title="Available after plan delivery"
+                title="Available after your Progress Report is ready"
               >
                 <item.icon className="size-[18px] text-[var(--text-muted)]" />
                 <span className="font-display text-sm font-medium text-[var(--text-muted)] md:max-lg:hidden max-md:text-[10px]">
@@ -170,7 +170,7 @@ export function AppSidebar({
               <TierBadge tier={tier} className="w-fit" />
               {role === "admin" && (
                 <span className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 font-display text-[10px] font-medium uppercase tracking-wide text-[var(--emerald)]">
-                  Advisor
+                  Admin
                 </span>
               )}
             </div>
@@ -194,10 +194,10 @@ export function AppSidebar({
         </button>
       </div>
 
-      {/* Compliance note */}
+      {/* Educational disclaimer */}
       <div className="px-4 pb-4 max-md:hidden md:max-lg:hidden">
         <p className="font-body text-[10px] leading-tight text-[var(--text-muted)]">
-          Plans reviewed by a registered financial professional
+          Educational information, not financial advice. Speak with a licensed advisor before implementing changes.
         </p>
       </div>
     </aside>

@@ -69,7 +69,7 @@ export function ApprovalStatusBanner({
         <p className="font-body text-sm text-[var(--text-primary)]">
           {(status === "pending" || status === "pending_review") && (
             <>
-              Your plan is being reviewed.
+              Your progress report is being prepared.
               {estimatedDelivery && (
                 <span className="text-[var(--text-secondary)]">
                   {" "}
@@ -78,7 +78,7 @@ export function ApprovalStatusBanner({
               )}
             </>
           )}
-          {(status === "ready" || status === "delivered") && "Your plan is ready!"}
+          {(status === "ready" || status === "delivered") && "Your progress report is ready!"}
           {status === "rejected" && "Additional information needed"}
         </p>
         {(status === "ready" || status === "delivered") && planId && (
@@ -86,7 +86,7 @@ export function ApprovalStatusBanner({
             href={`/dashboard/plan/${planId}`}
             className="shrink-0 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
           >
-            View Plan
+            View Report
           </Link>
         )}
         {status === "rejected" && (

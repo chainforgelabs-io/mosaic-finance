@@ -31,7 +31,7 @@ export async function GET(
 
     if (error || !plan) {
       return NextResponse.json(
-        { error: 'Plan not found or not yet approved' },
+        { error: 'Progress report not found' },
         { status: 404 },
       );
     }

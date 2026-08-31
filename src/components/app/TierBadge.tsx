@@ -16,7 +16,7 @@ const tierStyles: Record<Tier, string> = {
 
 const tierLabels: Record<Tier, string> = {
   snapshot: "Snapshot",
-  plan: "Plan",
+  plan: "Progress",
   advisor: "Complete",
 };
 

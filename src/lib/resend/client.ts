@@ -16,19 +16,19 @@ export async function sendApprovalQueueNotification(
     from: FROM_EMAIL,
     to: CIM_REVIEWER_EMAIL,
     subject: isPriority
-      ? '[PRIORITY] New financial plan awaiting professional review'
-      : 'New financial plan awaiting professional review',
+      ? '[PRIORITY] New Progress Report in QA queue'
+      : 'New Progress Report in QA queue',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
         <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
-        <h2 style="color:#0f1923;margin-bottom:16px;">New Plan Pending Review</h2>
-        <p>A new financial plan has been submitted for professional review.</p>
-        ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">⚡ PRIORITY — Advisor tier (8-hour SLA)</p>' : '<p>Standard review — 24-hour SLA</p>'}
+        <h2 style="color:#0f1923;margin-bottom:16px;">New Progress Report for QA</h2>
+        <p>A new Progress Report has been generated and is available for optional internal QA review. The user already has access.</p>
+        ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">Priority — Complete tier</p>' : '<p>Standard</p>'}
         <a href="${APP_URL}/admin/approval-queue"
            style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">
-          Open Approval Queue
+          Open QA Queue
         </a>
-        <p style="margin-top:24px;font-size:12px;color:#888;">Plan ID: ${planId}</p>
+        <p style="margin-top:24px;font-size:12px;color:#888;">Report ID: ${planId}</p>
       </div>
     `,
   });
@@ -42,18 +42,18 @@ export async function sendPlanDeliveryEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: userEmail,
-    subject: 'Your Mosaic Finance Financial Plan is Ready',
+    subject: 'Your Mosaic Finance Progress Report is Ready',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
         <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
-        <h2 style="color:#0f1923;margin-bottom:16px;">Your Financial Plan is Ready</h2>
-        <p>Great news — your personalized financial plan has been reviewed by a registered financial professional and is now available.</p>
+        <h2 style="color:#0f1923;margin-bottom:16px;">Your Progress Report is Ready</h2>
+        <p>Great news — your Progress Report is now available. It shows your current trajectory and educational options to learn about.</p>
         <a href="${APP_URL}/dashboard/plan/${planId}"
            style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">
-          View Your Plan
+          View Your Progress Report
         </a>
         <p style="margin-top:24px;font-size:12px;color:#888;">
-          This plan was reviewed by a registered financial professional. It does not constitute registered investment advice.
+          This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.
         </p>
       </div>
     `,
@@ -67,12 +67,12 @@ export async function sendPlanRejectionEmail(
   await resend.emails.send({
     from: FROM_EMAIL,
     to: userEmail,
-    subject: 'Your Mosaic Finance Plan Requires Additional Information',
+    subject: 'Your Mosaic Finance Progress Report Needs Additional Information',
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
         <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">Additional Information Needed</h2>
-        <p>Our reviewer has flagged your plan as needing additional information before it can be finalized.</p>
+        <p>Our team has flagged your Progress Report as needing additional information before it can be finalized.</p>
         <div style="background:#f8f9fa;border:1px solid #e9ecef;border-radius:8px;padding:16px;margin:16px 0;">
           <p style="font-weight:700;margin-bottom:8px;">Reviewer Notes:</p>
           <p>${notes}</p>
@@ -116,9 +116,9 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:20px 0;">
           <p style="margin:0;color:#166534;font-weight:600;">What happens next?</p>
           <p style="margin:8px 0 0;color:#333;line-height:1.6;">
-            You're on the list for early access to Mosaic — AI-powered financial
-            planning built for Canadian rules, with every plan validated by a
-            Registered Financial Professional. We'll email you as soon as we're
+            You're on the list for early access to Mosaic — gamified financial
+            tracking built for Canadian rules, with an AI guide that educates
+            you about your money. We'll email you as soon as we're
             ready to let you in.
           </p>
         </div>
@@ -128,9 +128,9 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
         <p style="color:#333;line-height:1.6;">— The Mosaic Finance Team</p>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0 16px;" />
         <p style="font-size:11px;color:#999;line-height:1.5;">
-          Mosaic Finance is an AI-powered financial planning platform. Plans are
-          reviewed by a registered financial professional and do not constitute
-          registered investment advice.
+          Mosaic Finance is a financial tracking and education platform.
+          This is educational information, not financial advice. Speak with a
+          licensed financial advisor before implementing any changes.
         </p>
       </div>
     `,

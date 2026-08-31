@@ -174,7 +174,7 @@ export default function ApprovalQueuePage() {
       <div className="max-w-[1400px] mx-auto px-6 py-12">
         <EmptyState
           icon={Inbox}
-          title="All plans reviewed"
+          title="All reports reviewed"
           description="Nothing in the queue. Great work!"
         />
       </div>
@@ -241,7 +241,7 @@ export default function ApprovalQueuePage() {
       {items.length === 0 ? (
         <div className="py-16 text-center">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
-            No plans match this filter.
+            No reports match this filter.
           </p>
         </div>
       ) : (

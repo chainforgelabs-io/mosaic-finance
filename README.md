@@ -1,16 +1,16 @@
 # Mosaic Finance
 
-AI-powered financial planning for Canadians — conversational fact-find, institutional-style plan generation, and mandatory human review before delivery.
+Gamified financial tracking for Canadians — conversational onboarding, net worth dashboard, and instant educational Progress Reports with an AI guide.
 
 **Live:** [https://mosaicfinance.ai](https://mosaicfinance.ai) — portfolio demo. Not an operated consumer advice product.
 
 ## Overview
 
-Most retail planning tools are either calculators or chatbots. Mosaic sits in between: a structured, multi-session AI interview builds a financial profile, then Claude generates a multi-section plan (tax accounts, retirement, debt, insurance, investment blueprint) grounded in Canadian rules (RRSP, TFSA, FHSA, CPP/OAS, provincial nuance).
+Most retail money apps are either calculators or chatbots. Mosaic sits in between: a structured, multi-session AI interview builds a financial picture, then Claude generates a multi-section Progress Report (tax accounts, retirement trajectory, debt, insurance, investment education) grounded in Canadian rules (RRSP, TFSA, FHSA, CPP/OAS, provincial nuance).
 
-Every plan enters a professional approval queue before the user can see it. That human-in-the-loop gate is the compliance backbone of the product, not an afterthought.
+Progress Reports deliver instantly. Charlie is an AI education guide — not a licensed advisor. Every report and conversation reminds users: this is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.
 
-Intentionally out of scope for this demo: SIN collection, full brokerage custody, live trade execution, and unsupervised AI advice delivery. Market context, signal research exports, and newsletter automation are adjacent surfaces shipped in the same codebase.
+Intentionally out of scope for this demo: SIN collection, full brokerage custody, live trade execution, and licensed financial advice. Market context, signal research exports, and newsletter automation are adjacent surfaces shipped in the same codebase.
 
 ## Stack
 
@@ -27,9 +27,9 @@ Intentionally out of scope for this demo: SIN collection, full brokerage custody
 
 - Conversational onboarding fact-find with session continuity
 - Risk profiling and holdings / fixed-asset capture (including statement upload parsing)
-- Multi-section financial plan generation with PDF export
-- CIM-style approval queue — plans deliver only after professional review
-- Interactive plan walkthrough with follow-up Q&A
+- Multi-section Progress Report generation with PDF export
+- Optional internal QA queue (does not gate user delivery)
+- Interactive Progress Report walkthrough with follow-up Q&A
 - Market Context hub: quotes, news, social sentiment, AI investor personas
 - Weekly market newsletter via Resend
 - Machine-readable signal / research export API for external consumers
@@ -88,7 +88,7 @@ Copy `.env.example` → `.env.local`. Required names (values never belong in git
 
 ## Portfolio note
 
-This repository is a Chain Forge Labs portfolio demo. Marketing and compliance copy on the live site reflect product intent; operating a regulated advice business requires separate legal, registration, and operational controls that are outside this repo’s scope.
+This repository is a Chain Forge Labs portfolio demo. Marketing copy on the live site reflects product intent: a tracking and education tool, not licensed financial advice. Operating a regulated advice business requires separate legal, registration, and operational controls that are outside this repo’s scope.
 
 ## Built by
 

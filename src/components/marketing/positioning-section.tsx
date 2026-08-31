@@ -5,19 +5,19 @@ import { useEffect, useRef } from "react";
 const ROWS = [
   {
     title: "Not a robo-advisor",
-    body: "Robo-advisors park your money passively. Mosaic thinks through your entire financial picture with you.",
+    body: "Robo-advisors park your money passively. Mosaic is a tracking dashboard that helps you understand your whole financial picture.",
   },
   {
     title: "Not a calculator",
     body: "Calculators give generic numbers. Mosaic has a conversation that adapts to your situation, your province, your goals.",
   },
   {
-    title: "Not generic AI",
-    body: "ChatGPT gives one-off answers and asks you to paste in personal financial data. Mosaic is purpose-built for Canadian financial planning — private by design, with every plan validated by a credentialed professional.",
+    title: "Not financial advice",
+    body: "Mosaic is a tracking and education tool. Charlie teaches you about your options — it is not licensed advice. Speak with a licensed financial advisor before implementing any changes.",
   },
   {
-    title: "Not replacing your advisor",
-    body: "If you have one, Mosaic gives you clarity between meetings. If you do not, Mosaic fills the planning gap.",
+    title: "Works alongside your advisor",
+    body: "If you have one, Mosaic gives you clarity between meetings. If you do not, Mosaic helps you track and learn so you are ready when you do speak with one.",
   },
 ];
 

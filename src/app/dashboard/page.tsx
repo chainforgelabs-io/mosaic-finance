@@ -43,7 +43,7 @@ const GENERATING_CHART_PLACEHOLDERS = [
   },
   {
     title: "Recommended Allocation",
-    subtitle: "Target portfolio mix from your plan",
+    subtitle: "Target portfolio mix from your Progress Report",
   },
   {
     title: "Net Worth Trajectory",
@@ -106,7 +106,7 @@ function ChartPlaceholder({ title, subtitle }: { title: string; subtitle: string
           Generating…
         </p>
         <p className="mt-1 font-[family-name:var(--font-body)] text-center text-[11px] text-[var(--text-muted)]">
-          Available after plan generation
+          Available after your Progress Report is ready
         </p>
       </div>
     </div>
@@ -148,7 +148,7 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
             Health Score
           </p>
           <p className="font-[family-name:var(--font-body)] text-[10px] text-amber-400/90 mt-0.5">
-            Pending plan
+            Pending report
           </p>
         </div>
 
@@ -214,8 +214,8 @@ function DashboardGenerating() {
       <div className="flex flex-col gap-2 rounded-lg border border-emerald-200/90 bg-emerald-50/90 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
         <Loader2 className="size-5 shrink-0 animate-spin text-[var(--emerald)]" aria-hidden />
         <p className="font-[family-name:var(--font-body)] text-[14px] text-[var(--text-secondary)]">
-          Your personalized financial plan is being generated in the background. Some metrics will update when
-          ready; a registered financial professional will review your plan before delivery.
+          Your Progress Report is being generated in the background. Some metrics will update when
+          ready.
         </p>
       </div>
 
@@ -320,8 +320,8 @@ function DashboardNoPlan() {
   return (
     <EmptyState
       icon={FileText}
-      title="Your financial plan will appear here once you complete setup."
-      description="Complete the onboarding process to generate your personalized financial plan, reviewed by a registered financial professional."
+      title="Your Progress Report will appear here once you complete setup."
+      description="Complete onboarding to generate your Progress Report — an educational snapshot of your trajectory and options. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
       ctaLabel="Complete Setup"
       ctaHref="/onboarding"
     />
@@ -353,10 +353,10 @@ function DashboardFailed() {
           <FileText className="size-6 text-[var(--error)]" />
         </div>
         <h2 className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)] mb-2">
-          Plan generation failed
+          Progress report generation failed
         </h2>
         <p className="font-[family-name:var(--font-body)] text-[14px] text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-          Something went wrong while generating your financial plan. This is usually temporary — please try again.
+          Something went wrong while generating your Progress Report. This is usually temporary — please try again.
         </p>
         <button
           onClick={handleRetry}
@@ -364,7 +364,7 @@ function DashboardFailed() {
           className="inline-flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-[family-name:var(--font-display)] text-[14px] font-semibold text-white transition-colors hover:bg-[#059669] disabled:opacity-60"
         >
           {retrying ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4" />}
-          {retrying ? "Retrying..." : "Retry Plan Generation"}
+          {retrying ? "Retrying..." : "Retry Report Generation"}
         </button>
       </div>
     </div>
@@ -549,10 +549,10 @@ function DashboardPending() {
         <FileText className="w-5 h-5 text-[var(--emerald)] shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--emerald-dark)]">
-            Your draft plan is ready to view
+            Your Progress Report is ready to view
           </p>
           <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mt-0.5">
-            Download a watermarked draft while it&apos;s under professional review
+            View your report while it finishes preparing
           </p>
         </div>
         <ArrowRight className="w-4 h-4 text-[var(--emerald)] group-hover:translate-x-0.5 transition-transform" />
@@ -564,7 +564,7 @@ function DashboardPending() {
       {plan.sections.length > 0 && (
         <div>
           <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-4">
-            Plan Sections
+            Report Sections
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plan.sections.map((section) => (
@@ -600,7 +600,7 @@ function DashboardDelivered() {
       {plan.sections.length > 0 && (
         <div>
           <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-4">
-            Plan Sections
+            Report Sections
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plan.sections.map((section) => (

@@ -149,8 +149,8 @@ function buildNewsletterHtml(content: NewsletterContent): string {
       }
 
       <div style="text-align:center;padding:20px 0;color:#9CA3AF;font-size:11px">
-        <p>This newsletter is for educational context only. Not investment advice.</p>
-        <p>Mosaic Finance · Plans reviewed by a registered financial professional</p>
+        <p>This newsletter is for educational context only. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.</p>
+        <p>Mosaic Finance · Financial tracking &amp; education</p>
       </div>
     </div>
   `;

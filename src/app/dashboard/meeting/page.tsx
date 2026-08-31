@@ -30,16 +30,16 @@ const MEETING_OPTIONS: {
 }[] = [
   {
     type: "annual-review",
-    title: "Annual Review",
+    title: "Check-in",
     description:
-      "Review changes to your life, finances, and goals since your last plan. Reassess your risk tolerance and update your financial roadmap.",
+      "Review changes to your life, finances, and goals since your last Progress Report. Reassess your risk comfort and update your trajectory.",
     icon: Calendar,
   },
   {
     type: "ad-hoc",
     title: "Ask a Question",
     description:
-      "Have a quick conversation about any financial planning topic — tax strategies, insurance, retirement, investment changes, and more.",
+      "Have a quick conversation about any financial topic — tax, insurance, retirement, investments, and more. Educational only; speak with a licensed financial advisor before implementing any changes.",
     icon: MessageCircle,
   },
 ];
@@ -88,8 +88,8 @@ export default function MeetingPage() {
           body: JSON.stringify({
             sessionId: sid,
             message: type === "annual-review"
-              ? "I'd like to do my annual review."
-              : "I have a financial planning question.",
+              ? "I'd like to do a check-in."
+              : "I have a financial education question.",
             sessionType: type,
           }),
         });
@@ -231,10 +231,10 @@ export default function MeetingPage() {
               </div>
             </div>
             <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
-              Have a meeting with Charlie
+              Chat with Charlie
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
-              Chat with Charlie for reviews, questions, or updates to your plan.
+              Check in, ask questions, or update your Progress Report.
             </p>
           </div>
 
@@ -271,8 +271,8 @@ export default function MeetingPage() {
               <Shield className="mt-0.5 size-4 shrink-0 text-[var(--text-muted)]" />
               <p className="font-body text-[12px] leading-relaxed text-[var(--text-muted)]">
                 All conversations are private and stored securely. Charlie provides
-                assessments and educational information, not personalized financial advice.
-                All plans are reviewed by a registered financial professional.
+                educational information, not financial advice. Speak with a licensed
+                financial advisor before implementing any changes.
               </p>
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function MeetingPage() {
               <MessageCircle className="size-5 text-[var(--emerald)]" />
             )}
             <h2 className="font-display text-[18px] font-semibold text-[var(--text-primary)]">
-              {meetingType === "annual-review" ? "Annual Review" : "Financial Q&A"}
+              {meetingType === "annual-review" ? "Check-in" : "Financial Q&A"}
             </h2>
           </div>
           <button
@@ -323,9 +323,9 @@ export default function MeetingPage() {
           {sessionComplete && meetingType === "annual-review" && sessionId && (
             <div className="mt-4 space-y-3 rounded-lg border border-[var(--emerald)]/30 bg-[var(--emerald)]/5 px-4 py-3">
               <p className="font-body text-[13px] text-[var(--text-secondary)]">
-                Your annual review conversation is complete.
+                Your check-in conversation is complete.
                 {hasReviewExtract
-                  ? " Review the updates Charlie captured, then apply them to your profile — a new plan will be sent for professional review."
+                  ? " Review the updates Charlie captured, then apply them to your profile — a new Progress Report will be generated."
                   : " If Charlie captured structured updates, confirm them on the next step."}
               </p>
               <Link

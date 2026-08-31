@@ -40,15 +40,16 @@ export function FinalCta() {
           className="mb-4 font-display text-[28px] font-bold leading-tight text-white sm:text-[36px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Stop guessing. Start planning.
+          Stop guessing. Start tracking.
         </h2>
         <p
           data-animate
           className="mb-8 font-body text-[17px] text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Join the waitlist for AI-powered financial planning built for Canadian
-          rules. No credit card. No personal information.
+          Join the waitlist for gamified financial tracking built for Canadian
+          rules — with an AI guide that educates you about your money. No credit
+          card. No personal information.
         </p>
         <div
           data-animate

@@ -239,7 +239,7 @@ function buildSections(raw: any): PlanSection[] {
         labeledProse("Portfolio-Specific Opportunities", mcr.portfolio_specific_opportunities),
       ),
       actionItems: actionItems(mcr, "mcr"),
-      disclaimer: mcr.disclaimer ?? "This market commentary is educational context only.",
+      disclaimer: mcr.disclaimer ?? "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
     });
   }
 
@@ -326,7 +326,9 @@ export function transformDbPlanToFinancialPlan(
     riskLabel: options?.riskLabel ?? "Balanced",
     createdAt: dbPlan.created_at,
     estimatedDelivery:
-      dbPlan.status === "pending_review" ? "Within 24 hours" : undefined,
+      dbPlan.status === "pending_review" || dbPlan.status === "generating"
+        ? "A few minutes"
+        : undefined,
     sections: buildSections(raw),
     netWorth,
     monthlyCashFlow,

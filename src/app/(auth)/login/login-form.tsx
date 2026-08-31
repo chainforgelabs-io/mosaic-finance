@@ -93,7 +93,7 @@ export default function LoginForm() {
             Welcome back
           </h1>
           <p className="mt-2 text-center font-body text-[15px] text-[var(--text-secondary)]">
-            Sign in to continue to your financial plan.
+            Sign in to continue to your dashboard.
           </p>
         </div>
 

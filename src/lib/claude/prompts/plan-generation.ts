@@ -43,12 +43,12 @@ export interface PlanGenerationInput {
 export function buildPlanGenerationPrompt(userData: PlanGenerationInput): string {
   const knowledgeContext = buildKnowledgeContext('plan-generation', userData.userFlags ?? {});
 
-  return `You are a senior financial planner producing a comprehensive financial plan for a Canadian client. This plan will be reviewed by a registered financial professional before delivery.
+  return `You are an AI financial education guide producing a Progress Report for a Canadian user of Mosaic Finance. The report explains where they stand today, their current trajectory, and educational options they may want to learn more about — it is not a financial plan or investment advice.
 ${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData)}
 
-Generate a complete 8-section financial plan. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the client's specific numbers, province, account types, and goals. Frame all output as educational planning considerations — not prescriptive advice.
+Generate a complete 8-section Progress Report. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the user's specific numbers, province, account types, and goals. Frame all output as educational tracking and trajectory analysis — not prescriptive advice. Every action_items array should include, as its last item: "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
 
 OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 
@@ -128,7 +128,7 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
     "portfolio_specific_opportunities": string,
     "rate_environment_impact": string,
     "canadian_market_context": string,
-    "disclaimer": "This market commentary is educational context only. It is not a prediction of future performance and should not be used as the sole basis for investment decisions."
+    "disclaimer": "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
   },
   "lifetime_financial_roadmap": {
     "current_decade_priorities": [string],
@@ -150,7 +150,7 @@ CRITICAL RULES:
 - Retirement projections must include CPP and OAS estimates
 - All considerations must be suitability-appropriate for the client's risk profile
 - Flag any areas of uncertainty with explicit disclaimers within that section
-- Any value you cannot calculate with confidence must be flagged with "[REQUIRES ADVISOR VERIFICATION]" rather than fabricating a number
-- This output will be reviewed by a registered financial professional before delivery — write as if a peer is reviewing your work
+- Any value you cannot calculate with confidence must be flagged with "[VERIFY WITH A PROFESSIONAL]" rather than fabricating a number
+- Write as an educational Progress Report: current position, trajectory, and options to learn about
 - Return ONLY the JSON object — no markdown fences, no commentary before or after`;
 }

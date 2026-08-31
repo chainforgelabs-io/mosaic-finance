@@ -13,7 +13,7 @@ const ALLOWED_MIME_TYPES = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-const STATEMENT_PARSE_PROMPT = `You are a financial document parser for Mosaic Finance, a Canadian financial planning platform.
+const STATEMENT_PARSE_PROMPT = `You are a financial document parser for Mosaic Finance, a Canadian financial tracking and education platform.
 
 The user has uploaded a blacked-out investment statement. Sensitive information (SIN, account numbers, full legal name) may be redacted. That is expected and correct — do NOT flag redacted fields as errors.
 

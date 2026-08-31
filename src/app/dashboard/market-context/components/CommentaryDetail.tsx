@@ -155,7 +155,7 @@ export function CommentaryDetail({
         <AlertTriangle className="w-4 h-4 text-[var(--warning)] mt-0.5 shrink-0" />
         <p className="font-[family-name:var(--font-body)] text-[11px] text-amber-800">
           This AI-generated commentary simulates an investment philosophy for educational purposes only.
-          It does not represent the actual views of {persona.name} and should not be considered investment advice.
+          It does not represent the actual views of {persona.name}. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.
         </p>
       </div>
     </div>

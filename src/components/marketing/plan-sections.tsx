@@ -92,7 +92,7 @@ export function PlanSections() {
           className="mb-4 font-body text-xs font-semibold uppercase tracking-[0.1em] text-emerald"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Your Plan Includes
+          Your Progress Report Includes
         </p>
         <h2
           data-animate

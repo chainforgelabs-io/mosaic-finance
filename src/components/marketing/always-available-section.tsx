@@ -6,7 +6,7 @@ import { Briefcase, Home, LineChart } from "lucide-react";
 const CARDS = [
   {
     icon: Briefcase,
-    text: "New job, raise, or career change? Update your plan in minutes.",
+    text: "New job, raise, or career change? Update your Progress Report in minutes.",
   },
   {
     icon: Home,
@@ -67,14 +67,14 @@ export function AlwaysAvailableSection() {
           className="mb-4 font-display text-[28px] font-bold leading-tight text-white sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Life changes. Your plan should too.
+          Life changes. Your Progress Report should too.
         </h2>
         <p
           data-animate
           className="mb-14 max-w-2xl font-body text-[17px] leading-relaxed text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          This isn&apos;t a one-time document. It&apos;s a planning platform that
+          This isn&apos;t a one-time document. It&apos;s a tracking platform that
           knows your full financial picture and is there every time something
           changes.
         </p>

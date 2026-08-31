@@ -22,7 +22,7 @@ const GUIDE_ITEMS = [
 
 const TRUST_CHIPS = [
   "Canadian-specific",
-  "Professional review",
+  "Education-first",
   "Privacy-first",
   "$17/mo at launch",
 ];
@@ -138,7 +138,7 @@ export function WaitlistPage() {
             Still guessing whether to use your RRSP, TFSA, or FHSA?
           </h1>
           <p className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-slate-400 sm:text-lg">
-            Get the decision framework a financial planner would walk you
+            Get the decision framework a licensed advisor might walk you
             through — free, instantly — plus early access to Mosaic when we
             launch.
           </p>
@@ -182,13 +182,14 @@ export function WaitlistPage() {
             What you&apos;re getting early access to
           </p>
           <h2 className="mb-6 font-display text-[26px] font-bold leading-tight text-white sm:text-[32px]">
-            AI-powered financial planning for Canadians
+            AI-powered financial tracking for Canadians
           </h2>
           <p className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-slate-400">
-            Mosaic builds you a personalized financial plan — investment
-            analysis, tax strategy, retirement projections — through a
-            conversation, not a form. Every plan is reviewed by a Registered
-            Financial Professional before you see it.
+            Mosaic is a net worth dashboard and Progress Report — investment
+            education, tax context, retirement trajectory — through a
+            conversation, not a form. Educational information, not financial
+            advice. Speak with a licensed financial advisor before implementing
+            any changes.
           </p>
           <div className="mb-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {TRUST_CHIPS.map((label) => (

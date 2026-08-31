@@ -43,22 +43,23 @@ export function Hero() {
           data-animate
           className="mb-6 font-body text-[13px] font-medium uppercase tracking-[0.08em] text-emerald"
         >
-          AI-Powered Financial Planning for Every Canadian Money Decision
+          Track, Learn, Level Up Your Money
         </p>
 
         <h1
           data-animate
           className="mb-6 font-display text-[32px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white sm:text-[44px] lg:text-[56px]"
         >
-          Never make a financial decision in the dark again.
+          The gamified financial tracking app for Canadians.
         </h1>
 
         <p
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          A personalized financial plan in under 30 minutes — built for
-          Canadian rules and validated by a Registered Financial Professional.
+          Add your numbers, track your net worth, and get an instant Progress
+          Report that shows your trajectory — plus educational options to learn
+          about. Built for Canadian rules.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
@@ -75,7 +76,7 @@ export function Hero() {
         </div>
 
         <p data-animate className="mt-6 font-body text-[13px] text-text-muted">
-          No credit card required · Validated by a professional · Privacy-first
+          No credit card required · Educational, not advice · Privacy-first
         </p>
       </div>
     </section>

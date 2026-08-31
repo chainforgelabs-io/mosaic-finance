@@ -205,7 +205,7 @@ export default function OnboardingProfilePage() {
               Tell us about yourself
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
-              This helps us personalize your financial plan. No real names are stored.
+              This helps us personalize your Progress Report. No real names are stored.
             </p>
           </div>
 

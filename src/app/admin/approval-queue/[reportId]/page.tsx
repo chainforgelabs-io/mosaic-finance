@@ -88,23 +88,23 @@ function ConfirmationModal({
 
   const config = {
     approve: {
-      title: "Approve & Deliver Plan",
-      description: "This will mark the plan as professionally reviewed and deliver it to the user. A PDF will be generated and an email notification sent.",
+      title: "Approve report",
+      description: "Mark this Progress Report as QA-reviewed. A PDF will be regenerated if needed.",
       confirmLabel: "Approve & Deliver",
       confirmStyle: "bg-[var(--emerald)] hover:bg-[var(--emerald-dark)] text-white",
       icon: <CheckCircle2 className="w-6 h-6 text-[var(--emerald)]" />,
     },
     edit_approve: {
-      title: "Edit & Approve Plan",
-      description: "This will apply your edits, mark the plan as professionally reviewed, and deliver it to the user.",
+      title: "Edit & save report",
+      description: "Apply your edits and save the updated Progress Report for the user.",
       confirmLabel: "Save & Deliver",
       confirmStyle: "bg-[var(--slate-950)] hover:bg-[var(--slate-950)]/90 text-white",
       icon: <Edit3 className="w-6 h-6 text-[var(--text-primary)]" />,
     },
     reject: {
       title: "Reject — Request More Info",
-      description: "The user will be notified that additional information is needed before their plan can be approved.",
-      confirmLabel: "Reject Plan",
+      description: "The user will be notified that additional information is needed.",
+      confirmLabel: "Flag report",
       confirmStyle: "bg-[var(--error)] hover:bg-red-600 text-white",
       icon: <XCircle className="w-6 h-6 text-[var(--error)]" />,
     },
@@ -246,7 +246,7 @@ export default function PlanReviewPage() {
             <div className="bg-white rounded-xl border border-[var(--warm-200)] p-6 md:p-8">
               <div className="flex items-center gap-3 mb-6">
                 <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
-                  Financial Plan
+                  Progress Report
                 </h1>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-[11px] font-medium font-[family-name:var(--font-display)]">
                   <Clock className="w-3 h-3" />
