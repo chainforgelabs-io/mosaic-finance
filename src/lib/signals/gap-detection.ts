@@ -9,7 +9,7 @@ import { createServiceClient } from "@/lib/supabase/service";
  * Scan continuity is what makes the dataset's baselines trustworthy.
  */
 
-/** Mirror of vercel.json: "*​/30 13-21 * * 1-5" and "0 7 * * *". */
+/** Mirror of vercel.json: "0 18 * * 1-5" and "0 7 * * *". */
 export function expectedSlotsForUtcDay(dayStartUtc: Date): string[] {
   const slots: string[] = [];
   const day = dayStartUtc.getUTCDay();
@@ -19,13 +19,9 @@ export function expectedSlotsForUtcDay(dayStartUtc: Date): string[] {
   slots.push(nightly.toISOString());
 
   if (day >= 1 && day <= 5) {
-    for (let hour = 13; hour <= 21; hour++) {
-      for (const minute of [0, 30]) {
-        const slot = new Date(dayStartUtc);
-        slot.setUTCHours(hour, minute, 0, 0);
-        slots.push(slot.toISOString());
-      }
-    }
+    const slot = new Date(dayStartUtc);
+    slot.setUTCHours(18, 0, 0, 0);
+    slots.push(slot.toISOString());
   }
   return slots;
 }

@@ -198,13 +198,13 @@ describe("decile bucketing", () => {
 });
 
 describe("expectedSlotsForUtcDay — cron schedule mirror", () => {
-  it("weekday: 18 intraday slots + 1 nightly", () => {
+  it("weekday: 1 daily scan + 1 nightly", () => {
     const monday = new Date("2026-07-06T00:00:00Z");
     const slots = expectedSlotsForUtcDay(monday);
-    expect(slots).toHaveLength(19);
-    expect(slots).toContain("2026-07-06T07:00:00.000Z");
-    expect(slots).toContain("2026-07-06T13:00:00.000Z");
-    expect(slots).toContain("2026-07-06T21:30:00.000Z");
+    expect(slots).toEqual([
+      "2026-07-06T07:00:00.000Z",
+      "2026-07-06T18:00:00.000Z",
+    ]);
   });
 
   it("weekend: nightly only", () => {

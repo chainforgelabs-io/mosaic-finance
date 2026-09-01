@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/picks-scan",
-      "schedule": "*/30 13-21 * * 1-5"
+      "schedule": "0 18 * * 1-5"
     },
     {
       "path": "/api/cron/picks-scan?enrich=1",

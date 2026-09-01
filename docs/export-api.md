@@ -90,11 +90,10 @@ roughly 2 minutes plus provider delay. `price_fetched_at` records the fetch
 time. Snapshot prices are as-traded (unadjusted); all label math is done on
 adjusted series (below), so this does not affect labels.
 
-**Snapshot cadence:** intraday scans run every 30 minutes 13:00–21:00 UTC on
-weekdays (hourly in light mode) plus one nightly scan at 07:00 UTC, covering
-the top ~50 tickers by signal activity per scan. Consecutive intraday
-snapshots of the same ticker are highly autocorrelated — see the base-rate
-report's `granularity` note.
+**Snapshot cadence:** a weekday market scan runs once daily at 18:00 UTC
+plus one nightly scan at 07:00 UTC, covering the top ~50 tickers by signal
+activity per scan. Consecutive snapshots of the same ticker are highly
+autocorrelated — see the base-rate report's `granularity` note.
 
 ---
 
