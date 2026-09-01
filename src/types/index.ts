@@ -138,6 +138,7 @@ export interface HouseholdMember {
 export type OnboardingStep =
   | "profile"
   | "fact-find"
+  | "goals"
   | "risk-profile"
   | "holdings"
   | "generating"

@@ -3,6 +3,7 @@ import { create } from "zustand";
 type OnboardingStep =
   | "profile"
   | "fact-find"
+  | "goals"
   | "holdings"
   | "risk-profile"
   | "generating"

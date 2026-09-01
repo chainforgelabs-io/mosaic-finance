@@ -7,6 +7,7 @@ import {
 } from "@/lib/validators/conversation";
 import { triggerPlanGeneration } from "@/lib/plan/trigger-generation";
 import { captureAPIError } from "@/lib/sentry";
+import { upsertGoalsFromExtracted } from "@/lib/tracking/sync-goals";
 
 type DebtRow = {
   type: string;
@@ -497,6 +498,20 @@ export async function POST(
       return NextResponse.json(
         { error: "Failed to save financial profile" },
         { status: 500 },
+      );
+    }
+
+    if (financialGoals.length > 0) {
+      await upsertGoalsFromExtracted(
+        svc,
+        user.id,
+        financialGoals.map((g) => ({
+          goal: g.goal,
+          type: g.goal,
+          target_amount: g.target_amount ?? null,
+          target_year: g.target_year ?? null,
+        })),
+        "manual",
       );
     }
 

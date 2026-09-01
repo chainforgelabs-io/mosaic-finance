@@ -171,6 +171,7 @@ export default function RiskProfilePage() {
   useEffect(() => {
     completeStep("profile");
     completeStep("fact-find");
+    completeStep("goals");
     setCurrentStep("risk-profile");
   }, [completeStep, setCurrentStep]);
 

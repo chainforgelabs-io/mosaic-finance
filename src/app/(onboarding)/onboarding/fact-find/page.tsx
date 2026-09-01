@@ -777,7 +777,7 @@ function FactFindConversation() {
     }
 
     completeStep("fact-find");
-    router.push("/onboarding/risk-profile");
+    router.push("/onboarding/goals");
   };
 
   const handleCorrect = () => {

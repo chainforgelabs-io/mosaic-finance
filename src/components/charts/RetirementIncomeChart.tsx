@@ -32,8 +32,8 @@ export function RetirementIncomeChart() {
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
         Estimated monthly income at retirement
       </p>
-      <div className="flex items-center gap-6 overflow-hidden">
-        <div className="relative w-[180px] h-[180px] shrink-0">
+      <div className="flex flex-col sm:flex-row items-center gap-6 overflow-hidden">
+        <div className="relative w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] shrink-0 mx-auto">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>
               <Pie

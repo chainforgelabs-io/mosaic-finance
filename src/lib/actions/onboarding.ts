@@ -205,8 +205,10 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     redirectPath = "/dashboard";
   } else if (holdingsExist) {
     redirectPath = "/dashboard";
-  } else if (factFindComplete) {
+  } else if (riskProfileComplete) {
     redirectPath = "/onboarding/holdings";
+  } else if (factFindComplete) {
+    redirectPath = "/onboarding/goals";
   } else if (profileComplete) {
     redirectPath = "/onboarding/fact-find";
   } else {

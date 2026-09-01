@@ -7,14 +7,13 @@ import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocat
 import { CurrentAllocationChart } from "@/components/charts/CurrentAllocationChart";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { FinancialCard } from "@/components/app/FinancialCard";
-import { EmptyState } from "@/components/app/EmptyState";
 import {
   Award,
+  CalendarCheck,
   Car,
   ChevronDown,
   ChevronUp,
   DollarSign,
-  FileText,
   Gem,
   Home,
   Landmark,
@@ -32,6 +31,11 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import Link from "next/link";
+import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
+import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
+import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
+import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
+import type { NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
 
@@ -558,7 +562,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData, planStatus } = usePlanStore();
+  const { rawPlanData } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -570,6 +574,10 @@ export default function AssetsPage() {
   const [editingAsset, setEditingAsset] = useState<FixedAsset | null>(null);
   const [saving, setSaving] = useState(false);
   const lastHoldingsFetchAt = useRef<number>(0);
+  const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
+  const [snapshottedThisMonth, setSnapshottedThisMonth] = useState(true);
 
   const loadData = useCallback(async (force = false) => {
     const now = Date.now();
@@ -596,6 +604,15 @@ export default function AssetsPage() {
 
   useEffect(() => {
     loadData(true);
+    fetch("/api/net-worth/snapshots", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!json) return;
+        const rows = (json.snapshots ?? []) as NetWorthSnapshotRow[];
+        setSnapshots(rows);
+        setSnapshottedThisMonth(rows.some((s) => monthKey(s.snapshot_date) === monthKey(todayIso())));
+      })
+      .catch(() => {});
   }, [loadData]);
 
   async function handleSaveAsset(formData: AssetFormData) {
@@ -699,35 +716,26 @@ export default function AssetsPage() {
     );
   }
 
-  if (planStatus === "none") {
-    return (
-      <div>
-        <div className="mb-6">
-          <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
-            Assets & Liabilities
-          </h1>
-        </div>
-        <EmptyState
-          icon={FileText}
-          title="No Progress Report yet"
-          description="Complete onboarding to generate your Progress Report and start tracking your net worth. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
-          ctaLabel="Complete Setup"
-          ctaHref="/onboarding"
-        />
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Assets & Liabilities</h1>
-        <Link
-          href="/onboarding/holdings"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors"
-        >
-          Edit Holdings
-        </Link>
+        <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Net Worth</h1>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setCheckInOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
+          >
+            <CalendarCheck className="w-4 h-4" />
+            Monthly check-in
+          </button>
+          <Link
+            href="/onboarding/holdings"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors"
+          >
+            Edit Holdings
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-8">
@@ -819,6 +827,25 @@ export default function AssetsPage() {
             })()}
           </div>
         </div>
+
+        {!snapshottedThisMonth && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 font-body text-sm text-amber-800">
+            No snapshot this month. Update values and save a check-in to see which buckets moved.
+          </div>
+        )}
+
+        <NetWorthHistoryChart
+          data={snapshots.map((s) => ({ date: s.snapshot_date, netWorth: Number(s.net_worth) }))}
+        />
+
+        {snapshots.length > 0 && (
+          <BucketDeltas
+            last={snapshots[snapshots.length - 1]}
+            investmentTotal={investmentTotal}
+            fixedTotal={fixedTotal}
+            totalDebt={totalDebt}
+          />
+        )}
 
         {/* ALLOCATION CHARTS */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1059,9 +1086,14 @@ export default function AssetsPage() {
           return (
             <div>
               <div className="mb-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
-                  <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-[var(--emerald)]" />
+                    <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Cash Flow Overview</h2>
+                  </div>
+                  <Link href="/dashboard/cash-flow" className="font-display text-sm font-semibold text-[var(--emerald)] hover:underline">
+                    Track spending
+                  </Link>
                 </div>
                 <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] pl-7">
                   {diag
@@ -1105,9 +1137,14 @@ export default function AssetsPage() {
         {/* FINANCIAL GOALS */}
         {profile?.financial_goals && profile.financial_goals.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <PiggyBank className="w-5 h-5 text-[var(--emerald)]" />
-              <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Financial Goals</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <PiggyBank className="w-5 h-5 text-[var(--emerald)]" />
+                <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Financial Goals</h2>
+              </div>
+              <Link href="/dashboard/goals" className="font-display text-sm font-semibold text-[var(--emerald)] hover:underline">
+                Open tracker
+              </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {profile.financial_goals.map((g, i) => (
@@ -1132,6 +1169,87 @@ export default function AssetsPage() {
             </div>
           </div>
         )}
+      </div>
+
+      <MonthlyCheckIn
+        open={checkInOpen}
+        holdings={holdings}
+        fixedAssets={fixedAssets}
+        debts={(profile?.major_debts ?? []).map((d) => ({
+          type: d.type,
+          amount: Number(
+            (d as { amount?: number; balance?: number }).amount ??
+              (d as { balance?: number }).balance ??
+              0,
+          ),
+          rate: d.rate,
+          monthly_payment: d.monthly_payment,
+        }))}
+        onClose={() => setCheckInOpen(false)}
+        onSaved={async (nextUnlocks) => {
+          setUnlocks(nextUnlocks);
+          setSnapshottedThisMonth(true);
+          await loadData(true);
+          const snapRes = await fetch("/api/net-worth/snapshots", { credentials: "include" });
+          if (snapRes.ok) {
+            const json = await snapRes.json();
+            setSnapshots(json.snapshots ?? []);
+          }
+        }}
+      />
+      <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />
+    </div>
+  );
+}
+
+function BucketDeltas({
+  last,
+  investmentTotal,
+  fixedTotal,
+  totalDebt,
+}: {
+  last: NetWorthSnapshotRow;
+  investmentTotal: number;
+  fixedTotal: number;
+  totalDebt: number;
+}) {
+  const rows = [
+    { label: "Investments", current: investmentTotal, prior: Number(last.investments_total) },
+    { label: "Fixed assets", current: fixedTotal, prior: Number(last.fixed_assets_total) },
+    { label: "Debts", current: totalDebt, prior: Number(last.debts_total), invert: true },
+  ];
+  return (
+    <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
+      <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
+        Since {formatMonthLabel(last.snapshot_date)}
+      </h3>
+      <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
+        Live totals versus your last saved snapshot
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {rows.map((r) => {
+          const delta = r.current - r.prior;
+          const good = r.invert ? delta < 0 : delta > 0;
+          const bad = r.invert ? delta > 0 : delta < 0;
+          return (
+            <div key={r.label} className="rounded-lg bg-[var(--warm-50)] p-3">
+              <p className="font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
+                {r.label}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 font-display text-lg font-bold tabular-nums",
+                  good && "text-[var(--emerald)]",
+                  bad && "text-red-600",
+                  !good && !bad && "text-[var(--text-primary)]",
+                )}
+              >
+                {delta > 0 ? "+" : ""}
+                {fmt(delta)}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

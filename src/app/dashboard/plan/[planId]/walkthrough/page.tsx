@@ -10,6 +10,7 @@ import {
   FileText,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Send,
   CheckCircle2,
 } from "lucide-react";
@@ -350,6 +351,7 @@ export default function WalkthroughPage() {
   } = useWalkthroughStore();
 
   const [hasReceivedIntro, setHasReceivedIntro] = useState(false);
+  const [showMobileSection, setShowMobileSection] = useState(false);
   const introSentForSection = useRef<number>(-1);
 
   useEffect(() => {
@@ -440,8 +442,7 @@ export default function WalkthroughPage() {
   const currentSection = plan.sections[currentSectionIndex];
 
   return (
-    <div className="-mx-6 -my-8 flex h-[calc(100vh-theme(spacing.0))] md:h-[calc(100vh-0px)]">
-      {/* Left panel - plan section */}
+    <div className="-mx-4 -my-6 flex h-[calc(100vh-5.5rem)] flex-col md:-mx-6 md:-my-8 md:h-[calc(100vh-0px)] md:flex-row">
       <div className="hidden md:flex w-[40%] border-r border-[var(--warm-200)] bg-white flex-col overflow-hidden">
         <SectionPanel
           section={currentSection}
@@ -451,7 +452,32 @@ export default function WalkthroughPage() {
         />
       </div>
 
-      {/* Right panel - conversation */}
+      <div className="md:hidden border-b border-[var(--warm-200)] bg-white">
+        <button
+          type="button"
+          onClick={() => setShowMobileSection((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3"
+        >
+          <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
+            {currentSection.title}
+          </span>
+          <ChevronDown className={`size-4 text-[var(--text-muted)] transition ${showMobileSection ? "rotate-180" : ""}`} />
+        </button>
+        {showMobileSection && (
+          <div className="max-h-[45vh] overflow-y-auto border-t border-[var(--warm-200)]">
+            <SectionPanel
+              section={currentSection}
+              sectionIndex={currentSectionIndex}
+              totalSections={plan.sections.length}
+              onNavigate={(i) => {
+                handleNavigateSection(i);
+                setShowMobileSection(false);
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <ConversationPanel
           section={currentSection}

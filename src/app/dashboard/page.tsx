@@ -17,6 +17,7 @@ import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
+import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import {
   FileText,
   ArrowRight,
@@ -220,6 +221,7 @@ function DashboardGenerating() {
       </div>
 
       <PrePlanKPIStrip data={prePlanData} />
+      <MotivationStrip />
 
       <div className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -559,6 +561,7 @@ function DashboardPending() {
       </Link>
 
       <KPIStrip plan={plan} />
+      <MotivationStrip />
       <ChartGrid />
 
       {plan.sections.length > 0 && (
@@ -595,6 +598,7 @@ function DashboardDelivered() {
       )}
 
       <KPIStrip plan={plan} />
+      <MotivationStrip />
       <ChartGrid />
 
       {plan.sections.length > 0 && (

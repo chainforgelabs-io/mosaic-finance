@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
 
 export async function GET() {
   const supabase = await createClient();
@@ -59,4 +60,35 @@ export async function GET() {
     fixedAssets: fixedAssets ?? [],
     householdIncome: householdIncome > 0 ? householdIncome : null,
   });
+}
+
+const patchSchema = z.object({
+  id: z.string().uuid(),
+  total_value: z.number().min(0),
+});
+
+export async function PATCH(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const parsed = patchSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('investment_holdings')
+    .update({ total_value: parsed.data.total_value })
+    .eq('id', parsed.data.id)
+    .eq('user_id', user.id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Holding not found or update failed' }, { status: 404 });
+  }
+  return NextResponse.json({ holding: data });
 }

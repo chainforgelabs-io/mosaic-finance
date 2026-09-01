@@ -36,6 +36,8 @@ export async function GET() {
       faRes,
       hmRes,
       riskRes,
+      goalsRes,
+      snapRes,
     ] = await Promise.all([
       svc
         .from("financial_plans")
@@ -84,6 +86,20 @@ export async function GET() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      svc
+        .from("goals")
+        .select("updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      svc
+        .from("net_worth_snapshots")
+        .select("updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     const generating = Boolean(generatingRes.data?.id);
@@ -129,6 +145,8 @@ export async function GET() {
       parseTs(faRes.data?.updated_at),
       householdMax,
       parseTs(riskRes.data?.created_at),
+      parseTs(goalsRes.data?.updated_at),
+      parseTs(snapRes.data?.updated_at),
     ]);
 
     const stale =

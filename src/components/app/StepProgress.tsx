@@ -6,6 +6,7 @@ import { Check } from "lucide-react";
 export type OnboardingStep =
   | "profile"
   | "fact-find"
+  | "goals"
   | "risk-profile"
   | "holdings"
   | "generating"
@@ -15,6 +16,7 @@ export type OnboardingStep =
 const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "profile", label: "Profile" },
   { key: "fact-find", label: "Consultation" },
+  { key: "goals", label: "Goals" },
   { key: "risk-profile", label: "Risk Profile" },
   { key: "holdings", label: "Holdings" },
   { key: "generating", label: "Generating" },
@@ -35,7 +37,7 @@ export function StepProgress({
 }: StepProgressProps) {
   return (
     <div className={cn("w-full overflow-x-auto border-b border-[var(--warm-200)] px-4 py-6", className)}>
-      <div className="flex min-w-[540px] items-center justify-between">
+      <div className="flex items-center justify-between gap-1 sm:gap-0">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.includes(step.key);
           const isCurrent = step.key === currentStep;
@@ -60,7 +62,7 @@ export function StepProgress({
                 </div>
                 <span
                   className={cn(
-                    "whitespace-nowrap font-body text-[10px] sm:text-[11px]",
+                    "whitespace-nowrap font-body text-[9px] sm:text-[11px]",
                     isCurrent || isCompleted
                       ? "font-medium text-[var(--text-primary)]"
                       : "text-[var(--text-muted)]",

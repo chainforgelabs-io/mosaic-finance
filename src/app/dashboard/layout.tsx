@@ -262,7 +262,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         planId={plan?.id}
         role={user?.role}
       />
-      <main className="md:pl-60 flex min-h-screen flex-col pb-20 md:pb-0">
+      <main className="md:pl-14 lg:pl-60 flex min-h-screen flex-col pb-20 md:pb-0">
         <div className="mx-auto flex w-full max-w-[1080px] flex-1 px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </div>
