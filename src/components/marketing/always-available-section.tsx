@@ -10,11 +10,11 @@ const CARDS = [
   },
   {
     icon: Home,
-    text: "Buying a home or starting a family? Ask Charlie how it affects your numbers.",
+    text: "Buying a home or starting a family? Update your numbers and see how your snapshot changes.",
   },
   {
     icon: LineChart,
-    text: "Market shift or rate change? Get context relevant to your portfolio.",
+    text: "Market shift or rate change? Get educational context on what moved — not a trade idea.",
   },
 ];
 

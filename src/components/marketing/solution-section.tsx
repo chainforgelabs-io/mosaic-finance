@@ -11,7 +11,7 @@ const STEPS = [
   {
     num: 2,
     title: "Get your Progress Report instantly",
-    desc: "Net worth, trajectory, tax education, retirement projections — personalized to your numbers and your province. Ready as soon as you finish.",
+    desc: "Net worth, trajectory, and educational context on tax accounts and retirement — based on your numbers and your province. Ready as soon as you finish.",
   },
   {
     num: 3,

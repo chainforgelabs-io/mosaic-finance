@@ -7,7 +7,7 @@ const CARDS = [
     title: "Too Expensive",
     stat: "$3,000–$10,000",
     subtitle: "per year for a financial advisor",
-    body: "Professional advice costs more than most Canadians under 45 can justify — so they go without tracking or education.",
+    body: "Advice is expensive. Tracking and education should not be — so you can show up prepared when you do speak with an advisor.",
   },
   {
     title: "Too Passive",
@@ -67,18 +67,18 @@ export function ProblemSection() {
           className="mb-3 max-w-3xl font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          5.4 million Canadians have no financial advisor. The rest are paying
-          too much.
+          Most people track spending in their head. That is not a picture of
+          their money.
         </h2>
         <p
           data-animate
           className="mb-12 max-w-2xl font-body text-[17px] leading-relaxed text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          You&apos;re making financial decisions worth tens of thousands of
-          dollars with no clear picture of your trajectory. Every year without
-          tracking your accounts, taxes, and retirement path is money left on
-          the table.
+          Without a clear picture of income, spending, debts, and net worth, it
+          is hard to see whether you are paying down debt, building savings, or
+          moving toward your goals. Mosaic is a tracker and education tool —
+          not a substitute for a licensed advisor.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

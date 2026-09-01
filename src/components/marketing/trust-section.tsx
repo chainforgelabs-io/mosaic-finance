@@ -102,8 +102,8 @@ export function TrustSection() {
           className="mt-14 max-w-2xl rounded-xl border border-warm-200 bg-white px-6 py-5 font-display text-lg font-semibold leading-snug text-text-primary sm:text-xl"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          5.4 million Canadians have no financial advisor. Mosaic helps you track
-          and learn — so you show up prepared when you do speak with one.
+          Mosaic helps you track and learn — so you show up prepared when you
+          speak with a licensed advisor.
         </p>
       </div>
     </section>

@@ -20,38 +20,38 @@ const SECTIONS = [
   },
   {
     icon: Target,
-    title: "Retirement Readiness Analysis",
-    desc: "Your number, your timeline, your gap — with CPP/OAS timing and account strategy.",
+    title: "Retirement Trajectory",
+    desc: "See a trajectory from the numbers you enter, plus educational notes on CPP/OAS timing — not a recommendation.",
   },
   {
     icon: TrendingUp,
-    title: "Investment Blueprint",
-    desc: "Specific ETF and fund recommendations with rationale, allocation, and rebalancing you can revisit.",
+    title: "Holdings Education",
+    desc: "See how your accounts are allocated today, and educational context on common Canadian fund types — not a buy list.",
   },
   {
     icon: DollarSign,
-    title: "Tax Efficiency Review",
-    desc: "RRSP, TFSA, and FHSA optimization for your province — not a one-time snapshot.",
+    title: "Tax Account Education",
+    desc: "Plain-language primers on RRSP, TFSA, and FHSA for your province — so you can discuss them with an advisor.",
   },
   {
     icon: Building,
-    title: "Debt Elimination Plan",
-    desc: "Payoff timeline and scenario modeling so you can adjust when rates or priorities shift.",
+    title: "Debt Tracker",
+    desc: "See balances, rates, and payoff timelines you can model. Discuss any payoff order with a licensed advisor.",
   },
   {
     icon: Shield,
-    title: "Insurance Audit",
-    desc: "Life, disability, and critical illness gap analysis — so you know what's covered and what's not.",
+    title: "Coverage Snapshot",
+    desc: "A checklist of common protection types to review with a licensed advisor — not a product recommendation.",
   },
   {
     icon: Newspaper,
     title: "Market Context",
-    desc: "Weekly macro commentary relevant to your portfolio and your Canadian accounts.",
+    desc: "Weekly macro commentary to help you understand the news — educational, not a prediction or trade idea.",
   },
   {
     icon: Map,
-    title: "Lifetime Roadmap",
-    desc: "Decade-by-decade milestones and your financial independence number — a living view, not a PDF in a drawer.",
+    title: "Trajectory View",
+    desc: "Decade markers based on the numbers you enter — educational, not a promise or a prescribed plan.",
   },
 ];
 

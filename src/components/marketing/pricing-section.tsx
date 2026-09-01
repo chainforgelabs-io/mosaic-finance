@@ -48,7 +48,7 @@ const TIERS = [
       "Unlimited conversations with Charlie",
       "Quarterly check-ins",
       "Priority report generation",
-      "Portfolio monitoring",
+      "Holdings and net worth tracking",
       "Tax year-end report",
     ],
     cta: "Get Started",

@@ -8,15 +8,15 @@ import { Footer } from "@/components/marketing/footer";
 const GUIDE_ITEMS = [
   {
     title: "RRSP vs. TFSA vs. FHSA",
-    desc: "The decision tree based on your income, tax bracket, and goals",
+    desc: "How contribution room, tax treatment, and purpose differ — educational context, not a pick",
   },
   {
-    title: "Account priority order",
-    desc: "Which account to max first — and when the answer changes",
+    title: "Questions to bring to an advisor",
+    desc: "How contribution room, tax treatment, and goals differ — so you can have a better conversation",
   },
   {
-    title: "The mistakes that cost you",
-    desc: "Common allocation errors that leave thousands on the table",
+    title: "Common tracking mistakes",
+    desc: "Gaps people miss when they only look at one account at a time",
   },
 ];
 
@@ -138,9 +138,9 @@ export function WaitlistPage() {
             Still guessing whether to use your RRSP, TFSA, or FHSA?
           </h1>
           <p className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-slate-400 sm:text-lg">
-            Get the decision framework a licensed advisor might walk you
-            through — free, instantly — plus early access to Mosaic when we
-            launch.
+            Get a plain-language primer on how these accounts differ — free,
+            instantly — plus early access to Mosaic when we launch. Educational
+            information, not financial advice.
           </p>
           <div className="flex justify-center">
             <GuideLeadForm />
