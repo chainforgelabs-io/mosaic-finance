@@ -16,10 +16,12 @@ import {
   Banknote,
   Target,
   MoreHorizontal,
+  Receipt,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import type { Tier } from "@/types";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
 
@@ -27,7 +29,7 @@ type AppUserRole = "user" | "admin" | null | undefined;
 
 interface AppSidebarProps {
   userAlias: string;
-  tier: "snapshot" | "plan" | "advisor";
+  tier: Tier;
   planStatus?: string;
   planId?: string;
   role?: AppUserRole;
@@ -62,6 +64,7 @@ function learnItems(planId?: string): NavItem[] {
     },
     { label: "Check-in", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
+    { label: "Tax Year-End Pack", href: "/dashboard/tax-pack", icon: Receipt },
   ];
 }
 
@@ -155,7 +158,7 @@ export function AppSidebar({
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 flex h-screen w-60 flex-col bg-[var(--slate-950)]",
-        "max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:w-full max-md:flex-row max-md:items-center max-md:justify-around max-md:border-t max-md:border-white/10",
+        "max-md:bottom-0 max-md:top-auto max-md:h-auto max-md:w-full max-md:flex-row max-md:items-center max-md:justify-around max-md:border-t max-md:border-white/10 max-md:pb-[env(safe-area-inset-bottom)]",
         "md:max-lg:w-14",
         className,
       )}
@@ -293,7 +296,7 @@ export function AppSidebar({
             </div>
           </div>
         </div>
-        {tier !== "advisor" && (
+        {tier !== "mastery" && (
           <Link
             href="/dashboard/settings?tab=subscription"
             className="mt-3 flex items-center gap-1 font-display text-xs font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] md:max-lg:hidden"

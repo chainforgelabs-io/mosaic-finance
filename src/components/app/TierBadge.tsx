@@ -9,15 +9,15 @@ interface TierBadgeProps {
 }
 
 const tierStyles: Record<Tier, string> = {
-  snapshot: "bg-gray-200 text-gray-600",
-  plan: "bg-[var(--slate-950)] text-white",
-  advisor: "bg-[var(--emerald)] text-white",
+  pulse: "bg-gray-200 text-gray-600",
+  progress: "bg-[var(--slate-950)] text-white",
+  mastery: "bg-[var(--emerald)] text-white",
 };
 
 const tierLabels: Record<Tier, string> = {
-  snapshot: "Snapshot",
-  plan: "Progress",
-  advisor: "Complete",
+  pulse: "Pulse",
+  progress: "Progress",
+  mastery: "Mastery",
 };
 
 export function TierBadge({ tier, className }: TierBadgeProps) {

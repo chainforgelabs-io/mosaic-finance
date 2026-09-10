@@ -164,7 +164,20 @@ function AccountCard({ account }: { account: AccountRow }) {
       </button>
       {expanded && (
         <div className="border-t border-[var(--warm-200)] px-5 py-4">
-          <div className="overflow-x-auto">
+          <div className="space-y-2 md:hidden">
+            {account.holdings.map((h, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-[var(--warm-50)] px-3 py-2">
+                <div>
+                  <p className="font-body text-sm text-[var(--text-primary)]">{h.ticker || h.name || "—"}</p>
+                  <p className="font-body text-xs text-[var(--text-muted)]">
+                    {h.units != null ? `${h.units.toLocaleString()} units` : "Units —"}
+                  </p>
+                </div>
+                <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(h.balance)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--warm-100)]">
@@ -1020,7 +1033,18 @@ export default function AssetsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DebtBreakdownChart />
               <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
-                <div className="overflow-x-auto">
+                <div className="space-y-2 md:hidden">
+                  {parsedDebts.map((d) => (
+                    <div key={d.name} className="flex items-center justify-between rounded-lg bg-[var(--warm-50)] px-3 py-2">
+                      <div>
+                        <p className="font-body text-sm">{d.name}</p>
+                        {d.rate && <p className="font-body text-xs text-amber-600">{d.rate}</p>}
+                      </div>
+                      <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(d.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-[var(--warm-200)]">

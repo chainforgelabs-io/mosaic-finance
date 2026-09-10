@@ -11,11 +11,13 @@ import { PricingSection } from "@/components/marketing/pricing-section";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { FinalCta } from "@/components/marketing/final-cta";
 import { Footer } from "@/components/marketing/footer";
+import { isLaunchLive } from "@/lib/config/launch";
 
 export default function MarketingPage() {
+  const live = isLaunchLive();
   return (
     <main>
-      <Nav hideAuth />
+      <Nav hideAuth={!live} />
       <Hero />
       <ProblemSection />
       <ShowcaseSection />
@@ -24,7 +26,7 @@ export default function MarketingPage() {
       <AlwaysAvailableSection />
       <PositioningSection />
       <TrustSection />
-      <PricingSection ctaHref="/waitlist" />
+      <PricingSection ctaHref={live ? "/signup" : "/waitlist"} />
       <FaqSection />
       <FinalCta />
       <Footer />

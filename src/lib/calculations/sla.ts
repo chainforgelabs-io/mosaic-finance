@@ -1,10 +1,13 @@
 /**
- * Approval-queue SLA helpers. Advisor tier gets an 8h priority deadline;
+ * Approval-queue SLA helpers. Mastery tier gets an 8h priority deadline;
  * everyone else is on a 24h standard clock. Used for queue ordering and
  * reviewer warning badges — not user-facing countdown UI.
  */
-export type SubscriptionTier = 'snapshot' | 'plan' | 'advisor';
-export type QueuePriority = 'standard' | 'priority';
+import type { Tier } from "@/types";
+import { normalizeTier } from "@/lib/entitlements";
+
+export type SubscriptionTier = Tier;
+export type QueuePriority = "standard" | "priority";
 
 const SLA_HOURS: Record<QueuePriority, number> = {
   standard: 24,
@@ -13,8 +16,8 @@ const SLA_HOURS: Record<QueuePriority, number> = {
 
 const SLA_WARNING_THRESHOLD_HOURS = 4;
 
-export function getSLAPriority(tier: SubscriptionTier): QueuePriority {
-  return tier === 'advisor' ? 'priority' : 'standard';
+export function getSLAPriority(tier: string): QueuePriority {
+  return normalizeTier(tier) === "mastery" ? "priority" : "standard";
 }
 
 export function calculateSLADeadline(
@@ -43,11 +46,11 @@ export function getSLAStatus(
   deadline: Date,
   completedAt: Date | null,
   now: Date = new Date(),
-): 'met' | 'breached' | 'warning' | 'pending' {
+): "met" | "breached" | "warning" | "pending" {
   if (completedAt) {
-    return completedAt <= deadline ? 'met' : 'breached';
+    return completedAt <= deadline ? "met" : "breached";
   }
-  if (isSLABreached(deadline, now)) return 'breached';
-  if (isSLAWarning(deadline, now)) return 'warning';
-  return 'pending';
+  if (isSLABreached(deadline, now)) return "breached";
+  if (isSLAWarning(deadline, now)) return "warning";
+  return "pending";
 }

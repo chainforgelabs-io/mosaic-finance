@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { stripe, priceIdForCheckout } from '@/lib/stripe/client';
-import { captureAPIError } from '@/lib/sentry';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { priceIdForCheckout } from "@/lib/stripe/client";
+import { getFoundingStatus } from "@/lib/founding";
+import { captureAPIError } from "@/lib/sentry";
+import { z } from "zod";
 
 const CheckoutSchema = z.object({
-  tier: z.enum(['plan', 'advisor']),
-  interval: z.enum(['monthly', 'annual']).default('monthly'),
+  tier: z.enum(["progress", "mastery", "academy"]),
+  interval: z.enum(["monthly", "annual"]).default("monthly"),
 });
 
 export async function POST(req: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const parsed = CheckoutSchema.safeParse(await req.json());
@@ -29,31 +30,34 @@ export async function POST(req: NextRequest) {
     }
 
     const { tier, interval } = parsed.data;
-    const priceId = priceIdForCheckout(tier, interval);
+    const founding =
+      tier === "progress" ? (await getFoundingStatus()).open : false;
+    const priceId = priceIdForCheckout(tier, interval, { founding });
 
     if (!priceId) {
       return NextResponse.json(
-        { error: 'Invalid subscription tier or interval' },
+        { error: "Invalid subscription tier or interval" },
         { status: 400 },
       );
     }
 
     const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('stripe_customer_id, alias')
-      .eq('id', user.id)
+      .from("user_profiles")
+      .select("stripe_customer_id, alias")
+      .eq("id", user.id)
       .single();
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const { stripe } = await import("@/lib/stripe/client");
 
     const sessionParams: Record<string, unknown> = {
-      mode: 'subscription' as const,
-      payment_method_types: ['card'] as const,
+      mode: "subscription" as const,
+      payment_method_types: ["card"] as const,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${appUrl}/dashboard/settings?checkout=success`,
       cancel_url: `${appUrl}/dashboard/settings?checkout=cancelled`,
-      metadata: { userId: user.id },
-      currency: 'cad',
+      metadata: { userId: user.id, tier, interval, founding: String(founding) },
+      currency: "cad",
     };
 
     if (profile?.stripe_customer_id) {
@@ -68,9 +72,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    captureAPIError(error, { route: 'stripe/create-checkout' });
+    captureAPIError(error, { route: "stripe/create-checkout" });
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }

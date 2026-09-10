@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { isLaunchLive } from "@/lib/config/launch";
 
 const GUIDE_ITEMS = [
   {
@@ -24,7 +25,7 @@ const TRUST_CHIPS = [
   "Canadian-specific",
   "Education-first",
   "Privacy-first",
-  "$17/mo at launch",
+  isLaunchLive() ? "Founding Progress $8/mo" : "$17/mo at launch",
 ];
 
 function GuideLeadForm() {

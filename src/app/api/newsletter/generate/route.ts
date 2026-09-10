@@ -79,20 +79,37 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceClient();
     const { data: users } = await supabase
       .from("user_profiles")
+      .select("id, email, notification_preferences");
+
+    const optedInIds: string[] = [];
+    const emails = new Set<string>();
+    for (const u of users ?? []) {
+      const prefs = u.notification_preferences as { weekly_market?: boolean } | null;
+      if (prefs?.weekly_market === false) continue;
+      if (u.email) emails.add(u.email as string);
+      else optedInIds.push(u.id);
+    }
+    for (const id of optedInIds) {
+      const { data } = await supabase.auth.admin.getUserById(id);
+      if (data.user?.email) emails.add(data.user.email);
+    }
+
+    const { data: waitlist } = await supabase
+      .from("waitlist_signups")
       .select("email")
-      .not("email", "is", null);
+      .eq("newsletter_opt_in", true);
+    for (const row of waitlist ?? []) {
+      if (row.email) emails.add(row.email);
+    }
 
-    const emails = (users || [])
-      .map((u) => u.email as string)
-      .filter(Boolean);
-
-    if (emails.length === 0) {
+    const list = [...emails];
+    if (list.length === 0) {
       return NextResponse.json({ message: "No subscribers found" });
     }
 
-    const id = await generateAndSendNewsletter(emails);
+    const id = await generateAndSendNewsletter(list);
     return NextResponse.json({
-      message: `Newsletter sent to ${emails.length} subscribers`,
+      message: `Newsletter sent to ${list.length} subscribers`,
       id,
     });
   } catch (error) {

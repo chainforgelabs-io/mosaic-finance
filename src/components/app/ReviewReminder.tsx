@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { Calendar, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { usePlanStore } from "@/stores/plan-store";
 
 export function ReviewReminder() {
+  const tier = usePlanStore((s) => s.user?.tier ?? "pulse");
+  const cadenceDays = tier === "mastery" ? 90 : 330;
   const [isDue, setIsDue] = useState(false);
   const [daysSinceLastReview, setDaysSinceLastReview] = useState<number | null>(null);
 
@@ -45,13 +48,13 @@ export function ReviewReminder() {
           (Date.now() - new Date(lastReview.created_at).getTime()) / (1000 * 60 * 60 * 24),
         );
         setDaysSinceLastReview(days);
-        if (days >= 330) {
+        if (days >= cadenceDays) {
           setIsDue(true);
         }
       }
     }
     check();
-  }, []);
+  }, [cadenceDays]);
 
   if (!isDue) return null;
 
@@ -63,7 +66,7 @@ export function ReviewReminder() {
         </div>
         <div className="flex-1">
           <h3 className="font-display text-[16px] font-semibold text-[var(--text-primary)]">
-            Annual Check-in Due
+            {tier === "mastery" ? "Quarterly Check-in Due" : "Annual Check-in Due"}
           </h3>
           <p className="mt-1 font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
             {daysSinceLastReview !== null

@@ -137,4 +137,98 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
   });
 }
 
+function mosaicWrap(title: string, body: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
+      <div style="font-size:12px;letter-spacing:3px;color:#10B981;margin-bottom:8px;">MOSAIC FINANCE</div>
+      <h2 style="color:#0f1923;margin-bottom:16px;">${title}</h2>
+      ${body}
+      <p style="margin-top:24px;font-size:11px;color:#999;line-height:1.5;">
+        Mosaic Finance is a financial tracking and education platform.
+        This is educational information, not financial advice.
+      </p>
+    </div>
+  `;
+}
+
+export async function sendTrialStartedEmail(userEmail: string) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: userEmail,
+    subject: "Your 14-day Progress trial is on",
+    html: mosaicWrap(
+      "Charlie is unlocked for 14 days",
+      `<p style="color:#333;line-height:1.6;">You have two weeks of Progress — fact-find, Progress Report, and Charlie included. No credit card yet.</p>
+       <a href="${APP_URL}/onboarding" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">Start your fact-find</a>`,
+    ),
+  });
+}
+
+export async function sendTrialDay10Email(userEmail: string) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: userEmail,
+    subject: "4 days left on your Progress trial",
+    html: mosaicWrap(
+      "Keep Charlie in your corner",
+      `<p style="color:#333;line-height:1.6;">Your reverse trial ends in four days. Subscribe to Progress to keep your report refreshing and Charlie available. Tracking, budgets, and your Health Score stay free either way.</p>
+       <a href="${APP_URL}/dashboard/settings?tab=subscription" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">See Progress</a>`,
+    ),
+  });
+}
+
+export async function sendTrialExpiredEmail(userEmail: string) {
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: userEmail,
+    subject: "Your Progress trial ended — Pulse is still yours",
+    html: mosaicWrap(
+      "You're on Pulse now",
+      `<p style="color:#333;line-height:1.6;">Your numbers, budgets, and streaks stay. Upgrade anytime to unlock Charlie and a fresh Progress Report.</p>
+       <a href="${APP_URL}/dashboard/settings?tab=subscription" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">Upgrade</a>`,
+    ),
+  });
+}
+
+export async function sendSubscriptionConfirmedEmail(userEmail: string, tier: string) {
+  const label = tier === "mastery" ? "Mastery" : tier === "academy" ? "Mosaic Academy" : "Progress";
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: userEmail,
+    subject: `Welcome to ${label}`,
+    html: mosaicWrap(
+      `${label} is active`,
+      `<p style="color:#333;line-height:1.6;">Thanks for subscribing. Your plan is live — first payment is covered by a 30-day no-questions refund.</p>
+       <a href="${APP_URL}/dashboard" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">Open Mosaic</a>`,
+    ),
+  });
+}
+
+export async function sendNurtureEmail(
+  userEmail: string,
+  step: number,
+) {
+  const subjects = [
+    "Canadian money mistakes that cost first-time savers",
+    "How Mosaic tracks your money (without a spreadsheet)",
+    "Founding Progress is $8/mo — lock it in",
+    "Your 14-day Progress trial is waiting",
+  ];
+  const bodies = [
+    `<p style="color:#333;line-height:1.6;">Mixing TFSA room with emergency cash, skipping the FHSA, and contributing to an RRSP in a low-income year are the most common Canadian mistakes we see. Your guide covers the framework — Mosaic turns it into a picture of <em>your</em> numbers.</p>`,
+    `<p style="color:#333;line-height:1.6;">Mosaic is a gamified tracker: log spending, snapshot net worth, and Charlie (your AI money guide) explains the Canadian-rules picture. Education, not advice.</p>`,
+    `<p style="color:#333;line-height:1.6;">The first 200 Progress members lock $8/mo (or $80/yr) for life. Standard is $17. Pulse stays free forever.</p>
+     <a href="${APP_URL}/signup" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">Start free</a>`,
+    `<p style="color:#333;line-height:1.6;">Create an account and you get 14 days of Progress — Charlie and a full report — with no credit card. After that, Pulse keeps tracking for free.</p>
+     <a href="${APP_URL}/signup" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#0f1923;color:white;text-decoration:none;border-radius:6px;">Start the trial</a>`,
+  ];
+  const idx = Math.max(0, Math.min(step, subjects.length - 1));
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: userEmail,
+    subject: subjects[idx],
+    html: mosaicWrap(subjects[idx], bodies[idx]),
+  });
+}
+
 export { resend };

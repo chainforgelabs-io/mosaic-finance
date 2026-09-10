@@ -11,6 +11,13 @@ import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
 import { buildClientSnapshot } from '@/lib/conversation/snapshot';
+import {
+  countUsageThisMonth,
+  ENTITLEMENT_COPY,
+  loadProfileEntitlements,
+  recordUsageEvent,
+} from '@/lib/entitlements';
+import { MODEL_IDS } from '@/lib/claude/client';
 
 const SESSION_TYPE_CONFIG: Record<string, {
   prompt: string;
@@ -75,6 +82,20 @@ export async function POST(req: NextRequest) {
   const { sessionId, message, sessionType } = parsed.data;
   const sanitizedMessage = message ? sanitizeUserInput(message) : null;
 
+  const entitlements = await loadProfileEntitlements(user.id);
+  if (!entitlements.canUseCharlie) {
+    return Response.json(
+      { error: ENTITLEMENT_COPY.charlie, code: 'UPGRADE_REQUIRED', reason: 'charlie' },
+      { status: 402 },
+    );
+  }
+
+  let overCap = false;
+  if (entitlements.charlieSoftCap?.kind === 'messages') {
+    const used = await countUsageThisMonth(user.id, 'message');
+    overCap = used >= entitlements.charlieSoftCap.limit;
+  }
+
   const { data: session } = await supabase
     .from('conversation_sessions')
     .select('id, session_type, status, metadata')
@@ -90,6 +111,38 @@ export async function POST(req: NextRequest) {
     return Response.json(
       { error: 'Session is no longer active' },
       { status: 400 },
+    );
+  }
+
+  if (overCap) {
+    const friendly = ENTITLEMENT_COPY.charlieCap;
+    if (sanitizedMessage) {
+      await supabase.from('conversation_messages').insert({
+        session_id: sessionId,
+        user_id: user.id,
+        role: 'user',
+        content: sanitizedMessage,
+      });
+    }
+    await supabase.from('conversation_messages').insert({
+      session_id: sessionId,
+      user_id: user.id,
+      role: 'assistant',
+      content: friendly,
+    });
+    const encoder = new TextEncoder();
+    return new Response(
+      encoder.encode(
+        `data: ${JSON.stringify({ type: 'delta', text: friendly })}\n\n` +
+          `data: ${JSON.stringify({ type: 'done', sessionComplete: false })}\n\n`,
+      ),
+      {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      },
     );
   }
 
@@ -279,6 +332,7 @@ export async function POST(req: NextRequest) {
         const response = claudeStream(
           claudeMessages,
           systemPrompt,
+          { cacheSystem: true },
         );
 
         response.on('text', (text) => {
@@ -309,7 +363,16 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        await response.finalMessage();
+        const final = await response.finalMessage();
+        await recordUsageEvent({
+          userId: user.id,
+          kind: 'message',
+          model: MODEL_IDS.sonnet,
+          inputTokens: final.usage?.input_tokens ?? 0,
+          outputTokens: final.usage?.output_tokens ?? 0,
+          cacheReadTokens: final.usage?.cache_read_input_tokens ?? 0,
+          sessionId,
+        });
 
         // Flush remaining visible text (use getFinalVisibleEnd so we never drop the tail when no tag appears)
         if (TAG_OPEN || sessionType === 'fact-find') {

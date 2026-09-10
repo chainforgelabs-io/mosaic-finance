@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
       email,
       province,
       source,
+      nurture_step: 1,
+      last_nurture_at: new Date().toISOString(),
     });
 
     if (error) {

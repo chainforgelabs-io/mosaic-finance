@@ -12,6 +12,7 @@ import { transformDbPlanToFinancialPlan } from "@/lib/plan/transform-db-plan";
 import { PROVINCE_CODE_TO_NAME } from "@/lib/config/profile-mappings";
 import { mapRiskScoreToLabel, mapRiskScoreToNumber } from "@/lib/risk/map-risk-score";
 import { createClient } from "@/lib/supabase/client";
+import { normalizeTier } from "@/lib/entitlements";
 
 interface QueueSummary {
   total: number;
@@ -95,7 +96,7 @@ function mapRowToItem(row: ApiQueueRow): ApprovalQueueItem | null {
   const provinceCode = row.user_profiles?.province ?? "";
   const province =
     PROVINCE_CODE_TO_NAME[provinceCode] ?? provinceCode ?? "—";
-  const tier = (row.user_profiles?.subscription_tier ?? "snapshot") as Tier;
+  const tier = normalizeTier(row.user_profiles?.subscription_tier);
 
   const plan = transformDbPlanToFinancialPlan(
     {

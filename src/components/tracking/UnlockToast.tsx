@@ -33,7 +33,7 @@ export function UnlockToast({
   const first = unlocks[0];
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-50 mx-auto max-w-sm md:bottom-6 md:left-auto md:right-6">
+    <div className="fixed bottom-24 left-4 right-4 z-50 mx-auto max-w-sm pb-[env(safe-area-inset-bottom)] md:bottom-6 md:left-auto md:right-6 md:pb-0">
       <div className="rounded-xl border border-emerald-200 bg-white p-4 shadow-lg">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--emerald-soft)]">

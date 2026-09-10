@@ -3,6 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 import { anthropic } from '@/lib/claude/client';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
+import {
+  entitlementDenied,
+  ENTITLEMENT_COPY,
+  loadProfileEntitlements,
+  recordUsageEvent,
+} from '@/lib/entitlements';
+import { MODEL_IDS } from '@/lib/claude/client';
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -57,6 +64,11 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const entitlements = await loadProfileEntitlements(user.id);
+    if (!entitlements.canParseUploads) {
+      return entitlementDenied('parse', ENTITLEMENT_COPY.parse);
     }
 
     const { success } = await ratelimit.upload.limit(user.id);
@@ -163,7 +175,7 @@ export async function POST(req: NextRequest) {
           };
 
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
+        model: MODEL_IDS.sonnet,
         max_tokens: 4096,
         messages: [
           {
@@ -178,6 +190,15 @@ export async function POST(req: NextRequest) {
           },
         ],
         system: STATEMENT_PARSE_PROMPT,
+      });
+
+      await recordUsageEvent({
+        userId: user.id,
+        kind: 'upload',
+        model: MODEL_IDS.sonnet,
+        inputTokens: response.usage?.input_tokens ?? 0,
+        outputTokens: response.usage?.output_tokens ?? 0,
+        cacheReadTokens: response.usage?.cache_read_input_tokens ?? 0,
       });
 
       const responseText =

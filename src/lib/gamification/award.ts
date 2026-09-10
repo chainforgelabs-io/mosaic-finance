@@ -92,6 +92,8 @@ export async function buildAchievementContext(
         ? Number(profileRes.data.emergency_fund_months)
         : null),
     goalJustAchieved: extras.goalJustAchieved ?? false,
+    budgetJustSet: extras.budgetJustSet ?? false,
+    underBudgetMonths: extras.underBudgetMonths ?? 0,
   };
 }
 

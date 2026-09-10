@@ -14,22 +14,26 @@ describe('SLA Deadline Calculation', () => {
   const baseTime = new Date('2026-03-04T12:00:00Z');
 
   describe('getSLAPriority', () => {
-    it('advisor tier gets priority queue', () => {
+    it('mastery tier gets priority queue', () => {
+      expect(getSLAPriority('mastery')).toBe('priority');
+    });
+
+    it('legacy advisor still maps to priority', () => {
       expect(getSLAPriority('advisor')).toBe('priority');
     });
 
-    it('plan tier gets standard queue', () => {
-      expect(getSLAPriority('plan')).toBe('standard');
+    it('progress tier gets standard queue', () => {
+      expect(getSLAPriority('progress')).toBe('standard');
     });
 
-    it('snapshot tier gets standard queue', () => {
-      expect(getSLAPriority('snapshot')).toBe('standard');
+    it('pulse tier gets standard queue', () => {
+      expect(getSLAPriority('pulse')).toBe('standard');
     });
 
     it.each<[SubscriptionTier, QueuePriority]>([
-      ['snapshot', 'standard'],
-      ['plan', 'standard'],
-      ['advisor', 'priority'],
+      ['pulse', 'standard'],
+      ['progress', 'standard'],
+      ['mastery', 'priority'],
     ])('tier "%s" maps to "%s" priority', (tier, expected) => {
       expect(getSLAPriority(tier)).toBe(expected);
     });
@@ -156,9 +160,9 @@ describe('SLA Deadline Calculation', () => {
   });
 
   describe('end-to-end SLA workflow', () => {
-    it('advisor user: submit → 8hr deadline → status tracking', () => {
+    it('mastery user: submit → 8hr deadline → status tracking', () => {
       const submittedAt = new Date('2026-03-04T14:00:00Z');
-      const priority = getSLAPriority('advisor');
+      const priority = getSLAPriority('mastery');
       expect(priority).toBe('priority');
 
       const deadline = calculateSLADeadline(submittedAt, priority);
@@ -175,7 +179,7 @@ describe('SLA Deadline Calculation', () => {
 
     it('standard user: submit → 24hr deadline → SLA breach', () => {
       const submittedAt = new Date('2026-03-04T14:00:00Z');
-      const priority = getSLAPriority('plan');
+      const priority = getSLAPriority('progress');
       expect(priority).toBe('standard');
 
       const deadline = calculateSLADeadline(submittedAt, priority);

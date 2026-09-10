@@ -90,6 +90,21 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     name: "Goal unlocked",
     description: "Marked a financial goal as achieved",
   },
+  {
+    key: "budget_set",
+    name: "Budget set",
+    description: "Set monthly category budgets",
+  },
+  {
+    key: "under_budget_month_1",
+    name: "On budget",
+    description: "Stayed under budget for a month",
+  },
+  {
+    key: "under_budget_month_3",
+    name: "Budget streak",
+    description: "Stayed under budget three months in a row",
+  },
 ];
 
 export const ACHIEVEMENT_BY_KEY: Record<string, AchievementDef> = Object.fromEntries(
@@ -106,6 +121,8 @@ export interface AchievementContext {
   currentDebtsTotal: number | null;
   emergencyFundMonths: number | null;
   goalJustAchieved: boolean;
+  budgetJustSet?: boolean;
+  underBudgetMonths?: number;
 }
 
 const NET_WORTH_GATES: { key: string; amount: number }[] = [
@@ -158,6 +175,9 @@ export function evaluateAchievements(
   }
 
   if (ctx.goalJustAchieved) award("goal_achieved");
+  if (ctx.budgetJustSet) award("budget_set");
+  if ((ctx.underBudgetMonths ?? 0) >= 1) award("under_budget_month_1");
+  if ((ctx.underBudgetMonths ?? 0) >= 3) award("under_budget_month_3");
 
   return unlocked;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
+import { recordDerivedHealthScore } from "@/lib/health-score/record";
 import { monthKey, todayIso } from "@/lib/tracking/dates";
 import type { SnapshotBreakdown } from "@/types/tracking";
 
@@ -137,6 +138,7 @@ export async function POST() {
         : null,
   });
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
+  void recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ snapshot, gamification }, { status: monthMatch ? 200 : 201 });
 }

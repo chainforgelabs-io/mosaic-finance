@@ -1,4 +1,4 @@
-export type Tier = "snapshot" | "plan" | "advisor";
+export type Tier = "pulse" | "progress" | "mastery";
 
 export type PlanStatus =
   | "none"
@@ -33,6 +33,10 @@ export interface UserProfile {
   /** Mirrors user_profiles.role when loaded in dashboard layout */
   role?: "user" | "admin";
   tier: Tier;
+  trialEndsAt?: string;
+  isFoundingMember?: boolean;
+  academyAccess?: boolean;
+  subscriptionInterval?: "monthly" | "annual";
   notificationPreferences?: NotificationPreferences;
 }
 

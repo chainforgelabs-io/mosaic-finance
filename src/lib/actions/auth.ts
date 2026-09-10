@@ -41,15 +41,23 @@ export async function insertUserProfileAfterSignUp(formData: {
     };
   }
 
+  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
   const { error: profileError } = await supabase.from("user_profiles").insert({
     id: user.id,
     alias: parsed.data.alias,
     province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
-    subscription_tier: "snapshot",
+    subscription_tier: "pulse",
+    trial_ends_at: trialEndsAt,
   });
 
   if (profileError) {
     return { error: "Account created but profile setup failed. Please sign in." };
+  }
+
+  if (user.email) {
+    void import("@/lib/resend/client").then(({ sendTrialStartedEmail }) =>
+      sendTrialStartedEmail(user.email!).catch(() => undefined),
+    );
   }
 
   return { redirectTo: "/onboarding" };

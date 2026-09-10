@@ -9,6 +9,12 @@ import { getMarketContext } from "@/lib/market-data/alpha-vantage";
 import { generatePDF } from "@/lib/pdf/report-generator";
 import { sendPlanDeliveryEmail } from "@/lib/resend/client";
 import { captureAPIError } from "@/lib/sentry";
+import {
+  loadProfileEntitlements,
+  recordUsageEvent,
+} from "@/lib/entitlements";
+import { calculateSLADeadline, getSLAPriority } from "@/lib/calculations/sla";
+import { recordReportHealthScore } from "@/lib/health-score/record";
 
 export type TriggerPlanGenerationResult =
   | { success: true; planId: string; status: string; resumed?: boolean }
@@ -34,6 +40,16 @@ export async function triggerPlanGeneration(
         statusCode: 429,
       };
     }
+  }
+
+  const entitlements = await loadProfileEntitlements(userId);
+  if (!entitlements.canGenerateReport) {
+    return {
+      success: false,
+      error:
+        "Progress Reports are included on Progress and Mastery. Upgrade to generate yours.",
+      statusCode: 402,
+    };
   }
 
   const supabase = createServiceClient();
@@ -220,7 +236,20 @@ async function runPlanGenerationBackground(
       planJson = await claudeChatStreaming(
         [{ role: "user", content: "Generate the complete progress report now." }],
         buildPlanGenerationPrompt(userData),
-        { maxTokens: 12000, model: "opus" },
+        {
+          maxTokens: 12000,
+          model: "opus",
+          cacheSystem: true,
+          onUsage: (usage) =>
+            recordUsageEvent({
+              userId,
+              kind: "report",
+              model: usage.modelId,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              cacheReadTokens: usage.cacheReadTokens,
+            }),
+        },
       );
     } catch (err) {
       const step =
@@ -299,17 +328,27 @@ async function runPlanGenerationBackground(
       return;
     }
 
-    const isAdvisor = userProfile?.subscription_tier === "advisor";
-    const slaDeadline = new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    const priority = getSLAPriority(userProfile?.subscription_tier ?? "pulse");
+    const slaDeadline = calculateSLADeadline(new Date(), priority).toISOString();
 
     const { error: queueError } = await svc.from("approval_queue").insert({
       plan_id: planId,
       user_id: userId,
-      priority: isAdvisor ? "priority" : "standard",
+      priority,
       sla_deadline: slaDeadline,
     });
+
+    const diagnostic = planData.financial_health_diagnostic as
+      | { financial_health_score?: number; score_breakdown?: Record<string, unknown> }
+      | undefined;
+    if (diagnostic?.financial_health_score != null) {
+      await recordReportHealthScore(
+        svc,
+        userId,
+        Number(diagnostic.financial_health_score),
+        diagnostic.score_breakdown ?? {},
+      );
+    }
 
     if (queueError) {
       console.error("[plan/generate:bg] QA queue insert failed:", queueError);

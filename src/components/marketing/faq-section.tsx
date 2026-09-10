@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isLaunchLive } from "@/lib/config/launch";
 
 const ITEMS = [
   {
     q: "Is this financial advice?",
-    a: "No. Mosaic is a financial tracking and education tool. Charlie explains your trajectory and options so you can learn. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+    a: "No. Mosaic is a financial tracking and education tool. Charlie is your AI money guide. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
   },
   {
     q: "What data do you collect?",
@@ -15,7 +16,9 @@ const ITEMS = [
   },
   {
     q: "When do I get charged?",
-    a: "Not until we launch. Join the waitlist to lock in Founding Member pricing.",
+    a: isLaunchLive()
+      ? "Pulse is free. Progress starts after a 14-day reverse trial — no card to try. First payment has a 30-day refund. Founding Progress is $8/mo locked for the first 200 members."
+      : "Not until we launch. Join the waitlist to lock in Founding Member pricing.",
   },
   {
     q: "How does Charlie work?",

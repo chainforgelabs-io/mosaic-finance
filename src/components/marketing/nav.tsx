@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
+import { isLaunchLive } from "@/lib/config/launch";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
@@ -45,6 +46,7 @@ export function Nav({
   }, []);
 
   const showLinks = !hideNavLinks;
+  const startHref = isLaunchLive() ? "/signup" : "/#waitlist";
 
   return (
     <nav
@@ -86,10 +88,10 @@ export function Nav({
                   Sign In
                 </a>
                 <a
-                  href="/#waitlist"
+                  href={startHref}
                   className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
                 >
-                  Get Started
+                  {isLaunchLive() ? "Start free" : "Get Started"}
                 </a>
               </>
             )}
@@ -101,7 +103,7 @@ export function Nav({
           <div className="flex items-center gap-3 md:hidden">
             {!hideAuth && (
               <a
-                href="/#waitlist"
+                href={startHref}
                 className="rounded-full bg-emerald px-4 py-1.5 font-display text-xs font-semibold text-white"
               >
                 Get Started

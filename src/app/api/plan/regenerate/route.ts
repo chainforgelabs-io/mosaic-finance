@@ -4,6 +4,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { ratelimit } from "@/lib/ratelimit";
 import { triggerPlanGeneration } from "@/lib/plan/trigger-generation";
 import { captureAPIError } from "@/lib/sentry";
+import {
+  countUsageThisMonth,
+  entitlementDenied,
+  ENTITLEMENT_COPY,
+  loadProfileEntitlements,
+} from "@/lib/entitlements";
 
 export async function POST() {
   try {
@@ -14,6 +20,17 @@ export async function POST() {
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const entitlements = await loadProfileEntitlements(user.id);
+    if (!entitlements.canGenerateReport) {
+      return entitlementDenied("report", ENTITLEMENT_COPY.report);
+    }
+    if (entitlements.reportRegenCap != null) {
+      const reports = await countUsageThisMonth(user.id, "report");
+      if (reports >= entitlements.reportRegenCap) {
+        return entitlementDenied("report_cap", ENTITLEMENT_COPY.reportCap);
+      }
     }
 
     const { success } = await ratelimit.planGeneration.limit(user.id);

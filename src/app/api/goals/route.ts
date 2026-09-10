@@ -4,6 +4,7 @@ import { z } from "zod";
 import { GOAL_PRIORITIES, GOAL_STATUSES, GOAL_TYPES } from "@/lib/tracking/categories";
 import { seedGoalsFromProfile } from "@/lib/tracking/sync-goals";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
+import { recordDerivedHealthScore } from "@/lib/health-score/record";
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -106,6 +107,8 @@ export async function PATCH(req: NextRequest) {
     const unlocks = await awardForEvent(supabase, user.id, { goalJustAchieved: true });
     gamification = await getGamificationSummary(supabase, user.id, unlocks);
   }
+
+  void recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ goal: data, gamification });
 }

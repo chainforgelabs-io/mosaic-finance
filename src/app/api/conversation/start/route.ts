@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ConversationStartSchema } from '@/lib/validators/conversation';
 import { captureAPIError } from '@/lib/sentry';
+import {
+  countConversationsThisMonth,
+  entitlementDenied,
+  ENTITLEMENT_COPY,
+  loadProfileEntitlements,
+} from '@/lib/entitlements';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +29,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { sessionType } = parsed.data;
+
+    const entitlements = await loadProfileEntitlements(user.id);
+    if (!entitlements.canUseCharlie) {
+      return entitlementDenied('charlie', ENTITLEMENT_COPY.charlie);
+    }
 
     const { data: existingSession } = await supabase
       .from('conversation_sessions')
@@ -50,6 +61,16 @@ export async function POST(req: NextRequest) {
         .from('conversation_sessions')
         .update({ status: 'abandoned' })
         .eq('id', existingSession.id);
+    }
+
+    if (
+      entitlements.charlieSoftCap?.kind === 'conversations' &&
+      entitlements.charlieSoftCap.limit > 0
+    ) {
+      const started = await countConversationsThisMonth(user.id);
+      if (started >= entitlements.charlieSoftCap.limit) {
+        return entitlementDenied('charlie_cap', ENTITLEMENT_COPY.charlieCap);
+      }
     }
 
     const { data: session, error } = await supabase

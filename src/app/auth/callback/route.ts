@@ -31,7 +31,10 @@ export async function GET(request: Request) {
             alias:
               user.user_metadata?.full_name?.split(" ")[0] ??
               `user_${user.id.slice(0, 6)}`,
-            subscription_tier: "snapshot",
+            subscription_tier: "pulse",
+            trial_ends_at: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
           });
         }
 

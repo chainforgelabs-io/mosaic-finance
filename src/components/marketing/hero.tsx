@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
+import { isLaunchLive } from "@/lib/config/launch";
+import Link from "next/link";
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
@@ -37,7 +39,7 @@ export function Hero() {
           data-animate
           className="mb-3 inline-block rounded-full border border-emerald/30 bg-emerald/10 px-4 py-1.5 font-display text-xs font-semibold uppercase tracking-[0.08em] text-emerald"
         >
-          Launching Soon
+          {isLaunchLive() ? "Start free — 14 days of Progress included" : "Launching Soon"}
         </p>
         <p
           data-animate
@@ -63,7 +65,16 @@ export function Hero() {
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
-          <WaitlistForm source="hero" variant="hero" />
+          {isLaunchLive() ? (
+            <Link
+              href="/signup"
+              className="inline-flex w-full items-center justify-center rounded-full bg-emerald px-6 py-3 font-display text-sm font-semibold text-white hover:bg-emerald-dark"
+            >
+              Start free
+            </Link>
+          ) : (
+            <WaitlistForm source="hero" variant="hero" />
+          )}
           <p className="mt-4 font-display text-sm font-semibold text-white/90">
             See the whole picture.
           </p>

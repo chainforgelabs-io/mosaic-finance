@@ -4,70 +4,47 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   formatTierPrice,
+  TIER_CTA,
+  TIER_FEATURES,
+  TIER_LABELS,
+  TIER_PROMISE,
   type BillingInterval,
 } from "@/lib/config/pricing";
+import { isLaunchLive } from "@/lib/config/launch";
+import type { Tier } from "@/types";
 
-const TIERS = [
-  {
-    id: "snapshot" as const,
-    name: "Snapshot",
-    tagline: "See where you stand",
-    features: [
-      "Financial Health Score",
-      "Basic profile",
-      "1 monthly check-in with Charlie (score-focused)",
-      "No credit card",
-    ],
-    cta: "Start Free",
-    style: "outlined" as const,
-    highlighted: false,
-    paid: false,
-  },
-  {
-    id: "plan" as const,
-    name: "Progress",
-    tagline: "Your Progress Report + AI education",
-    features: [
-      "Full conversational fact-find",
-      "8-section Progress Report + PDF",
-      "5 conversations/month with Charlie",
-      "Life event education",
-      "6-month score refresh",
-    ],
-    cta: "Get Started",
-    style: "dark" as const,
-    highlighted: false,
-    paid: true,
-  },
-  {
-    id: "advisor" as const,
-    name: "Complete",
-    tagline: "Your complete tracking & education platform",
-    features: [
-      "Everything in Progress",
-      "Unlimited conversations with Charlie",
-      "Quarterly check-ins",
-      "Priority report generation",
-      "Holdings and net worth tracking",
-      "Tax year-end report",
-    ],
-    cta: "Get Started",
-    style: "emerald" as const,
-    highlighted: true,
-    paid: true,
-  },
+const TIERS: {
+  id: Tier;
+  style: "outlined" | "dark" | "emerald";
+  highlighted: boolean;
+  paid: boolean;
+}[] = [
+  { id: "pulse", style: "outlined", highlighted: false, paid: false },
+  { id: "progress", style: "dark", highlighted: false, paid: true },
+  { id: "mastery", style: "emerald", highlighted: true, paid: true },
 ];
 
-function priceLabel(
-  tierId: (typeof TIERS)[number]["id"],
-  interval: BillingInterval,
-): string {
-  return formatTierPrice(tierId, interval);
+function priceLabel(tierId: Tier, interval: BillingInterval, founding: boolean): string {
+  return formatTierPrice(tierId, interval, { founding: founding && tierId === "progress" });
 }
 
 export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } = {}) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [billing, setBilling] = useState<BillingInterval>("monthly");
+  const [founding, setFounding] = useState({ open: false, remaining: 0, cap: 200 });
+
+  useEffect(() => {
+    void fetch("/api/founding/status")
+      .then((r) => r.json())
+      .then((d) =>
+        setFounding({
+          open: Boolean(d.open),
+          remaining: Number(d.remaining ?? 0),
+          cap: Number(d.cap ?? 200),
+        }),
+      )
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -115,14 +92,18 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           className="mb-3 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Lock in Founding Member pricing.
+          Free tracks. Paid thinks.
         </h2>
         <p
           data-animate
           className="mb-8 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Track your money. Learn as you go. Cancel anytime.
+          14-day reverse trial of Progress, no card. First payment refundable for 30 days.
+          Consistency Guarantee on 90 days of weekly logs + monthly snapshots.
+          {founding.open
+            ? ` ${founding.remaining} founding Progress spots left at $8/mo.`
+            : ""}
         </p>
 
         <div
@@ -160,7 +141,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {TIERS.map((tier) => (
             <div
-              key={tier.name}
+              key={tier.id}
               data-animate
               className={`relative rounded-xl border bg-white p-8 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] ${
                 tier.highlighted
@@ -175,14 +156,19 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                 </span>
               )}
               <p className="mb-1 font-display text-sm font-semibold text-text-secondary">
-                {tier.name}
+                {TIER_LABELS[tier.id]}
               </p>
               <div className="mb-1 flex flex-col gap-0.5">
                 <div className="flex items-baseline">
                   <span className="font-display text-4xl font-bold text-text-primary">
-                    {priceLabel(tier.id, billing)}
+                    {priceLabel(tier.id, billing, founding.open)}
                   </span>
                 </div>
+                {tier.id === "progress" && founding.open && (
+                  <span className="font-body text-[13px] text-text-muted line-through">
+                    {formatTierPrice("progress", billing)}
+                  </span>
+                )}
                 {tier.paid && billing === "annual" && (
                   <span className="font-body text-[13px] text-text-muted">
                     Billed annually
@@ -190,10 +176,10 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                 )}
               </div>
               <p className="mb-6 font-body text-sm text-text-muted">
-                {tier.tagline}
+                {TIER_PROMISE[tier.id]}
               </p>
               <ul className="mb-8 space-y-2.5">
-                {tier.features.map((f) => (
+                {TIER_FEATURES[tier.id].map((f) => (
                   <li
                     key={f}
                     className="flex items-start gap-2 font-body text-sm text-text-secondary"
@@ -204,7 +190,11 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                 ))}
               </ul>
               <Link
-                href={ctaHref}
+                href={
+                  isLaunchLive() && tier.id !== "pulse"
+                    ? `/signup?plan=${tier.id}`
+                    : ctaHref
+                }
                 className={`block w-full rounded-full py-2.5 text-center font-display text-sm font-semibold transition-colors ${
                   tier.style === "emerald"
                     ? "bg-emerald text-white hover:bg-emerald-dark"
@@ -213,7 +203,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                       : "border border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white"
                 }`}
               >
-                {tier.cta}
+                {TIER_CTA[tier.id]}
               </Link>
             </div>
           ))}

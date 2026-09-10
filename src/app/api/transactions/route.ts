@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
+import { recordDerivedHealthScore } from "@/lib/health-score/record";
 
 const txnSchema = z.object({
   txn_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
 
   const unlocks = await awardForEvent(supabase, user.id);
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
+  void recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ transactions: data ?? [], gamification }, { status: 201 });
 }

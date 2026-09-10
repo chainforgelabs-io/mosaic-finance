@@ -54,11 +54,20 @@ export default function CashFlowPage() {
   const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(null);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [view, setView] = useState<"week" | "month">("week");
+  const [budgets, setBudgets] = useState<Record<string, number>>({});
+  const [showBudgets, setShowBudgets] = useState(false);
+  const [monthTxns, setMonthTxns] = useState<TransactionRow[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const range = weekRange(weekStart);
   const thisWeek = startOfWeekMonday(todayIso());
-  const weeklyBaseline = monthlyExpenses != null ? (monthlyExpenses * 12) / 52 : null;
+  const budgetWeekly =
+    Object.values(budgets).length > 0
+      ? Object.values(budgets).reduce((s, n) => s + n, 0) * 12 / 52
+      : null;
+  const weeklyBaseline =
+    budgetWeekly ?? (monthlyExpenses != null ? (monthlyExpenses * 12) / 52 : null);
 
   const loadWeek = useCallback(async (start: string) => {
     const { end } = weekRange(start);
@@ -77,6 +86,24 @@ export default function CashFlowPage() {
     if (histRes.ok) {
       const json = await histRes.json();
       setHistory(json.transactions ?? []);
+    }
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const [budgetRes, monthRes] = await Promise.all([
+      fetch("/api/budgets", { credentials: "include" }),
+      fetch(`/api/transactions?start=${monthStart}&end=${todayIso()}`, { credentials: "include" }),
+    ]);
+    if (budgetRes.ok) {
+      const json = await budgetRes.json();
+      const map: Record<string, number> = {};
+      for (const b of json.budgets ?? []) {
+        map[b.category] = Number(b.monthly_limit);
+      }
+      setBudgets(map);
+    }
+    if (monthRes.ok) {
+      const json = await monthRes.json();
+      setMonthTxns(json.transactions ?? []);
     }
     if (gamRes.ok) {
       const json = await gamRes.json();
@@ -234,6 +261,28 @@ export default function CashFlowPage() {
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             Log every spend this week. Honesty is the whole point.
           </p>
+          <div className="mt-3 inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setView("week")}
+              className={cn(
+                "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
+                view === "week" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+              )}
+            >
+              Week
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("month")}
+              className={cn(
+                "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
+                view === "month" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+              )}
+            >
+              Month
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--emerald-soft)] px-3 py-1.5">
@@ -295,11 +344,56 @@ export default function CashFlowPage() {
         )}
       </div>
 
+      {view === "month" && (
+        <div className="space-y-3 rounded-xl border border-[var(--warm-200)] bg-white p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-sm font-semibold">Category budgets</h2>
+            <button
+              type="button"
+              onClick={() => setShowBudgets(true)}
+              className="font-display text-xs font-semibold text-[var(--emerald)]"
+            >
+              Set budgets
+            </button>
+          </div>
+          {SPENDING_CATEGORIES.map((cat) => {
+            const spent = monthTxns
+              .filter((t) => t.category === cat)
+              .reduce((s, t) => s + Number(t.amount), 0);
+            const limit = budgets[cat];
+            if (limit == null && spent === 0) return null;
+            const pct = limit ? Math.min(100, (spent / limit) * 100) : 0;
+            return (
+              <div key={cat}>
+                <div className="flex justify-between font-body text-xs text-[var(--text-secondary)]">
+                  <span>{SPENDING_CATEGORY_LABELS[cat]}</span>
+                  <span>
+                    {formatMoney(spent)}
+                    {limit != null ? ` / ${formatMoney(limit)}` : ""}
+                  </span>
+                </div>
+                {limit != null && (
+                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-[var(--emerald)]",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)]"
+          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)]"
         >
           <Plus className="size-4" />
           Add spend
@@ -418,6 +512,27 @@ export default function CashFlowPage() {
           onChange={setReviewRows}
           onCancel={() => setReviewRows(null)}
           onConfirm={confirmReview}
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowAdd(true)}
+        className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-[var(--emerald)] text-white shadow-lg md:hidden"
+        aria-label="Log spend"
+      >
+        <Plus className="size-6" />
+      </button>
+
+      {showBudgets && (
+        <BudgetSheet
+          budgets={budgets}
+          onClose={() => setShowBudgets(false)}
+          onSaved={(next, unlocksNext) => {
+            setBudgets(next);
+            if (unlocksNext.length) setUnlocks(unlocksNext);
+            setShowBudgets(false);
+          }}
         />
       )}
 
@@ -681,6 +796,79 @@ function ReviewModal({
             className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
           >
             {saving ? "Saving…" : `Save ${included.length}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BudgetSheet({
+  budgets,
+  onClose,
+  onSaved,
+}: {
+  budgets: Record<string, number>;
+  onClose: () => void;
+  onSaved: (next: Record<string, number>, unlocks: UnlockItem[]) => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>(() => {
+    const o: Record<string, string> = {};
+    for (const cat of SPENDING_CATEGORIES) {
+      o[cat] = budgets[cat] != null ? String(budgets[cat]) : "";
+    }
+    return o;
+  });
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-xl">
+        <div className="flex items-center justify-between border-b border-[var(--warm-200)] p-4">
+          <h2 className="font-display text-base font-semibold">Set monthly budgets</h2>
+          <button type="button" onClick={onClose} className="min-h-11 min-w-11 p-2" aria-label="Close">
+            <X className="size-5" />
+          </button>
+        </div>
+        <div className="space-y-3 p-4">
+          {SPENDING_CATEGORIES.map((cat) => (
+            <label key={cat} className="flex items-center justify-between gap-3">
+              <span className="font-body text-sm">{SPENDING_CATEGORY_LABELS[cat]}</span>
+              <input
+                type="number"
+                min={0}
+                value={draft[cat]}
+                onChange={(e) => setDraft((d) => ({ ...d, [cat]: e.target.value }))}
+                className="w-28 rounded-lg border border-[var(--warm-200)] px-3 py-2 text-right font-body text-sm"
+              />
+            </label>
+          ))}
+        </div>
+        <div className="border-t border-[var(--warm-200)] p-4">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              const payload = SPENDING_CATEGORIES.map((cat) => ({
+                category: cat,
+                monthly_limit: Number(draft[cat] || 0),
+              })).filter((b) => b.monthly_limit > 0);
+              const res = await fetch("/api/budgets", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ budgets: payload }),
+              });
+              const json = await res.json().catch(() => ({}));
+              const next: Record<string, number> = {};
+              for (const b of payload) next[b.category] = b.monthly_limit;
+              onSaved(next, json.gamification?.newUnlocks ?? []);
+              setSaving(false);
+            }}
+            className="min-h-11 w-full rounded-lg bg-[var(--emerald)] font-display text-sm font-semibold text-white"
+          >
+            {saving ? "Saving…" : "Save budgets"}
           </button>
         </div>
       </div>

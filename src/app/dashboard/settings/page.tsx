@@ -7,8 +7,11 @@ import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
 import {
   formatTierPrice,
+  TIER_FEATURES,
+  TIER_LABELS,
   type BillingInterval,
 } from "@/lib/config/pricing";
+import { isTrialActive } from "@/lib/entitlements";
 import { PROVINCES } from "@/lib/constants/provinces";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
 import type { NotificationPreferences } from "@/types";
@@ -208,62 +211,54 @@ function ProfileTab() {
 
 // ─── Subscription Tab ─────────────────────────────────────────────
 
-function getTierFeatures(billing: BillingInterval): {
+function getTierFeatures(billing: BillingInterval, founding: boolean): {
   tier: Tier;
   price: string;
   features: string[];
 }[] {
-  return [
-    {
-      tier: "snapshot",
-      price: formatTierPrice("snapshot", billing),
-      features: [
-        "Financial Health Score",
-        "Basic profile",
-        "1 monthly check-in with Charlie (score-focused)",
-        "No credit card",
-      ],
-    },
-    {
-      tier: "plan",
-      price: formatTierPrice("plan", billing),
-      features: [
-        "Full conversational fact-find",
-        "8-section Progress Report + PDF",
-        "5 conversations/month with Charlie",
-        "Life event education",
-        "6-month score refresh",
-      ],
-    },
-    {
-      tier: "advisor",
-      price: formatTierPrice("advisor", billing),
-      features: [
-        "Everything in Progress",
-        "Unlimited conversations with Charlie",
-        "Quarterly check-ins",
-        "Priority report generation",
-        "Portfolio monitoring",
-        "Tax year-end report",
-      ],
-    },
-  ];
+  return (["pulse", "progress", "mastery"] as Tier[]).map((tier) => ({
+    tier,
+    price: formatTierPrice(tier, billing, {
+      founding: founding && tier === "progress",
+    }),
+    features: TIER_FEATURES[tier],
+  }));
 }
 
 function SubscriptionTabInner() {
   const { user } = usePlanStore();
-  const currentTier = user?.tier ?? "snapshot";
+  const currentTier = user?.tier ?? "pulse";
   const searchParams = useSearchParams();
   const router = useRouter();
+  const trialOn = isTrialActive(user?.trialEndsAt);
+  const founding = Boolean(user?.isFoundingMember);
 
   const [billingInterval, setBillingInterval] =
     useState<BillingInterval>("monthly");
-  const tierFeatures = getTierFeatures(billingInterval);
+  const [foundingOpen, setFoundingOpen] = useState(false);
+  const [guarantee, setGuarantee] = useState<{
+    eligible: boolean;
+    weeksLogged: number;
+    snapshots: number;
+    scoreDelta: number | null;
+  } | null>(null);
+  const tierFeatures = getTierFeatures(billingInterval, founding || foundingOpen);
 
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutCancelled, setCheckoutCancelled] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/founding/status")
+      .then((r) => r.json())
+      .then((d) => setFoundingOpen(Boolean(d.open)))
+      .catch(() => undefined);
+    void fetch("/api/guarantee/status")
+      .then((r) => r.json())
+      .then((d) => setGuarantee(d))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const c = searchParams.get("checkout");
@@ -319,7 +314,7 @@ function SubscriptionTabInner() {
     setBillingError(null);
     setBillingBusy(true);
     try {
-      if (targetTier === "snapshot" && currentTier !== "snapshot") {
+      if (targetTier === "pulse" && currentTier !== "pulse") {
         const res = await fetch("/api/stripe/portal", {
           method: "POST",
           credentials: "include",
@@ -338,8 +333,8 @@ function SubscriptionTabInner() {
       }
 
       if (
-        currentTier === "snapshot" &&
-        (targetTier === "plan" || targetTier === "advisor")
+        currentTier === "pulse" &&
+        (targetTier === "progress" || targetTier === "mastery")
       ) {
         const res = await fetch("/api/stripe/create-checkout", {
           method: "POST",
@@ -363,7 +358,7 @@ function SubscriptionTabInner() {
         return;
       }
 
-      if (currentTier !== "snapshot") {
+      if (currentTier !== "pulse") {
         const res = await fetch("/api/stripe/portal", {
           method: "POST",
           credentials: "include",
@@ -391,9 +386,13 @@ function SubscriptionTabInner() {
   };
 
   const billingPeriodLabel =
-    currentTier === "snapshot"
-      ? "No active subscription"
-      : "Active subscription · Manage in Stripe";
+    currentTier === "pulse"
+      ? trialOn
+        ? "14-day Progress trial active"
+        : "No active subscription"
+      : user?.isFoundingMember
+        ? "Founding member · locked Progress price"
+        : "Active subscription · Manage in Stripe";
 
   return (
     <div className="space-y-6">
@@ -526,6 +525,68 @@ function SubscriptionTabInner() {
         <ExternalLink className="w-4 h-4" />
         {billingBusy ? "Opening…" : "Manage Billing"}
       </button>
+
+      {guarantee && (
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
+          <p className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
+            Consistency Guarantee
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+            Log spending weekly and complete your monthly net-worth snapshot for 90
+            days. If your Financial Health Score hasn&apos;t improved, we refund
+            your first payment.
+          </p>
+          <p className="mt-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
+            {guarantee.weeksLogged}/13 weeks logged · {guarantee.snapshots}/3
+            snapshots
+            {guarantee.scoreDelta != null
+              ? ` · score ${guarantee.scoreDelta >= 0 ? "+" : ""}${guarantee.scoreDelta}`
+              : ""}
+            {guarantee.eligible ? " · Eligible to request a refund" : ""}
+          </p>
+        </div>
+      )}
+
+      <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
+        <p className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
+          Mosaic Academy
+        </p>
+        <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+          {user?.academyAccess ||
+          (currentTier === "mastery" && user?.subscriptionInterval === "annual")
+            ? "Included — course classroom is unlocked in the Money Club."
+            : "Standalone education for people who want the frameworks without (or in addition to) tracking. Included free on Mastery annual."}
+        </p>
+        {!(
+          user?.academyAccess ||
+          (currentTier === "mastery" && user?.subscriptionInterval === "annual")
+        ) && (
+          <button
+            type="button"
+            disabled={billingBusy}
+            onClick={() => {
+              setBillingBusy(true);
+              void fetch("/api/stripe/create-checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                  tier: "academy",
+                  interval: billingInterval,
+                }),
+              })
+                .then((res) => res.json())
+                .then((data) => {
+                  if (data.url) window.location.href = data.url;
+                })
+                .finally(() => setBillingBusy(false));
+            }}
+            className="mt-3 rounded-full border border-[var(--slate-950)] px-4 py-2 font-[family-name:var(--font-display)] text-xs font-semibold text-[var(--slate-950)]"
+          >
+            Get Mosaic Academy
+          </button>
+        )}
+      </div>
     </div>
   );
 }

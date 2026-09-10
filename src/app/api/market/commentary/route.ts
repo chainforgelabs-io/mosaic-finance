@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    const model = getModelForTier(profile?.subscription_tier ?? "snapshot");
+    const model = getModelForTier(profile?.subscription_tier ?? "pulse");
     const commentary = await generateAndStoreCommentary(persona, model);
 
     return NextResponse.json({ commentary });

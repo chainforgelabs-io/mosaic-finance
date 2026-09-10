@@ -435,7 +435,24 @@ function PlanDelivered() {
       <PlanCharts />
 
       {/* Section Navigation + Content */}
-      <div className="flex gap-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+        <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 lg:hidden">
+          {plan.sections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
+              className={cn(
+                "snap-start shrink-0 rounded-full px-3 py-2 font-display text-xs font-semibold",
+                activeSectionId === section.id
+                  ? "bg-[var(--slate-950)] text-white"
+                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+              )}
+            >
+              {section.title}
+            </button>
+          ))}
+        </div>
         {/* Sticky sidebar nav */}
         <div className="w-[220px] shrink-0 sticky top-8 self-start hidden lg:block">
           <p className="font-[family-name:var(--font-body)] font-medium text-[12px] uppercase text-[var(--text-muted)] tracking-wider mb-2">

@@ -5,7 +5,7 @@ export const SAMPLE_USER_PROFILE = {
   province: 'ON' as const,
   employment_type: 'employed' as const,
   family_structure: 'married' as const,
-  subscription_tier: 'advisor' as const,
+  subscription_tier: 'mastery' as const,
   role: 'user' as const,
 };
 
@@ -17,7 +17,7 @@ export const SAMPLE_ADVISOR = {
   province: 'ON' as const,
   employment_type: 'employed' as const,
   family_structure: 'married' as const,
-  subscription_tier: 'plan' as const,
+  subscription_tier: 'progress' as const,
   role: 'admin' as const,
 };
 
@@ -28,7 +28,7 @@ export const SAMPLE_ADMIN = {
   province: 'BC' as const,
   employment_type: 'employed' as const,
   family_structure: 'single' as const,
-  subscription_tier: 'advisor' as const,
+  subscription_tier: 'mastery' as const,
   role: 'admin' as const,
 };
 

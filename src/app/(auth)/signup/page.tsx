@@ -83,6 +83,9 @@ export default function SignUpPage() {
           <MosaicLogo size="md" className="mb-6" />
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)] sm:text-[28px]">
             Create your account
+            <span className="mt-2 block font-body text-sm font-normal text-[var(--text-secondary)]">
+              14 days of Progress included. No credit card. Pulse stays free after.
+            </span>
           </h1>
           <p className="mt-2 text-center font-body text-[15px] text-[var(--text-secondary)]">
             No personal information required. Choose any alias.

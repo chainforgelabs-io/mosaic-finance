@@ -14,6 +14,7 @@ import {
 } from "@/lib/config/profile-mappings";
 import type { FinancialPlan, PlanStatus, NotificationPreferences } from "@/types";
 import { transformDbPlanToFinancialPlan } from "@/lib/plan/transform-db-plan";
+import { normalizeTier } from "@/lib/entitlements";
 
 function applyLatestPlanFromDb(
   dbPlan: { id: string; status: string; plan_data: unknown; created_at: string } | null | undefined,
@@ -71,7 +72,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const { data: profile } = await supabase
         .from("user_profiles")
         .select(
-          "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences, role",
+          "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences, role, trial_ends_at, is_founding_member, academy_access, subscription_interval",
         )
         .eq("id", authUser.id)
         .single();
@@ -88,7 +89,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser({
           id: authUser.id,
           alias: profile.alias ?? authUser.user_metadata?.alias ?? "User",
-          tier: profile.subscription_tier ?? "snapshot",
+          tier: normalizeTier(profile.subscription_tier),
+          trialEndsAt: profile.trial_ends_at ?? undefined,
+          isFoundingMember: profile.is_founding_member ?? undefined,
+          academyAccess: profile.academy_access ?? undefined,
+          subscriptionInterval:
+            profile.subscription_interval === "annual" ||
+            profile.subscription_interval === "monthly"
+              ? profile.subscription_interval
+              : undefined,
           age: profile.age ?? undefined,
           province: (PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince) || undefined,
           employmentType: (EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment) || undefined,
@@ -106,7 +115,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setUser({
           id: authUser.id,
           alias: authUser.user_metadata?.alias ?? "User",
-          tier: "snapshot",
+          tier: "pulse",
           notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
         });
       }
@@ -257,7 +266,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[var(--warm-50)]">
       <AppSidebar
         userAlias={user?.alias ?? "User"}
-        tier={user?.tier ?? "snapshot"}
+        tier={user?.tier ?? "pulse"}
         planStatus={planStatus}
         planId={plan?.id}
         role={user?.role}

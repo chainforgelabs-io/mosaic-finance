@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
 import { HealthScore } from "@/components/app/HealthScore";
 import { FinancialCard } from "@/components/app/FinancialCard";
@@ -9,6 +9,7 @@ import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
 import { ReviewReminder } from "@/components/app/ReviewReminder";
+import { ClubCard } from "@/components/app/ClubCard";
 import { PendingReviewBanner } from "@/components/app/PendingReviewBanner";
 import { PlanStaleBanner } from "@/components/app/PlanStaleBanner";
 import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
@@ -430,6 +431,15 @@ function ExpandablePlanSection({
 }
 
 function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
+  const [liveScore, setLiveScore] = useState<{ score: number; delta90: number | null } | null>(null);
+  useEffect(() => {
+    void fetch("/api/health-score", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.score != null) setLiveScore({ score: d.score, delta90: d.delta90 ?? null });
+      })
+      .catch(() => undefined);
+  }, []);
   const rawPlanData = usePlanStore((s) => s.rawPlanData);
   const prePlanData = usePlanStore((s) => s.prePlanData);
   const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
@@ -458,12 +468,18 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
   return (
     <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
       <div className="flex flex-col md:flex-row items-center gap-6">
-        {plan.healthScore > 0 && (
+        {(liveScore?.score ?? plan.healthScore) > 0 && (
           <div className="flex flex-col items-center shrink-0">
-            <HealthScore score={plan.healthScore} size="lg" />
+            <HealthScore score={liveScore?.score ?? plan.healthScore} size="lg" />
             <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
               Health Score
             </p>
+            {liveScore?.delta90 != null && (
+              <p className="mt-1 font-body text-xs text-white/60">
+                90-day {liveScore.delta90 >= 0 ? "+" : ""}
+                {liveScore.delta90}
+              </p>
+            )}
           </div>
         )}
 
@@ -507,7 +523,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
 function ChartGrid() {
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid min-h-[240px] grid-cols-1 gap-6 lg:grid-cols-2">
         <RetirementIncomeChart />
         <RetirementProgressBar />
       </div>
@@ -619,6 +635,7 @@ function DashboardDelivered() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <HouseholdCard />
         <MeetingHistory />
+        <ClubCard />
       </div>
 
       {marketContext && (
