@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
           if (meta.academy || (meta.tier === "mastery" && meta.interval === "annual")) {
             update.academy_access = true;
           }
-        } else if (!isActive && meta?.kind !== "academy") {
+        } else if (!isActive) {
           update.subscription_tier = "pulse";
         }
 

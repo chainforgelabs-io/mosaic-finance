@@ -1,10 +1,12 @@
 -- Pulse / Progress / Mastery + subscription columns used by entitlements
-
-UPDATE public.user_profiles SET subscription_tier = 'pulse' WHERE subscription_tier = 'snapshot';
-UPDATE public.user_profiles SET subscription_tier = 'progress' WHERE subscription_tier = 'plan';
-UPDATE public.user_profiles SET subscription_tier = 'mastery' WHERE subscription_tier = 'advisor';
+-- Drop the old check first: snapshot/plan/advisor cannot be rewritten to
+-- pulse/progress/mastery while valid_subscription_tier still forbids those values.
 
 ALTER TABLE public.user_profiles DROP CONSTRAINT IF EXISTS valid_subscription_tier;
+
+UPDATE public.user_profiles SET subscription_tier = 'pulse' WHERE subscription_tier IN ('snapshot', 'free');
+UPDATE public.user_profiles SET subscription_tier = 'progress' WHERE subscription_tier IN ('plan', 'essential');
+UPDATE public.user_profiles SET subscription_tier = 'mastery' WHERE subscription_tier IN ('advisor', 'pro', 'premium');
 
 ALTER TABLE public.user_profiles ADD CONSTRAINT valid_subscription_tier
   CHECK (subscription_tier IN ('pulse', 'progress', 'mastery'));
