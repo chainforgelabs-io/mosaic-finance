@@ -90,17 +90,17 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
     process.cwd(),
     "public",
     "guides",
-    "rrsp-tfsa-fhsa-framework.pdf",
+    "rrsp-tfsa-fhsa-field-guide.pdf",
   );
   const pdfBuffer = readFileSync(pdfPath);
 
   await sendMosaicEmail({
     to: userEmail,
-    subject: "Your RRSP vs TFSA vs FHSA guide — welcome to Mosaic",
+    subject: "Your RRSP, TFSA, and FHSA guide — welcome to Mosaic",
     list: "education",
     attachments: [
       {
-        filename: "RRSP-vs-TFSA-vs-FHSA-Framework.pdf",
+        filename: "RRSP-TFSA-FHSA-Field-Guide.pdf",
         content: pdfBuffer,
       },
     ],
@@ -108,11 +108,11 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
       email: userEmail,
       list: "education",
       title: "Your guide is attached",
-      preheader: "RRSP vs TFSA vs FHSA — how the accounts differ.",
+      preheader: "How RRSP, TFSA, and FHSA differ — plus a snapshot you can fill in.",
       bodyHtml: `${mosaicCard(
         "What is inside",
-        `<p style="margin:0 0 10px;">Thanks for joining the Mosaic waitlist. Attached is your free guide: <strong>RRSP vs. TFSA vs. FHSA — The Decision Framework.</strong></p>
-         <p style="margin:0;">It covers how contribution room, tax treatment, and purpose differ, and common tracking gaps when people only look at one account.</p>`,
+        `<p style="margin:0 0 10px;">Thanks for joining the Mosaic waitlist. Attached is your free guide: <strong>RRSP, TFSA, and FHSA — how the three Canadian accounts differ.</strong></p>
+         <p style="margin:0;">It covers contribution room, tax treatment, and common tracking gaps, with a snapshot page you can fill in. Educational information, not a pick of which account to use.</p>`,
       )}
       ${mosaicCard(
         "What happens next",

@@ -8,16 +8,16 @@ import { isLaunchLive } from "@/lib/config/launch";
 
 const GUIDE_ITEMS = [
   {
-    title: "RRSP vs. TFSA vs. FHSA",
-    desc: "How contribution room, tax treatment, and purpose differ — educational context, not a pick",
+    title: "How RRSP, TFSA, and FHSA differ",
+    desc: "Contribution room, tax treatment, and purpose in one comparison — educational context, not a pick",
   },
   {
-    title: "Questions to bring to an advisor",
-    desc: "How contribution room, tax treatment, and goals differ — so you can have a better conversation",
+    title: "A snapshot you can fill in",
+    desc: "CRA room, employer match, first-home eligibility, and gaps people miss when they only look at one account",
   },
   {
-    title: "Common tracking mistakes",
-    desc: "Gaps people miss when they only look at one account at a time",
+    title: "Questions to bring to a licensed advisor",
+    desc: "So you can have a better conversation — not a to-do list from Mosaic",
   },
 ];
 
