@@ -9,6 +9,7 @@ const WaitlistSchema = z.object({
   email: z.string().email().max(320),
   province: z.string().max(100).optional().nullable(),
   source: z.string().max(64).optional().nullable(),
+  newsletter_opt_in: z.boolean().optional(),
 });
 
 const provinceSet = new Set<string>([...PROVINCES]);
@@ -36,12 +37,15 @@ export async function POST(req: NextRequest) {
     const source = parsed.data.source?.trim().slice(0, 64) || null;
 
     const supabase = await createClient();
+    const newsletterOptIn = parsed.data.newsletter_opt_in !== false;
+
     const { error } = await supabase.from('waitlist_signups').insert({
       email,
       province,
       source,
       nurture_step: 1,
       last_nurture_at: new Date().toISOString(),
+      newsletter_opt_in: newsletterOptIn,
     });
 
     if (error) {

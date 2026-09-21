@@ -13,6 +13,7 @@ import type { NotificationPreferences } from '@/types';
 const NotificationsSchema = z.object({
   plan_ready: z.boolean().optional(),
   weekly_market: z.boolean().optional(),
+  education_emails: z.boolean().optional(),
   quarterly_replan: z.boolean().optional(),
 });
 

@@ -7,6 +7,7 @@ import type { NotificationPreferences } from "@/types";
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   plan_ready: true,
   weekly_market: true,
+  education_emails: true,
   quarterly_replan: false,
 };
 

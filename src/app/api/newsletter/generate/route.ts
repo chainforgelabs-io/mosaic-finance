@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createServiceClient } from "@/lib/supabase/service";
-import { generateAndSendNewsletter, generateNewsletter } from "@/lib/newsletter/generator";
+import {
+  generateAndSendNewsletter,
+  generateNewsletter,
+} from "@/lib/newsletter/generator";
 import { captureAPIError } from "@/lib/sentry";
 
 export async function POST(request: NextRequest) {
   try {
-    // Support both authenticated user triggers and Vercel Cron
     const cronSecret = request.headers.get("authorization");
     const isCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
 
@@ -20,7 +21,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      // Only admins can manually trigger
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("role")
@@ -35,15 +35,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const sendEmails = body.send === true;
 
-    if (sendEmails && body.emails?.length > 0) {
-      const id = await generateAndSendNewsletter(body.emails);
+    if (sendEmails) {
+      const result = await generateAndSendNewsletter(
+        Array.isArray(body.emails) ? body.emails : undefined,
+      );
       return NextResponse.json({
         message: "Newsletter generated and sent",
-        id,
+        ...result,
       });
     }
 
-    // Generate without sending
     const { id, content } = await generateNewsletter();
     return NextResponse.json({
       message: "Newsletter generated",
@@ -54,7 +55,6 @@ export async function POST(request: NextRequest) {
         recapLength: content.marketRecap.length,
         moversCount:
           content.topMovers.gainers.length + content.topMovers.losers.length,
-        aiHighlightsCount: content.aiHighlights.length,
       },
     });
   } catch (error) {
@@ -66,7 +66,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Vercel Cron handler — runs weekly on Monday at 8am EST
 export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization");
 
@@ -75,42 +74,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all subscribed user emails
-    const supabase = createServiceClient();
-    const { data: users } = await supabase
-      .from("user_profiles")
-      .select("id, email, notification_preferences");
-
-    const optedInIds: string[] = [];
-    const emails = new Set<string>();
-    for (const u of users ?? []) {
-      const prefs = u.notification_preferences as { weekly_market?: boolean } | null;
-      if (prefs?.weekly_market === false) continue;
-      if (u.email) emails.add(u.email as string);
-      else optedInIds.push(u.id);
-    }
-    for (const id of optedInIds) {
-      const { data } = await supabase.auth.admin.getUserById(id);
-      if (data.user?.email) emails.add(data.user.email);
-    }
-
-    const { data: waitlist } = await supabase
-      .from("waitlist_signups")
-      .select("email")
-      .eq("newsletter_opt_in", true);
-    for (const row of waitlist ?? []) {
-      if (row.email) emails.add(row.email);
-    }
-
-    const list = [...emails];
-    if (list.length === 0) {
-      return NextResponse.json({ message: "No subscribers found" });
-    }
-
-    const id = await generateAndSendNewsletter(list);
+    const result = await generateAndSendNewsletter();
     return NextResponse.json({
-      message: `Newsletter sent to ${list.length} subscribers`,
-      id,
+      message: `Newsletter sent to ${result.sent} subscribers`,
+      ...result,
     });
   } catch (error) {
     captureAPIError(error, { route: "newsletter/cron" });

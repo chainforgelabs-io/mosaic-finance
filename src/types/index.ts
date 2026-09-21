@@ -19,6 +19,7 @@ export type RiskLabel =
 export interface NotificationPreferences {
   plan_ready: boolean;
   weekly_market: boolean;
+  education_emails: boolean;
   quarterly_replan: boolean;
 }
 

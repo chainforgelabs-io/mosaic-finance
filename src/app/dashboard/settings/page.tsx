@@ -789,6 +789,7 @@ function NotificationsTab() {
 
   const [planReady, setPlanReady] = useState(defaults.plan_ready);
   const [weeklyMarket, setWeeklyMarket] = useState(defaults.weekly_market);
+  const [educationEmails, setEducationEmails] = useState(defaults.education_emails);
   const [quarterlyRePlan, setQuarterlyRePlan] = useState(defaults.quarterly_replan);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifError, setNotifError] = useState<string | null>(null);
@@ -800,6 +801,7 @@ function NotificationsTab() {
     const p = user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
     setPlanReady(p.plan_ready);
     setWeeklyMarket(p.weekly_market);
+    setEducationEmails(p.education_emails);
     setQuarterlyRePlan(p.quarterly_replan);
   }, [user?.id]);
 
@@ -820,6 +822,7 @@ function NotificationsTab() {
           const p = user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES;
           setPlanReady(p.plan_ready);
           setWeeklyMarket(p.weekly_market);
+          setEducationEmails(p.education_emails);
           setQuarterlyRePlan(p.quarterly_replan);
           setNotifError(
             typeof data.error === "string"
@@ -848,6 +851,7 @@ function NotificationsTab() {
         const next: NotificationPreferences = {
           plan_ready: !planReady,
           weekly_market: weeklyMarket,
+          education_emails: educationEmails,
           quarterly_replan: quarterlyRePlan,
         };
         setPlanReady(next.plan_ready);
@@ -855,16 +859,34 @@ function NotificationsTab() {
       },
     },
     {
-      label: "Weekly market update",
-      description: "Receive a summary of the weekly market context report.",
+      label: "Weekly market brief",
+      description:
+        "Monday numbers: indices, a short note, and liquid names. Not a trading list.",
       enabled: weeklyMarket,
       onToggle: () => {
         const next: NotificationPreferences = {
           plan_ready: planReady,
           weekly_market: !weeklyMarket,
+          education_emails: educationEmails,
           quarterly_replan: quarterlyRePlan,
         };
         setWeeklyMarket(next.weekly_market);
+        void persist(next);
+      },
+    },
+    {
+      label: "Education notes",
+      description:
+        "A short Canadian money-mechanics note every other Wednesday. One idea, one example.",
+      enabled: educationEmails,
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: planReady,
+          weekly_market: weeklyMarket,
+          education_emails: !educationEmails,
+          quarterly_replan: quarterlyRePlan,
+        };
+        setEducationEmails(next.education_emails);
         void persist(next);
       },
     },
@@ -877,6 +899,7 @@ function NotificationsTab() {
         const next: NotificationPreferences = {
           plan_ready: planReady,
           weekly_market: weeklyMarket,
+          education_emails: educationEmails,
           quarterly_replan: !quarterlyRePlan,
         };
         setQuarterlyRePlan(next.quarterly_replan);
@@ -888,7 +911,7 @@ function NotificationsTab() {
   return (
     <div className="space-y-1">
       <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-4">
-        Email notifications only at this time.
+        Email notifications only at this time. Every Mosaic email also has an unsubscribe link.
       </p>
       {notifError && (
         <p className="font-[family-name:var(--font-body)] text-sm text-[var(--error)] mb-2">

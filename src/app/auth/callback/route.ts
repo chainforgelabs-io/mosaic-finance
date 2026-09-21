@@ -35,7 +35,13 @@ export async function GET(request: Request) {
             trial_ends_at: new Date(
               Date.now() + 14 * 24 * 60 * 60 * 1000,
             ).toISOString(),
+            email: user.email ?? null,
           });
+          if (user.email) {
+            void import("@/lib/email/recipients").then(({ markWaitlistConverted }) =>
+              markWaitlistConverted(user.email).catch(() => undefined),
+            );
+          }
         }
 
         const progress = await getOnboardingProgress();

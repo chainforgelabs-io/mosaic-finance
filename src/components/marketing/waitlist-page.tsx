@@ -30,6 +30,7 @@ const TRUST_CHIPS = [
 
 function GuideLeadForm() {
   const [email, setEmail] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "duplicate" | "error"
   >("idle");
@@ -43,7 +44,7 @@ function GuideLeadForm() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "guide" }),
+        body: JSON.stringify({ email, source: "guide", newsletter_opt_in: newsletterOptIn }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -107,6 +108,18 @@ function GuideLeadForm() {
           )}
         </button>
       </form>
+      <label className="mt-3 flex items-start gap-2 text-left">
+        <input
+          type="checkbox"
+          checked={newsletterOptIn}
+          onChange={(e) => setNewsletterOptIn(e.target.checked)}
+          disabled={status === "submitting"}
+          className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 accent-emerald"
+        />
+        <span className="font-body text-xs leading-relaxed text-slate-500">
+          Send me the Monday market brief and biweekly education notes. Unsubscribe anytime.
+        </span>
+      </label>
       {status === "error" && errorMessage && (
         <p className="mt-3 text-center font-body text-sm text-red-400 sm:text-left" role="alert">
           {errorMessage}

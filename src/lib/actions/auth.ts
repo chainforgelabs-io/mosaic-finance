@@ -48,6 +48,7 @@ export async function insertUserProfileAfterSignUp(formData: {
     province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
     subscription_tier: "pulse",
     trial_ends_at: trialEndsAt,
+    email: user.email ?? null,
   });
 
   if (profileError) {
@@ -55,6 +56,9 @@ export async function insertUserProfileAfterSignUp(formData: {
   }
 
   if (user.email) {
+    void import("@/lib/email/recipients").then(({ markWaitlistConverted }) =>
+      markWaitlistConverted(user.email).catch(() => undefined),
+    );
     void import("@/lib/resend/client").then(({ sendTrialStartedEmail }) =>
       sendTrialStartedEmail(user.email!).catch(() => undefined),
     );

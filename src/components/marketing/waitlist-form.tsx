@@ -21,6 +21,7 @@ export function WaitlistForm({
 }) {
   const [email, setEmail] = useState("");
   const [province, setProvince] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "duplicate" | "error"
   >("idle");
@@ -38,6 +39,7 @@ export function WaitlistForm({
           email,
           province: province || undefined,
           source,
+          newsletter_opt_in: newsletterOptIn,
         }),
       });
       const data = (await res.json()) as {
@@ -159,6 +161,19 @@ export function WaitlistForm({
             )}
           </button>
         </div>
+
+        <label className="flex items-start gap-2 text-left">
+          <input
+            type="checkbox"
+            checked={newsletterOptIn}
+            onChange={(e) => setNewsletterOptIn(e.target.checked)}
+            disabled={status === "submitting"}
+            className="mt-1 h-4 w-4 shrink-0 rounded border-white/20 accent-emerald"
+          />
+          <span className="font-body text-xs leading-relaxed text-slate-400">
+            Send me the Monday market brief and biweekly education notes. Unsubscribe anytime.
+          </span>
+        </label>
       </form>
 
       {status === "error" && errorMessage && (

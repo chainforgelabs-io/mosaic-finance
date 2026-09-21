@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendNurtureEmail } from "@/lib/resend/client";
+import {
+  loadAuthEmailSet,
+  markWaitlistConverted,
+} from "@/lib/email/recipients";
+import { normalizeEmail } from "@/lib/email/unsubscribe";
 
 const STEP_GAP_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -12,22 +17,32 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
   const cutoff = new Date(Date.now() - STEP_GAP_MS).toISOString();
+  const accounts = await loadAuthEmailSet();
 
   const { data: rows } = await supabase
     .from("waitlist_signups")
     .select("email, nurture_step, last_nurture_at, created_at")
     .lt("nurture_step", 5)
+    .is("unsubscribed_at", null)
+    .is("converted_at", null)
     .or(`last_nurture_at.is.null,last_nurture_at.lte.${cutoff}`)
     .limit(200);
 
   let sent = 0;
+  let skippedConverted = 0;
   for (const row of rows ?? []) {
+    const email = normalizeEmail(row.email);
+    if (accounts.has(email)) {
+      await markWaitlistConverted(email);
+      skippedConverted += 1;
+      continue;
+    }
     const last = row.last_nurture_at ?? row.created_at;
     if (last && new Date(last).getTime() > Date.now() - STEP_GAP_MS) continue;
     const nextStep = Math.max(1, Number(row.nurture_step ?? 0));
     if (nextStep >= 5) continue;
     try {
-      await sendNurtureEmail(row.email, nextStep - 1);
+      await sendNurtureEmail(email, nextStep - 1);
       await supabase
         .from("waitlist_signups")
         .update({
@@ -41,5 +56,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent, skippedConverted });
 }

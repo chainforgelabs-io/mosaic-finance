@@ -1,159 +1,195 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { getQuotes, getMarketMovers, DEFAULT_INDICES } from "@/lib/market-data/market-aggregator";
+import {
+  getQuotes,
+  getMarketMovers,
+  DEFAULT_INDICES,
+} from "@/lib/market-data/market-aggregator";
 import { claudeChat } from "@/lib/claude/client";
-import { resend } from "@/lib/resend/client";
-import type { MarketMover } from "@/lib/market-data/types";
-
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "plans@mosaicfinance.ai";
+import {
+  mosaicCard,
+  mosaicEmailHtml,
+  escapeHtml,
+} from "@/lib/email/chrome";
+import { sendMosaicEmailEach } from "@/lib/email/send";
+import { collectMarketRecipients } from "@/lib/email/recipients";
+import {
+  CANADIAN_WATCHLIST,
+  filterLiquidMovers,
+  percentCell,
+  sanitizeRecap,
+} from "@/lib/email/market-brief";
+import type { MarketMover, Quote } from "@/lib/market-data/types";
 
 interface NewsletterContent {
   marketRecap: string;
+  indices: { symbol: string; name: string; changePercent: number }[];
   topMovers: { gainers: MarketMover[]; losers: MarketMover[] };
-  newsSummary: string;
-  aiHighlights: string[];
+  canadianNames: { symbol: string; name: string; changePercent: number }[];
   weekStart: string;
   weekEnd: string;
+}
+
+function moverTable(rows: MarketMover[]): string {
+  if (rows.length === 0) return "";
+  const tr = rows
+    .map((m) => {
+      const cell = percentCell(m.changePercent);
+      return `<tr>
+        <td style="padding:6px 8px 6px 0;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#0C0F17;white-space:nowrap;">${escapeHtml(m.symbol)}</td>
+        <td style="padding:6px 8px;font-family:Arial,sans-serif;font-size:13px;color:#4B5563;">${escapeHtml(m.name)}</td>
+        <td style="padding:6px 0 6px 8px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:${cell.color};text-align:right;white-space:nowrap;">${cell.text}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${tr}</table>`;
+}
+
+function indexTable(
+  rows: { symbol: string; name: string; changePercent: number }[],
+): string {
+  if (rows.length === 0) return "";
+  const tr = rows
+    .map((m) => {
+      const cell = percentCell(m.changePercent);
+      return `<tr>
+        <td style="padding:6px 8px 6px 0;font-family:Arial,sans-serif;font-size:13px;color:#4B5563;">${escapeHtml(m.name)}</td>
+        <td style="padding:6px 0 6px 8px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:${cell.color};text-align:right;white-space:nowrap;">${cell.text}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${tr}</table>`;
+}
+
+function quoteChange(
+  quotes: Quote[],
+  symbol: string,
+): number | null {
+  const q = quotes.find((x) => x.symbol === symbol);
+  if (!q || !Number.isFinite(q.changePercent)) return null;
+  return q.changePercent;
 }
 
 async function gatherWeeklyData(): Promise<NewsletterContent> {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
-  const weekStart = weekAgo.toISOString().split("T")[0];
-  const weekEnd = now.toISOString().split("T")[0];
+  const weekStart = weekAgo.toISOString().split("T")[0] ?? "";
+  const weekEnd = now.toISOString().split("T")[0] ?? "";
+
+  const watchSymbols = CANADIAN_WATCHLIST.map((i) => i.symbol);
+  const indexSymbols = DEFAULT_INDICES.map((i) => i.symbol);
 
   const [quotes, movers] = await Promise.allSettled([
-    getQuotes(DEFAULT_INDICES.map((i) => i.symbol)),
+    getQuotes([...new Set([...indexSymbols, ...watchSymbols])]),
     getMarketMovers(),
   ]);
 
-  const indexSummary =
-    quotes.status === "fulfilled"
-      ? quotes.value
-          .map(
-            (q) =>
-              `${q.symbol}: $${q.price.toFixed(2)} (${q.change > 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)`,
-          )
-          .join("\n")
-      : "Market data unavailable";
+  const quoteList = quotes.status === "fulfilled" ? quotes.value : [];
+  const indexName: Record<string, string> = Object.fromEntries(
+    DEFAULT_INDICES.map((i) => [i.symbol, i.name]),
+  );
 
-  const topMovers =
+  const indices = indexSymbols
+    .map((symbol) => {
+      const change = quoteChange(quoteList, symbol);
+      if (change === null) return null;
+      return { symbol, name: indexName[symbol] ?? symbol, changePercent: change };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  const canadianNames = CANADIAN_WATCHLIST.map((item) => {
+    const change = quoteChange(quoteList, item.symbol);
+    if (change === null) return null;
+    return { ...item, changePercent: change };
+  }).filter((x): x is NonNullable<typeof x> => x !== null);
+
+  const rawMovers =
     movers.status === "fulfilled"
       ? movers.value
-      : { gainers: [], losers: [] };
+      : { gainers: [] as MarketMover[], losers: [] as MarketMover[] };
 
-  // Pull AI commentary highlights from the week
-  const supabase = createServiceClient();
-  const { data: commentaries } = await supabase
-    .from("ai_commentaries")
-    .select("persona, commentary")
-    .gte("generated_at", weekAgo.toISOString())
-    .order("generated_at", { ascending: false })
-    .limit(6);
+  const topMovers = {
+    gainers: filterLiquidMovers(rawMovers.gainers, 5),
+    losers: filterLiquidMovers(rawMovers.losers, 5),
+  };
 
-  const aiHighlights = (commentaries || []).map((c) => {
-    const content = c.commentary as Record<string, unknown>;
-    return `${c.persona}: ${(content.summary as string)?.slice(0, 200) || "No summary"}`;
-  });
+  const indexSummary =
+    indices
+      .map((i) => `${i.name}: ${i.changePercent > 0 ? "+" : ""}${i.changePercent.toFixed(2)}%`)
+      .join("\n") || "Market data unavailable";
 
-  // Generate market recap via Claude
-  const recapPrompt = `You are a financial newsletter writer. Write a concise weekly market recap (3-4 paragraphs) based on this data:
+  const recapPrompt = `Write exactly 2 short sentences (max 55 words total) summarizing this week for a Canadian reader.
 
-Market Indices (current):
+Index moves:
 ${indexSummary}
 
-Top Gainers this week:
-${topMovers.gainers.slice(0, 5).map((m) => `${m.symbol}: +${m.changePercent.toFixed(2)}%`).join("\n") || "Data unavailable"}
-
-Top Losers this week:
-${topMovers.losers.slice(0, 5).map((m) => `${m.symbol}: ${m.changePercent.toFixed(2)}%`).join("\n") || "Data unavailable"}
-
-Write in a professional but accessible tone. Cover both US and Canadian markets. Include what drove the major moves. End with a forward-looking sentence about what to watch next week.`;
+Rules:
+- No markdown, headings, bullets, or stock tickers other than the indices above.
+- No buy, sell, or hold language. No recommendations.
+- Educational context only. No return promises.
+- Do not mention individual companies.`;
 
   let marketRecap: string;
   try {
-    marketRecap = await claudeChat(
-      [{ role: "user", content: recapPrompt }],
-      "You are a professional financial newsletter writer for a Canadian fintech platform.",
-      { model: "sonnet", maxTokens: 2048, temperature: 0.6 },
+    marketRecap = sanitizeRecap(
+      await claudeChat(
+        [{ role: "user", content: recapPrompt }],
+        "You write two-sentence market briefs for Mosaic Finance, a Canadian tracking and education app. Education, not advice.",
+        { model: "sonnet", maxTokens: 220, temperature: 0.3, cacheSystem: false },
+      ),
     );
   } catch {
-    marketRecap = `Weekly Market Recap (${weekStart} to ${weekEnd})\n\n${indexSummary}`;
+    marketRecap = `Here is the week of ${weekStart} to ${weekEnd} in one look. ${indexSummary.replace(/\n/g, "; ")}.`;
+    marketRecap = sanitizeRecap(marketRecap);
   }
-
-  // Generate news summary
-  const newsSummary = `Key developments from the week of ${weekStart} to ${weekEnd}. Check the News tab for full coverage.`;
 
   return {
     marketRecap,
+    indices,
     topMovers,
-    newsSummary,
-    aiHighlights,
+    canadianNames,
     weekStart,
     weekEnd,
   };
 }
 
-function buildNewsletterHtml(content: NewsletterContent): string {
-  const gainersHtml = content.topMovers.gainers
-    .slice(0, 5)
-    .map(
-      (m) =>
-        `<tr><td style="padding:4px 12px;font-weight:600">${m.symbol}</td><td style="padding:4px 12px">${m.name}</td><td style="padding:4px 12px;color:#10B981;font-weight:600">+${m.changePercent.toFixed(2)}%</td></tr>`,
-    )
-    .join("");
+function buildNewsletterHtml(content: NewsletterContent, email: string): string {
+  const recapCard = mosaicCard(
+    "This week",
+    `<p style="margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#374151;">${escapeHtml(content.marketRecap)}</p>`,
+  );
 
-  const losersHtml = content.topMovers.losers
-    .slice(0, 5)
-    .map(
-      (m) =>
-        `<tr><td style="padding:4px 12px;font-weight:600">${m.symbol}</td><td style="padding:4px 12px">${m.name}</td><td style="padding:4px 12px;color:#EF4444;font-weight:600">${m.changePercent.toFixed(2)}%</td></tr>`,
-    )
-    .join("");
+  const indicesCard = content.indices.length
+    ? mosaicCard("Markets at a glance", indexTable(content.indices))
+    : "";
 
-  const aiHighlightsHtml = content.aiHighlights
-    .map((h) => `<li style="margin-bottom:8px;color:#4B5563;font-size:14px">${h}</li>`)
-    .join("");
+  const canadianCard = content.canadianNames.length
+    ? mosaicCard(
+        "Canadian names in view",
+        `${indexTable(content.canadianNames)}<p style="margin:12px 0 0;font-family:Arial,sans-serif;font-size:12px;color:#9CA3AF;">US-listed tickers shown because the quote feed covers them reliably. Context only — not a list to trade.</p>`,
+      )
+    : "";
 
-  return `
-    <div style="font-family:'Plus Jakarta Sans',Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;background:#FAFAF8">
-      <div style="text-align:center;margin-bottom:32px">
-        <div style="display:inline-block;line-height:0"><svg width="48" height="48" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="rotate(45 16 16)"><rect x="8" y="8" width="8" height="8" fill="#10B981"/><rect x="16" y="8" width="8" height="8" fill="#1F2937"/><rect x="8" y="16" width="8" height="8" fill="#1F2937"/><rect x="16" y="16" width="8" height="8" fill="#10B981"/><rect x="14" y="14" width="4" height="4" fill="#EAB308"/></g></svg></div>
-        <h1 style="margin:12px 0 4px;font-size:24px;color:#1F2937">Mosaic Finance Weekly Market Recap</h1>
-        <p style="color:#9CA3AF;font-size:14px;margin:0">${content.weekStart} — ${content.weekEnd}</p>
-      </div>
+  const gainers = moverTable(content.topMovers.gainers);
+  const losers = moverTable(content.topMovers.losers);
+  const moversCard =
+    gainers || losers
+      ? mosaicCard(
+          "Notable liquid moves",
+          `${gainers ? `<p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#059669;">Gainers</p>${gainers}` : ""}
+           ${losers ? `<p style="margin:16px 0 8px;font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#DC2626;">Declines</p>${losers}` : ""}
+           <p style="margin:12px 0 0;font-family:Arial,sans-serif;font-size:12px;color:#9CA3AF;">Filtered to names above $5 with a move of 1–40%. Penny names and funds are omitted.</p>`,
+        )
+      : "";
 
-      <div style="background:white;border:1px solid #E8E8E0;border-radius:8px;padding:24px;margin-bottom:20px">
-        <h2 style="font-size:16px;color:#0C0F17;margin:0 0 12px">Market Recap</h2>
-        <div style="color:#4B5563;font-size:14px;line-height:1.7;white-space:pre-line">${content.marketRecap}</div>
-      </div>
-
-      ${
-        gainersHtml
-          ? `<div style="background:white;border:1px solid #E8E8E0;border-radius:8px;padding:24px;margin-bottom:20px">
-        <h2 style="font-size:16px;color:#0C0F17;margin:0 0 12px">Top Movers</h2>
-        <h3 style="font-size:13px;color:#10B981;margin:0 0 8px">Gainers</h3>
-        <table style="width:100%;font-size:13px;color:#0C0F17;border-collapse:collapse">${gainersHtml}</table>
-        <h3 style="font-size:13px;color:#EF4444;margin:16px 0 8px">Losers</h3>
-        <table style="width:100%;font-size:13px;color:#0C0F17;border-collapse:collapse">${losersHtml}</table>
-      </div>`
-          : ""
-      }
-
-      ${
-        aiHighlightsHtml
-          ? `<div style="background:white;border:1px solid #E8E8E0;border-radius:8px;padding:24px;margin-bottom:20px">
-        <h2 style="font-size:16px;color:#0C0F17;margin:0 0 12px">AI Commentary Highlights</h2>
-        <ul style="padding-left:20px;margin:0">${aiHighlightsHtml}</ul>
-      </div>`
-          : ""
-      }
-
-      <div style="text-align:center;padding:20px 0;color:#9CA3AF;font-size:11px">
-        <p>This newsletter is for educational context only. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.</p>
-        <p>Mosaic Finance · Financial tracking &amp; education</p>
-      </div>
-    </div>
-  `;
+  return mosaicEmailHtml({
+    preheader: content.marketRecap.slice(0, 110),
+    kicker: "Weekly market brief",
+    title: "Markets this week",
+    subtitle: `${content.weekStart} — ${content.weekEnd}`,
+    bodyHtml: `${recapCard}${indicesCard}${canadianCard}${moversCard}`,
+    email,
+    list: "market",
+  });
 }
 
 export async function generateNewsletter(): Promise<{
@@ -161,7 +197,6 @@ export async function generateNewsletter(): Promise<{
   content: NewsletterContent;
 }> {
   const content = await gatherWeeklyData();
-
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("newsletter_editions")
@@ -170,32 +205,35 @@ export async function generateNewsletter(): Promise<{
       period_end: content.weekEnd,
       content: {
         marketRecap: content.marketRecap,
+        indices: content.indices,
         topMovers: content.topMovers,
-        newsSummary: content.newsSummary,
-        aiHighlights: content.aiHighlights,
+        canadianNames: content.canadianNames,
       },
     })
     .select()
     .single();
 
   if (error) throw error;
-
   return { id: data.id, content };
 }
 
 export async function generateAndSendNewsletter(
-  recipientEmails: string[],
-): Promise<string> {
+  recipientEmails?: string[],
+): Promise<{ id: string; sent: number; failed: number }> {
   const { id, content } = await generateNewsletter();
+  const list =
+    recipientEmails && recipientEmails.length > 0
+      ? recipientEmails
+      : (await collectMarketRecipients()).map((r) => r.email);
 
-  const html = buildNewsletterHtml(content);
-
-  await resend.emails.send({
-    from: FROM_EMAIL,
-    to: recipientEmails,
-    subject: `Mosaic Finance Weekly Market Recap — ${content.weekStart} to ${content.weekEnd}`,
-    html,
-  });
+  const result =
+    list.length === 0
+      ? { sent: 0, failed: 0 }
+      : await sendMosaicEmailEach(list, (email) => ({
+          subject: `Mosaic market brief — ${content.weekStart} to ${content.weekEnd}`,
+          html: buildNewsletterHtml(content, email),
+          list: "market",
+        }));
 
   const supabase = createServiceClient();
   await supabase
@@ -203,5 +241,5 @@ export async function generateAndSendNewsletter(
     .update({ sent_at: new Date().toISOString() })
     .eq("id", id);
 
-  return id;
+  return { id, ...result };
 }

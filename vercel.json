@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/nurture",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/education",
+      "schedule": "0 13 * * 3"
     }
   ]
 }
