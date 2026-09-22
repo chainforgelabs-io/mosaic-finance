@@ -6,7 +6,13 @@ import { ArrowRight, ArrowLeft, Check, Loader2, MessageCircle } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
-import { ConversationBubble } from "@/components/app/ConversationBubble";
+import {
+  CharlieChatHeader,
+  CharlieChatSurface,
+  ConversationBubble,
+  charlieInputClass,
+  charlieSendClass,
+} from "@/components/app/ConversationBubble";
 import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { useConversationStore } from "@/stores/conversation";
@@ -606,21 +612,21 @@ export default function RiskProfilePage() {
   // Conversation + Review phase
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRiskConversationRetry}>
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)] pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)]">
       <div className="shrink-0 bg-white">
-        <div className="mx-auto max-w-[720px] px-4">
-          <div className="flex items-center justify-center py-3">
-            <MosaicLogo size="sm" />
-          </div>
+        <div className="mx-auto max-w-[720px]">
           <StepProgress
             currentStep={currentStep}
             completedSteps={completedSteps}
+            className="py-3"
           />
         </div>
       </div>
 
+      <CharlieChatSurface>
+      <CharlieChatHeader />
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[720px] px-4 py-6">
+        <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
           <div className="mb-4 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
             <p className="font-body text-[13px] text-[var(--text-secondary)]">
               Based on your questionnaire score of <strong>{scoreToPrettyLabel(averageScore)}</strong>,
@@ -695,7 +701,7 @@ export default function RiskProfilePage() {
 
       {!riskComplete && (
         <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-4">
+          <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-3">
             <textarea
               ref={textareaRef}
               autoFocus
@@ -710,19 +716,21 @@ export default function RiskProfilePage() {
               placeholder="Type your response..."
               disabled={isStreaming || !convSessionId}
               rows={1}
-              className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+              className={charlieInputClass}
             />
             <button
               type="button"
               onClick={sendConvMessage}
               disabled={isStreaming || !convInput.trim() || !convSessionId}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)] text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-40"
+              className={charlieSendClass}
             >
               <ArrowRight className="size-5" />
             </button>
             </div>
           </div>
         )}
+
+      </CharlieChatSurface>
 
       {riskComplete && !isSubmitting && (
         <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">

@@ -6,7 +6,13 @@ import { ArrowUp, Check, AlertTriangle, Paperclip, X, Loader2 } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
-import { ConversationBubble } from "@/components/app/ConversationBubble";
+import {
+  CharlieChatHeader,
+  CharlieChatSurface,
+  ConversationBubble,
+  charlieInputClass,
+  charlieSendClass,
+} from "@/components/app/ConversationBubble";
 import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
 import {
@@ -796,37 +802,36 @@ function FactFindConversation() {
 
   return (
     <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRetry}>
-      <div className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--warm-50)] pb-[env(safe-area-inset-bottom)]">
-        <div className="shrink-0 px-4 pt-8">
+      <div className="fixed inset-0 flex flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="shrink-0 bg-white">
           <div className="mx-auto max-w-[920px]">
-            <div className="flex justify-center">
-              <MosaicLogo size="sm" />
-            </div>
+            {!complianceAcknowledged && (
+              <div className="flex justify-center pt-4">
+                <MosaicLogo size="sm" />
+              </div>
+            )}
             <StepProgress
               currentStep={currentStep}
               completedSteps={completedSteps}
+              className="py-3"
             />
           </div>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          <div className="flex flex-1 flex-col overflow-hidden">
+          <CharlieChatSurface>
             {!complianceAcknowledged ? (
               <div className="flex flex-1 items-center justify-center">
                 <ComplianceCard onDismiss={handleDismissCompliance} />
               </div>
             ) : (
               <>
+                <CharlieChatHeader />
                 <div
                   ref={scrollContainerRef}
                   className="flex-1 overflow-y-auto"
                 >
-                  <div className="mx-auto max-w-[720px] px-4 py-6">
-                    <p className="mb-6 font-body text-[12px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                      Financial Consultation
-                    </p>
-
-                    <div className="space-y-4">
+                  <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
                       {messages.map((msg, i) => (
                         <ConversationBubble
                           key={msg.id}
@@ -839,7 +844,6 @@ function FactFindConversation() {
                           }
                         />
                       ))}
-                    </div>
 
                     {conversationError && (
                       <div className="mt-4 flex justify-start">
@@ -933,16 +937,16 @@ function FactFindConversation() {
                         placeholder="Type your response..."
                         disabled={isStreaming || isUploadingFile || !sessionId}
                         rows={1}
-                        className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+                        className={charlieInputClass}
                       />
                       <button
                         onClick={handleSend}
                         disabled={
                           isStreaming || isUploadingFile || !inputValue.trim() || !sessionId
                         }
-                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--slate-950)] transition-opacity hover:opacity-80 disabled:opacity-30"
+                        className={charlieSendClass}
                       >
-                        <ArrowUp className="size-5 text-[var(--emerald)]" />
+                        <ArrowUp className="size-5" />
                       </button>
                     </div>
                     <p className="px-4 pb-3 text-center font-body text-[11px] text-[var(--text-muted)]">
@@ -952,7 +956,7 @@ function FactFindConversation() {
                 )}
               </>
             )}
-          </div>
+          </CharlieChatSurface>
 
           {complianceAcknowledged && (
             <ProgressSidebar topics={extractedTopics} />

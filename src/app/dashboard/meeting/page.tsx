@@ -9,10 +9,15 @@ import {
   MessageCircle,
   RotateCcw,
   Shield,
-  ClipboardList,
   Video,
 } from "lucide-react";
-import { ConversationBubble } from "@/components/app/ConversationBubble";
+import {
+  CharlieChatHeader,
+  CharlieChatSurface,
+  ConversationBubble,
+  charlieInputClass,
+  charlieSendClass,
+} from "@/components/app/ConversationBubble";
 
 type MeetingType = "annual-review" | "ad-hoc";
 
@@ -283,34 +288,23 @@ export default function MeetingPage() {
 
   // Active meeting
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 border-b border-[var(--warm-200)] bg-white px-4 py-4 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {meetingType === "annual-review" ? (
-              <ClipboardList className="size-5 text-[var(--emerald)]" />
-            ) : (
-              <MessageCircle className="size-5 text-[var(--emerald)]" />
-            )}
-            <h2 className="font-display text-[18px] font-semibold text-[var(--text-primary)]">
-              {meetingType === "annual-review" ? "Check-in" : "Financial Q&A"}
-            </h2>
-          </div>
+    <CharlieChatSurface className="max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:bottom-20 max-md:z-30 md:-mx-6 md:-my-8 md:h-[calc(100dvh-4rem)] md:w-[calc(100%+3rem)]">
+      <CharlieChatHeader
+        subtitle={meetingType === "annual-review" ? "Check-in" : "Financial Q&A"}
+        trailing={
           <button
             type="button"
             onClick={resetMeeting}
-            className="flex items-center gap-2 rounded-lg border border-[var(--warm-200)] px-4 py-2 font-body text-[13px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--warm-100)]"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--warm-200)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--warm-100)]"
+            aria-label="New meeting"
           >
             <RotateCcw className="size-3.5" />
-            New Meeting
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[720px] space-y-4 px-4 py-6">
+        <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
           {messages.map((msg, i) => (
             <ConversationBubble
               key={msg.id}
@@ -341,7 +335,7 @@ export default function MeetingPage() {
 
       {/* Input */}
       <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-        <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-4">
+        <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-3">
           <textarea
             ref={textareaRef}
             autoFocus
@@ -356,13 +350,13 @@ export default function MeetingPage() {
             placeholder={sessionComplete ? "Meeting complete" : "Type your message..."}
             disabled={isStreaming || !sessionId || sessionComplete}
             rows={1}
-            className="min-w-0 flex-1 resize-none rounded-xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-[15px] text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50"
+            className={charlieInputClass}
           />
           <button
             type="button"
             onClick={sendMessage}
             disabled={isStreaming || !inputValue.trim() || !sessionId || sessionComplete}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)] text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-40"
+            className={charlieSendClass}
           >
             {isStreaming ? (
               <Loader2 className="size-5 animate-spin" />
@@ -372,6 +366,6 @@ export default function MeetingPage() {
           </button>
         </div>
       </div>
-    </div>
+    </CharlieChatSurface>
   );
 }

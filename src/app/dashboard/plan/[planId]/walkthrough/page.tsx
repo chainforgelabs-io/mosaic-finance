@@ -4,7 +4,14 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { usePlanStore } from "@/stores/plan-store";
 import { useWalkthroughStore } from "@/stores/walkthrough-store";
 import { FinancialCard } from "@/components/app/FinancialCard";
-import { ConversationBubble, TypingIndicator } from "@/components/app/ConversationBubble";
+import {
+  CharlieChatHeader,
+  CharlieChatSurface,
+  ConversationBubble,
+  TypingIndicator,
+  charlieInputClass,
+  charlieSendClass,
+} from "@/components/app/ConversationBubble";
 import { EmptyState } from "@/components/app/EmptyState";
 import {
   FileText,
@@ -225,17 +232,11 @@ function ConversationPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[var(--warm-50)]">
-      <div className="px-5 py-3 border-b border-[var(--warm-200)] bg-white">
-        <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)]">
-          Guided Walkthrough with Charlie
-        </p>
-        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
-          Discussing: {section.title}
-        </p>
-      </div>
+    <CharlieChatSurface className="h-full">
+      <CharlieChatHeader subtitle={section.title} />
 
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="mx-auto flex max-w-[720px] flex-col gap-4">
         {messages.map((msg) => (
           <ConversationBubble
             key={msg.id}
@@ -280,9 +281,10 @@ function ConversationPanel({
         )}
 
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <div className="border-t border-[var(--warm-200)] bg-white px-5 py-3">
+      <div className="border-t border-[var(--warm-200)] bg-white px-4 py-3">
         {!isComplete && hasReceivedIntro && !isLastSection && (
           <button
             onClick={onNextSection}
@@ -317,21 +319,21 @@ function ConversationPanel({
             placeholder="Ask a follow-up question..."
             disabled={isStreaming || isComplete}
             rows={1}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--emerald)] disabled:opacity-50"
+            className={charlieInputClass}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || isStreaming || isComplete}
-            className="w-10 h-10 rounded-full bg-[var(--slate-950)] flex items-center justify-center shrink-0 hover:bg-[var(--slate-950)]/80 transition-colors disabled:opacity-30"
+            className={charlieSendClass}
           >
-            <Send className="w-4 h-4 text-[var(--emerald)]" />
+            <Send className="size-4" />
           </button>
         </div>
         <p className="font-[family-name:var(--font-body)] text-[11px] text-[var(--text-muted)] mt-2 text-center">
           Your responses are encrypted and never shared.
         </p>
       </div>
-    </div>
+    </CharlieChatSurface>
   );
 }
 
