@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { sendNurtureEmail } from "@/lib/resend/client";
+import {
+  sendNurtureEmail,
+  sendPrelaunchNurtureEmail,
+} from "@/lib/resend/client";
 import {
   loadAuthEmailSet,
   markWaitlistConverted,
 } from "@/lib/email/recipients";
 import { normalizeEmail } from "@/lib/email/unsubscribe";
-
-const STEP_GAP_MS = 3 * 24 * 60 * 60 * 1000;
+import { isLaunchLive } from "@/lib/config/launch";
+import {
+  NURTURE_STEP_GAP_MS,
+  planNurtureSend,
+} from "@/lib/email/nurture-content";
 
 export async function GET(request: NextRequest) {
   const cronSecret = request.headers.get("authorization");
@@ -16,8 +22,10 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const cutoff = new Date(Date.now() - STEP_GAP_MS).toISOString();
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - NURTURE_STEP_GAP_MS).toISOString();
   const accounts = await loadAuthEmailSet();
+  const live = isLaunchLive();
 
   const { data: rows } = await supabase
     .from("waitlist_signups")
@@ -29,6 +37,7 @@ export async function GET(request: NextRequest) {
     .limit(200);
 
   let sent = 0;
+  let held = 0;
   let skippedConverted = 0;
   for (const row of rows ?? []) {
     const email = normalizeEmail(row.email);
@@ -37,24 +46,37 @@ export async function GET(request: NextRequest) {
       skippedConverted += 1;
       continue;
     }
-    const last = row.last_nurture_at ?? row.created_at;
-    if (last && new Date(last).getTime() > Date.now() - STEP_GAP_MS) continue;
-    const nextStep = Math.max(1, Number(row.nurture_step ?? 0));
-    if (nextStep >= 5) continue;
+    const plan = planNurtureSend({
+      live,
+      nurtureStep: Number(row.nurture_step ?? 1),
+      createdAt: row.created_at,
+      lastNurtureAt: row.last_nurture_at,
+      now,
+    });
+    if (plan.action === "skip") continue;
     try {
-      await sendNurtureEmail(email, nextStep - 1);
-      await supabase
-        .from("waitlist_signups")
-        .update({
-          nurture_step: nextStep + 1,
-          last_nurture_at: new Date().toISOString(),
-        })
-        .eq("email", row.email);
-      sent += 1;
+      if (plan.action === "prelaunch") {
+        await sendPrelaunchNurtureEmail(email, plan.issueIndex);
+        await supabase
+          .from("waitlist_signups")
+          .update({ last_nurture_at: now.toISOString() })
+          .eq("email", row.email);
+        held += 1;
+      } else {
+        await sendNurtureEmail(email, plan.issueIndex);
+        await supabase
+          .from("waitlist_signups")
+          .update({
+            nurture_step: plan.nextStep,
+            last_nurture_at: now.toISOString(),
+          })
+          .eq("email", row.email);
+        sent += 1;
+      }
     } catch {
       /* keep going */
     }
   }
 
-  return NextResponse.json({ sent, skippedConverted });
+  return NextResponse.json({ sent, held, skippedConverted, live });
 }

@@ -7,7 +7,7 @@ import {
   mosaicEmailHtml,
 } from "@/lib/email/chrome";
 import { sendMosaicEmail } from "@/lib/email/send";
-import { nurtureIssue } from "@/lib/email/nurture-content";
+import { nurtureIssue, prelaunchIssue } from "@/lib/email/nurture-content";
 import { getFoundingStatus } from "@/lib/founding";
 import { daysRemaining } from "@/lib/email/trial";
 
@@ -225,6 +225,27 @@ export async function sendNurtureEmail(userEmail: string, step: number) {
       title: issue.title,
       preheader: issue.preheader,
       bodyHtml: issue.body(APP_URL, founding),
+    }),
+  });
+}
+
+/** Education note for someone still on the waitlist. Does not link to signup. */
+export async function sendPrelaunchNurtureEmail(
+  userEmail: string,
+  issueIndex: number,
+) {
+  const issue = prelaunchIssue(issueIndex);
+  await sendMosaicEmail({
+    to: userEmail,
+    subject: issue.subject,
+    list: "education",
+    html: mosaicEmailHtml({
+      email: userEmail,
+      list: "education",
+      kicker: "Education note",
+      title: issue.title,
+      preheader: issue.preheader,
+      bodyHtml: issue.body(APP_URL),
     }),
   });
 }

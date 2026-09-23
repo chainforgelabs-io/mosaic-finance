@@ -9,7 +9,13 @@ import {
   isEducationWeek,
   isoWeekUtc,
 } from "@/lib/email/education";
-import { nurtureIssue, NURTURE_ISSUES } from "@/lib/email/nurture-content";
+import {
+  NURTURE_ISSUES,
+  PRELAUNCH_ISSUES,
+  nurtureIssue,
+  planNurtureSend,
+  prelaunchIssue,
+} from "@/lib/email/nurture-content";
 import {
   daysRemaining,
   optedOutOfMarketing,
@@ -166,5 +172,50 @@ describe("nurture issues", () => {
     expect(NURTURE_ISSUES).toHaveLength(4);
     expect(nurtureIssue(0).subject).toMatch(/mistakes/i);
     expect(nurtureIssue(99).stepIndex).toBe(3);
+  });
+
+  it("keeps pre-launch notes on calculators, not signup", () => {
+    expect(PRELAUNCH_ISSUES.length).toBeGreaterThan(1);
+    for (const issue of PRELAUNCH_ISSUES) {
+      const html = issue.body("https://mosaicfinance.ai");
+      expect(html).not.toContain("/signup");
+      expect(html).not.toMatch(/\$8/);
+    }
+    expect(prelaunchIssue(99).stepIndex).toBe(99 % PRELAUNCH_ISSUES.length);
+  });
+
+  it("holds a step-2 waitlist row until launch, then resumes the sequence", () => {
+    const createdAt = "2026-09-17T23:20:10.684Z";
+    const lastNurtureAt = "2026-09-21T15:16:48.362Z";
+    const tooSoon = new Date("2026-09-25T15:00:00.000Z");
+    const due = new Date("2026-09-28T16:00:00.000Z");
+
+    expect(
+      planNurtureSend({
+        live: false,
+        nurtureStep: 2,
+        createdAt,
+        lastNurtureAt,
+        now: tooSoon,
+      }).action,
+    ).toBe("skip");
+
+    const held = planNurtureSend({
+      live: false,
+      nurtureStep: 2,
+      createdAt,
+      lastNurtureAt,
+      now: due,
+    });
+    expect(held.action).toBe("prelaunch");
+
+    const launched = planNurtureSend({
+      live: true,
+      nurtureStep: 2,
+      createdAt,
+      lastNurtureAt,
+      now: due,
+    });
+    expect(launched).toEqual({ action: "sequence", issueIndex: 1, nextStep: 3 });
   });
 });

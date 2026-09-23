@@ -27,8 +27,13 @@ interface ClaudeChatOptions {
 }
 
 const DEFAULT_SONNET =
-  process.env.CLAUDE_MODEL_SONNET ?? "claude-sonnet-4-5-20250929";
+  process.env.CLAUDE_MODEL_SONNET ?? "claude-sonnet-5";
 const DEFAULT_OPUS = process.env.CLAUDE_MODEL_OPUS ?? DEFAULT_SONNET;
+
+/** Sonnet 5 rejects non-default temperature and thinks unless thinking is disabled. */
+function isSonnet5(modelId: string): boolean {
+  return modelId === "claude-sonnet-5" || modelId.startsWith("claude-sonnet-5-");
+}
 
 const MODEL_IDS: Record<ClaudeModel, string> = {
   opus: DEFAULT_OPUS,
@@ -38,6 +43,16 @@ const MODEL_IDS: Record<ClaudeModel, string> = {
 const DEFAULT_MAX_TOKENS = 4096;
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
+
+function samplingParams(
+  modelId: string,
+  temperature: number | undefined,
+): { temperature?: number; thinking?: { type: "disabled" } } {
+  if (isSonnet5(modelId)) {
+    return { thinking: { type: "disabled" } };
+  }
+  return temperature === undefined ? {} : { temperature };
+}
 
 export class ClaudeTruncationError extends Error {
   constructor(public partialLength: number) {
@@ -147,7 +162,7 @@ export async function claudeChat(
         {
           model: modelId,
           max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          temperature: options?.temperature,
+          ...samplingParams(modelId, options?.temperature),
           system: cachedSystem(systemPrompt, cacheSystem),
           messages: cachedMessages(messages, cacheSystem),
         },
@@ -201,7 +216,7 @@ export async function claudeChatStreaming(
   const stream = anthropic.messages.stream({
     model: modelId,
     max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-    temperature: options?.temperature,
+    ...samplingParams(modelId, options?.temperature),
     system: cachedSystem(systemPrompt, cacheSystem),
     messages: cachedMessages(messages, cacheSystem),
   });
@@ -236,7 +251,7 @@ export function claudeStream(
   return anthropic.messages.stream({
     model: modelId,
     max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-    temperature: options?.temperature,
+    ...samplingParams(modelId, options?.temperature),
     system: cachedSystem(systemPrompt, cacheSystem),
     messages: cachedMessages(messages, cacheSystem),
   });
