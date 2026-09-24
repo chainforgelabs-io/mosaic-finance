@@ -1,21 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowLeft, Check, Loader2, MessageCircle } from "lucide-react";
+import { ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
-import {
-  CharlieChatHeader,
-  CharlieChatSurface,
-  ConversationBubble,
-  charlieInputClass,
-  charlieSendClass,
-} from "@/components/app/ConversationBubble";
-import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
 import { useOnboardingStore } from "@/stores/onboarding";
-import { useConversationStore } from "@/stores/conversation";
 import { getRiskProfileStatus, saveRiskProfile } from "@/lib/actions/risk-profile";
 
 interface QuestionOption {
@@ -114,6 +105,27 @@ const RISK_QUESTIONS: Question[] = [
   },
 ];
 
+const FOLLOW_UP_QUESTIONS: Question[] = [
+  {
+    id: "household",
+    text: "If a market drop stressed someone in your household, what would you do?",
+    options: [
+      { value: 1, label: "Change the plan so they feel more at ease" },
+      { value: 3, label: "Talk it through, then decide" },
+      { value: 5, label: "Stick with the plan" },
+    ],
+  },
+  {
+    id: "lagging_fund",
+    text: "A fund you own is down, and one you passed on is up. What feels right?",
+    options: [
+      { value: 1, label: "Sell and move to the one that's up" },
+      { value: 3, label: "Hold and review it later" },
+      { value: 5, label: "It doesn't bother me much" },
+    ],
+  },
+];
+
 function scoreToLabel(score: number): string {
   if (score <= 1.5) return "conservative";
   if (score <= 2.2) return "moderate-conservative";
@@ -132,13 +144,11 @@ function scoreToPrettyLabel(score: number): string {
   return "Aggressive";
 }
 
-type Phase = "questionnaire" | "conversation" | "review";
-
-interface ConvMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
+function answerLabel(question: Question, answers: Record<string, number>): string {
+  return question.options.find((option) => option.value === answers[question.id])?.label ?? "";
 }
+
+type Phase = "questionnaire" | "followup" | "review";
 
 export default function RiskProfilePage() {
   const router = useRouter();
@@ -148,31 +158,8 @@ export default function RiskProfilePage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Conversation phase state
-  const [convMessages, setConvMessages] = useState<ConvMessage[]>([]);
-  const [convInput, setConvInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [convSessionId, setConvSessionId] = useState<string | null>(null);
-  const [riskComplete, setRiskComplete] = useState(false);
-  const [riskResult, setRiskResult] = useState<Record<string, unknown> | null>(null);
-  const [isPreparingRiskProfile, setIsPreparingRiskProfile] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const hasStartedConv = useRef(false);
-  const errorBoundaryRef = useRef<ConversationErrorBoundary>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [checkingExistingProfile, setCheckingExistingProfile] = useState(true);
-
-  const handleRiskConversationRetry = () => {
-    setPhase("questionnaire");
-    hasStartedConv.current = false;
-    setConvMessages([]);
-    setConvSessionId(null);
-    setRiskComplete(false);
-    setRiskResult(null);
-    setIsStreaming(false);
-    setIsPreparingRiskProfile(false);
-  };
 
   useEffect(() => {
     completeStep("profile");
@@ -198,15 +185,13 @@ export default function RiskProfilePage() {
     };
   }, [completeStep, router]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [convMessages]);
-
-  const averageScore = Object.values(answers).length > 0
-    ? Object.values(answers).reduce((a, b) => a + b, 0) / Object.values(answers).length
-    : 0;
+  const scoredAnswers = RISK_QUESTIONS.map((item) => answers[item.id]).filter(
+    (value): value is number => value != null,
+  );
+  const averageScore =
+    scoredAnswers.length > 0
+      ? scoredAnswers.reduce((sum, value) => sum + value, 0) / scoredAnswers.length
+      : 0;
 
   const handleAnswer = (questionId: string, value: number) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -215,267 +200,40 @@ export default function RiskProfilePage() {
     }
   };
 
-  const handleQuestionnaireSubmit = async () => {
-    setPhase("conversation");
-
-    if (hasStartedConv.current) return;
-    hasStartedConv.current = true;
-
-    try {
-      const res = await fetch("/api/conversation/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionType: "risk-profile" }),
-      });
-      if (!res.ok) throw new Error("Failed to start session");
-      const { sessionId } = await res.json();
-      setConvSessionId(sessionId);
-
-      const primeMessage = `The client has completed a structured risk questionnaire. Here are their answers:\n${RISK_QUESTIONS.map((q) => `- ${q.text}: ${q.options.find((o) => o.value === answers[q.id])?.label ?? "Not answered"}`).join("\n")}\n\nQuestionnaire score: ${averageScore.toFixed(1)}/5 (${scoreToPrettyLabel(averageScore)})\n\nPlease now conduct a brief conversational follow-up (3-5 messages) to probe for behavioural biases and contradictions. Use concrete scenarios based on what you know about the client. When done, output the <RISK_PROFILE_COMPLETE> tag.`;
-
-      const msgRes = await fetch("/api/conversation/message", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, message: primeMessage, sessionType: "risk-profile" }),
-        });
-
-      if (!msgRes.ok) throw new Error("Failed to send");
-
-      const reader = msgRes.body?.getReader();
-      const assistantId = `assistant-${Date.now()}`;
-      setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-      setIsStreaming(true);
-      errorBoundaryRef.current?.resetTimeout();
-
-      if (!reader) {
-        errorBoundaryRef.current?.clearTimeout();
-        setConvMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: "Something went wrong. Please try sending your message again." }
-              : m,
-          ),
-        );
-        setIsStreaming(false);
-        return;
-      }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let accumulated = "";
-
-      const timerId = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.type === "delta") {
-                accumulated += data.text;
-                setConvMessages((prev) =>
-                  prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
-                );
-              }
-              if (data.type === "error") {
-                const errText =
-                  typeof data.message === "string"
-                    ? data.message
-                    : "Something went wrong. Please try sending your message again.";
-                setConvMessages((prev) =>
-                  prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
-                );
-              }
-              if (data.type === "done" && data.sessionComplete && data.extractedData) {
-                setRiskComplete(true);
-                setRiskResult(data.extractedData as Record<string, unknown>);
-              }
-            } catch { /* skip */ }
-          }
-        }
-        if (buffer.startsWith("data: ")) {
-          try {
-            const data = JSON.parse(buffer.slice(6));
-            if (data.type === "error") {
-              const errText =
-                typeof data.message === "string"
-                  ? data.message
-                  : "Something went wrong. Please try sending your message again.";
-              setConvMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
-              );
-            }
-          } catch {
-            /* incomplete trailing line */
-          }
-        }
-      } finally {
-        clearTimeout(timerId);
-        setIsPreparingRiskProfile(false);
-        errorBoundaryRef.current?.clearTimeout();
-      }
-      setIsStreaming(false);
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    } catch {
-      errorBoundaryRef.current?.clearTimeout();
-      setIsPreparingRiskProfile(false);
-      setConvMessages((prev) => [
-        ...prev,
-        { id: `err-${Date.now()}`, role: "assistant", content: "Something went wrong starting the risk conversation. You can still proceed with your questionnaire results." },
-      ]);
-      setIsStreaming(false);
-    }
-  };
-
-  const sendConvMessage = async () => {
-    if (!convSessionId || !convInput.trim() || isStreaming) return;
-
-    const userMsg = convInput.trim();
-    setConvInput("");
-    setConvMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: "user", content: userMsg }]);
-
-    const assistantId = `assistant-${Date.now()}`;
-    setConvMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-    setIsStreaming(true);
-    errorBoundaryRef.current?.resetTimeout();
-
-    const preparingTimer = setTimeout(() => setIsPreparingRiskProfile(true), 2500);
-
-    try {
-      const res = await fetch("/api/conversation/message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: convSessionId, message: userMsg, sessionType: "risk-profile" }),
-      });
-
-      if (!res.ok) throw new Error("Server error");
-      const reader = res.body?.getReader();
-      if (!reader) {
-        errorBoundaryRef.current?.clearTimeout();
-        setConvMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: "Something went wrong. Please try sending your message again." }
-              : m,
-          ),
-        );
-        return;
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let accumulated = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.type === "delta") {
-              accumulated += data.text;
-              setConvMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
-              );
-            }
-            if (data.type === "error") {
-              const errText =
-                typeof data.message === "string"
-                  ? data.message
-                  : "Something went wrong. Please try sending your message again.";
-              setConvMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
-              );
-            }
-            if (data.type === "done" && data.sessionComplete && data.extractedData) {
-              setRiskComplete(true);
-              setRiskResult(data.extractedData as Record<string, unknown>);
-            }
-          } catch { /* skip */ }
-        }
-      }
-      if (buffer.startsWith("data: ")) {
-        try {
-          const data = JSON.parse(buffer.slice(6));
-          if (data.type === "delta" && typeof data.text === "string") {
-            accumulated += data.text;
-            setConvMessages((prev) =>
-              prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m)),
-            );
-          }
-          if (data.type === "error") {
-            const errText =
-              typeof data.message === "string"
-                ? data.message
-                : "Something went wrong. Please try sending your message again.";
-            setConvMessages((prev) =>
-              prev.map((m) => (m.id === assistantId ? { ...m, content: errText } : m)),
-            );
-          }
-          if (data.type === "done" && data.sessionComplete && data.extractedData) {
-            setRiskComplete(true);
-            setRiskResult(data.extractedData as Record<string, unknown>);
-          }
-        } catch {
-          /* incomplete trailing line */
-        }
-      }
-    } catch {
-      setConvMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? { ...m, content: "Something went wrong. Please try sending your message again." }
-            : m,
-        ),
-      );
-    } finally {
-      clearTimeout(preparingTimer);
-      errorBoundaryRef.current?.clearTimeout();
-      setIsPreparingRiskProfile(false);
-      setIsStreaming(false);
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    }
-  };
-
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    setSaveError(null);
 
-    const riskScore = riskResult
-      ? (riskResult.risk_score as string) ?? scoreToLabel(averageScore)
-      : scoreToLabel(averageScore);
+    const riskScore = scoreToLabel(averageScore);
+    const conversationalInsights = FOLLOW_UP_QUESTIONS
+      .map((question) => `${question.text} ${answerLabel(question, answers)}`)
+      .join(" ");
 
-    const conversationalInsights = riskResult
-      ? (riskResult.conversational_summary as string) ?? ""
-      : "";
-
-    await saveRiskProfile({
+    const result = await saveRiskProfile({
       riskScore,
       conversationalInsights,
       questionnaireResponses: {
         answers,
         averageScore,
         questionnaireLabel: scoreToPrettyLabel(averageScore),
-        ...(riskResult ?? {}),
       },
     });
+
+    if (result.error) {
+      setSaveError(result.error);
+      setIsSubmitting(false);
+      return;
+    }
 
     completeStep("risk-profile");
     router.push("/onboarding/holdings");
   };
 
   const question = RISK_QUESTIONS[currentQ];
-  const allAnswered = Object.keys(answers).length === RISK_QUESTIONS.length;
-  const progress = (Object.keys(answers).length / RISK_QUESTIONS.length) * 100;
+  const allAnswered = RISK_QUESTIONS.every((item) => answers[item.id] != null);
+  const followUpAnswered = FOLLOW_UP_QUESTIONS.every((item) => answers[item.id] != null);
+  const progress = (RISK_QUESTIONS.filter((item) => answers[item.id] != null).length / RISK_QUESTIONS.length) * 100;
+  const profileLabel = scoreToPrettyLabel(averageScore);
 
   if (checkingExistingProfile) {
     return (
@@ -488,281 +246,236 @@ export default function RiskProfilePage() {
     );
   }
 
-  if (phase === "questionnaire") {
   return (
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-[640px]">
-          <div className="mb-2 flex justify-center">
-            <MosaicLogo size="sm" />
+    <div className="flex flex-1 items-center justify-center px-4 py-12">
+      <div className="w-full max-w-[640px]">
+        <div className="mb-2 flex justify-center">
+          <MosaicLogo size="sm" />
         </div>
 
-          <StepProgress
-            currentStep={currentStep}
-            completedSteps={completedSteps}
-            className="mb-8"
-          />
+        <StepProgress currentStep={currentStep} completedSteps={completedSteps} className="mb-8" />
 
-          <div className="rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:p-6 md:p-8">
-            <div className="mb-6 text-center">
-              <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[24px]">
-                Risk Tolerance Assessment
-              </h1>
-              <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
-                Understanding your comfort with investment risk helps us build a portfolio you can stick with.
-                There are no right or wrong answers.
-              </p>
-            </div>
-
-            {/* Progress bar */}
-            <div className="mb-6">
-              <div className="mb-1.5 flex justify-between">
-                <span className="font-body text-[12px] text-[var(--text-muted)]">
-                  Question {currentQ + 1} of {RISK_QUESTIONS.length}
-                </span>
-                <span className="font-body text-[12px] text-[var(--text-muted)]">
-                  {Math.round(progress)}%
-                </span>
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:p-6 md:p-8">
+          {phase === "questionnaire" ? (
+            <>
+              <div className="mb-6 text-center">
+                <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[24px]">
+                  Risk Tolerance Assessment
+                </h1>
+                <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
+                  We use this only to model a portfolio for projections. The model uses a growth rate
+                  that matches your risk tolerance, so you can see how that path might look over time.
+                  It is not a recommendation to buy or sell anything. There are no right or wrong answers.
+                </p>
               </div>
-              <div className="h-1.5 rounded-full bg-[var(--warm-200)]">
-                <div
-                  className="h-1.5 rounded-full bg-[var(--emerald)] transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            </div>
 
-            {/* Question */}
-            <div className="mb-6">
-              <h2 className="mb-4 font-display text-[18px] font-semibold text-[var(--text-primary)]">
-                {question.text}
-              </h2>
-              <div className="space-y-3">
-                {question.options.map((option) => {
-                  const isSelected = answers[question.id] === option.value;
-  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleAnswer(question.id, option.value)}
-            className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border px-5 py-4 text-left transition-all",
-                        isSelected
-                          ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/20"
-                          : "border-[var(--warm-200)] bg-white hover:bg-[var(--warm-100)]",
-                      )}
-                    >
-      <div
-        className={cn(
-                          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                          isSelected
-                            ? "border-[var(--emerald)] bg-[var(--emerald)]"
-                            : "border-[var(--warm-200)]",
-                        )}
-                      >
-                        {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
-        </div>
-                      <span className="font-body text-[14px] text-[var(--text-primary)]">
-                        {option.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => currentQ > 0 && setCurrentQ(currentQ - 1)}
-                disabled={currentQ === 0}
-                className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
-              >
-                <ArrowLeft className="size-4" />
-                Previous
-              </button>
-
-              {allAnswered ? (
-          <button
-            type="button"
-                  onClick={handleQuestionnaireSubmit}
-                  className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
-          >
-                  <MessageCircle className="size-4" />
-                  Continue to Follow-Up
-          </button>
-              ) : (
-          <button
-            type="button"
-                  onClick={() => currentQ < RISK_QUESTIONS.length - 1 && setCurrentQ(currentQ + 1)}
-                  disabled={!answers[question.id]}
-                  className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] disabled:opacity-30"
-          >
-                  Next
-                  <ArrowRight className="size-4" />
-          </button>
-              )}
-            </div>
-          </div>
-      </div>
-    </div>
-  );
-}
-
-  // Conversation + Review phase
-  return (
-    <ConversationErrorBoundary ref={errorBoundaryRef} onRetry={handleRiskConversationRetry}>
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-white pb-[env(safe-area-inset-bottom)]">
-      <div className="shrink-0 bg-white">
-        <div className="mx-auto max-w-[720px]">
-          <StepProgress
-            currentStep={currentStep}
-            completedSteps={completedSteps}
-            className="py-3"
-          />
-        </div>
-      </div>
-
-      <CharlieChatSurface>
-      <CharlieChatHeader />
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[720px] space-y-4 px-4 py-4">
-          <div className="mb-4 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
-            <p className="font-body text-[13px] text-[var(--text-secondary)]">
-              Based on your questionnaire score of <strong>{scoreToPrettyLabel(averageScore)}</strong>,
-              we&apos;ll ask a few follow-up questions to understand how you&apos;d react in real scenarios.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {convMessages.map((msg, i) => {
-              const isLast = i === convMessages.length - 1;
-              const showStreamingPlaceholder =
-                isStreaming && msg.role === "assistant" && isLast && !msg.content.trim();
-              if (!msg.content.trim() && !showStreamingPlaceholder) return null;
-              return (
-                <ConversationBubble
-                  key={msg.id}
-                  role={msg.role}
-                  content={msg.content}
-                  isStreaming={isStreaming && msg.role === "assistant" && isLast}
-                />
-              );
-            })}
-          </div>
-
-          {isPreparingRiskProfile && !riskComplete && (
-            <div className="mt-4 flex items-center gap-3 rounded-lg border border-[var(--emerald)]/20 bg-[var(--emerald)]/5 px-4 py-3">
-              <Loader2 className="size-4 animate-spin text-[var(--emerald)]" />
-              <span className="font-body text-[14px] text-[var(--text-secondary)]">
-                Preparing your risk profile...
-              </span>
-          </div>
-        )}
-
-          {riskComplete && (
-            <div className="mt-6 rounded-lg border border-[var(--emerald)]/30 bg-white p-6">
-              <h3 className="mb-2 font-display text-[18px] font-semibold text-[var(--text-primary)]">
-                Your Risk Profile
-              </h3>
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-full bg-[var(--emerald)] px-4 py-1.5">
-                  <span className="font-display text-[14px] font-semibold text-white">
-                    {riskResult?.risk_score
-                      ? String(riskResult.risk_score).replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-                      : scoreToPrettyLabel(averageScore)}
+              <div className="mb-6">
+                <div className="mb-1.5 flex justify-between">
+                  <span className="font-body text-[12px] text-[var(--text-muted)]">
+                    Question {currentQ + 1} of {RISK_QUESTIONS.length}
+                  </span>
+                  <span className="font-body text-[12px] text-[var(--text-muted)]">
+                    {Math.round(progress)}%
                   </span>
                 </div>
+                <div className="h-1.5 rounded-full bg-[var(--warm-200)]">
+                  <div
+                    className="h-1.5 rounded-full bg-[var(--emerald)] transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
-              {typeof riskResult?.conversational_summary === "string" && (
-                <p className="mb-4 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
-                  {riskResult.conversational_summary}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={handleFinalSubmit}
-                disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-3 font-display text-[15px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-60"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="size-5 animate-spin" />
-                ) : (
-                  <>
-                    Confirm & Continue
+
+              <div className="mb-6">
+                <h2 className="mb-4 font-display text-[18px] font-semibold text-[var(--text-primary)]">
+                  {question.text}
+                </h2>
+                <div className="space-y-3">
+                  {question.options.map((option) => {
+                    const isSelected = answers[question.id] === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleAnswer(question.id, option.value)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-lg border px-5 py-4 text-left transition-all",
+                          isSelected
+                            ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/20"
+                            : "border-[var(--warm-200)] bg-white hover:bg-[var(--warm-100)]",
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                            isSelected
+                              ? "border-[var(--emerald)] bg-[var(--emerald)]"
+                              : "border-[var(--warm-200)]",
+                          )}
+                        >
+                          {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
+                        </div>
+                        <span className="font-body text-[14px] text-[var(--text-primary)]">
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => currentQ > 0 && setCurrentQ(currentQ - 1)}
+                  disabled={currentQ === 0}
+                  className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
+                >
+                  <ArrowLeft className="size-4" />
+                  Previous
+                </button>
+
+                {allAnswered && currentQ === RISK_QUESTIONS.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setPhase("followup")}
+                    className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
+                  >
+                    Continue
                     <ArrowRight className="size-4" />
-                  </>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => currentQ < RISK_QUESTIONS.length - 1 && setCurrentQ(currentQ + 1)}
+                    disabled={!answers[question.id]}
+                    className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] disabled:opacity-30"
+                  >
+                    Next
+                    <ArrowRight className="size-4" />
+                  </button>
                 )}
-              </button>
-            </div>
+              </div>
+            </>
+          ) : phase === "followup" ? (
+            <>
+              <div className="mb-6 text-center">
+                <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[24px]">
+                  Two quick scenarios
+                </h1>
+                <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
+                  Pick the closest answer. This stays short on purpose.
+                </p>
+              </div>
+
+              <div className="mb-6 space-y-6">
+                {FOLLOW_UP_QUESTIONS.map((item) => (
+                  <div key={item.id}>
+                    <h2 className="mb-3 font-display text-[16px] font-semibold text-[var(--text-primary)]">
+                      {item.text}
+                    </h2>
+                    <div className="space-y-3">
+                      {item.options.map((option) => {
+                        const isSelected = answers[item.id] === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: option.value }))}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-lg border px-5 py-4 text-left transition-all",
+                              isSelected
+                                ? "border-[var(--emerald)] bg-[var(--emerald-soft)]/20"
+                                : "border-[var(--warm-200)] bg-white hover:bg-[var(--warm-100)]",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                                isSelected
+                                  ? "border-[var(--emerald)] bg-[var(--emerald)]"
+                                  : "border-[var(--warm-200)]",
+                              )}
+                            >
+                              {isSelected && <Check className="size-3 text-white" strokeWidth={3} />}
+                            </div>
+                            <span className="font-body text-[14px] text-[var(--text-primary)]">
+                              {option.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPhase("questionnaire")}
+                  className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                  <ArrowLeft className="size-4" />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhase("review")}
+                  disabled={!followUpAnswered}
+                  className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-30"
+                >
+                  See your profile
+                  <ArrowRight className="size-4" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-6 text-center">
+                <h1 className="font-display text-xl font-bold text-[var(--text-primary)] sm:text-[24px]">
+                  Your risk profile
+                </h1>
+                <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
+                  We&apos;ll use this to choose a growth rate for projections. Any portfolio we show is
+                  a model of that rate over time, for education only.
+                </p>
+              </div>
+
+              <div className="mb-6 flex justify-center">
+                <div className="rounded-full bg-[var(--emerald)] px-4 py-1.5">
+                  <span className="font-display text-[14px] font-semibold text-white">{profileLabel}</span>
+                </div>
+              </div>
+
+              {saveError && (
+                <p className="mb-4 text-center font-body text-sm text-[var(--error)]">{saveError}</p>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPhase("followup")}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
+                >
+                  <ArrowLeft className="size-4" />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFinalSubmit}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-60"
+                >
+                  {isSubmitting ? <Loader2 className="size-5 animate-spin" /> : "Continue"}
+                  {!isSubmitting && <ArrowRight className="size-4" />}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
-
-      {!riskComplete && (
-        <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-3">
-            <textarea
-              ref={textareaRef}
-              autoFocus
-              value={convInput}
-              onChange={(e) => setConvInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendConvMessage();
-                }
-              }}
-              placeholder="Type your response..."
-              disabled={isStreaming || !convSessionId}
-              rows={1}
-              className={charlieInputClass}
-            />
-            <button
-              type="button"
-              onClick={sendConvMessage}
-              disabled={isStreaming || !convInput.trim() || !convSessionId}
-              className={charlieSendClass}
-            >
-              <ArrowRight className="size-5" />
-            </button>
-            </div>
-          </div>
-        )}
-
-      </CharlieChatSurface>
-
-      {riskComplete && !isSubmitting && (
-        <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
-          <div className="mx-auto flex max-w-[720px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                setPhase("questionnaire");
-                hasStartedConv.current = false;
-                setConvMessages([]);
-                setConvSessionId(null);
-                setRiskComplete(false);
-                setRiskResult(null);
-              }}
-              className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <ArrowLeft className="size-4" />
-              Retake Questionnaire
-            </button>
-            <button
-              type="button"
-              onClick={handleFinalSubmit}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white hover:bg-[var(--emerald-dark)] disabled:opacity-60"
-            >
-              {isSubmitting ? <Loader2 className="size-5 animate-spin" /> : "Continue to Holdings"}
-              <ArrowRight className="size-4" />
-            </button>
-          </div>
-      </div>
-      )}
     </div>
-    </ConversationErrorBoundary>
   );
 }

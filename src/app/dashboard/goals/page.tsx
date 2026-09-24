@@ -10,6 +10,7 @@ import {
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
+import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
 import { formatMoney } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import type { GoalRow } from "@/types/tracking";
@@ -201,6 +202,11 @@ function GoalCard({
           {goal.priority}
         </span>
       </div>
+      {goal.amount_unknown && (
+        <p className="mt-3 font-body text-xs text-[var(--text-secondary)]">
+          Not sure of the amount — looking to find out what this will cost
+        </p>
+      )}
       {target > 0 && (
         <div className="mt-4">
           <div className="mb-1 flex justify-between font-body text-xs text-[var(--text-muted)]">
@@ -215,7 +221,10 @@ function GoalCard({
           </div>
         </div>
       )}
-      {remaining != null && goal.status === "active" && (
+      {goal.target_age != null && goal.status === "active" && (
+        <p className="mt-2 font-body text-xs text-[var(--text-muted)]">Target age {goal.target_age}</p>
+      )}
+      {remaining != null && goal.target_age == null && goal.status === "active" && (
         <p className="mt-2 font-body text-xs text-[var(--text-muted)]">
           {remaining >= 0 ? `${remaining} days remaining` : `${Math.abs(remaining)} days past target`}
         </p>
@@ -282,8 +291,15 @@ function GoalForm({
   const [targetAmount, setTargetAmount] = useState(
     initial?.target_amount != null ? String(initial.target_amount) : "",
   );
+  const [amountUnknown, setAmountUnknown] = useState(Boolean(initial?.amount_unknown));
   const [currentAmount, setCurrentAmount] = useState(String(initial?.current_amount ?? 0));
+  const [horizon, setHorizon] = useState<GoalHorizon>(
+    initial ? horizonFromStored(initial) : "date",
+  );
   const [targetDate, setTargetDate] = useState(initial?.target_date ?? "");
+  const [targetAge, setTargetAge] = useState(
+    initial?.target_age != null ? String(initial.target_age) : "",
+  );
   const [priority, setPriority] = useState<GoalPriority>(initial?.priority ?? "medium");
   const [saving, setSaving] = useState(false);
 
@@ -291,13 +307,18 @@ function GoalForm({
     if (!name.trim()) return;
     setSaving(true);
     const payload = {
-      name: name.trim(),
-      goal_type: goalType,
-      target_amount: targetAmount ? Number(targetAmount) : null,
+      ...goalDraftToPayload({
+        name,
+        goal_type: goalType,
+        target_amount: targetAmount,
+        amount_unknown: amountUnknown,
+        horizon,
+        target_date: targetDate,
+        target_age: targetAge,
+        priority,
+      }),
       current_amount: Number(currentAmount) || 0,
-      target_date: targetDate || null,
-      priority,
-      source: initial ? undefined : "manual",
+      source: initial ? undefined : ("manual" as const),
     };
     if (initial) {
       await fetch("/api/goals", {
@@ -351,9 +372,10 @@ function GoalForm({
             <input
               type="number"
               min="0"
-              value={targetAmount}
+              value={amountUnknown ? "" : targetAmount}
+              disabled={amountUnknown}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
             />
           </div>
           <div>
@@ -367,13 +389,57 @@ function GoalForm({
             />
           </div>
         </div>
-        <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Target date</label>
-        <input
-          type="date"
-          value={targetDate}
-          onChange={(e) => setTargetDate(e.target.value)}
-          className="mb-3 mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-        />
+        <label className="mb-3 flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={amountUnknown}
+            onChange={(e) => {
+              setAmountUnknown(e.target.checked);
+              if (e.target.checked) setTargetAmount("");
+            }}
+            className="mt-0.5 size-4 accent-[var(--emerald)]"
+          />
+          <span className="font-body text-xs text-[var(--text-secondary)]">
+            Not sure — I want to find out what this will cost
+          </span>
+        </label>
+        <div className="mb-2 flex gap-1">
+          {(["date", "age"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setHorizon(mode)}
+              className={cn(
+                "flex-1 rounded-lg py-2 font-display text-xs font-semibold",
+                horizon === mode
+                  ? "bg-[var(--emerald)] text-white"
+                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+              )}
+            >
+              {mode === "date" ? "By date" : "By age"}
+            </button>
+          ))}
+        </div>
+        {horizon === "date" ? (
+          <input
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            aria-label="Target date"
+            className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+          />
+        ) : (
+          <input
+            type="number"
+            min="1"
+            max="120"
+            value={targetAge}
+            onChange={(e) => setTargetAge(e.target.value)}
+            placeholder="Target age, e.g. 55"
+            aria-label="Target age"
+            className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+          />
+        )}
         <p className="mb-2 font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Priority</p>
         <div className="mb-5 flex gap-2">
           {GOAL_PRIORITIES.map((p) => (

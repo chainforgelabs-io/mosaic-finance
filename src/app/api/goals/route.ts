@@ -12,6 +12,8 @@ const createSchema = z.object({
   target_amount: z.number().min(0).optional().nullable(),
   current_amount: z.number().min(0).optional().nullable(),
   target_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  target_age: z.number().int().min(1).max(120).optional().nullable(),
+  amount_unknown: z.boolean().optional(),
   priority: z.enum(GOAL_PRIORITIES).optional().default("medium"),
   status: z.enum(GOAL_STATUSES).optional().default("active"),
   source: z.enum(["onboarding", "fact_find", "manual"]).optional().default("manual"),
@@ -64,9 +66,11 @@ export async function POST(req: NextRequest) {
     user_id: user.id,
     name: g.name,
     goal_type: g.goal_type,
-    target_amount: g.target_amount ?? null,
+    target_amount: g.amount_unknown ? null : (g.target_amount ?? null),
     current_amount: g.current_amount ?? 0,
-    target_date: g.target_date ?? null,
+    target_date: g.target_age != null ? null : (g.target_date ?? null),
+    target_age: g.target_age ?? null,
+    amount_unknown: g.amount_unknown ?? false,
     priority: g.priority ?? "medium",
     status: g.status ?? "active",
     source: g.source ?? "manual",
@@ -90,6 +94,14 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { id, ...updates } = parsed.data;
+  if (updates.amount_unknown === true) {
+    updates.target_amount = null;
+  }
+  if (updates.target_age != null) {
+    updates.target_date = null;
+  } else if (updates.target_date) {
+    updates.target_age = null;
+  }
   const { data, error } = await supabase
     .from("goals")
     .update(updates)

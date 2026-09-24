@@ -14,6 +14,7 @@ import {
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
+import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
 import { cn } from "@/lib/utils";
 
 interface DraftGoal {
@@ -21,7 +22,10 @@ interface DraftGoal {
   name: string;
   goal_type: GoalType;
   target_amount: string;
+  amount_unknown: boolean;
+  horizon: GoalHorizon;
   target_date: string;
+  target_age: string;
   priority: GoalPriority;
 }
 
@@ -31,7 +35,10 @@ function emptyGoal(): DraftGoal {
     name: "",
     goal_type: "savings",
     target_amount: "",
+    amount_unknown: false,
+    horizon: "date",
     target_date: "",
+    target_age: "",
     priority: "medium",
   };
 }
@@ -58,6 +65,8 @@ export default function OnboardingGoalsPage() {
           goal_type: GoalType;
           target_amount: number | null;
           target_date: string | null;
+          target_age: number | null;
+          amount_unknown: boolean | null;
           priority: GoalPriority;
         }[];
         if (existing.length > 0) {
@@ -67,7 +76,10 @@ export default function OnboardingGoalsPage() {
               name: g.name,
               goal_type: inferGoalType(g.goal_type),
               target_amount: g.target_amount != null ? String(g.target_amount) : "",
+              amount_unknown: Boolean(g.amount_unknown),
+              horizon: horizonFromStored(g),
               target_date: g.target_date ?? "",
+              target_age: g.target_age != null ? String(g.target_age) : "",
               priority: g.priority ?? "medium",
             })),
           );
@@ -86,11 +98,7 @@ export default function OnboardingGoalsPage() {
         credentials: "include",
         body: JSON.stringify({
           goals: valid.map((g) => ({
-            name: g.name.trim(),
-            goal_type: g.goal_type,
-            target_amount: g.target_amount ? Number(g.target_amount) : null,
-            target_date: g.target_date || null,
-            priority: g.priority,
+            ...goalDraftToPayload(g),
             source: "onboarding",
           })),
           replace: true,
@@ -167,33 +175,102 @@ export default function OnboardingGoalsPage() {
                         </option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      min="0"
-                      value={g.target_amount}
-                      onChange={(e) =>
-                        setGoals(
-                          goals.map((x) =>
-                            x.key === g.key ? { ...x, target_amount: e.target.value } : x,
-                          ),
-                        )
-                      }
-                      placeholder="Target amount"
-                      className="rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-                    />
-                    <input
-                      type="date"
-                      value={g.target_date}
-                      onChange={(e) =>
-                        setGoals(
-                          goals.map((x) =>
-                            x.key === g.key ? { ...x, target_date: e.target.value } : x,
-                          ),
-                        )
-                      }
-                      className="rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-                    />
-                    <div className="flex gap-1">
+                    <div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={g.amount_unknown ? "" : g.target_amount}
+                        disabled={g.amount_unknown}
+                        onChange={(e) =>
+                          setGoals(
+                            goals.map((x) =>
+                              x.key === g.key ? { ...x, target_amount: e.target.value } : x,
+                            ),
+                          )
+                        }
+                        placeholder="Target amount"
+                        className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
+                      />
+                      <label className="mt-2 flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={g.amount_unknown}
+                          onChange={(e) =>
+                            setGoals(
+                              goals.map((x) =>
+                                x.key === g.key
+                                  ? {
+                                      ...x,
+                                      amount_unknown: e.target.checked,
+                                      target_amount: e.target.checked ? "" : x.target_amount,
+                                    }
+                                  : x,
+                              ),
+                            )
+                          }
+                          className="mt-0.5 size-4 accent-[var(--emerald)]"
+                        />
+                        <span className="font-body text-xs text-[var(--text-secondary)]">
+                          Not sure — I want to find out what this will cost
+                        </span>
+                      </label>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <div className="mb-2 flex gap-1">
+                        {(["date", "age"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() =>
+                              setGoals(
+                                goals.map((x) => (x.key === g.key ? { ...x, horizon: mode } : x)),
+                              )
+                            }
+                            className={cn(
+                              "flex-1 rounded-lg py-2 font-display text-[11px] font-semibold",
+                              g.horizon === mode
+                                ? "bg-[var(--emerald)] text-white"
+                                : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+                            )}
+                          >
+                            {mode === "date" ? "By date" : "By age"}
+                          </button>
+                        ))}
+                      </div>
+                      {g.horizon === "date" ? (
+                        <input
+                          type="date"
+                          value={g.target_date}
+                          onChange={(e) =>
+                            setGoals(
+                              goals.map((x) =>
+                                x.key === g.key ? { ...x, target_date: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          aria-label="Target date"
+                          className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+                        />
+                      ) : (
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          value={g.target_age}
+                          onChange={(e) =>
+                            setGoals(
+                              goals.map((x) =>
+                                x.key === g.key ? { ...x, target_age: e.target.value } : x,
+                              ),
+                            )
+                          }
+                          placeholder="Target age, e.g. 55"
+                          aria-label="Target age"
+                          className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+                        />
+                      )}
+                    </div>
+                    <div className="flex gap-1 sm:col-span-2">
                       {GOAL_PRIORITIES.map((p) => (
                         <button
                           key={p}

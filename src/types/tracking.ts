@@ -67,6 +67,8 @@ export interface GoalRow {
   target_amount: number | null;
   current_amount: number;
   target_date: string | null;
+  target_age: number | null;
+  amount_unknown: boolean;
   priority: GoalPriority;
   status: GoalStatus;
   source: GoalSource;
