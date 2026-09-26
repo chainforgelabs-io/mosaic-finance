@@ -59,7 +59,7 @@ export default function GoalsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
@@ -87,7 +87,7 @@ export default function GoalsPage() {
           ))}
         </div>
       ) : active.length === 0 && achieved.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-12 text-center">
+        <div className="w-full rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-6 py-16 text-center">
           <Target className="mx-auto mb-3 size-10 text-[var(--text-muted)]" />
           <p className="font-display font-semibold">No goals yet</p>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">

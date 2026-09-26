@@ -254,7 +254,7 @@ export default function CashFlowPage() {
       : null;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
@@ -300,6 +300,8 @@ export default function CashFlowPage() {
         </div>
       )}
 
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0 space-y-6">
       <div className="flex items-center justify-between rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2">
         <button
           type="button"
@@ -480,9 +482,11 @@ export default function CashFlowPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
         <SpendingCategoryChart data={categorySlices} />
         <WeeklySpendChart data={weeklyBars} baseline={weeklyBaseline} />
+      </div>
       </div>
 
       {showAdd && (
