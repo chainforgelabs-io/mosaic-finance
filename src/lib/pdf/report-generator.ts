@@ -1,3 +1,4 @@
+import path from 'node:path';
 import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 
@@ -24,7 +25,9 @@ async function launchBrowser() {
   return puppeteerCore.launch({
     args: [...chromium.args, ...minimalArgs],
     defaultViewport: { width: 1280, height: 720 },
-    executablePath: await chromium.executablePath(),
+    executablePath: await chromium.executablePath(
+      path.join(process.cwd(), 'node_modules/@sparticuz/chromium/bin'),
+    ),
     headless: true,
     timeout: 60_000,
     protocolTimeout: 60_000,

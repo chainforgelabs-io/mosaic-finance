@@ -47,6 +47,8 @@ export async function runScan(options?: {
   includeFirehose?: boolean;
   includeCongress?: boolean;
   trigger?: ScanTrigger;
+  /** Intended cron slot, so a late start still covers that slot. */
+  scheduledFor?: string;
 }): Promise<ScanSummary> {
   const startedAt = new Date().toISOString();
   const mode = options?.mode ?? (await getCurrentMode());
@@ -56,6 +58,7 @@ export async function runScan(options?: {
   const scanRunId = await startScanRun({
     trigger: options?.trigger ?? "manual",
     mode,
+    scheduledFor: options?.scheduledFor,
   });
 
   let trackedPostsIngested = 0;

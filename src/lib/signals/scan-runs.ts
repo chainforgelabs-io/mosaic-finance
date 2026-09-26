@@ -18,6 +18,8 @@ export function nearestCronSlot(now = new Date()): string {
 export async function startScanRun(params: {
   trigger: ScanTrigger;
   mode?: PicksMode;
+  /** Intended cron instant. Falls back to a 30-minute rounding of now. */
+  scheduledFor?: string;
 }): Promise<string | null> {
   try {
     const supabase = createServiceClient();
@@ -27,7 +29,9 @@ export async function startScanRun(params: {
         trigger: params.trigger,
         mode: params.mode ?? null,
         scheduled_for:
-          params.trigger === "manual" ? null : nearestCronSlot(),
+          params.trigger === "manual"
+            ? null
+            : (params.scheduledFor ?? nearestCronSlot()),
         status: "running",
         scoring_config_version: SCORING_CONFIG_VERSION,
       })

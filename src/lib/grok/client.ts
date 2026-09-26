@@ -1,3 +1,5 @@
+import { GrokConfigError } from "./errors";
+
 const XAI_BASE = "https://api.x.ai/v1";
 const API_KEY = process.env.XAI_API_KEY;
 const DEFAULT_MODEL = "grok-3-fast-latest";
@@ -60,6 +62,12 @@ export async function grokChat(
     },
     body: JSON.stringify(body),
   });
+
+  if (res.status === 401 || res.status === 403) {
+    // Drop the body. xAI echoes key material in some permission errors.
+    await res.body?.cancel();
+    throw new GrokConfigError(res.status);
+  }
 
   if (!res.ok) {
     const errorText = await res.text();

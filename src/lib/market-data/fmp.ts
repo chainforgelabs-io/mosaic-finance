@@ -143,9 +143,9 @@ export async function getHistoricalPrices(
   if (from) params.from = from;
   if (to) params.to = to;
 
-  const data = await fmpFetch<
+  const data = await fmpFetchOptional<
     FMPHistoricalRow[] | { historical?: FMPHistoricalRow[] }
-  >("/historical-price-eod/full", params);
+  >("/historical-price-eod/full", [], params);
 
   // stable returns a flat array; tolerate legacy {historical} wrapper
   const rows = Array.isArray(data) ? data : data.historical || [];
