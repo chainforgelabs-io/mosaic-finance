@@ -106,7 +106,7 @@ function SectionPanel({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5">
+      <div className="min-h-0 flex-1 overflow-y-auto p-5">
         <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)] mb-1">
           {section.title}
         </h2>
@@ -135,6 +135,10 @@ function SectionPanel({
                 </li>
               ))}
             </ul>
+            <p className="mt-3 font-[family-name:var(--font-body)] text-xs leading-relaxed text-[var(--text-muted)]">
+              These are options you can take to a licensed financial advisor to discuss. This is
+              educational information, not financial advice.
+            </p>
           </div>
         )}
 
@@ -160,9 +164,9 @@ function SectionPanel({
             </table>
           </div>
         )}
+      </div>
 
-        {/* Section navigator chips */}
-        <div className="mt-6 pt-4 border-t border-[var(--warm-200)]">
+      <div className="shrink-0 border-t border-[var(--warm-200)] bg-white px-5 py-3">
           <p className="font-[family-name:var(--font-body)] text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-2">
             Jump to section
           </p>
@@ -182,7 +186,6 @@ function SectionPanel({
             ))}
           </div>
         </div>
-      </div>
     </div>
   );
 }
@@ -444,7 +447,7 @@ export default function WalkthroughPage() {
   const currentSection = plan.sections[currentSectionIndex];
 
   return (
-    <div className="-mx-4 -my-6 flex h-[calc(100vh-5.5rem)] flex-col md:-mx-6 md:-my-8 md:h-[calc(100vh-0px)] md:flex-row">
+    <div className="-mx-4 -my-6 flex h-[calc(100dvh-8rem)] min-h-0 flex-col overflow-hidden md:-mx-6 md:-my-8 md:h-[calc(100dvh-4.75rem)] md:flex-row">
       <div className="hidden md:flex w-[40%] border-r border-[var(--warm-200)] bg-white flex-col overflow-hidden">
         <SectionPanel
           section={currentSection}

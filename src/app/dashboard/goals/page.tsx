@@ -190,6 +190,11 @@ function GoalCard({
             {GOAL_TYPE_LABELS[goal.goal_type] ?? goal.goal_type}
           </p>
           <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{goal.name}</h3>
+          {(goal.source === "fact_find" || goal.source === "onboarding") && (
+            <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
+              From your onboarding session — change this if it isn&apos;t quite right.
+            </p>
+          )}
         </div>
         <span
           className={cn(

@@ -225,6 +225,10 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                 </li>
               ))}
             </ul>
+            <p className="mt-3 font-[family-name:var(--font-body)] text-xs leading-relaxed text-[var(--text-muted)]">
+              These are options you can take to a licensed financial advisor to discuss. This is
+              educational information, not financial advice.
+            </p>
           </div>
         )}
 

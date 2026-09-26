@@ -28,6 +28,27 @@ function toPriority(raw: string | undefined): GoalPriority {
   return "medium";
 }
 
+export function goalRowFromExtracted(
+  g: JsonbGoal,
+  retirementAge?: number | null,
+) {
+  const name = String(g.goal ?? g.type ?? "").trim();
+  if (!name) return null;
+  const goalType = inferGoalType(g.type ?? g.goal);
+  const rawAmount = g.target_amount;
+  const amountUnknown = rawAmount == null || rawAmount === 0;
+  const useAge = goalType === "retirement" && retirementAge != null && retirementAge >= 1 && retirementAge <= 120;
+  return {
+    name,
+    goal_type: goalType,
+    target_amount: amountUnknown ? null : rawAmount,
+    amount_unknown: amountUnknown,
+    target_date: useAge ? null : toDate(g.target_date ?? g.target_year ?? null),
+    target_age: useAge ? Math.round(retirementAge) : null,
+    priority: toPriority(g.priority),
+  };
+}
+
 export async function seedGoalsFromProfile(
   supabase: SupabaseClient,
   userId: string,
@@ -49,21 +70,40 @@ export async function seedGoalsFromProfile(
     .limit(1)
     .maybeSingle();
 
-  const raw = profile?.financial_goals;
+  let raw = profile?.financial_goals as JsonbGoal[] | null;
+  let retirementAge: number | null = null;
+
+  const { data: session } = await supabase
+    .from("conversation_sessions")
+    .select("metadata")
+    .eq("user_id", userId)
+    .eq("session_type", "fact-find")
+    .eq("status", "completed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const extracted =
+    session?.metadata && typeof session.metadata === "object"
+      ? (session.metadata as { extracted_data?: Record<string, unknown> }).extracted_data
+      : null;
+  if (extracted && typeof extracted.retirement_target_age === "number") {
+    retirementAge = extracted.retirement_target_age;
+  }
+  if (!Array.isArray(raw) || raw.length === 0) {
+    const fromChat = extracted?.goals;
+    raw = Array.isArray(fromChat) ? (fromChat as JsonbGoal[]) : null;
+  }
   if (!Array.isArray(raw) || raw.length === 0) return;
 
-  const rows = (raw as JsonbGoal[])
+  const rows = raw
     .map((g) => {
-      const name = String(g.goal ?? g.type ?? "").trim();
-      if (!name) return null;
+      const mapped = goalRowFromExtracted(g, retirementAge);
+      if (!mapped) return null;
       return {
         user_id: userId,
-        name,
-        goal_type: inferGoalType(g.type ?? g.goal),
-        target_amount: g.target_amount ?? null,
+        ...mapped,
         current_amount: 0,
-        target_date: toDate(g.target_date ?? g.target_year ?? null),
-        priority: toPriority(g.priority),
         status: "active" as const,
         source: "fact_find" as const,
       };
@@ -79,6 +119,7 @@ export async function upsertGoalsFromExtracted(
   userId: string,
   goals: JsonbGoal[],
   source: "fact_find" | "onboarding" | "manual" = "fact_find",
+  retirementAge?: number | null,
 ): Promise<void> {
   if (goals.length === 0) return;
 
@@ -95,17 +136,13 @@ export async function upsertGoalsFromExtracted(
   );
 
   for (const g of goals) {
-    const name = String(g.goal ?? g.type ?? "").trim();
-    if (!name) continue;
+    const mapped = goalRowFromExtracted(g, retirementAge);
+    if (!mapped) continue;
     const payload = {
-      name,
-      goal_type: inferGoalType(g.type ?? g.goal),
-      target_amount: g.target_amount ?? null,
-      target_date: toDate(g.target_date ?? g.target_year ?? null),
-      priority: toPriority(g.priority),
+      ...mapped,
       source,
     };
-    const id = byName.get(name.toLowerCase());
+    const id = byName.get(mapped.name.toLowerCase());
     if (id) {
       await supabase.from("goals").update(payload).eq("id", id).eq("user_id", userId);
     } else {

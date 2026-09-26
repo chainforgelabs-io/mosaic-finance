@@ -120,6 +120,7 @@ export async function POST(req: NextRequest) {
         priority: g.priority,
       })),
       'fact_find',
+      d.retirement_target_age ?? null,
     );
   }
 

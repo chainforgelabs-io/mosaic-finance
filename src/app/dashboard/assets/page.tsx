@@ -575,7 +575,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData } = usePlanStore();
+  const { rawPlanData, planStatus } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -751,6 +751,15 @@ export default function AssetsPage() {
         </div>
       </div>
 
+      {planStatus === "generating" && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <p className="font-body text-sm text-[var(--text-secondary)]">
+            Your Progress Report is still generating. Charts that depend on it will fill in when it
+            is ready. This usually takes about 5 minutes after onboarding.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-8">
         {/* NET WORTH HERO BANNER */}
         <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
@@ -895,7 +904,24 @@ export default function AssetsPage() {
               <AssetClassAllocationChart accounts={holdings} />
             )}
           </div>
-          <AssetAllocationChart />
+          {planStatus === "generating" ? (
+            <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
+              <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
+                Recommended allocation
+              </h3>
+              <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
+                Filled in from your Progress Report
+              </p>
+              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--warm-200)] bg-[var(--warm-50)]/50 px-4 py-8">
+                <p className="font-body text-sm font-medium text-[var(--text-secondary)]">Generating…</p>
+                <p className="mt-1 text-center font-body text-xs text-[var(--text-muted)]">
+                  Should take about 5 minutes after onboarding
+                </p>
+              </div>
+            </div>
+          ) : (
+            <AssetAllocationChart />
+          )}
         </div>
 
         {/* ACCOUNT SUMMARY */}

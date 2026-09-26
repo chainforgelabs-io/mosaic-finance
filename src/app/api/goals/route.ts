@@ -58,9 +58,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  if (replace) {
-    await supabase.from("goals").delete().eq("user_id", user.id);
-  }
+  const { data: prior } = replace
+    ? await supabase.from("goals").select("id").eq("user_id", user.id)
+    : { data: null };
 
   const rows = parsed.data.map((g) => ({
     user_id: user.id,
@@ -78,6 +78,12 @@ export async function POST(req: NextRequest) {
 
   const { data, error } = await supabase.from("goals").insert(rows).select();
   if (error) return NextResponse.json({ error: "Failed to save goals" }, { status: 500 });
+
+  const priorIds = (prior ?? []).map((row) => row.id);
+  if (priorIds.length > 0) {
+    await supabase.from("goals").delete().in("id", priorIds).eq("user_id", user.id);
+  }
+
   return NextResponse.json({ goals: data ?? [] }, { status: 201 });
 }
 

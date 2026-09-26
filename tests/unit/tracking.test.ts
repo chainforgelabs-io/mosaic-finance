@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { inferGoalType, isSpendingCategory } from "@/lib/tracking/categories";
 import { addDays, monthKey, startOfMonth, startOfWeekMonday } from "@/lib/tracking/dates";
 import { goalDraftToPayload, horizonFromStored } from "@/lib/tracking/goal-draft";
+import { goalRowFromExtracted } from "@/lib/tracking/sync-goals";
 
 describe("tracking date helpers", () => {
   it("starts weeks on Monday", () => {
@@ -25,6 +26,7 @@ describe("category helpers", () => {
   it("maps fact-find labels onto goal types", () => {
     expect(inferGoalType("Emergency fund")).toBe("emergency_fund");
     expect(inferGoalType("pay off debt")).toBe("debt_payoff");
+    expect(inferGoalType("Debt Paydown")).toBe("debt_payoff");
     expect(inferGoalType("house")).toBe("home_purchase");
     expect(inferGoalType("custom dream")).toBe("other");
   });
@@ -72,6 +74,22 @@ describe("goal draft payload", () => {
       amount_unknown: true,
       target_age: 55,
       target_date: null,
+    });
+  });
+
+  it("turns a zero target into an unknown amount and uses retirement age", () => {
+    expect(
+      goalRowFromExtracted(
+        { type: "Retirement", priority: "high", target_date: "2053-01-01", target_amount: 0 },
+        60,
+      ),
+    ).toMatchObject({
+      name: "Retirement",
+      goal_type: "retirement",
+      target_amount: null,
+      amount_unknown: true,
+      target_date: null,
+      target_age: 60,
     });
   });
 
