@@ -17,6 +17,7 @@ export interface TransactionRow {
   note: string | null;
   source: TransactionSource;
   document_id: string | null;
+  category_confirmed: boolean;
   created_at: string;
   updated_at: string;
 }

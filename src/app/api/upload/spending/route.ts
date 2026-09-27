@@ -11,21 +11,15 @@ import {
 } from "@/lib/entitlements";
 import { MODEL_IDS } from "@/lib/claude/client";
 import { isSpendingCategory, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
+import { prepareSpendingMedia, UploadMediaError } from "@/lib/tracking/upload-media";
 import type { ParsedSpendingItem } from "@/types/tracking";
-
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-] as const;
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_FILES = 8;
 
 const SPENDING_PARSE_PROMPT = `You are a spending-statement parser for Mosaic Finance, a Canadian financial tracking and education platform.
 
-The user uploaded screenshot(s) or a PDF of banking-app transactions. Sensitive information (account numbers, SIN, full legal name, card numbers) may be cropped or redacted. That is expected — do NOT flag redacted fields as errors.
+The user uploaded a photo, screenshot, or PDF of banking or card transactions. iPhone photos may have been converted from HEIC. Sensitive information (account numbers, SIN, full legal name, card numbers) may be cropped or redacted. That is expected — do NOT flag redacted fields as errors.
 
 Extract every visible transaction. For each:
 - txn_date: ISO date YYYY-MM-DD if visible. If only a day/month is shown, use the most recent matching date. If unknown, null.
@@ -48,7 +42,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON object:
 RULES:
 - Do NOT invent transactions that are not visible
 - Amounts must be positive numbers
-- If the document is not a spending list, return { "transactions": [], "confidence": "low", "notes": "Document does not appear to be a spending screenshot" }
+- If the file does not show a list of transactions, return { "transactions": [], "confidence": "low", "notes": "File does not appear to show transactions" }
 - Prefer CAD. If another currency is shown, convert only if a CAD amount is also visible; otherwise keep the number and note the currency`;
 
 function normalizeParsed(raw: unknown): ParsedSpendingItem[] {
@@ -109,7 +103,7 @@ export async function POST(req: NextRequest) {
 
     if (files.length === 0) {
       return NextResponse.json(
-        { error: "No files provided. Upload JPEG, PNG, WebP, or PDF screenshots." },
+        { error: "No files provided. Upload a photo, screenshot, or PDF." },
         { status: 400 },
       );
     }
@@ -124,80 +118,84 @@ export async function POST(req: NextRequest) {
     const documentIds: string[] = [];
     let overallConfidence: "high" | "medium" | "low" = "high";
     const notes: string[] = [];
+    let stored = true;
 
     for (const file of files) {
-      if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number])) {
-        return NextResponse.json(
-          {
-            error: `Unsupported file type: ${file.type || file.name}. Accepted formats: JPEG, PNG, WebP, PDF.`,
-          },
-          { status: 400 },
-        );
-      }
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json({ error: "File too large. Maximum size is 10 MB." }, { status: 400 });
       }
 
       const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64Data = buffer.toString("base64");
-      const fileExt = file.name.split(".").pop() ?? "jpg";
-      const storagePath = `spending/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
+      let prepared;
+      try {
+        prepared = await prepareSpendingMedia(Buffer.from(arrayBuffer), file.name, file.type);
+      } catch (error) {
+        if (error instanceof UploadMediaError) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
+      }
+
+      const base64Data = prepared.buffer.toString("base64");
+      const storagePath = `spending/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${prepared.extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("documents")
-        .upload(storagePath, buffer, {
-          contentType: file.type,
+        .upload(storagePath, prepared.buffer, {
+          contentType: prepared.mediaType,
           upsert: false,
         });
 
+      let docRecord: { id: string } | null = null;
       if (uploadError) {
+        stored = false;
         captureAPIError(uploadError, {
           route: "upload/spending",
           userId: user.id,
           step: "storage_upload",
         });
-        return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
-      }
+      } else {
+        const { data, error: insertError } = await supabase
+          .from("document_uploads")
+          .insert({
+            user_id: user.id,
+            storage_path: storagePath,
+            parse_status: "processing",
+          })
+          .select()
+          .single();
 
-      const { data: docRecord, error: insertError } = await supabase
-        .from("document_uploads")
-        .insert({
-          user_id: user.id,
-          storage_path: storagePath,
-          parse_status: "processing",
-        })
-        .select()
-        .single();
-
-      if (insertError || !docRecord) {
-        captureAPIError(insertError, {
-          route: "upload/spending",
-          userId: user.id,
-          step: "document_record_insert",
-        });
-        return NextResponse.json({ error: "Failed to create document record" }, { status: 500 });
+        if (insertError || !data) {
+          stored = false;
+          captureAPIError(insertError, {
+            route: "upload/spending",
+            userId: user.id,
+            step: "document_record_insert",
+          });
+        } else {
+          docRecord = data;
+        }
       }
 
       try {
-        const isPdf = file.type === "application/pdf";
-        const contentBlock = isPdf
-          ? {
-              type: "document" as const,
-              source: {
-                type: "base64" as const,
-                media_type: "application/pdf" as const,
-                data: base64Data,
-              },
-            }
-          : {
-              type: "image" as const,
-              source: {
-                type: "base64" as const,
-                media_type: file.type as "image/jpeg" | "image/png" | "image/webp",
-                data: base64Data,
-              },
-            };
+        const contentBlock =
+          prepared.kind === "pdf"
+            ? {
+                type: "document" as const,
+                source: {
+                  type: "base64" as const,
+                  media_type: "application/pdf" as const,
+                  data: base64Data,
+                },
+              }
+            : {
+                type: "image" as const,
+                source: {
+                  type: "base64" as const,
+                  media_type: prepared.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+                  data: base64Data,
+                },
+              };
 
         const response = await anthropic.messages.create({
           model: MODEL_IDS.sonnet,
@@ -207,7 +205,7 @@ export async function POST(req: NextRequest) {
               role: "user",
               content: [
                 contentBlock,
-                { type: "text", text: "Parse the spending transactions from this screenshot or statement." },
+                { type: "text", text: "Parse the spending transactions from this photo, screenshot, or statement." },
               ],
             },
           ],
@@ -240,32 +238,35 @@ export async function POST(req: NextRequest) {
         }
         if (parsed.notes) notes.push(parsed.notes);
 
-        await supabase
-          .from("document_uploads")
-          .update({
-            parsed_holdings: parsed,
-            parse_status: "completed",
-          })
-          .eq("id", docRecord.id);
-
-        documentIds.push(docRecord.id);
+        if (docRecord) {
+          await supabase
+            .from("document_uploads")
+            .update({
+              parsed_holdings: parsed,
+              parse_status: "completed",
+            })
+            .eq("id", docRecord.id);
+          documentIds.push(docRecord.id);
+        }
       } catch (parseError) {
         captureAPIError(parseError, {
           route: "upload/spending",
           userId: user.id,
-          documentId: docRecord.id,
+          documentId: docRecord?.id,
           step: "claude_vision_parse",
         });
-        await supabase
-          .from("document_uploads")
-          .update({ parse_status: "failed" })
-          .eq("id", docRecord.id);
+        if (docRecord) {
+          await supabase
+            .from("document_uploads")
+            .update({ parse_status: "failed" })
+            .eq("id", docRecord.id);
+        }
         return NextResponse.json(
           {
-            documentId: docRecord.id,
+            documentId: docRecord?.id ?? null,
             status: "failed",
             error:
-              "Could not parse the screenshot. Crop out account numbers and try a clearer photo of the transaction list.",
+              "Could not read the transactions. Try a clearer photo, screenshot, or PDF of the list.",
           },
           { status: 422 },
         );
@@ -275,6 +276,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       status: "completed",
       documentIds,
+      stored,
       confidence: overallConfidence,
       notes: notes.join(" "),
       transactions: allParsed,

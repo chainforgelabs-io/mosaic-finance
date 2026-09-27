@@ -13,6 +13,7 @@ const txnSchema = z.object({
   note: z.string().max(1000).optional().nullable(),
   source: z.enum(["manual", "screenshot"]).optional().default("manual"),
   document_id: z.string().uuid().optional().nullable(),
+  category_confirmed: z.boolean().optional(),
 });
 
 const batchSchema = z.object({
@@ -76,6 +77,8 @@ export async function POST(req: NextRequest) {
       note: t.note ?? null,
       source: t.source ?? "manual",
       document_id: t.document_id ?? null,
+      category_confirmed:
+        t.category_confirmed ?? (t.source ?? "manual") !== "screenshot",
     }),
   );
 

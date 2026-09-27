@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Camera,
+  Check,
   ChevronLeft,
   ChevronRight,
   Flame,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
   Upload,
@@ -38,6 +39,8 @@ const HOWTO_KEY = "mosaic-spending-howto-seen";
 interface ReviewRow extends ParsedSpendingItem {
   key: string;
   included: boolean;
+  categoryConfirmed: boolean;
+  documentId: string | null;
 }
 
 export default function CashFlowPage() {
@@ -52,6 +55,8 @@ export default function CashFlowPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
   const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(null);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  const [editing, setEditing] = useState<TransactionRow | null>(null);
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [view, setView] = useState<"week" | "month">("week");
@@ -123,6 +128,10 @@ export default function CashFlowPage() {
 
   const weekTotal = useMemo(
     () => transactions.reduce((s, t) => s + Number(t.amount), 0),
+    [transactions],
+  );
+  const unconfirmed = useMemo(
+    () => transactions.filter((t) => t.category_confirmed === false),
     [transactions],
   );
 
@@ -200,15 +209,26 @@ export default function CashFlowPage() {
       const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
       const json = await res.json();
       if (!res.ok) {
-        setParseError(json.error ?? "Could not parse screenshots.");
+        setParseError(json.error ?? "Could not read that file.");
         return;
       }
+      const documentId =
+        Array.isArray(json.documentIds) && json.documentIds.length === 1
+          ? String(json.documentIds[0])
+          : null;
       const rows: ReviewRow[] = (json.transactions as ParsedSpendingItem[]).map((t, i) => ({
         ...t,
         txn_date: t.txn_date ?? todayIso(),
         key: `${i}-${t.description}`,
         included: true,
+        categoryConfirmed: false,
+        documentId,
       }));
+      setReviewNotice(
+        json.stored === false
+          ? "The file itself was not stored, but the lines below are ready to review."
+          : null,
+      );
       setReviewRows(rows);
     } catch {
       setParseError("Upload failed. Try again.");
@@ -223,6 +243,7 @@ export default function CashFlowPage() {
     const toSave = reviewRows.filter((r) => r.included && r.amount > 0);
     if (toSave.length === 0) {
       setReviewRows(null);
+      setReviewNotice(null);
       return;
     }
     const res = await fetch("/api/transactions", {
@@ -237,14 +258,57 @@ export default function CashFlowPage() {
           description: r.description,
           note: r.note ?? null,
           source: "screenshot",
+          document_id: r.documentId,
+          category_confirmed: r.categoryConfirmed,
         })),
       }),
     });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? "Could not save those transactions.");
     }
+    const json = await res.json();
+    if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
     setReviewRows(null);
+    setReviewNotice(null);
+    await Promise.all([loadWeek(weekStart), loadMeta()]);
+  }
+
+  async function confirmCategories(ids: string[]) {
+    await Promise.all(
+      ids.map((id) =>
+        fetch("/api/transactions", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ id, category_confirmed: true }),
+        }),
+      ),
+    );
+    await Promise.all([loadWeek(weekStart), loadMeta()]);
+  }
+
+  async function handleEdit(
+    id: string,
+    payload: {
+      txn_date: string;
+      amount: number;
+      category: SpendingCategory;
+      description: string;
+      note?: string;
+    },
+  ) {
+    const res = await fetch("/api/transactions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, ...payload, category_confirmed: true }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error ?? "Could not save this spend.");
+    }
+    setEditing(null);
     await Promise.all([loadWeek(weekStart), loadMeta()]);
   }
 
@@ -406,13 +470,13 @@ export default function CashFlowPage() {
           disabled={parsing}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--warm-200)] bg-white px-4 py-2.5 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
         >
-          {parsing ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
-          Screenshot
+          {parsing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          Upload
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,application/pdf"
+          accept="image/*,.heic,.heif,.heics,application/pdf,.pdf"
           multiple
           className="hidden"
           onChange={(e) => handleFiles(e.target.files)}
@@ -433,11 +497,28 @@ export default function CashFlowPage() {
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">Nothing logged yet</p>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Add items one by one, or upload screenshots from your banking app.
+            Add items one by one, or upload a photo, screenshot, or statement.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
+          {unconfirmed.length > 0 && (
+            <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-body text-sm text-amber-900">
+                {unconfirmed.length === 1
+                  ? "1 spend still needs a category check."
+                  : `${unconfirmed.length} spends still need a category check.`}
+              </p>
+              <button
+                type="button"
+                onClick={() => confirmCategories(unconfirmed.map((t) => t.id))}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-800 px-3 py-2 font-display text-xs font-semibold text-white"
+              >
+                <Check className="size-3.5" />
+                Confirm all
+              </button>
+            </div>
+          )}
           {byCategory.map((g) => (
             <div key={g.category} className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
               <div className="flex items-center justify-between px-4 py-3">
@@ -456,24 +537,51 @@ export default function CashFlowPage() {
               </div>
               <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
                 {g.items.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-body text-sm text-[var(--text-primary)]">
                         {t.description || t.note || "Spend"}
                       </p>
-                      <p className="font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                        <p className="font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                        {t.category_confirmed === false && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-display text-[11px] font-semibold text-amber-800">
+                            Check category
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="font-body text-sm font-semibold tabular-nums">
                       {formatMoneyExact(Number(t.amount))}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      className="text-[var(--text-muted)] hover:text-[var(--error)]"
-                      aria-label="Delete"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {t.category_confirmed === false && (
+                        <button
+                          type="button"
+                          onClick={() => confirmCategories([t.id])}
+                          className="rounded-md p-1.5 text-amber-800 hover:bg-amber-50"
+                          aria-label="Confirm category"
+                        >
+                          <Check className="size-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setEditing(t)}
+                        className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                        aria-label="Edit"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(t.id)}
+                        className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -513,9 +621,21 @@ export default function CashFlowPage() {
       {reviewRows && (
         <ReviewModal
           rows={reviewRows}
+          notice={reviewNotice}
           onChange={setReviewRows}
-          onCancel={() => setReviewRows(null)}
+          onCancel={() => {
+            setReviewRows(null);
+            setReviewNotice(null);
+          }}
           onConfirm={confirmReview}
+        />
+      )}
+
+      {editing && (
+        <EditSpendSheet
+          txn={editing}
+          onClose={() => setEditing(null)}
+          onSave={(payload) => handleEdit(editing.id, payload)}
         />
       )}
 
@@ -654,6 +774,138 @@ function QuickAddSheet({
   );
 }
 
+function EditSpendSheet({
+  txn,
+  onClose,
+  onSave,
+}: {
+  txn: TransactionRow;
+  onClose: () => void;
+  onSave: (payload: {
+    txn_date: string;
+    amount: number;
+    category: SpendingCategory;
+    description: string;
+    note?: string;
+  }) => Promise<void>;
+}) {
+  const [amount, setAmount] = useState(String(txn.amount));
+  const [category, setCategory] = useState<SpendingCategory>(txn.category);
+  const [date, setDate] = useState(txn.txn_date);
+  const [description, setDescription] = useState(txn.description ?? "");
+  const [note, setNote] = useState(txn.note ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function submit() {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave({
+        txn_date: date,
+        amount: n,
+        category,
+        description,
+        note: note || undefined,
+      });
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not save this spend.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">Edit spend</h2>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <X className="size-5 text-[var(--text-muted)]" />
+          </button>
+        </div>
+        {txn.category_confirmed === false && (
+          <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 font-body text-sm text-amber-900">
+            This category was suggested from your upload. Saving marks it as checked.
+          </p>
+        )}
+        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Description
+        </label>
+        <input
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="mt-1 mb-4 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Amount
+        </label>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="mt-1 mb-4 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2.5 font-display text-lg tabular-nums"
+        />
+        <p className="mb-2 font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Category
+        </p>
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {SPENDING_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              className={cn(
+                "rounded-full px-2.5 py-1 font-display text-xs font-medium",
+                category === c
+                  ? "bg-[var(--emerald)] text-white"
+                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+              )}
+            >
+              {SPENDING_CATEGORY_LABELS[c]}
+            </button>
+          ))}
+        </div>
+        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Date
+        </label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="mt-1 mb-4 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Note (optional)
+        </label>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="mt-1 mb-5 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+        {saveError && (
+          <p className="mb-3 font-body text-sm text-[var(--error)]">{saveError}</p>
+        )}
+        <button
+          type="button"
+          onClick={submit}
+          disabled={saving}
+          className="w-full rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -662,13 +914,13 @@ function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue
           <Upload className="size-5 text-[var(--emerald-dark)]" />
         </div>
         <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
-          Upload spending screenshots
+          Upload spending
         </h2>
         <ul className="mt-3 space-y-2 font-body text-sm text-[var(--text-secondary)]">
-          <li>Open your banking or credit-card app and screenshot the transaction list.</li>
+          <li>A photo, screenshot, or PDF of a transaction list works, including iPhone photos.</li>
           <li>Crop out account numbers, card numbers, and your full name before uploading.</li>
-          <li>You can upload several images or PDFs at once (JPEG, PNG, WebP, PDF).</li>
-          <li>We’ll extract each line so you can fix categories before saving.</li>
+          <li>You can upload several files at once.</li>
+          <li>Each line gets a suggested category. You can edit it, and unconfirmed categories stay marked until you check them.</li>
         </ul>
         <div className="mt-6 flex gap-2">
           <button
@@ -693,16 +945,19 @@ function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue
 
 function ReviewModal({
   rows,
+  notice,
   onChange,
   onCancel,
   onConfirm,
 }: {
   rows: ReviewRow[];
+  notice: string | null;
   onChange: (rows: ReviewRow[]) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: () => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const included = rows.filter((r) => r.included);
 
   function update(key: string, patch: Partial<ReviewRow>) {
@@ -716,8 +971,11 @@ function ReviewModal({
           <div>
             <h2 className="font-display text-lg font-semibold">Review transactions</h2>
             <p className="font-body text-xs text-[var(--text-muted)]">
-              {included.length} of {rows.length} selected
+              {included.length} of {rows.length} selected. Suggested categories stay marked until you confirm them.
             </p>
+            {notice && (
+              <p className="mt-1 font-body text-xs text-amber-800">{notice}</p>
+            )}
           </div>
           <button type="button" onClick={onCancel} aria-label="Close">
             <X className="size-5 text-[var(--text-muted)]" />
@@ -726,7 +984,7 @@ function ReviewModal({
         <div className="flex-1 overflow-y-auto">
           {rows.length === 0 ? (
             <p className="p-6 font-body text-sm text-[var(--text-muted)]">
-              No transactions found. Try a clearer screenshot of the list.
+              No transactions found. Try a clearer photo, screenshot, or PDF of the list.
             </p>
           ) : (
             <ul className="divide-y divide-[var(--warm-100)]">
@@ -760,19 +1018,35 @@ function ReviewModal({
                           onChange={(e) => update(r.key, { txn_date: e.target.value })}
                           className="rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
                         />
-                        <select
-                          value={r.suggested_category}
-                          onChange={(e) =>
-                            update(r.key, { suggested_category: e.target.value as SpendingCategory })
-                          }
-                          className="col-span-2 rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm sm:col-span-1"
-                        >
-                          {SPENDING_CATEGORIES.map((c) => (
-                            <option key={c} value={c}>
-                              {SPENDING_CATEGORY_LABELS[c]}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="col-span-2 sm:col-span-1">
+                          <select
+                            value={r.suggested_category}
+                            onChange={(e) =>
+                              update(r.key, {
+                                suggested_category: e.target.value as SpendingCategory,
+                                categoryConfirmed: true,
+                              })
+                            }
+                            className="w-full rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
+                          >
+                            {SPENDING_CATEGORIES.map((c) => (
+                              <option key={c} value={c}>
+                                {SPENDING_CATEGORY_LABELS[c]}
+                              </option>
+                            ))}
+                          </select>
+                          {r.categoryConfirmed ? (
+                            <p className="mt-1 font-body text-[11px] text-[var(--emerald-dark)]">Category checked</p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => update(r.key, { categoryConfirmed: true })}
+                              className="mt-1 font-display text-[11px] font-semibold text-amber-800"
+                            >
+                              Suggested — confirm category
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -781,6 +1055,9 @@ function ReviewModal({
             </ul>
           )}
         </div>
+        {saveError && (
+          <p className="px-4 pt-3 font-body text-sm text-[var(--error)]">{saveError}</p>
+        )}
         <div className="flex gap-2 border-t border-[var(--warm-200)] p-4">
           <button
             type="button"
@@ -794,8 +1071,14 @@ function ReviewModal({
             disabled={saving || included.length === 0}
             onClick={async () => {
               setSaving(true);
-              await onConfirm();
-              setSaving(false);
+              setSaveError(null);
+              try {
+                await onConfirm();
+              } catch (error) {
+                setSaveError(error instanceof Error ? error.message : "Could not save those transactions.");
+              } finally {
+                setSaving(false);
+              }
             }}
             className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
           >
