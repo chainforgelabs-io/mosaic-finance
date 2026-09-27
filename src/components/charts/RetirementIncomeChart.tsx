@@ -36,8 +36,8 @@ export function RetirementIncomeChart() {
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
         Estimated monthly income at retirement
       </p>
-      <div className="flex flex-col sm:flex-row items-center gap-6 overflow-hidden">
-        <div className="relative w-[140px] h-[140px] sm:w-[180px] sm:h-[180px] shrink-0 mx-auto">
+      <div className="flex flex-col items-stretch gap-6 sm:flex-row sm:items-center">
+        <div className="relative mx-auto size-[180px] shrink-0">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>
               <Pie
@@ -69,17 +69,17 @@ export function RetirementIncomeChart() {
             </span>
           </div>
         </div>
-        <ul className="flex-1 min-w-0 space-y-2">
+        <ul className="w-full min-w-0 flex-1 space-y-2">
           {data.map((entry, i) => (
-            <li key={entry.name} className="flex items-center gap-2 min-w-0">
+            <li key={entry.name} className="flex items-start gap-2">
               <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
+                className="mt-1.5 size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: COLORS[i % COLORS.length] }}
               />
-              <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] flex-1 truncate">
+              <span className="min-w-0 flex-1 font-[family-name:var(--font-body)] text-sm leading-snug text-[var(--text-secondary)]">
                 {entry.name}
               </span>
-              <span className="font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+              <span className="shrink-0 font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">
                 {fmt(entry.value)}
               </span>
             </li>
