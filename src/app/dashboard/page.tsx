@@ -520,20 +520,23 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
   );
 }
 
+const chartRowClass =
+  "grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2";
+
 function ChartGrid() {
   return (
     <>
-      <div className="grid min-h-[240px] grid-cols-1 gap-6 lg:grid-cols-2">
+      <div className={`${chartRowClass} min-h-[240px]`}>
         <RetirementIncomeChart />
         <RetirementProgressBar />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={chartRowClass}>
         <DebtBreakdownChart />
         <AssetAllocationChart />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={chartRowClass}>
         <NetWorthTimeline />
         <ScoreBreakdownChart />
       </div>
