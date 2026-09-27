@@ -257,4 +257,8 @@ export function claudeStream(
   });
 }
 
+export function claudeSamplingParams(modelId: string) {
+  return samplingParams(modelId, undefined);
+}
+
 export { anthropic, MODEL_IDS };

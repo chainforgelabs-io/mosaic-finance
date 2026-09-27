@@ -224,11 +224,15 @@ export default function CashFlowPage() {
         categoryConfirmed: false,
         documentId,
       }));
-      setReviewNotice(
+      const notice = [
         json.stored === false
           ? "The file itself was not stored, but the lines below are ready to review."
-          : null,
-      );
+          : "",
+        typeof json.notes === "string" ? json.notes.trim() : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      setReviewNotice(notice || null);
       setReviewRows(rows);
     } catch {
       setParseError("Upload failed. Try again.");
