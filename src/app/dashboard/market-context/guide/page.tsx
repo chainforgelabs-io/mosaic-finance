@@ -189,28 +189,30 @@ export default function StockPickerGuidePage() {
 
         <Section icon={RefreshCw} title="Running scans & Light vs Heavy mode">
           <p>
-            Scans run automatically every 30 minutes during US market hours,
-            with a deeper nightly pass that also refreshes AI takes for the
-            top tickers, and a daily congress ingest each morning.
+            Scans run once each weekday and once overnight. The weekday scan
+            covers tracked X accounts and news. The overnight pass refreshes
+            AI takes for the top tickers. Congress filings are ingested once
+            a day.
           </p>
           <p>
             Want fresh data right now? Hit <strong>Run scan</strong> on the
             Discover tab (limited to 3 scans per 10 minutes). The summary
             line tells you how many posts and signals came in.
           </p>
-          <p>The mode toggle at the top of the Picks tab controls cost vs. coverage:</p>
+          <p>
+            The mode toggle does not change how often scans run. It changes
+            what the weekday scan includes:
+          </p>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
-              <strong>Light</strong> (default) &mdash; hourly scans of
-              tracked accounts + news only, AI takes for the top 5 tickers
-              nightly. Minimal API spend. Use when you are not actively
-              hunting.
+              <strong>Light</strong> (default) &mdash; tracked accounts and
+              news only. AI takes for the top 5 tickers overnight. The broad
+              X sweep stays off.
             </li>
             <li>
-              <strong>Heavy</strong> &mdash; every-30-minute scans, plus the
-              broad-X trend sweep, plus top-10 nightly AI enrichment. Flip it
-              on when you are aggressively looking for opportunities, flip
-              back when done.
+              <strong>Heavy</strong> &mdash; the same weekday and overnight
+              schedule, plus the broad X sweep, and AI takes for the top 10
+              tickers overnight.
             </li>
           </ul>
         </Section>

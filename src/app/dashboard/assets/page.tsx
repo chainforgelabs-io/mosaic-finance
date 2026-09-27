@@ -22,6 +22,7 @@ import {
   Pencil,
   PiggyBank,
   Plus,
+  Shield,
   ShieldAlert,
   Trash2,
   TrendingUp,
@@ -35,6 +36,7 @@ import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
+import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
@@ -113,8 +115,8 @@ const ACCOUNT_LABELS: Record<string, string> = {
   pension: "Pension",
 };
 
-const CATEGORIES = ["real_estate", "vehicle", "land", "precious_metals", "collectibles", "other"] as const;
-type AssetCategory = (typeof CATEGORIES)[number];
+const CATEGORIES = FIXED_ASSET_CATEGORIES;
+type AssetCategory = FixedAssetCategory;
 
 const CATEGORY_CONFIG: Record<AssetCategory, { label: string; icon: LucideIcon }> = {
   real_estate: { label: "Real Estate", icon: Home },
@@ -122,6 +124,7 @@ const CATEGORY_CONFIG: Record<AssetCategory, { label: string; icon: LucideIcon }
   land: { label: "Land", icon: MapPin },
   precious_metals: { label: "Precious Metals", icon: Gem },
   collectibles: { label: "Collectibles", icon: Award },
+  life_insurance: { label: "Life Insurance", icon: Shield },
   other: { label: "Other Assets", icon: Package },
 };
 
@@ -325,8 +328,15 @@ function FixedAssetForm({
           <input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Primary Residence" className={inputCls} />
         </div>
         <div>
-          <label className={labelCls}>Estimated Value ($)</label>
+          <label className={labelCls}>
+            {form.category === "life_insurance" ? "Cash value ($)" : "Estimated Value ($)"}
+          </label>
           <input type="number" value={form.estimated_value} onChange={(e) => set("estimated_value", e.target.value)} placeholder="0" className={inputCls} />
+          {form.category === "life_insurance" && (
+            <p className="mt-1 font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">
+              Cash value only. The death benefit is coverage, not part of this asset.
+            </p>
+          )}
         </div>
         <div>
           <label className={labelCls}>
@@ -971,8 +981,8 @@ export default function AssetsPage() {
 
         {/* FIXED ASSETS */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Home className="w-5 h-5 text-[var(--emerald)]" />
               <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Fixed Assets</h2>
               {fixedTotal > 0 && (
@@ -984,7 +994,7 @@ export default function AssetsPage() {
             {!showForm && !editingAsset && (
               <button
                 onClick={() => { setShowForm(true); setEditingAsset(null); }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
+                className="inline-flex w-fit shrink-0 items-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add Asset

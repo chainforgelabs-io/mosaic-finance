@@ -4,6 +4,8 @@ import { inferGoalType, type GoalPriority } from "@/lib/tracking/categories";
 interface JsonbGoal {
   goal?: string;
   type?: string;
+  name?: string;
+  description?: string;
   target_amount?: number | null;
   target_year?: number | null;
   target_date?: string | null;
@@ -32,9 +34,9 @@ export function goalRowFromExtracted(
   g: JsonbGoal,
   retirementAge?: number | null,
 ) {
-  const name = String(g.goal ?? g.type ?? "").trim();
+  const name = String(g.name ?? g.goal ?? g.type ?? g.description ?? "").trim();
   if (!name) return null;
-  const goalType = inferGoalType(g.type ?? g.goal);
+  const goalType = inferGoalType(g.type ?? g.goal ?? g.name);
   const rawAmount = g.target_amount;
   const amountUnknown = rawAmount == null || rawAmount === 0;
   const useAge = goalType === "retirement" && retirementAge != null && retirementAge >= 1 && retirementAge <= 120;
@@ -90,28 +92,38 @@ export async function seedGoalsFromProfile(
   if (extracted && typeof extracted.retirement_target_age === "number") {
     retirementAge = extracted.retirement_target_age;
   }
+  const fromChat = Array.isArray(extracted?.goals)
+    ? (extracted.goals as JsonbGoal[])
+    : null;
   if (!Array.isArray(raw) || raw.length === 0) {
-    const fromChat = extracted?.goals;
-    raw = Array.isArray(fromChat) ? (fromChat as JsonbGoal[]) : null;
+    raw = fromChat;
   }
-  if (!Array.isArray(raw) || raw.length === 0) return;
 
-  const rows = raw
-    .map((g) => {
-      const mapped = goalRowFromExtracted(g, retirementAge);
-      if (!mapped) return null;
-      return {
-        user_id: userId,
-        ...mapped,
-        current_amount: 0,
-        status: "active" as const,
-        source: "fact_find" as const,
-      };
-    })
-    .filter((r): r is NonNullable<typeof r> => r != null);
+  const toRows = (list: JsonbGoal[] | null) =>
+    (list ?? [])
+      .map((g) => {
+        const mapped = goalRowFromExtracted(g, retirementAge);
+        if (!mapped) return null;
+        return {
+          user_id: userId,
+          ...mapped,
+          current_amount: 0,
+          status: "active" as const,
+          source: "fact_find" as const,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r != null);
 
+  let rows = toRows(Array.isArray(raw) ? raw : null);
+  if (rows.length === 0 && fromChat && fromChat !== raw) {
+    rows = toRows(fromChat);
+  }
   if (rows.length === 0) return;
-  await supabase.from("goals").insert(rows);
+
+  const { error } = await supabase.from("goals").insert(rows);
+  if (error) {
+    console.error("[goals] seed insert failed", error.code);
+  }
 }
 
 export async function upsertGoalsFromExtracted(

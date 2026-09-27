@@ -3,6 +3,62 @@ import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { upsertGoalsFromExtracted } from '@/lib/tracking/sync-goals';
 
+function optionalNumber(value: unknown): number | undefined {
+  if (value == null || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(String(value).replace(/[$,]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function sanitizeFactFindBody(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const body = { ...(raw as Record<string, unknown>) };
+
+  if (Array.isArray(body.debts)) {
+    body.debts = body.debts.flatMap((row) => {
+      if (!row || typeof row !== "object") return [];
+      const debt = row as Record<string, unknown>;
+      const type = String(debt.type ?? debt.name ?? "").trim();
+      const balance = optionalNumber(debt.balance ?? debt.amount);
+      if (!type || balance == null) return [];
+      return [{
+        type,
+        balance,
+        rate: optionalNumber(debt.rate),
+        monthly_payment: optionalNumber(debt.monthly_payment),
+      }];
+    });
+  }
+
+  for (const key of [
+    "annual_income",
+    "household_total_income",
+    "monthly_expenses",
+    "monthly_savings",
+    "emergency_fund_months",
+    "retirement_target_age",
+  ]) {
+    if (key in body) body[key] = optionalNumber(body[key]);
+  }
+
+  if (Array.isArray(body.goals)) {
+    body.goals = body.goals.flatMap((row) => {
+      if (!row || typeof row !== "object") return [];
+      const goal = row as Record<string, unknown>;
+      const type = String(goal.type ?? goal.goal ?? goal.name ?? goal.description ?? "").trim();
+      if (!type) return [];
+      const targetDate = goal.target_date ?? goal.target_year;
+      return [{
+        type,
+        target_amount: optionalNumber(goal.target_amount),
+        target_date: targetDate == null || targetDate === "" ? undefined : String(targetDate),
+        priority: typeof goal.priority === "string" ? goal.priority : undefined,
+      }];
+    });
+  }
+
+  return body;
+}
+
 const DebtSchema = z.object({
   type: z.string(),
   balance: z.number(),
@@ -38,7 +94,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const parsed = BodySchema.safeParse(await req.json());
+  const parsed = BodySchema.safeParse(sanitizeFactFindBody(await req.json()));
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }

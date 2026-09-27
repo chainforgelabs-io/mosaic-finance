@@ -8,6 +8,7 @@ import {
 import { triggerPlanGeneration } from "@/lib/plan/trigger-generation";
 import { captureAPIError } from "@/lib/sentry";
 import { upsertGoalsFromExtracted } from "@/lib/tracking/sync-goals";
+import { FIXED_ASSET_CATEGORIES } from "@/lib/assets/categories";
 
 type DebtRow = {
   type: string;
@@ -392,15 +393,9 @@ export async function POST(
         const r = asRecord(row);
         if (!r) continue;
         const category = String(r.category ?? "other");
-        const allowedCat = [
-          "real_estate",
-          "vehicle",
-          "land",
-          "precious_metals",
-          "collectibles",
-          "other",
-        ];
-        const cat = allowedCat.includes(category) ? category : "other";
+        const cat = (FIXED_ASSET_CATEGORIES as readonly string[]).includes(category)
+          ? category
+          : "other";
         const name = String(r.name ?? "Asset");
         const action = String(r.action ?? "added");
         const value =
@@ -441,13 +436,7 @@ export async function POST(
           if (action === "updated" && matchFa?.id) continue;
           await svc.from("fixed_assets").insert({
             user_id: user.id,
-            category: cat as
-              | "real_estate"
-              | "vehicle"
-              | "land"
-              | "precious_metals"
-              | "collectibles"
-              | "other",
+            category: cat,
             name,
             estimated_value: value,
             is_primary_residence: Boolean(r.is_primary_residence),

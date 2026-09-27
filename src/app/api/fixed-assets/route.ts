@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { FIXED_ASSET_CATEGORIES } from '@/lib/assets/categories';
+import { seedLifeInsuranceCashAssets } from '@/lib/assets/seed-life-insurance';
 
-const CATEGORIES = [
-  'real_estate',
-  'vehicle',
-  'land',
-  'precious_metals',
-  'collectibles',
-  'other',
-] as const;
+const CATEGORIES = FIXED_ASSET_CATEGORIES;
 
 const PROVINCES = [
   'AB', 'BC', 'MB', 'NB', 'NL', 'NT', 'NS', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT',
@@ -50,6 +45,8 @@ export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  await seedLifeInsuranceCashAssets(supabase, user.id);
 
   const { data, error } = await supabase
     .from('fixed_assets')

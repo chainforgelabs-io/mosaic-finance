@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { seedLifeInsuranceCashAssets } from '@/lib/assets/seed-life-insurance';
+import { seedGoalsFromProfile } from '@/lib/tracking/sync-goals';
 
 export async function GET() {
   const supabase = await createClient();
@@ -30,6 +32,28 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
 
+  await seedGoalsFromProfile(supabase, user.id);
+  await seedLifeInsuranceCashAssets(supabase, user.id);
+
+  let financialGoals = profile?.financial_goals as
+    | { goal?: string; target_amount?: number | null; target_year?: number | null }[]
+    | null;
+  if (!Array.isArray(financialGoals) || financialGoals.length === 0) {
+    const { data: goalRows } = await supabase
+      .from('goals')
+      .select('name, target_amount, target_date, target_age')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: true });
+    financialGoals = (goalRows ?? []).map((g) => ({
+      goal: g.name as string,
+      target_amount: g.target_amount as number | null,
+      target_year:
+        (g.target_age as number | null) ??
+        (g.target_date ? Number(String(g.target_date).slice(0, 4)) : null),
+    }));
+  }
+
   const { data: fixedAssets } = await supabase
     .from('fixed_assets')
     .select('*')
@@ -56,7 +80,18 @@ export async function GET() {
 
   return NextResponse.json({
     holdings: holdings ?? [],
-    financialProfile: profile ?? null,
+    financialProfile: profile
+      ? { ...profile, financial_goals: financialGoals }
+      : financialGoals && financialGoals.length > 0
+        ? {
+            annual_income: null,
+            monthly_expenses: null,
+            monthly_savings: null,
+            emergency_fund_months: null,
+            major_debts: null,
+            financial_goals: financialGoals,
+          }
+        : null,
     fixedAssets: fixedAssets ?? [],
     householdIncome: householdIncome > 0 ? householdIncome : null,
   });

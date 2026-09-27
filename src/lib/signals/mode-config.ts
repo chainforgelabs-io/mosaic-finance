@@ -1,6 +1,6 @@
 import type { PicksMode } from "@/types/picks";
 
-/** Human-readable cadence labels for UI (cron wiring in later phases). */
+/** Cadence labels shown in the picks UI. Schedules match vercel.json. */
 export interface ModeConfigEntry {
   label: string;
   /** Tracks X accounts ingestion */
@@ -14,16 +14,16 @@ export interface ModeConfigEntry {
 export const MODE_CONFIG: Record<PicksMode, ModeConfigEntry> = {
   light: {
     label: "Light — lower API use",
-    trackedAccountsCronCadence: "Every hour",
+    trackedAccountsCronCadence: "Once each weekday",
     firehoseCronCadence: "Off",
-    aggregationCronCadence: "Every hour",
+    aggregationCronCadence: "With each scan",
     topPersonasNightly: 5,
   },
   heavy: {
-    label: "Heavy — more scans",
-    trackedAccountsCronCadence: "Every 30 minutes",
-    firehoseCronCadence: "Every 30 minutes",
-    aggregationCronCadence: "Every 30 minutes",
+    label: "Heavy — broader scan",
+    trackedAccountsCronCadence: "Once each weekday",
+    firehoseCronCadence: "Included in the weekday scan",
+    aggregationCronCadence: "With each scan",
     topPersonasNightly: 10,
   },
 };

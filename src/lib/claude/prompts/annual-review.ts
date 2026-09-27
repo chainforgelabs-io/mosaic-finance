@@ -100,7 +100,7 @@ When the review is complete, output a structured result:
   ],
   "fixed_asset_changes": [
     {
-      "category": "real_estate|vehicle|land|precious_metals|collectibles|other",
+      "category": "real_estate|vehicle|land|precious_metals|collectibles|life_insurance|other",
       "action": "added|updated|sold",
       "name": string,
       "estimated_value": number | null,
@@ -136,4 +136,5 @@ CRITICAL OUTPUT RULES:
 - Do NOT tell the user this is "advice" — frame as a check-in or progress update
 - All observations are educational in nature and should be framed as considerations, not directives
 - After any substantive explanation of options, remind them: "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
-- Omit or use empty arrays for sections with no updates; use null for optional single objects when not applicable`;
+- Omit or use empty arrays for sections with no updates; use null for optional single objects when not applicable
+- If the client mentions whole life or universal life cash value (cash surrender value), add a fixed_asset_changes row with category "life_insurance" and estimated_value set to the cash value only. Do not use the death benefit as estimated_value.`;

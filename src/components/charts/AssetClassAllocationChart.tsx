@@ -91,7 +91,7 @@ export function AssetClassAllocationChart({ accounts }: { accounts: AccountRow[]
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
         Estimated mix from ticker mapping &amp; holding names
       </p>
-      <div className="flex items-center gap-6">
+      <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
         <div className="w-[170px] h-[170px] shrink-0">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>
@@ -116,17 +116,17 @@ export function AssetClassAllocationChart({ accounts }: { accounts: AccountRow[]
             </PieChart>
           </ResponsiveContainer>
         </div>
-        <ul className="flex-1 space-y-2">
+        <ul className="w-full min-w-0 flex-1 space-y-2">
           {data.map((entry) => (
             <li key={entry.name} className="flex items-center gap-2">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: ASSET_CLASS_COLORS[entry.name as AssetClass] }}
               />
-              <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] flex-1">
+              <span className="min-w-0 flex-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
                 {entry.name}
               </span>
-              <span className="font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+              <span className="shrink-0 font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">
                 {entry.pct}%
               </span>
             </li>

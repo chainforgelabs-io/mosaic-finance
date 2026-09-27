@@ -10,7 +10,8 @@ interface IncomeSource {
   estimated_monthly: number;
 }
 
-function fmt(n: number): string {
+function fmt(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "--";
   return `$${n.toLocaleString()}`;
 }
 
@@ -18,11 +19,14 @@ export function RetirementIncomeChart() {
   const rawPlanData = usePlanStore((s) => s.rawPlanData);
   const ret = rawPlanData?.retirement_readiness as Record<string, unknown> | undefined;
   const sources: IncomeSource[] = (ret?.retirement_income_sources as IncomeSource[]) ?? [];
+  const numeric = sources.filter(
+    (s) => s != null && typeof s.estimated_monthly === "number" && Number.isFinite(s.estimated_monthly),
+  );
 
-  if (sources.length === 0) return null;
+  if (numeric.length === 0) return null;
 
-  const total = sources.reduce((sum, s) => sum + s.estimated_monthly, 0);
-  const data = sources.map((s) => ({ name: s.source, value: s.estimated_monthly }));
+  const total = numeric.reduce((sum, s) => sum + s.estimated_monthly, 0);
+  const data = numeric.map((s) => ({ name: s.source, value: s.estimated_monthly }));
 
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">

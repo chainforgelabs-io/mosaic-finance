@@ -252,10 +252,10 @@ function AccountCard({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-2 px-5 py-4"
+        className="flex w-full flex-col items-stretch gap-2 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
       >
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <span className="shrink-0 rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+          <span className="max-w-full rounded-full border border-[var(--emerald)] bg-[var(--emerald-soft)]/30 px-3 py-1 font-body text-[12px] font-semibold text-[var(--emerald-dark)]">
             {getAccountLabel(isEditing ? editType : account.accountType)}
           </span>
           <span className="min-w-0 truncate font-body text-[14px] text-[var(--text-secondary)]">
@@ -268,7 +268,7 @@ function AccountCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
           <span className="font-body text-[16px] font-semibold tabular-nums text-[var(--text-primary)]">
             ${total.toLocaleString("en-CA", { minimumFractionDigits: 2 })}
           </span>

@@ -9,7 +9,8 @@ interface Milestone {
   key_actions: string;
 }
 
-function fmtCompact(n: number): string {
+function fmtCompact(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "--";
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
   return `$${n.toLocaleString()}`;
@@ -20,13 +21,15 @@ export function NetWorthTimeline() {
   const roadmap = rawPlanData?.lifetime_financial_roadmap as Record<string, unknown> | undefined;
   const milestones = (roadmap?.net_worth_milestones as Milestone[]) ?? [];
 
-  if (milestones.length === 0) return null;
+  const data = milestones
+    .filter((m) => m != null && typeof m.target_net_worth === "number" && Number.isFinite(m.target_net_worth))
+    .map((m) => ({
+      age: `Age ${m.age}`,
+      netWorth: m.target_net_worth,
+      label: m.key_actions,
+    }));
 
-  const data = milestones.map((m) => ({
-    age: `Age ${m.age}`,
-    netWorth: m.target_net_worth,
-    label: m.key_actions,
-  }));
+  if (data.length === 0) return null;
 
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">

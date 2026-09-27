@@ -21,6 +21,7 @@ import {
 } from "@/stores/conversation";
 import { createClient } from "@/lib/supabase/client";
 import { shouldExcludeFromInvestmentHoldings } from "@/lib/schemas/holdings";
+import { cashValueAssetsFromFactFind } from "@/lib/assets/life-insurance-cash-value";
 
 
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
@@ -38,6 +39,9 @@ const ASSET_CATEGORY_MAP: Record<string, string> = {
   land: "land",
   precious_metals: "precious_metals", gold: "precious_metals", silver: "precious_metals",
   collectibles: "collectibles",
+  life_insurance: "life_insurance",
+  universal_life: "life_insurance",
+  whole_life: "life_insurance",
 };
 
 function mapToValidAssetCategory(raw: string): string {
@@ -764,6 +768,43 @@ function FactFindConversation() {
           } catch (err) {
             console.warn("[fact-find] Failed to save fixed asset:", asset.name, err);
           }
+        }
+      }
+
+      const transcript = messages.map((m) => m.content).join("\n");
+      const cashAssets = cashValueAssetsFromFactFind(data, transcript);
+      for (const asset of cashAssets) {
+        const alreadyListed =
+          Array.isArray(data.fixed_assets) &&
+          (data.fixed_assets as { estimated_value?: unknown; name?: unknown; category?: unknown }[]).some(
+            (existing) => {
+              const value = Number(existing.estimated_value);
+              const label = `${existing.name ?? ""} ${existing.category ?? ""}`.toLowerCase();
+              return (
+                Number.isFinite(value) &&
+                Math.abs(value - asset.cashValue) < 1 &&
+                /life|cash|csv|universal|whole/.test(label)
+              );
+            },
+          );
+        if (alreadyListed) continue;
+        try {
+          const res = await fetch("/api/fixed-assets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              category: "life_insurance",
+              name: asset.name,
+              estimated_value: asset.cashValue,
+              notes: asset.notes,
+            }),
+          });
+          if (!res.ok) {
+            console.warn("[fact-find] Failed to save life insurance cash value");
+          }
+        } catch {
+          console.warn("[fact-find] Failed to save life insurance cash value");
         }
       }
 
