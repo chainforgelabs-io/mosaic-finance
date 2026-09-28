@@ -24,10 +24,34 @@ export const viewport: Viewport = {
   themeColor: "#10B981",
 };
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mosaicfinance.ai";
+
 export const metadata: Metadata = {
-  title: "Mosaic Finance — Gamified Financial Tracking for Canadians",
+  metadataBase: new URL(appUrl),
+  title: "Mosaic Finance — The financial operating system for Canadians",
   description:
-    "Track your net worth, budget, and trajectory with an AI education guide. Instant Progress Reports — educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+    "The financial operating system for Canadians. Track net worth, spending, and goals, with Charlie, your AI money guide, and educational Progress Reports. Educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+  openGraph: {
+    title: "Mosaic Finance — The financial operating system for Canadians",
+    description:
+      "Track net worth, spending, and goals in one place. Charlie is your AI money guide. Educational information, not financial advice.",
+    siteName: "Mosaic Finance",
+    locale: "en_CA",
+    type: "website",
+    images: [
+      {
+        url: "/logos/MosaicEmblemLogo.png",
+        alt: "Mosaic Finance",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Mosaic Finance — The financial operating system for Canadians",
+    description:
+      "Track net worth, spending, and goals in one place. Charlie is your AI money guide. Educational information, not financial advice.",
+    images: ["/logos/MosaicEmblemLogo.png"],
+  },
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [

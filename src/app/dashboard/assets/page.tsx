@@ -599,6 +599,12 @@ export default function AssetsPage() {
   const lastHoldingsFetchAt = useRef<number>(0);
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [debtOpen, setDebtOpen] = useState(false);
+  const [debtName, setDebtName] = useState("");
+  const [debtBalance, setDebtBalance] = useState("");
+  const [debtRate, setDebtRate] = useState("");
+  const [debtError, setDebtError] = useState<string | null>(null);
+  const [debtSaving, setDebtSaving] = useState(false);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
   const [snapshottedThisMonth, setSnapshottedThisMonth] = useState(true);
 
@@ -675,6 +681,75 @@ export default function AssetsPage() {
     await loadData(true);
   }
 
+  function profileDebtPayload(rows: FinancialProfile["major_debts"]) {
+    return (rows ?? []).flatMap((d) => {
+      const balance = Number(d.amount);
+      if (!d.type || !Number.isFinite(balance)) return [];
+      return [{
+        type: d.type,
+        balance,
+        ...(d.rate != null ? { rate: d.rate } : {}),
+        ...(d.monthly_payment != null ? { monthly_payment: d.monthly_payment } : {}),
+      }];
+    });
+  }
+
+  async function saveDebtList(
+    rows: { type: string; balance: number; rate?: number; monthly_payment?: number }[],
+  ) {
+    const res = await fetch("/api/financial-profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ debts: rows }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(typeof json.error === "string" ? json.error : "Could not save that liability.");
+    }
+    await loadData(true);
+  }
+
+  async function handleAddDebt() {
+    const name = debtName.trim();
+    const balance = Number(debtBalance.replace(/[$,]/g, ""));
+    const rateRaw = debtRate.trim();
+    const rate = rateRaw === "" ? undefined : Number(rateRaw);
+    if (!name || !Number.isFinite(balance) || balance <= 0) {
+      setDebtError("Enter a name and a balance greater than zero.");
+      return;
+    }
+    if (rate != null && !Number.isFinite(rate)) {
+      setDebtError("Interest rate should be a number, or leave it blank.");
+      return;
+    }
+    setDebtSaving(true);
+    setDebtError(null);
+    try {
+      await saveDebtList([
+        ...profileDebtPayload(profile?.major_debts ?? null),
+        { type: name, balance, ...(rate != null ? { rate } : {}) },
+      ]);
+      setDebtName("");
+      setDebtBalance("");
+      setDebtRate("");
+      setDebtOpen(false);
+    } catch (err) {
+      setDebtError(err instanceof Error ? err.message : "Could not save that liability.");
+    } finally {
+      setDebtSaving(false);
+    }
+  }
+
+  async function handleRemoveDebt(index: number) {
+    setDebtError(null);
+    try {
+      await saveDebtList(profileDebtPayload(profile?.major_debts ?? null).filter((_, i) => i !== index));
+    } catch (err) {
+      setDebtError(err instanceof Error ? err.message : "Could not remove that liability.");
+    }
+  }
+
   async function handleDeleteAsset(id: string) {
     try {
       const res = await fetch(`/api/fixed-assets?id=${id}`, { method: "DELETE", credentials: "include" });
@@ -706,20 +781,27 @@ export default function AssetsPage() {
   const planTotalDebt = debtPlan?.total_debt;
   const planDebtNum =
     typeof planTotalDebt === "number" && !Number.isNaN(planTotalDebt) ? planTotalDebt : null;
+  const parsedDebts = debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
+  const planDebtNames = new Set(parsedDebts.map((d) => d.name.toLowerCase()));
+  const manualDebts = (profile?.major_debts ?? [])
+    .map((d, index) => ({ ...d, index }))
+    .filter((d) => parsedDebts.length === 0 || !planDebtNames.has(d.type.toLowerCase()));
+  const uncountedManualDebt =
+    planDebtNum != null && planDebtNum > 0
+      ? manualDebts.reduce((s, d) => s + (Number(d.amount) || 0), 0)
+      : 0;
   // Prefer plan when it shows debt; if plan says 0 but profile has debts, use profile (plan parse can miss debt)
   const totalDebt =
-    planDebtNum != null && planDebtNum > 0
+    (planDebtNum != null && planDebtNum > 0
       ? planDebtNum
       : profileDebtTotal > 0
         ? profileDebtTotal
-        : planDebtNum ?? profileDebtTotal;
+        : planDebtNum ?? profileDebtTotal) + uncountedManualDebt;
   const liveNetWorth = totalAssets - totalDebt;
   const netWorth =
     fixedAssets.length > 0 || holdings.length > 0
       ? liveNetWorth
       : (diag?.net_worth as number) ?? liveNetWorth;
-
-  const parsedDebts = debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
 
   const groupedAssets = CATEGORIES.reduce<Record<AssetCategory, FixedAsset[]>>((acc, cat) => {
     acc[cat] = fixedAssets.filter((a) => a.category === cat);
@@ -1060,12 +1142,73 @@ export default function AssetsPage() {
         </div>
 
         {/* DEBTS & LIABILITIES */}
-        {(parsedDebts.length > 0 || (profile?.major_debts ?? []).length > 0) && (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldAlert className="w-5 h-5 text-red-500" />
-              <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Debts & Liabilities</h2>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-red-500" />
+                <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Debts & Liabilities</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDebtOpen((open) => !open); setDebtError(null); }}
+                className="inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--warm-200)] bg-white px-3 py-1.5 font-display text-xs font-semibold text-[var(--text-primary)]"
+              >
+                <Plus className="size-3.5" />
+                Add a liability
+              </button>
             </div>
+            {debtOpen && (
+              <form
+                className="mb-4 grid gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:grid-cols-4"
+                onSubmit={(e) => { e.preventDefault(); void handleAddDebt(); }}
+              >
+                <label className="font-body text-sm text-[var(--text-secondary)]">
+                  Name
+                  <input
+                    value={debtName}
+                    onChange={(e) => setDebtName(e.target.value)}
+                    placeholder="Car loan"
+                    className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
+                  />
+                </label>
+                <label className="font-body text-sm text-[var(--text-secondary)]">
+                  Balance (CAD)
+                  <input
+                    inputMode="decimal"
+                    value={debtBalance}
+                    onChange={(e) => setDebtBalance(e.target.value)}
+                    placeholder="12000"
+                    className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
+                  />
+                </label>
+                <label className="font-body text-sm text-[var(--text-secondary)]">
+                  Rate % (optional)
+                  <input
+                    inputMode="decimal"
+                    value={debtRate}
+                    onChange={(e) => setDebtRate(e.target.value)}
+                    placeholder="5.9"
+                    className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
+                  />
+                </label>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={debtSaving}
+                    className="w-full rounded-full bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {debtSaving ? "Saving…" : "Save liability"}
+                  </button>
+                </div>
+                {debtError && (
+                  <p className="font-body text-sm text-[var(--error)] sm:col-span-4">{debtError}</p>
+                )}
+              </form>
+            )}
+            {!debtOpen && debtError && (
+              <p className="mb-4 font-body text-sm text-[var(--error)]">{debtError}</p>
+            )}
+            {(parsedDebts.length > 0 || manualDebts.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DebtBreakdownChart />
               <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
@@ -1077,6 +1220,20 @@ export default function AssetsPage() {
                         {d.rate && <p className="font-body text-xs text-amber-600">{d.rate}</p>}
                       </div>
                       <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(d.amount)}</p>
+                    </div>
+                  ))}
+                  {manualDebts.map((d) => (
+                    <div key={`${d.type}-${d.index}`} className="flex items-center justify-between rounded-lg bg-[var(--warm-50)] px-3 py-2">
+                      <div>
+                        <p className="font-body text-sm">{d.type}</p>
+                        {d.rate != null && <p className="font-body text-xs text-amber-600">{d.rate}%</p>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(d.amount)}</p>
+                        <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1103,9 +1260,14 @@ export default function AssetsPage() {
                         </td>
                       </tr>
                     ))}
-                    {parsedDebts.length === 0 && (profile?.major_debts ?? []).map((d, i) => (
-                      <tr key={i} className="border-b border-[var(--warm-50)] last:border-0">
-                        <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">{d.type}</td>
+                    {manualDebts.map((d) => (
+                      <tr key={`${d.type}-${d.index}`} className="border-b border-[var(--warm-50)] last:border-0">
+                        <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
+                          {d.type}
+                          <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="ml-2 font-body text-xs text-[var(--text-muted)] underline">
+                            Remove
+                          </button>
+                        </td>
                         <td className="py-2.5 text-right font-[family-name:var(--font-body)] text-sm font-medium tabular-nums text-[var(--text-primary)]">{fmtFull(d.amount)}</td>
                         <td className="py-2.5 text-right">
                           {d.rate != null && <span className="font-[family-name:var(--font-body)] text-xs font-medium text-amber-600">{d.rate}%</span>}
@@ -1131,8 +1293,13 @@ export default function AssetsPage() {
                 )}
               </div>
             </div>
+            )}
+            {parsedDebts.length === 0 && manualDebts.length === 0 && (
+              <p className="font-body text-sm text-[var(--text-muted)]">
+                No liabilities yet. Add a balance you owe so it counts in net worth.
+              </p>
+            )}
           </div>
-        )}
 
         {/* CASH FLOW */}
         {(profile || diag) && (() => {

@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
     if (!entitlements.canUseCharlie) {
       return entitlementDenied('charlie', ENTITLEMENT_COPY.charlie);
     }
+    if (sessionType === 'annual-review' && entitlements.effectiveTier !== 'mastery') {
+      return entitlementDenied('check_in', ENTITLEMENT_COPY.checkIn);
+    }
 
     const { data: existingSession } = await supabase
       .from('conversation_sessions')

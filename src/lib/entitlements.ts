@@ -101,6 +101,7 @@ export const ENTITLEMENT_COPY = {
   parse:
     "Statement and receipt parsing is included on Progress and Mastery.",
   taxPack: "The Tax Year-End Pack is a Mastery benefit.",
+  checkIn: "Quarterly guided check-ins are included with Mastery.",
   club: "The Mosaic Money Club is included with Mastery.",
   charlieCap:
     "You've used a lot of Charlie this month. We'll keep the conversation going — consider Mastery if you want unlimited check-ins.",

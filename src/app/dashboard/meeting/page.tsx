@@ -18,6 +18,8 @@ import {
   charlieInputClass,
   charlieSendClass,
 } from "@/components/app/ConversationBubble";
+import { normalizeTier } from "@/lib/entitlements";
+import { usePlanStore } from "@/stores/plan-store";
 
 type MeetingType = "annual-review" | "ad-hoc";
 
@@ -50,6 +52,7 @@ const MEETING_OPTIONS: {
 ];
 
 export default function MeetingPage() {
+  const canCheckIn = normalizeTier(usePlanStore((s) => s.user?.tier)) === "mastery";
   const [meetingType, setMeetingType] = useState<MeetingType | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ConvMessage[]>([]);
@@ -246,6 +249,32 @@ export default function MeetingPage() {
           <div className="space-y-4">
             {MEETING_OPTIONS.map((option) => {
               const Icon = option.icon;
+              if (option.type === "annual-review" && !canCheckIn) {
+                return (
+                  <div
+                    key={option.type}
+                    className="flex w-full flex-col gap-4 rounded-xl border border-[var(--warm-200)] bg-white p-6 sm:flex-row sm:items-center"
+                  >
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[var(--emerald)]/10">
+                      <Icon className="size-6 text-[var(--emerald)]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+                        {option.title}
+                      </h2>
+                      <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
+                        Quarterly guided check-ins are included with Mastery.
+                      </p>
+                    </div>
+                    <Link
+                      href="/dashboard/settings?tab=subscription"
+                      className="inline-flex shrink-0 rounded-full bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white"
+                    >
+                      Upgrade to Mastery
+                    </Link>
+                  </div>
+                );
+              }
               return (
                 <button
                   key={option.type}

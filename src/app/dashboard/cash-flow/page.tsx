@@ -24,6 +24,7 @@ import {
 } from "@/lib/tracking/categories";
 import {
   addDays,
+  formatMonthLabel,
   formatWeekLabel,
   startOfWeekMonday,
   todayIso,
@@ -126,18 +127,23 @@ export default function CashFlowPage() {
     loadMeta();
   }, [loadMeta]);
 
+  const visibleTxns = view === "month" ? monthTxns : transactions;
   const weekTotal = useMemo(
     () => transactions.reduce((s, t) => s + Number(t.amount), 0),
     [transactions],
   );
+  const monthTotal = useMemo(
+    () => monthTxns.reduce((s, t) => s + Number(t.amount), 0),
+    [monthTxns],
+  );
   const unconfirmed = useMemo(
-    () => transactions.filter((t) => t.category_confirmed === false),
-    [transactions],
+    () => visibleTxns.filter((t) => t.category_confirmed === false),
+    [visibleTxns],
   );
 
   const byCategory = useMemo(() => {
     const map = new Map<SpendingCategory, TransactionRow[]>();
-    for (const t of transactions) {
+    for (const t of visibleTxns) {
       const cat = t.category;
       const list = map.get(cat) ?? [];
       list.push(t);
@@ -148,7 +154,7 @@ export default function CashFlowPage() {
       amount: (map.get(cat) ?? []).reduce((s, t) => s + Number(t.amount), 0),
       items: map.get(cat) ?? [],
     })).filter((g) => g.items.length > 0);
-  }, [transactions]);
+  }, [visibleTxns]);
 
   const categorySlices = byCategory.map((g) => ({ category: g.category, amount: g.amount }));
 
@@ -327,7 +333,9 @@ export default function CashFlowPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Log every spend this week. Honesty is the whole point.
+            {view === "month"
+              ? "This month, by category."
+              : "Log every spend this week. Honesty is the whole point."}
           </p>
           <div className="mt-3 inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
             <button
@@ -362,7 +370,7 @@ export default function CashFlowPage() {
         </div>
       </div>
 
-      {!loggedThisWeek && weekStart === thisWeek && (
+      {view === "week" && !loggedThisWeek && weekStart === thisWeek && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 font-body text-sm text-amber-800">
           This week is empty. Log spending to keep your streak.
         </div>
@@ -370,6 +378,7 @@ export default function CashFlowPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
+      {view === "week" ? (
       <div className="flex items-center justify-between rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2">
         <button
           type="button"
@@ -397,15 +406,23 @@ export default function CashFlowPage() {
           <ChevronRight className="size-5" />
         </button>
       </div>
+      ) : (
+      <div className="rounded-lg border border-[var(--warm-200)] bg-white px-3 py-3 text-center">
+        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+          {formatMonthLabel(todayIso())}
+        </p>
+        <p className="font-body text-[11px] text-[var(--emerald-dark)]">This month</p>
+      </div>
+      )}
 
       <div className="rounded-xl bg-[#0f1923] p-5 sm:p-6">
         <p className="font-body text-[11px] font-medium uppercase tracking-widest text-white/50">
-          Spent this week
+          {view === "month" ? "Spent this month" : "Spent this week"}
         </p>
         <p className="mt-1 font-display text-3xl font-bold tabular-nums text-white">
-          {formatMoneyExact(weekTotal)}
+          {formatMoneyExact(view === "month" ? monthTotal : weekTotal)}
         </p>
-        {vsBaseline != null && (
+        {view === "week" && vsBaseline != null && (
           <p className={cn("mt-2 font-body text-sm", vsBaseline > 5 ? "text-red-300" : "text-emerald-300")}>
             {vsBaseline > 0 ? "+" : ""}
             {vsBaseline.toFixed(0)}% vs your typical weekly spend

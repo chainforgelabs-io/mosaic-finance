@@ -893,7 +893,10 @@ function FactFindConversation() {
                             Something went wrong. Please try again.
                           </p>
                           <button
-                            onClick={() => sendMessage()}
+                            onClick={() => {
+                              const lastUser = [...messages].reverse().find((m) => m.role === "user");
+                              void sendMessage(lastUser?.content);
+                            }}
                             className="mt-2 font-body text-[13px] font-medium text-[var(--emerald)] hover:underline"
                           >
                             Retry

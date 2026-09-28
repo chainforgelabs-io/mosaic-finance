@@ -47,9 +47,9 @@ export function FinalCta() {
           className="mb-8 font-body text-[17px] text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Join the waitlist for gamified financial tracking built for Canadian
-          rules — with an AI guide that educates you about your money. No credit
-          card. No personal information.
+          The financial operating system for Canadians. Track your money, learn
+          the rules, and stay consistent. Charlie is your AI money guide —
+          educational, not advice. No credit card.
         </p>
         <div
           data-animate

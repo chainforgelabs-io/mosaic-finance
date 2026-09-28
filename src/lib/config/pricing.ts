@@ -86,3 +86,19 @@ export function formatAcademyPrice(interval: BillingInterval = "monthly"): strin
     ? `${ACADEMY_PRICING.annual}/yr`
     : `${ACADEMY_PRICING.monthly}/mo`;
 }
+
+/** Stripe unit_amount for the published CAD price. Annual figures are the yearly total. */
+export function expectedPriceCents(
+  tier: "progress" | "mastery" | "academy",
+  interval: BillingInterval,
+  founding = false,
+): number {
+  const label =
+    tier === "academy"
+      ? ACADEMY_PRICING[interval]
+      : founding && tier === "progress"
+        ? FOUNDING_PRICING[interval]
+        : TIER_PRICING[tier][interval];
+  const dollars = Number(label.replace(/[^0-9.]/g, ""));
+  return Math.round(dollars * 100);
+}

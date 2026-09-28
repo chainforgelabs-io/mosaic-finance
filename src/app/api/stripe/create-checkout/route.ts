@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { priceIdForCheckout } from "@/lib/stripe/client";
+import { expectedPriceCents } from "@/lib/config/pricing";
 import { getFoundingStatus } from "@/lib/founding";
 import { captureAPIError } from "@/lib/sentry";
 import { z } from "zod";
@@ -49,6 +50,32 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const { stripe } = await import("@/lib/stripe/client");
+
+    const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+    const expected = expectedPriceCents(tier, interval, founding);
+    if (price.currency !== "cad" || price.unit_amount !== expected) {
+      return NextResponse.json(
+        {
+          error:
+            "This plan isn't available to purchase right now. The price on the site is the price you should be charged.",
+        },
+        { status: 503 },
+      );
+    }
+
+    if (
+      founding &&
+      price.product &&
+      typeof price.product !== "string" &&
+      !price.product.deleted
+    ) {
+      const current = price.product.name.trim();
+      const desired =
+        interval === "annual" ? "Founding Progress annual" : "Founding Progress";
+      if (/^founding( monthly| annual)?$/i.test(current)) {
+        await stripe.products.update(price.product.id, { name: desired });
+      }
+    }
 
     const sessionParams: Record<string, unknown> = {
       mode: "subscription" as const,

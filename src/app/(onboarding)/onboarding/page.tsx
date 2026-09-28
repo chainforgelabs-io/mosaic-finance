@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Briefcase,
   GraduationCap,
@@ -27,6 +28,7 @@ import {
   getOnboardingProgress,
   getUserProfileData,
 } from "@/lib/actions/onboarding";
+import { createClient } from "@/lib/supabase/client";
 import {
   financialProfileSchema,
   EMPLOYMENT_TYPES,
@@ -172,7 +174,13 @@ export default function OnboardingProfilePage() {
 
   async function onSubmit(data: FinancialProfileFormData) {
     setServerError(null);
-    const result = await saveFinancialProfile(data);
+    let result = await saveFinancialProfile(data);
+    if (result?.error?.includes("Not authenticated")) {
+      const { data: refreshed } = await createClient().auth.refreshSession();
+      if (refreshed.session) {
+        result = await saveFinancialProfile(data);
+      }
+    }
     if (result?.error) {
       setServerError(result.error);
     }
@@ -212,6 +220,14 @@ export default function OnboardingProfilePage() {
           {serverError && (
             <div className="mb-6 rounded-lg border border-[var(--error)]/20 bg-[var(--error)]/5 px-4 py-3">
               <p className="font-body text-[13px] text-[var(--error)]">{serverError}</p>
+              {serverError.includes("Not authenticated") && (
+                <Link
+                  href="/login"
+                  className="mt-2 inline-block font-body text-[13px] font-semibold text-[var(--emerald)] underline"
+                >
+                  Sign in
+                </Link>
+              )}
             </div>
           )}
 

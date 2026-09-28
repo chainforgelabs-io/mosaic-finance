@@ -6,22 +6,22 @@ import Image from "next/image";
 const SHOWCASES = [
   {
     label: "Tell Charlie about your financial picture",
-    image: "/assets/Onboarding - Factfind.svg",
+    image: encodeURI("/assets/Onboarding - Factfind.svg"),
     alt: "Fact-find onboarding screen",
   },
   {
     label: "Get a Progress Report in under 30 minutes",
-    image: "/assets/Financial Plan Report - Executive Summary.svg",
+    image: encodeURI("/assets/Financial Plan Report - Executive Summary.svg"),
     alt: "Progress Report executive summary",
   },
   {
     label: "Track your progress, update anytime",
-    image: "/assets/Dashboard - Main Dashboard.svg",
+    image: encodeURI("/assets/Dashboard - Main Dashboard.svg"),
     alt: "Main dashboard",
   },
   {
     label: "Download your complete Progress Report",
-    image: "/assets/Dashboard - Plan Page.svg",
+    image: encodeURI("/assets/Dashboard - Plan Page.svg"),
     alt: "Plan page with download option",
   },
 ] as const;

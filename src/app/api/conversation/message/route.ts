@@ -89,6 +89,12 @@ export async function POST(req: NextRequest) {
       { status: 402 },
     );
   }
+  if (sessionType === 'annual-review' && entitlements.effectiveTier !== 'mastery') {
+    return Response.json(
+      { error: ENTITLEMENT_COPY.checkIn, code: 'UPGRADE_REQUIRED', reason: 'check_in' },
+      { status: 402 },
+    );
+  }
 
   let overCap = false;
   if (entitlements.charlieSoftCap?.kind === 'messages') {

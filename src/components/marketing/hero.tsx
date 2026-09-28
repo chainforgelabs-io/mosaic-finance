@@ -52,16 +52,16 @@ export function Hero() {
           data-animate
           className="mb-6 font-display text-[32px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white sm:text-[44px] lg:text-[56px]"
         >
-          The gamified financial tracking app for Canadians.
+          The financial operating system for Canadians.
         </h1>
 
         <p
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          Add your numbers, track your net worth, and get an instant Progress
-          Report that shows your trajectory — plus educational options to learn
-          about. Built for Canadian rules.
+          Track your net worth, spending, and goals in one place. Charlie, your
+          AI money guide, explains the picture — educational information, not
+          advice. Built for Canadian rules.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
