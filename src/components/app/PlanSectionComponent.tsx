@@ -65,7 +65,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
         <div className="w-12 h-px bg-[var(--emerald)] mb-6" />
 
         {section.cards.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="mb-6 grid min-w-0 grid-cols-2 gap-4 md:grid-cols-4">
             {section.cards.map((cardData, i) => (
               <FinancialCard key={i} {...cardData} />
             ))}

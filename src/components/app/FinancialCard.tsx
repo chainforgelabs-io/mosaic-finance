@@ -20,18 +20,25 @@ export function FinancialCard({
   trendDirection,
   className,
 }: FinancialCardProps) {
+  const longValue = value.trim().length > 14;
+
   return (
     <div
       className={cn(
-        "rounded-lg border border-[var(--warm-200)] bg-white p-6 transition-shadow hover:shadow-sm",
+        "min-w-0 rounded-lg border border-[var(--warm-200)] bg-white p-4 transition-shadow hover:shadow-sm sm:p-6",
         className,
       )}
     >
-      <p className="font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="break-words font-body text-[13px] font-normal uppercase tracking-wider text-[var(--text-muted)]">
         {label}
       </p>
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="font-body text-[28px] font-semibold tabular-nums text-[var(--text-primary)]">
+      <div className="mt-2 flex min-w-0 flex-wrap items-baseline gap-1.5">
+        <span
+          className={cn(
+            "max-w-full font-body font-semibold text-[var(--text-primary)] [overflow-wrap:anywhere]",
+            longValue ? "block text-[15px] leading-snug" : "text-[28px] tabular-nums",
+          )}
+        >
           {value}
         </span>
         {unit && (
