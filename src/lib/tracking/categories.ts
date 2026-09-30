@@ -13,6 +13,7 @@ export const SPENDING_CATEGORIES = [
   "kids",
   "gifts_donations",
   "debt_payments",
+  "condo_fees",
   "other",
 ] as const;
 
@@ -33,6 +34,7 @@ export const SPENDING_CATEGORY_LABELS: Record<SpendingCategory, string> = {
   kids: "Kids",
   gifts_donations: "Gifts & Donations",
   debt_payments: "Debt Payments",
+  condo_fees: "Condo fees",
   other: "Other",
 };
 
@@ -51,6 +53,7 @@ export const SPENDING_CATEGORY_COLORS: Record<SpendingCategory, string> = {
   kids: "#a855f7",
   gifts_donations: "#84cc16",
   debt_payments: "#e11d48",
+  condo_fees: "#0f766e",
   other: "#9ca3af",
 };
 
@@ -108,6 +111,8 @@ const GOAL_TYPE_ALIASES: Record<string, GoalType> = {
   retirement: "retirement",
   school: "education",
   education: "education",
+  save_for_education: "education",
+  education_savings: "education",
   college: "education",
   university: "education",
   travel: "vacation",
@@ -122,9 +127,56 @@ const GOAL_TYPE_ALIASES: Record<string, GoalType> = {
 
 export function inferGoalType(raw: string | null | undefined): GoalType {
   if (!raw) return "other";
-  const key = raw.trim().toLowerCase();
+  const trimmed = raw.trim().toLowerCase();
+  const key = trimmed.replace(/\s+/g, "_");
   if ((GOAL_TYPES as readonly string[]).includes(key)) return key as GoalType;
-  return GOAL_TYPE_ALIASES[key] ?? "other";
+  return GOAL_TYPE_ALIASES[key] ?? GOAL_TYPE_ALIASES[trimmed] ?? "other";
+}
+
+function humanizeKey(raw: string): string {
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((word, index) =>
+      index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word,
+    )
+    .join(" ");
+}
+
+/** Turn a stored goal key such as save_for_education into words. Known types use their label. */
+export function presentGoalName(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  const key = trimmed.toLowerCase().replace(/\s+/g, "_");
+  if ((GOAL_TYPES as readonly string[]).includes(key)) {
+    return GOAL_TYPE_LABELS[key as GoalType];
+  }
+  if (/^[a-z0-9_]+$/.test(key)) {
+    return humanizeKey(key);
+  }
+  return trimmed;
+}
+
+export function categoryLabel(category: string): string {
+  if (isSpendingCategory(category)) return SPENDING_CATEGORY_LABELS[category];
+  return humanizeKey(category);
+}
+
+export function categorySlug(label: string): string | null {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  if (!/^[a-z][a-z0-9_]{0,39}$/.test(slug)) return null;
+  return slug;
+}
+
+export function categoryColor(category: string): string {
+  if (isSpendingCategory(category)) return SPENDING_CATEGORY_COLORS[category];
+  return "#64748b";
 }
 
 export function isSpendingCategory(value: string): value is SpendingCategory {

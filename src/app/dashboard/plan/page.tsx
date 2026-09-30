@@ -250,7 +250,7 @@ function PlanCharts() {
         <RetirementIncomeChart />
         <RetirementProgressBar />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2">
         <DebtBreakdownChart />
         <AssetAllocationChart />
       </div>

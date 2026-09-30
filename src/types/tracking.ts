@@ -2,7 +2,6 @@ import type {
   GoalPriority,
   GoalStatus,
   GoalType,
-  SpendingCategory,
 } from "@/lib/tracking/categories";
 
 export type TransactionSource = "manual" | "screenshot";
@@ -12,7 +11,7 @@ export interface TransactionRow {
   user_id: string;
   txn_date: string;
   amount: number;
-  category: SpendingCategory;
+  category: string;
   description: string | null;
   note: string | null;
   source: TransactionSource;
@@ -26,7 +25,7 @@ export interface ParsedSpendingItem {
   txn_date: string | null;
   amount: number;
   description: string;
-  suggested_category: SpendingCategory;
+  suggested_category: string;
   note?: string;
 }
 

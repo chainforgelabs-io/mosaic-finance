@@ -35,6 +35,10 @@ export function startOfMonth(isoDate: string): string {
   return `${isoDate.slice(0, 7)}-01`;
 }
 
+export function endOfMonth(isoDate: string): string {
+  return addDays(addMonths(startOfMonth(isoDate), 1), -1);
+}
+
 export function addMonths(isoDate: string, months: number): string {
   const [y, m] = isoDate.split("-").map(Number);
   const date = new Date(Date.UTC(y, m - 1 + months, 1));

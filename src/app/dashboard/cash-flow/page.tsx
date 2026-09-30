@@ -18,14 +18,18 @@ import { WeeklySpendChart } from "@/components/charts/WeeklySpendChart";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   SPENDING_CATEGORIES,
-  SPENDING_CATEGORY_COLORS,
-  SPENDING_CATEGORY_LABELS,
-  type SpendingCategory,
+  categoryColor,
+  categoryLabel,
+  categorySlug,
 } from "@/lib/tracking/categories";
 import {
   addDays,
+  addMonths,
+  endOfMonth,
   formatMonthLabel,
   formatWeekLabel,
+  monthKey,
+  startOfMonth,
   startOfWeekMonday,
   todayIso,
   weekRange,
@@ -36,6 +40,150 @@ import { usePlanStore } from "@/stores/plan-store";
 import type { ParsedSpendingItem, TransactionRow } from "@/types/tracking";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
+const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
+
+function loadCustomCategories(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(CUSTOM_CATEGORY_KEY) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberCategory(slug: string) {
+  if ((SPENDING_CATEGORIES as readonly string[]).includes(slug)) return;
+  const next = [...new Set([...loadCustomCategories(), slug])];
+  localStorage.setItem(CUSTOM_CATEGORY_KEY, JSON.stringify(next));
+}
+
+type UploadJob = {
+  status: "idle" | "parsing" | "ready" | "error";
+  rows: ReviewRow[] | null;
+  notice: string | null;
+  error: string | null;
+};
+
+let uploadJob: UploadJob = { status: "idle", rows: null, notice: null, error: null };
+const uploadListeners = new Set<() => void>();
+
+function setUploadJob(next: UploadJob) {
+  uploadJob = next;
+  uploadListeners.forEach((listener) => listener());
+}
+
+function categoryOptions(extras: string[], current?: string): string[] {
+  const all: string[] = [...SPENDING_CATEGORIES, ...extras];
+  if (current && !all.includes(current)) all.push(current);
+  return [...new Set(all)];
+}
+
+function CategoryPicker({
+  value,
+  onChange,
+  extras,
+  onAdd,
+  variant,
+}: {
+  value: string;
+  onChange: (slug: string) => void;
+  extras: string[];
+  onAdd: (slug: string) => void;
+  variant: "pills" | "select";
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [invalid, setInvalid] = useState(false);
+  const options = categoryOptions(extras, value);
+
+  function commit() {
+    const slug = categorySlug(draft);
+    if (!slug) {
+      setInvalid(true);
+      return;
+    }
+    onAdd(slug);
+    onChange(slug);
+    setDraft("");
+    setAdding(false);
+    setInvalid(false);
+  }
+
+  return (
+    <div>
+      {variant === "select" ? (
+        <select
+          value={options.includes(value) ? value : "other"}
+          onChange={(e) => {
+            if (e.target.value === "__add") {
+              setAdding(true);
+              return;
+            }
+            onChange(e.target.value);
+          }}
+          className="w-full rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
+        >
+          {options.map((c) => (
+            <option key={c} value={c}>
+              {categoryLabel(c)}
+            </option>
+          ))}
+          <option value="__add">Add a category…</option>
+        </select>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(c)}
+              className={cn(
+                "rounded-full px-2.5 py-1 font-display text-xs font-medium",
+                value === c
+                  ? "bg-[var(--emerald)] text-white"
+                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+              )}
+            >
+              {categoryLabel(c)}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setAdding((open) => !open)}
+            className="rounded-full border border-dashed border-[var(--warm-200)] px-2.5 py-1 font-display text-xs font-medium text-[var(--text-secondary)]"
+          >
+            Add a category
+          </button>
+        </div>
+      )}
+      {adding && (
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              setInvalid(false);
+            }}
+            placeholder="Rental condo fees"
+            className="min-w-0 flex-1 rounded-lg border border-[var(--warm-200)] px-2 py-1.5 font-body text-sm"
+          />
+          <button
+            type="button"
+            onClick={commit}
+            className="rounded-lg bg-[var(--slate-950)] px-3 py-1.5 font-display text-xs font-semibold text-white"
+          >
+            Add
+          </button>
+        </div>
+      )}
+      {invalid && (
+        <p className="mt-1 font-body text-[11px] text-red-700">Use a short name, like rental condo fees.</p>
+      )}
+    </div>
+  );
+}
 
 interface ReviewRow extends ParsedSpendingItem {
   key: string;
@@ -55,15 +203,17 @@ export default function CashFlowPage() {
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
-  const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(null);
-  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(() => uploadJob.rows);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(() => uploadJob.notice);
   const [editing, setEditing] = useState<TransactionRow | null>(null);
-  const [parsing, setParsing] = useState(false);
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [view, setView] = useState<"week" | "month">("week");
+  const [parsing, setParsing] = useState(() => uploadJob.status === "parsing");
+  const [parseError, setParseError] = useState<string | null>(() => uploadJob.error);
+  const [view, setView] = useState<"week" | "month">("month");
+  const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [showBudgets, setShowBudgets] = useState(false);
   const [monthTxns, setMonthTxns] = useState<TransactionRow[]>([]);
+  const [customCategories, setCustomCategories] = useState<string[]>(() => loadCustomCategories());
   const fileRef = useRef<HTMLInputElement>(null);
 
   const range = weekRange(weekStart);
@@ -84,20 +234,19 @@ export default function CashFlowPage() {
   }, []);
 
   const loadMeta = useCallback(async () => {
-    const eightStart = addDays(startOfWeekMonday(todayIso()), -7 * 7);
+    const historyStart = startOfMonth(addMonths(todayIso(), -5));
     const [histRes, gamRes] = await Promise.all([
-      fetch(`/api/transactions?start=${eightStart}&end=${todayIso()}`, { credentials: "include" }),
+      fetch(`/api/transactions?start=${historyStart}&end=${todayIso()}`, { credentials: "include" }),
       fetch("/api/gamification/summary", { credentials: "include" }),
     ]);
     if (histRes.ok) {
       const json = await histRes.json();
       setHistory(json.transactions ?? []);
     }
-    const now = new Date();
-    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    const monthEnd = endOfMonth(monthStart);
     const [budgetRes, monthRes] = await Promise.all([
       fetch("/api/budgets", { credentials: "include" }),
-      fetch(`/api/transactions?start=${monthStart}&end=${todayIso()}`, { credentials: "include" }),
+      fetch(`/api/transactions?start=${monthStart}&end=${monthEnd}`, { credentials: "include" }),
     ]);
     if (budgetRes.ok) {
       const json = await budgetRes.json();
@@ -116,7 +265,7 @@ export default function CashFlowPage() {
       setStreak(json.weeklyStreak ?? 0);
       setLoggedThisWeek(Boolean(json.loggedThisWeek));
     }
-  }, []);
+  }, [monthStart]);
 
   useEffect(() => {
     setLoading(true);
@@ -126,6 +275,24 @@ export default function CashFlowPage() {
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
+
+  useEffect(() => {
+    function syncUpload() {
+      setParsing(uploadJob.status === "parsing");
+      setParseError(uploadJob.error);
+      setReviewRows(uploadJob.rows);
+      setReviewNotice(uploadJob.notice);
+    }
+    uploadListeners.add(syncUpload);
+    return () => {
+      uploadListeners.delete(syncUpload);
+    };
+  }, []);
+
+  function addCategory(slug: string) {
+    rememberCategory(slug);
+    setCustomCategories(loadCustomCategories());
+  }
 
   const visibleTxns = view === "month" ? monthTxns : transactions;
   const weekTotal = useMemo(
@@ -142,18 +309,21 @@ export default function CashFlowPage() {
   );
 
   const byCategory = useMemo(() => {
-    const map = new Map<SpendingCategory, TransactionRow[]>();
+    const map = new Map<string, TransactionRow[]>();
     for (const t of visibleTxns) {
       const cat = t.category;
       const list = map.get(cat) ?? [];
       list.push(t);
       map.set(cat, list);
     }
-    return SPENDING_CATEGORIES.map((cat) => ({
-      category: cat,
-      amount: (map.get(cat) ?? []).reduce((s, t) => s + Number(t.amount), 0),
-      items: map.get(cat) ?? [],
-    })).filter((g) => g.items.length > 0);
+    const keys = [...new Set([...SPENDING_CATEGORIES, ...visibleTxns.map((t) => t.category)])];
+    return keys
+      .map((cat) => ({
+        category: cat,
+        amount: (map.get(cat) ?? []).reduce((s, t) => s + Number(t.amount), 0),
+        items: map.get(cat) ?? [],
+      }))
+      .filter((g) => g.items.length > 0);
   }, [visibleTxns]);
 
   const categorySlices = byCategory.map((g) => ({ category: g.category, amount: g.amount }));
@@ -166,7 +336,7 @@ export default function CashFlowPage() {
       const amount = history
         .filter((t) => t.txn_date >= start && t.txn_date <= end)
         .reduce((s, t) => s + Number(t.amount), 0);
-      const [y, m, d] = start.split("-");
+      const [, m, d] = start.split("-");
       points.push({ label: `${Number(m)}/${Number(d)}`, amount });
     }
     return points;
@@ -175,7 +345,7 @@ export default function CashFlowPage() {
   async function handleAdd(payload: {
     txn_date: string;
     amount: number;
-    category: SpendingCategory;
+    category: string;
     note?: string;
   }) {
     const res = await fetch("/api/transactions", {
@@ -207,15 +377,19 @@ export default function CashFlowPage() {
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    setParsing(true);
-    setParseError(null);
+    setUploadJob({ status: "parsing", rows: null, notice: null, error: null });
     const fd = new FormData();
     Array.from(files).forEach((f) => fd.append("files", f));
     try {
       const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
       const json = await res.json();
       if (!res.ok) {
-        setParseError(json.error ?? "Could not read that file.");
+        setUploadJob({
+          status: "error",
+          rows: null,
+          notice: null,
+          error: json.error ?? "Could not read that file.",
+        });
         return;
       }
       const documentId =
@@ -238,12 +412,15 @@ export default function CashFlowPage() {
       ]
         .filter(Boolean)
         .join(" ");
-      setReviewNotice(notice || null);
-      setReviewRows(rows);
+      setUploadJob({ status: "ready", rows, notice: notice || null, error: null });
     } catch {
-      setParseError("Upload failed. Try again.");
+      setUploadJob({
+        status: "error",
+        rows: null,
+        notice: null,
+        error: "Upload failed. Try again.",
+      });
     } finally {
-      setParsing(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -252,8 +429,7 @@ export default function CashFlowPage() {
     if (!reviewRows) return;
     const toSave = reviewRows.filter((r) => r.included && r.amount > 0);
     if (toSave.length === 0) {
-      setReviewRows(null);
-      setReviewNotice(null);
+      setUploadJob({ status: "idle", rows: null, notice: null, error: null });
       return;
     }
     const res = await fetch("/api/transactions", {
@@ -279,8 +455,7 @@ export default function CashFlowPage() {
     }
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
-    setReviewRows(null);
-    setReviewNotice(null);
+    setUploadJob({ status: "idle", rows: null, notice: null, error: null });
     await Promise.all([loadWeek(weekStart), loadMeta()]);
   }
 
@@ -303,7 +478,7 @@ export default function CashFlowPage() {
     payload: {
       txn_date: string;
       amount: number;
-      category: SpendingCategory;
+      category: string;
       description: string;
       note?: string;
     },
@@ -327,6 +502,43 @@ export default function CashFlowPage() {
       ? ((weekTotal - weeklyBaseline) / weeklyBaseline) * 100
       : null;
 
+  const priorMonthAverage = useMemo(() => {
+    const viewed = monthKey(monthStart);
+    const totals = new Map<string, number>();
+    for (const t of history) {
+      const key = monthKey(t.txn_date);
+      if (key >= viewed) continue;
+      totals.set(key, (totals.get(key) ?? 0) + Number(t.amount));
+    }
+    const values = [...totals.values()];
+    if (values.length === 0) return null;
+    return values.reduce((sum, n) => sum + n, 0) / values.length;
+  }, [history, monthStart]);
+
+  const vsRecentMonths =
+    priorMonthAverage != null && priorMonthAverage > 0
+      ? ((monthTotal - priorMonthAverage) / priorMonthAverage) * 100
+      : null;
+
+  const budgetCategories = useMemo(
+    () => [
+      ...new Set([
+        ...SPENDING_CATEGORIES,
+        ...customCategories,
+        ...monthTxns.map((t) => t.category),
+        ...Object.keys(budgets),
+      ]),
+    ],
+    [customCategories, monthTxns, budgets],
+  );
+
+  const propertyCost = visibleTxns.some((t) =>
+    /condo|strata|tenant|rental/i.test(
+      `${t.description ?? ""} ${t.note ?? ""} ${categoryLabel(t.category)}`,
+    ),
+  );
+  const currentMonth = startOfMonth(todayIso());
+
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -334,7 +546,7 @@ export default function CashFlowPage() {
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             {view === "month"
-              ? "This month, by category."
+              ? `${formatMonthLabel(monthStart)}, by category.`
               : "Log every spend this week. Honesty is the whole point."}
           </p>
           <div className="mt-3 inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
@@ -376,6 +588,16 @@ export default function CashFlowPage() {
         </div>
       )}
 
+      {propertyCost && (
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white px-4 py-3 font-body text-sm text-[var(--text-secondary)]">
+          These lines look like a rental or condo cost. If that property is not on Net Worth yet,{" "}
+          <a href="/dashboard/assets" className="font-semibold text-[var(--emerald-dark)] underline">
+            add it
+          </a>{" "}
+          so your picture includes it.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
       {view === "week" ? (
@@ -407,17 +629,42 @@ export default function CashFlowPage() {
         </button>
       </div>
       ) : (
-      <div className="rounded-lg border border-[var(--warm-200)] bg-white px-3 py-3 text-center">
-        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
-          {formatMonthLabel(todayIso())}
-        </p>
-        <p className="font-body text-[11px] text-[var(--emerald-dark)]">This month</p>
+      <div className="flex items-center justify-between rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setMonthStart(startOfMonth(addMonths(monthStart, -1)))}
+          className="rounded-md p-2 text-[var(--text-secondary)] hover:bg-[var(--warm-100)]"
+          aria-label="Previous month"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+        <div className="text-center">
+          <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+            {formatMonthLabel(monthStart)}
+          </p>
+          {monthStart === currentMonth && (
+            <p className="font-body text-[11px] text-[var(--emerald-dark)]">This month</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setMonthStart(startOfMonth(addMonths(monthStart, 1)))}
+          disabled={monthStart >= currentMonth}
+          className="rounded-md p-2 text-[var(--text-secondary)] hover:bg-[var(--warm-100)] disabled:opacity-30"
+          aria-label="Next month"
+        >
+          <ChevronRight className="size-5" />
+        </button>
       </div>
       )}
 
       <div className="rounded-xl bg-[#0f1923] p-5 sm:p-6">
         <p className="font-body text-[11px] font-medium uppercase tracking-widest text-white/50">
-          {view === "month" ? "Spent this month" : "Spent this week"}
+          {view === "month"
+            ? monthStart === currentMonth
+              ? "Spent this month"
+              : `Spent in ${formatMonthLabel(monthStart)}`
+            : "Spent this week"}
         </p>
         <p className="mt-1 font-display text-3xl font-bold tabular-nums text-white">
           {formatMoneyExact(view === "month" ? monthTotal : weekTotal)}
@@ -427,6 +674,12 @@ export default function CashFlowPage() {
             {vsBaseline > 0 ? "+" : ""}
             {vsBaseline.toFixed(0)}% vs your typical weekly spend
             {weeklyBaseline != null ? ` (${formatMoney(weeklyBaseline)})` : ""}
+          </p>
+        )}
+        {view === "month" && vsRecentMonths != null && priorMonthAverage != null && (
+          <p className={cn("mt-2 font-body text-sm", vsRecentMonths > 5 ? "text-red-300" : "text-emerald-300")}>
+            {vsRecentMonths > 0 ? "+" : ""}
+            {vsRecentMonths.toFixed(0)}% compared with the average of recent months ({formatMoney(priorMonthAverage)})
           </p>
         )}
       </div>
@@ -443,7 +696,7 @@ export default function CashFlowPage() {
               Set budgets
             </button>
           </div>
-          {SPENDING_CATEGORIES.map((cat) => {
+          {budgetCategories.map((cat) => {
             const spent = monthTxns
               .filter((t) => t.category === cat)
               .reduce((s, t) => s + Number(t.amount), 0);
@@ -453,7 +706,7 @@ export default function CashFlowPage() {
             return (
               <div key={cat}>
                 <div className="flex justify-between font-body text-xs text-[var(--text-secondary)]">
-                  <span>{SPENDING_CATEGORY_LABELS[cat]}</span>
+                  <span>{categoryLabel(cat)}</span>
                   <span>
                     {formatMoney(spent)}
                     {limit != null ? ` / ${formatMoney(limit)}` : ""}
@@ -546,10 +799,10 @@ export default function CashFlowPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className="size-2.5 rounded-full"
-                    style={{ backgroundColor: SPENDING_CATEGORY_COLORS[g.category] }}
+                    style={{ backgroundColor: categoryColor(g.category) }}
                   />
                   <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
-                    {SPENDING_CATEGORY_LABELS[g.category]}
+                    {categoryLabel(g.category)}
                   </span>
                 </div>
                 <span className="font-display text-sm font-bold tabular-nums">
@@ -613,7 +866,15 @@ export default function CashFlowPage() {
 
       </div>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-1">
-        <SpendingCategoryChart data={categorySlices} />
+        <SpendingCategoryChart
+          data={categorySlices}
+          title={view === "month" ? `${formatMonthLabel(monthStart)} by category` : "This week by category"}
+          emptyLabel={
+            view === "month"
+              ? `No spending logged for ${formatMonthLabel(monthStart)} yet.`
+              : "No spending logged this week yet."
+          }
+        />
         <WeeklySpendChart data={weeklyBars} baseline={weeklyBaseline} />
       </div>
       </div>
@@ -621,8 +882,10 @@ export default function CashFlowPage() {
       {showAdd && (
         <QuickAddSheet
           defaultDate={range.end < todayIso() ? range.end : todayIso()}
-          minDate={range.start}
-          maxDate={range.end}
+          minDate={view === "month" ? monthStart : range.start}
+          maxDate={view === "month" ? endOfMonth(monthStart) : range.end}
+          extras={customCategories}
+          onAddCategory={addCategory}
           onClose={() => setShowAdd(false)}
           onSave={handleAdd}
         />
@@ -643,11 +906,12 @@ export default function CashFlowPage() {
         <ReviewModal
           rows={reviewRows}
           notice={reviewNotice}
-          onChange={setReviewRows}
-          onCancel={() => {
-            setReviewRows(null);
-            setReviewNotice(null);
-          }}
+          extras={customCategories}
+          onAddCategory={addCategory}
+          onChange={(rows) =>
+            setUploadJob({ status: "ready", rows, notice: reviewNotice, error: null })
+          }
+          onCancel={() => setUploadJob({ status: "idle", rows: null, notice: null, error: null })}
           onConfirm={confirmReview}
         />
       )}
@@ -655,6 +919,8 @@ export default function CashFlowPage() {
       {editing && (
         <EditSpendSheet
           txn={editing}
+          extras={customCategories}
+          onAddCategory={addCategory}
           onClose={() => setEditing(null)}
           onSave={(payload) => handleEdit(editing.id, payload)}
         />
@@ -672,6 +938,7 @@ export default function CashFlowPage() {
       {showBudgets && (
         <BudgetSheet
           budgets={budgets}
+          extras={customCategories}
           onClose={() => setShowBudgets(false)}
           onSaved={(next, unlocksNext) => {
             setBudgets(next);
@@ -690,22 +957,26 @@ function QuickAddSheet({
   defaultDate,
   minDate,
   maxDate,
+  extras,
+  onAddCategory,
   onClose,
   onSave,
 }: {
   defaultDate: string;
   minDate: string;
   maxDate: string;
+  extras: string[];
+  onAddCategory: (slug: string) => void;
   onClose: () => void;
   onSave: (payload: {
     txn_date: string;
     amount: number;
-    category: SpendingCategory;
+    category: string;
     note?: string;
   }) => Promise<void>;
 }) {
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState<SpendingCategory>("other");
+  const [category, setCategory] = useState("other");
   const [date, setDate] = useState(defaultDate);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -744,22 +1015,14 @@ function QuickAddSheet({
         <p className="mb-2 font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Category
         </p>
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {SPENDING_CATEGORIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={cn(
-                "rounded-full px-2.5 py-1 font-display text-xs font-medium",
-                category === c
-                  ? "bg-[var(--emerald)] text-white"
-                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
-              )}
-            >
-              {SPENDING_CATEGORY_LABELS[c]}
-            </button>
-          ))}
+        <div className="mb-4">
+          <CategoryPicker
+            value={category}
+            extras={extras}
+            onAdd={onAddCategory}
+            onChange={setCategory}
+            variant="pills"
+          />
         </div>
         <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Date
@@ -797,21 +1060,25 @@ function QuickAddSheet({
 
 function EditSpendSheet({
   txn,
+  extras,
+  onAddCategory,
   onClose,
   onSave,
 }: {
   txn: TransactionRow;
+  extras: string[];
+  onAddCategory: (slug: string) => void;
   onClose: () => void;
   onSave: (payload: {
     txn_date: string;
     amount: number;
-    category: SpendingCategory;
+    category: string;
     description: string;
     note?: string;
   }) => Promise<void>;
 }) {
   const [amount, setAmount] = useState(String(txn.amount));
-  const [category, setCategory] = useState<SpendingCategory>(txn.category);
+  const [category, setCategory] = useState(txn.category);
   const [date, setDate] = useState(txn.txn_date);
   const [description, setDescription] = useState(txn.description ?? "");
   const [note, setNote] = useState(txn.note ?? "");
@@ -876,22 +1143,14 @@ function EditSpendSheet({
         <p className="mb-2 font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Category
         </p>
-        <div className="mb-4 flex flex-wrap gap-1.5">
-          {SPENDING_CATEGORIES.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCategory(c)}
-              className={cn(
-                "rounded-full px-2.5 py-1 font-display text-xs font-medium",
-                category === c
-                  ? "bg-[var(--emerald)] text-white"
-                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
-              )}
-            >
-              {SPENDING_CATEGORY_LABELS[c]}
-            </button>
-          ))}
+        <div className="mb-4">
+          <CategoryPicker
+            value={category}
+            extras={extras}
+            onAdd={onAddCategory}
+            onChange={setCategory}
+            variant="pills"
+          />
         </div>
         <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Date
@@ -967,12 +1226,16 @@ function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue
 function ReviewModal({
   rows,
   notice,
+  extras,
+  onAddCategory,
   onChange,
   onCancel,
   onConfirm,
 }: {
   rows: ReviewRow[];
   notice: string | null;
+  extras: string[];
+  onAddCategory: (slug: string) => void;
   onChange: (rows: ReviewRow[]) => void;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
@@ -995,7 +1258,15 @@ function ReviewModal({
               {included.length} of {rows.length} selected. Suggested categories stay marked until you confirm them.
             </p>
             {notice && (
-              <p className="mt-1 font-body text-xs text-amber-800">{notice}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4 font-body text-xs text-amber-800">
+                {notice
+                  .split(/(?<=[.!?])\s+/)
+                  .map((part) => part.trim())
+                  .filter(Boolean)
+                  .map((part) => (
+                    <li key={part}>{part}</li>
+                  ))}
+              </ul>
             )}
           </div>
           <button type="button" onClick={onCancel} aria-label="Close">
@@ -1040,22 +1311,18 @@ function ReviewModal({
                           className="rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
                         />
                         <div className="col-span-2 sm:col-span-1">
-                          <select
+                          <CategoryPicker
                             value={r.suggested_category}
-                            onChange={(e) =>
-                              update(r.key, {
-                                suggested_category: e.target.value as SpendingCategory,
-                                categoryConfirmed: true,
-                              })
+                            extras={extras}
+                            variant="select"
+                            onAdd={(slug) => {
+                              onAddCategory(slug);
+                              update(r.key, { suggested_category: slug, categoryConfirmed: true });
+                            }}
+                            onChange={(slug) =>
+                              update(r.key, { suggested_category: slug, categoryConfirmed: true })
                             }
-                            className="w-full rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
-                          >
-                            {SPENDING_CATEGORIES.map((c) => (
-                              <option key={c} value={c}>
-                                {SPENDING_CATEGORY_LABELS[c]}
-                              </option>
-                            ))}
-                          </select>
+                          />
                           {r.categoryConfirmed ? (
                             <p className="mt-1 font-body text-[11px] text-[var(--emerald-dark)]">Category checked</p>
                           ) : (
@@ -1113,16 +1380,19 @@ function ReviewModal({
 
 function BudgetSheet({
   budgets,
+  extras,
   onClose,
   onSaved,
 }: {
   budgets: Record<string, number>;
+  extras: string[];
   onClose: () => void;
   onSaved: (next: Record<string, number>, unlocks: UnlockItem[]) => void;
 }) {
+  const categories = [...new Set([...SPENDING_CATEGORIES, ...extras, ...Object.keys(budgets)])];
   const [draft, setDraft] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
-    for (const cat of SPENDING_CATEGORIES) {
+    for (const cat of categories) {
       o[cat] = budgets[cat] != null ? String(budgets[cat]) : "";
     }
     return o;
@@ -1139,9 +1409,9 @@ function BudgetSheet({
           </button>
         </div>
         <div className="space-y-3 p-4">
-          {SPENDING_CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <label key={cat} className="flex items-center justify-between gap-3">
-              <span className="font-body text-sm">{SPENDING_CATEGORY_LABELS[cat]}</span>
+              <span className="font-body text-sm">{categoryLabel(cat)}</span>
               <input
                 type="number"
                 min={0}
@@ -1158,7 +1428,7 @@ function BudgetSheet({
             disabled={saving}
             onClick={async () => {
               setSaving(true);
-              const payload = SPENDING_CATEGORIES.map((cat) => ({
+              const payload = categories.map((cat) => ({
                 category: cat,
                 monthly_limit: Number(draft[cat] || 0),
               })).filter((b) => b.monthly_limit > 0);

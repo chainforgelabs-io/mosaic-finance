@@ -1,42 +1,46 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import {
-  SPENDING_CATEGORY_COLORS,
-  SPENDING_CATEGORY_LABELS,
-  type SpendingCategory,
-} from "@/lib/tracking/categories";
+import { categoryColor, categoryLabel } from "@/lib/tracking/categories";
 import { formatMoney } from "@/lib/tracking/format";
 
 interface Slice {
-  category: SpendingCategory;
+  category: string;
   amount: number;
 }
 
-export function SpendingCategoryChart({ data }: { data: Slice[] }) {
+export function SpendingCategoryChart({
+  data,
+  title = "This week by category",
+  emptyLabel = "No spending logged this week yet.",
+}: {
+  data: Slice[];
+  title?: string;
+  emptyLabel?: string;
+}) {
   const slices = data.filter((d) => d.amount > 0);
   if (slices.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
         <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
-          This week by category
+          {title}
         </h3>
-        <p className="font-body text-sm text-[var(--text-muted)]">No spending logged this week yet.</p>
+        <p className="font-body text-sm text-[var(--text-muted)]">{emptyLabel}</p>
       </div>
     );
   }
 
   const chartData = slices.map((s) => ({
-    name: SPENDING_CATEGORY_LABELS[s.category],
+    name: categoryLabel(s.category),
     value: s.amount,
-    color: SPENDING_CATEGORY_COLORS[s.category],
+    color: categoryColor(s.category),
   }));
   const total = slices.reduce((s, d) => s + d.amount, 0);
 
   return (
     <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
       <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
-        This week by category
+        {title}
       </h3>
       <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
         {formatMoney(total)} total

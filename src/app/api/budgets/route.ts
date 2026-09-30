@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
-import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 
 const putSchema = z.object({
   budgets: z.array(
     z.object({
-      category: z.enum(SPENDING_CATEGORIES),
+      category: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
       monthly_limit: z.number().min(0),
     }),
   ),

@@ -417,6 +417,18 @@ function AccountCard({
   );
 }
 
+function holdingLabel(holding: { ticker?: string; name?: string }): string {
+  const ticker = (holding.ticker ?? "").trim();
+  const name = (holding.name ?? "").trim();
+  const tickerMissing = !ticker || ticker.toUpperCase() === "UNKNOWN";
+  if (tickerMissing) return name;
+  if (name && name.toUpperCase() !== ticker.toUpperCase()) {
+    const combined = `${name} (${ticker})`;
+    return combined.length <= 100 ? combined : name;
+  }
+  return ticker;
+}
+
 function UploadDropZone({
   onParsed,
 }: {
@@ -466,9 +478,9 @@ function UploadDropZone({
             holdings: (acc.holdings ?? []).map(
               (h: { ticker?: string; name?: string; balance?: number; units?: number }, j: number) => ({
                 localId: `upload-${Date.now()}-${i}-${j}`,
-                tickerOrName: h.ticker || h.name || "",
+                tickerOrName: holdingLabel(h),
                 balance: h.balance ?? 0,
-                units: h.units,
+                units: h.units == null ? undefined : h.units,
               }),
             ),
             collapsed: false,
@@ -570,13 +582,13 @@ function UploadDropZone({
           Upload a redacted statement
         </h3>
         <p className="mt-2 font-body text-[14px] text-[var(--text-secondary)]">
-          PDF or image accepted. You can upload multiple statements.
+          CSV, PDF, or image. A brokerage CSV should include the security name and value.
         </p>
 
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png,.webp"
+          accept=".csv,text/csv,.pdf,.jpg,.jpeg,.png,.webp"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -755,7 +767,7 @@ function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAc
         acc.holdings && acc.holdings.length > 0
           ? acc.holdings.map((h, j) => ({
               localId: `prefill-h-${i}-${j}-${ts}`,
-              tickerOrName: h.ticker || h.name || "",
+              tickerOrName: holdingLabel(h),
               balance: h.balance ?? 0,
               units: h.units ?? undefined,
             }))

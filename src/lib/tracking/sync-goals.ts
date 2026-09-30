@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { inferGoalType, type GoalPriority } from "@/lib/tracking/categories";
+import { inferGoalType, presentGoalName, type GoalPriority } from "@/lib/tracking/categories";
 
 interface JsonbGoal {
   goal?: string;
@@ -34,7 +34,8 @@ export function goalRowFromExtracted(
   g: JsonbGoal,
   retirementAge?: number | null,
 ) {
-  const name = String(g.name ?? g.goal ?? g.type ?? g.description ?? "").trim();
+  const rawName = String(g.name ?? g.goal ?? g.type ?? g.description ?? "").trim();
+  const name = presentGoalName(rawName);
   if (!name) return null;
   const goalType = inferGoalType(g.type ?? g.goal ?? g.name);
   const rawAmount = g.target_amount;

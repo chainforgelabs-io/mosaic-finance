@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
-import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
 
 const txnSchema = z.object({
   txn_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   amount: z.number().min(0),
-  category: z.enum(SPENDING_CATEGORIES),
+  category: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
   description: z.string().max(300).optional().nullable(),
   note: z.string().max(1000).optional().nullable(),
   source: z.enum(["manual", "screenshot"]).optional().default("manual"),
@@ -17,7 +16,7 @@ const txnSchema = z.object({
 });
 
 const batchSchema = z.object({
-  transactions: z.array(txnSchema).min(1).max(200),
+  transactions: z.array(txnSchema).min(1).max(500),
 });
 
 const patchSchema = txnSchema.partial().extend({

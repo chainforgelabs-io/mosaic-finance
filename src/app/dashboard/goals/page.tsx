@@ -7,6 +7,7 @@ import {
   GOAL_PRIORITIES,
   GOAL_TYPE_LABELS,
   GOAL_TYPES,
+  presentGoalName,
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
@@ -189,7 +190,7 @@ function GoalCard({
           <p className="font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
             {GOAL_TYPE_LABELS[goal.goal_type] ?? goal.goal_type}
           </p>
-          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{goal.name}</h3>
+          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{presentGoalName(goal.name)}</h3>
           {(goal.source === "fact_find" || goal.source === "onboarding") && (
             <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
               From your onboarding session — change this if it isn&apos;t quite right.

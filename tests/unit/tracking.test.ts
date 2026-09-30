@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { inferGoalType, isSpendingCategory } from "@/lib/tracking/categories";
-import { addDays, monthKey, startOfMonth, startOfWeekMonday } from "@/lib/tracking/dates";
+import { categorySlug, inferGoalType, isSpendingCategory, presentGoalName } from "@/lib/tracking/categories";
+import { addDays, endOfMonth, monthKey, startOfMonth, startOfWeekMonday } from "@/lib/tracking/dates";
+import { parseHoldingsCsv } from "@/lib/tracking/holdings-csv";
+import { holdingSchema } from "@/lib/schemas/holdings";
 import { goalDraftToPayload, horizonFromStored } from "@/lib/tracking/goal-draft";
 import { goalRowFromExtracted } from "@/lib/tracking/sync-goals";
 
@@ -19,6 +21,43 @@ describe("tracking date helpers", () => {
   it("derives month keys", () => {
     expect(monthKey("2026-08-31")).toBe("2026-08");
     expect(startOfMonth("2026-08-31")).toBe("2026-08-01");
+    expect(endOfMonth("2026-08-15")).toBe("2026-08-31");
+    expect(endOfMonth("2026-02-01")).toBe("2026-02-28");
+  });
+});
+
+describe("goal names", () => {
+  it("turns stored keys into readable names", () => {
+    expect(presentGoalName("debt_payoff")).toBe("Pay off debt");
+    expect(presentGoalName("save_for_education")).toBe("Save for education");
+    expect(presentGoalName("home_upgrade")).toBe("Home upgrade");
+    expect(presentGoalName("travel")).toBe("Travel");
+    expect(presentGoalName("Pay off debt")).toBe("Pay off debt");
+  });
+
+  it("builds a category slug from a label", () => {
+    expect(categorySlug("Rental condo fees")).toBe("rental_condo_fees");
+    expect(categorySlug("")).toBeNull();
+  });
+});
+
+describe("holdings upload", () => {
+  it("reads a brokerage csv and skips rows without a value", () => {
+    const csv = [
+      "Security name,Symbol,Quantity,Market value ($),Book value ($)",
+      "Example Fund,EXF,10,1500,1400",
+      "Missing Value,MISS,2,N/A,",
+    ].join("\n");
+    expect(parseHoldingsCsv(csv)).toEqual({
+      holdings: [{ ticker: "EXF", name: "Example Fund", balance: 1500, units: 10 }],
+      skipped: 1,
+    });
+  });
+
+  it("accepts a null unit count", () => {
+    const parsed = holdingSchema.safeParse({ tickerOrName: "Example Fund", balance: 1500, units: null });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.units).toBeUndefined();
   });
 });
 

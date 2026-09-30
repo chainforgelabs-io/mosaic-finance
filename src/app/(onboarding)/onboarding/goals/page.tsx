@@ -11,6 +11,7 @@ import {
   GOAL_TYPE_LABELS,
   GOAL_TYPES,
   inferGoalType,
+  presentGoalName,
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
@@ -73,7 +74,7 @@ export default function OnboardingGoalsPage() {
           setGoals(
             existing.map((g) => ({
               key: crypto.randomUUID(),
-              name: g.name,
+              name: presentGoalName(g.name),
               goal_type: inferGoalType(g.goal_type),
               target_amount: g.target_amount != null ? String(g.target_amount) : "",
               amount_unknown: Boolean(g.amount_unknown),

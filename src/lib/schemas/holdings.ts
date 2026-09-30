@@ -188,7 +188,10 @@ export const holdingSchema = z.object({
   balance: z
     .number({ message: "Balance is required" })
     .min(0, "Balance must be positive"),
-  units: z.number().min(0, "Units must be positive").optional(),
+  units: z.preprocess(
+    (value) => (value == null || value === "" ? undefined : value),
+    z.number().min(0, "Units must be positive").optional(),
+  ),
 });
 
 export const accountSchema = z.object({

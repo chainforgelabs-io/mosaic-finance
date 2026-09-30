@@ -402,7 +402,7 @@ export async function POST(req: NextRequest) {
     }
 
     const transactions = dedupeSpendingItems(allParsed);
-    const joinedNotes = [...new Set(notes.map((note) => note.trim()).filter(Boolean))].join(" ").slice(0, 800);
+    const joinedNotes = [...new Set(notes.map((note) => note.trim()).filter(Boolean))].join(" ").slice(0, 2000);
     if (transactions.length === 0 && notes.some((note) => note.startsWith("Could not read"))) {
       return NextResponse.json(
         {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { anthropic } from '@/lib/claude/client';
+import { anthropic, claudeSamplingParams } from '@/lib/claude/client';
+import { parseHoldingsCsv } from '@/lib/tracking/holdings-csv';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import {
@@ -25,8 +26,8 @@ const STATEMENT_PARSE_PROMPT = `You are a financial document parser for Mosaic F
 The user has uploaded a blacked-out investment statement. Sensitive information (SIN, account numbers, full legal name) may be redacted. That is expected and correct — do NOT flag redacted fields as errors.
 
 Extract all visible investment holdings from this document. For each holding, capture:
-- ticker: The ticker symbol (e.g., XEQT, ZAG.TO, VFV). If not visible, use "UNKNOWN".
-- name: The full name of the holding (e.g., "iShares Core S&P/TSX Capped Composite Index ETF")
+- ticker: The ticker symbol (e.g., XEQT, ZAG.TO, VFV). If no ticker is printed, use "UNKNOWN".
+- name: The security or fund name exactly as printed. Always fill this in, even when the ticker is UNKNOWN.
 - balance: The market value in CAD. If only shown in another currency, note that.
 - units: Number of units/shares if visible. Omit if not shown.
 
@@ -89,10 +90,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const isCsv =
+      file.type === 'text/csv' ||
+      file.type === 'application/csv' ||
+      file.name.toLowerCase().endsWith('.csv');
+
+    if (isCsv) {
+      const text = await file.text();
+      const parsed = parseHoldingsCsv(text);
+      if (parsed.holdings.length === 0) {
+        return NextResponse.json(
+          { error: 'No holdings found in that CSV. Use a brokerage export with security name, symbol, and market value.' },
+          { status: 422 },
+        );
+      }
+      return NextResponse.json({
+        status: 'completed',
+        parsedHoldings: {
+          accounts: [
+            {
+              account_type: 'unknown',
+              holdings: parsed.holdings,
+              total_value: parsed.holdings.reduce((sum, holding) => sum + holding.balance, 0),
+            },
+          ],
+          confidence: 'high',
+          notes:
+            parsed.skipped > 0
+              ? `${parsed.skipped} row${parsed.skipped === 1 ? '' : 's'} had no numeric value and were left out.`
+              : '',
+        },
+      });
+    }
+
     if (!ALLOWED_MIME_TYPES.includes(file.type as (typeof ALLOWED_MIME_TYPES)[number])) {
       return NextResponse.json(
         {
-          error: `Unsupported file type: ${file.type}. Accepted formats: JPEG, PNG, WebP, PDF.`,
+          error: `Unsupported file type: ${file.type || 'unknown'}. Accepted formats: CSV, JPEG, PNG, WebP, PDF.`,
         },
         { status: 400 },
       );
@@ -176,7 +210,8 @@ export async function POST(req: NextRequest) {
 
       const response = await anthropic.messages.create({
         model: MODEL_IDS.sonnet,
-        max_tokens: 4096,
+        max_tokens: 8192,
+        ...claudeSamplingParams(MODEL_IDS.sonnet),
         messages: [
           {
             role: 'user',
@@ -201,8 +236,10 @@ export async function POST(req: NextRequest) {
         cacheReadTokens: response.usage?.cache_read_input_tokens ?? 0,
       });
 
-      const responseText =
-        response.content[0].type === 'text' ? response.content[0].text : '';
+      const responseText = response.content
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text)
+        .join('\n');
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error('No JSON in Claude Vision response');
       parsedHoldings = JSON.parse(jsonMatch[0]);
