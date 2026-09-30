@@ -5,6 +5,7 @@ import {
   sanitizeRecap,
 } from "@/lib/email/market-brief";
 import {
+  EDUCATION_ISSUES,
   educationIssueForDate,
   isEducationWeek,
   isoWeekUtc,
@@ -164,6 +165,14 @@ describe("education cadence", () => {
     expect(isEducationWeek(even)).toBe(isoWeekUtc(even) % 2 === 0);
     expect(isEducationWeek(odd)).toBe(isoWeekUtc(odd) % 2 === 0);
     expect(educationIssueForDate(even).slug).toBeTruthy();
+  });
+
+  it("stacks the FHSA sentence so it wraps on a phone", () => {
+    const issue = EDUCATION_ISSUES.find((item) => item.slug === "rrsp-tfsa-fhsa");
+    const html = issue?.body("https://mosaicfinance.ai") ?? "";
+    expect(html).toContain("qualifying first-home withdrawal not taxed");
+    expect(html).toContain("line-height:1.5");
+    expect(html).not.toContain("text-align:right");
   });
 });
 

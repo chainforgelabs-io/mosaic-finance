@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import { parseCalculatorNumber } from '@/lib/calculations/calculator-input';
 import {
   checkFHSAEligibility,
   calculateFHSAContributionRoom,
+  fhsaRoomThisYear,
+  illustratePreTaxContribution,
   calculateRRSPContributionRoom,
   calculateTFSARoom,
   isValidAccountType,
@@ -14,6 +17,14 @@ import {
   TFSA_ANNUAL_LIMIT_2025,
   VALID_ACCOUNT_TYPES,
 } from '@/lib/calculations/canadian-accounts';
+
+describe('calculator number entry', () => {
+  it('leaves a cleared box empty instead of writing 0 back', () => {
+    expect(parseCalculatorNumber('')).toEqual({ text: '', value: 0 });
+    expect(parseCalculatorNumber('0')).toEqual({ text: '0', value: 0 });
+    expect(parseCalculatorNumber('500')).toEqual({ text: '500', value: 500 });
+  });
+});
 
 describe('FHSA Logic', () => {
   describe('checkFHSAEligibility', () => {
@@ -95,6 +106,76 @@ describe('FHSA Logic', () => {
 
     it('partial contribution leaves correct room', () => {
       expect(calculateFHSAContributionRoom(1, 5000)).toBe(3000);
+    });
+  });
+
+  describe('fhsaRoomThisYear', () => {
+    it('has no room until the account is open', () => {
+      expect(
+        fhsaRoomThisYear({
+          yearsOpen: 0,
+          carryIntoThisYear: 8000,
+          contributedBeforeThisYear: 0,
+          contributedThisYear: 0,
+        }).roomLeft,
+      ).toBe(0);
+    });
+
+    it('gives a first year $8,000 and ignores carry-forward', () => {
+      const picture = fhsaRoomThisYear({
+        yearsOpen: 1,
+        carryIntoThisYear: 8000,
+        contributedBeforeThisYear: 0,
+        contributedThisYear: 0,
+      });
+      expect(picture.carryUsed).toBe(0);
+      expect(picture.roomLeft).toBe(8000);
+    });
+
+    it('adds carried room in a later year, capped at $8,000', () => {
+      const picture = fhsaRoomThisYear({
+        yearsOpen: 2,
+        carryIntoThisYear: 20000,
+        contributedBeforeThisYear: 0,
+        contributedThisYear: 1000,
+      });
+      expect(picture.roomAtStart).toBe(16000);
+      expect(picture.roomLeft).toBe(15000);
+    });
+
+    it('stops at the lifetime limit', () => {
+      const picture = fhsaRoomThisYear({
+        yearsOpen: 3,
+        carryIntoThisYear: 8000,
+        contributedBeforeThisYear: 36000,
+        contributedThisYear: 0,
+      });
+      expect(picture.roomLeft).toBe(4000);
+      expect(picture.lifetimeRemaining).toBe(4000);
+    });
+  });
+});
+
+describe('pre-tax contribution illustration', () => {
+  it('compares RRSP, TFSA, and a qualifying FHSA withdrawal without growth', () => {
+    const picture = illustratePreTaxContribution(10000, 40, 25);
+    expect(picture.rrsp).toEqual({
+      deposited: 10000,
+      taxReducedNow: 4000,
+      taxOnWithdrawal: 2500,
+      leftAfterWithdrawal: 7500,
+    });
+    expect(picture.tfsa).toEqual({
+      deposited: 6000,
+      taxReducedNow: 0,
+      taxOnWithdrawal: 0,
+      leftAfterWithdrawal: 6000,
+    });
+    expect(picture.fhsaQualifying).toEqual({
+      deposited: 10000,
+      taxReducedNow: 4000,
+      taxOnWithdrawal: 0,
+      leftAfterWithdrawal: 10000,
     });
   });
 });

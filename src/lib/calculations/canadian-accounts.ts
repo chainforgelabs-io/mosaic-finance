@@ -45,6 +45,99 @@ export function calculateFHSAContributionRoom(
   return Math.max(0, totalRoom - totalContributed);
 }
 
+export interface FhsaYearPicture {
+  open: boolean;
+  carryUsed: number;
+  roomAtStart: number;
+  roomLeft: number;
+  lifetimeContributed: number;
+  lifetimeRemaining: number;
+  yearsLeftInWindow: number;
+}
+
+/** This year's FHSA room: $8,000 plus up to $8,000 carried in, capped by lifetime room. */
+export function fhsaRoomThisYear(input: {
+  yearsOpen: number;
+  carryIntoThisYear: number;
+  contributedBeforeThisYear: number;
+  contributedThisYear: number;
+}): FhsaYearPicture {
+  const yearsOpen = Math.max(0, Math.floor(input.yearsOpen));
+  const before = Math.max(0, input.contributedBeforeThisYear);
+  const thisYear = Math.max(0, input.contributedThisYear);
+  const lifetimeContributed = before + thisYear;
+  const lifetimeRemaining = Math.max(0, FHSA_LIFETIME_LIMIT - lifetimeContributed);
+  if (yearsOpen < 1) {
+    return {
+      open: false,
+      carryUsed: 0,
+      roomAtStart: 0,
+      roomLeft: 0,
+      lifetimeContributed,
+      lifetimeRemaining: Math.max(0, FHSA_LIFETIME_LIMIT - lifetimeContributed),
+      yearsLeftInWindow: 15,
+    };
+  }
+  const carryUsed =
+    yearsOpen <= 1
+      ? 0
+      : Math.min(FHSA_MAX_CARRYFORWARD, Math.max(0, input.carryIntoThisYear));
+  const lifetimeAtStart = Math.max(0, FHSA_LIFETIME_LIMIT - before);
+  const roomAtStart = Math.min(FHSA_ANNUAL_LIMIT + carryUsed, lifetimeAtStart);
+  return {
+    open: true,
+    carryUsed,
+    roomAtStart,
+    roomLeft: Math.max(0, roomAtStart - thisYear),
+    lifetimeContributed,
+    lifetimeRemaining,
+    yearsLeftInWindow: Math.max(0, 15 - yearsOpen),
+  };
+}
+
+export interface TaxLeg {
+  deposited: number;
+  taxReducedNow: number;
+  taxOnWithdrawal: number;
+  leftAfterWithdrawal: number;
+}
+
+/**
+ * Tax on a pre-tax amount itself. No growth, so this is not a balance forecast.
+ * FHSA leg is a qualifying first-home withdrawal (no tax on the way out).
+ */
+export function illustratePreTaxContribution(
+  preTaxAmount: number,
+  bracketNowPercent: number,
+  bracketLaterPercent: number,
+): { rrsp: TaxLeg; tfsa: TaxLeg; fhsaQualifying: TaxLeg } {
+  const amount = Math.max(0, preTaxAmount);
+  const now = Math.min(100, Math.max(0, bracketNowPercent)) / 100;
+  const later = Math.min(100, Math.max(0, bracketLaterPercent)) / 100;
+  const rrspTaxLater = Math.round(amount * later);
+  const tfsaDeposited = Math.round(amount * (1 - now));
+  return {
+    rrsp: {
+      deposited: Math.round(amount),
+      taxReducedNow: Math.round(amount * now),
+      taxOnWithdrawal: rrspTaxLater,
+      leftAfterWithdrawal: Math.round(amount) - rrspTaxLater,
+    },
+    tfsa: {
+      deposited: tfsaDeposited,
+      taxReducedNow: 0,
+      taxOnWithdrawal: 0,
+      leftAfterWithdrawal: tfsaDeposited,
+    },
+    fhsaQualifying: {
+      deposited: Math.round(amount),
+      taxReducedNow: Math.round(amount * now),
+      taxOnWithdrawal: 0,
+      leftAfterWithdrawal: Math.round(amount),
+    },
+  };
+}
+
 export function calculateRRSPContributionRoom(
   previousYearIncome: number,
   pensionAdjustment: number = 0,

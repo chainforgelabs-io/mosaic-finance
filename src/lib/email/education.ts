@@ -15,6 +15,14 @@ function row(label: string, value: string): string {
   </tr>`;
 }
 
+/** Label on its own line so a long sentence cannot sit on top of it in Outlook. */
+function stackedNote(label: string, value: string): string {
+  return `<p style="margin:0 0 14px;padding:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#374151;">
+    <strong style="color:#0C0F17;">${label}</strong><br />
+    ${value}
+  </p>`;
+}
+
 /**
  * ISO week (UTC), 1–53.
  */
@@ -43,11 +51,11 @@ export const EDUCATION_ISSUES: EducationIssue[] = [
       <p style="margin:0 0 12px;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
         These buckets are often mixed together in a spreadsheet. They are not interchangeable — the tax treatment, contribution room, and withdrawal rules differ.
       </p>
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0 16px;">
-        ${row("RRSP", "Deduction now · taxed on withdrawal")}
-        ${row("TFSA", "After-tax in · growth not taxed")}
-        ${row("FHSA", "Deduction now · qualifying first-home withdrawal not taxed")}
-      </table>
+      <div style="margin:12px 0 16px;">
+        ${stackedNote("RRSP", "Deduction now · taxed on withdrawal")}
+        ${stackedNote("TFSA", "After-tax in · growth not taxed")}
+        ${stackedNote("FHSA", "Deduction now · qualifying first-home withdrawal not taxed")}
+      </div>
       <p style="margin:0 0 8px;font-family:Arial,sans-serif;font-size:13px;font-weight:700;color:#0C0F17;">Worked example (illustration)</p>
       <p style="margin:0 0 16px;font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#374151;">
         $10,000 contributed while in a 40% federal+provincial bracket, later withdrawn in a 25% bracket, does not have the same after-tax result in an RRSP as in a TFSA. The gap is the tax treatment — not a forecast of returns.
