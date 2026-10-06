@@ -128,15 +128,42 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
 
 const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest"] as const;
 
-function categoryForRole(role: (typeof LINE_ROLES)[number], raw: unknown): string {
+const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep)\b/i;
+const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave)\b|\bei\b/i;
+
+function slugFromLabel(raw: unknown): string | null {
+  const slug = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return /^[a-z][a-z0-9_]{0,39}$/.test(slug) ? slug : null;
+}
+
+function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
+  if ((role === "transfer" || role === "purchase" || role === "fee") && (PAY_HINT.test(description) || BENEFIT_HINT.test(description))) {
+    return "income";
+  }
+  return role;
+}
+
+function categoryForRole(
+  role: (typeof LINE_ROLES)[number],
+  raw: unknown,
+  description: string,
+): string {
   if (role === "card_payment") return "debt_payments";
   if (role === "transfer") return "other";
   if (role === "income") {
-    const slug = String(raw ?? "paycheque").trim().toLowerCase();
-    return slug === "income" ? "income" : "paycheque";
+    if (BENEFIT_HINT.test(description)) return "ei";
+    if (PAY_HINT.test(description)) return "paycheque";
+    return slugFromLabel(raw) ?? "paycheque";
   }
-  const catRaw = String(raw ?? "other");
-  return isSpendingCategory(catRaw) ? catRaw : "other";
+  const slug = slugFromLabel(raw);
+  if (!slug) return "other";
+  return isSpendingCategory(slug) || slug !== "other" ? slug : "other";
 }
 
 export function normalizeStatementItems(
@@ -151,9 +178,11 @@ export function normalizeStatementItems(
     const amount = Number(row.amount);
     if (!Number.isFinite(amount) || amount <= 0) continue;
     const roleRaw = String(row.line_role ?? "purchase");
-    const line_role = (LINE_ROLES as readonly string[]).includes(roleRaw)
+    const parsedRole = (LINE_ROLES as readonly string[]).includes(roleRaw)
       ? (roleRaw as (typeof LINE_ROLES)[number])
       : "purchase";
+    const description = String(row.description ?? "").slice(0, 300);
+    const line_role = refineRole(description, parsedRole);
     const instrumentRaw = row.instrument ?? fallbackInstrument;
     const instrument = instrumentRaw === "credit" ? "credit" : "debit";
     const dateRaw = row.txn_date;
@@ -162,8 +191,8 @@ export function normalizeStatementItems(
     out.push({
       txn_date,
       amount: Math.round(amount * 100) / 100,
-      description: String(row.description ?? "").slice(0, 300),
-      suggested_category: categoryForRole(line_role, row.suggested_category),
+      description,
+      suggested_category: categoryForRole(line_role, row.suggested_category, description),
       note: row.note != null ? String(row.note).slice(0, 300) : undefined,
       instrument,
       line_role,

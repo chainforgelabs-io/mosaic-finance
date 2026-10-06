@@ -26,6 +26,34 @@ describe("statement lines", () => {
     );
     expect(items[0]).toMatchObject({ line_role: "income", suggested_category: "paycheque", instrument: "credit" });
     expect(items[1]).toMatchObject({ line_role: "card_payment", suggested_category: "debt_payments" });
+    expect(
+      normalizeStatementItems(
+        [
+          {
+            txn_date: "2026-07-14",
+            amount: 1314,
+            description: "EI",
+            line_role: "transfer",
+            suggested_category: "other",
+          },
+        ],
+        "debit",
+      )[0],
+    ).toMatchObject({ line_role: "income", suggested_category: "ei" });
+    expect(
+      normalizeStatementItems(
+        [
+          {
+            txn_date: "2026-07-02",
+            amount: 40,
+            description: "Daycare",
+            line_role: "purchase",
+            suggested_category: "Child care",
+          },
+        ],
+        "debit",
+      )[0]?.suggested_category,
+    ).toBe("child_care");
     expect(countsTowardSpend(items[1])).toBe(false);
     expect(cashEffect({ ...items[1], txn_date: "2026-07-03", direction: "out" })).toBe(-400);
     expect(
@@ -54,7 +82,7 @@ describe("statement baseline", () => {
     line("2026-07-06", 200, "purchase", "dining", "credit", "Dinner"),
     line("2026-08-06", 200, "purchase", "dining", "credit", "Dinner"),
     line("2026-07-07", 50, "card_payment", "debt_payments", "credit", "Payment thank you"),
-    line("2026-08-07", 50, "card_payment", "debt_payments", "debit", "Visa payment"),
+    line("2026-07-08", 50, "card_payment", "debt_payments", "debit", "Visa payment"),
     line("2026-10-02", 9000, "purchase", "shopping", "debit", "This month"),
   ];
 
@@ -67,12 +95,37 @@ describe("statement baseline", () => {
     expect(baseline?.needsMonthly).toBe(2000);
     expect(baseline?.flexibleMonthly).toBe(233.33);
     expect(baseline?.leftMonthly).toBe(1766.67);
-    expect(baseline?.creditGrowthMonthly).toBe(100);
+    expect(baseline?.creditGrowthMonthly).toBe(175);
+    expect(baseline?.coverageNote).toBe("Based on July, August, and September.");
     expect(baseline?.hasCredit).toBe(true);
     expect(baseline?.hasDebit).toBe(true);
     expect(baseline?.repeats.map((item) => item.name)).toEqual(expect.arrayContaining(["Payroll", "Rent"]));
     expect(baseline?.observation).toContain("balance still grew");
     expect(baseline?.observation?.toLowerCase()).not.toContain("recommend");
+  });
+
+  it("keeps one month of pay whole when other months are only a credit card", () => {
+    const baseline = buildStatementBaseline(
+      [
+        line("2026-07-02", 3799.05, "income", "paycheque", "debit", "Payroll dep."),
+        line("2026-07-14", 1314, "income", "ei", "debit", "EI"),
+        line("2026-07-16", 3799.05, "income", "paycheque", "debit", "Payroll dep."),
+        line("2026-07-28", 1314, "income", "ei", "debit", "EI"),
+        line("2026-07-30", 3799.05, "income", "paycheque", "debit", "Payroll dep."),
+        line("2026-06-22", 40, "purchase", "dining", "credit", "Cafe"),
+        line("2026-06-28", 20, "purchase", "dining", "credit", "Cafe"),
+        line("2026-08-01", 90, "purchase", "shopping", "credit", "Store"),
+        line("2026-08-20", 90, "purchase", "shopping", "credit", "Store"),
+        line("2026-09-01", 60, "purchase", "shopping", "credit", "Store"),
+        line("2026-09-18", 60, "purchase", "shopping", "credit", "Store"),
+        line("2026-07-11", 800, "card_payment", "debt_payments", "debit", "MBNA payment"),
+      ],
+      "2026-10-06",
+    );
+    expect(baseline?.incomeMonthly).toBe(14025.15);
+    expect(baseline?.months).toEqual(["2026-07", "2026-08", "2026-09"]);
+    expect(baseline?.needsMonthly).toBe(266.67);
+    expect(baseline?.coverageNote).toBe("Money in is from July. Spending is from July, August, and September.");
   });
 
   it("uses the current month when nothing earlier was uploaded", () => {

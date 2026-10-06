@@ -40,9 +40,9 @@ Then extract every transaction line, including money in. For each:
 - description: Merchant or description as shown.
 - line_role: one of purchase, income, card_payment, transfer, fee, interest.
   - purchase: a purchase, cash withdrawal, or refund reversal that is new spending
-  - income: payroll, a deposit, a refund, or other money in
-  - card_payment: a payment that pays down a credit card. On a card statement this is often "payment thank you". On a bank statement it is a bill payment to a card. This is not spending and not income.
-  - transfer: money moved between the user's own accounts, other than a credit card payment
+  - income: payroll, EI, maternity or parental benefits, government deposits, and other money in. A line that says payroll or EI is income even when it sits among withdrawals.
+  - card_payment: a payment that pays down a credit card. On a card statement this is often "payment thank you" or "payment from". On a bank statement it is a bill payment or transfer to a card. This is not spending and not income.
+  - transfer: money moved between the user's own accounts, such as to their own investment account, other than a credit card payment. An Interac e-Transfer that leaves the account is a purchase, not a transfer, unless it is clearly to the user's own account.
   - fee: a bank or card fee
   - interest: interest charged
 - suggested_category: for purchase, fee, and interest, one of: ${SPENDING_CATEGORIES.join(", ")}. For income, "paycheque" or "income".
@@ -65,7 +65,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON object:
 RULES:
 - Do NOT invent transactions that are not visible on these pages
 - Amounts must be positive numbers
-- In notes, say whether this looks like a credit card or a bank account, and mention anything you could not classify
+- notes: one short sentence, or an empty string. Do not explain each line.
 - If these pages do not show transaction lines, return an empty transactions array, confidence "low", and explain in notes
 - Prefer CAD. If another currency is shown, convert only if a CAD amount is also visible; otherwise keep the number and note the currency`;
 

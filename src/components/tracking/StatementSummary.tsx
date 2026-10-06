@@ -44,11 +44,7 @@ export function StatementSummary({
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold">Your typical month</h2>
-            <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-              {baseline.partial
-                ? "This only covers the current month, so the average is early. Another statement would make it steadier."
-                : `Based on ${baseline.monthLabels}.`}
-            </p>
+            <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">{baseline.coverageNote}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
             <X className="size-5 text-[var(--text-muted)]" />

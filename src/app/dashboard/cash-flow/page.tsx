@@ -195,6 +195,15 @@ function CategoryPicker({
           </button>
         </div>
       )}
+      {variant === "select" && !adding && (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="mt-1 font-display text-[11px] font-semibold text-[var(--emerald-dark)]"
+        >
+          Add a category
+        </button>
+      )}
       {adding && (
         <div className="mt-2 flex gap-2">
           <input
@@ -565,7 +574,6 @@ export default function CashFlowPage() {
         json.stored === false
           ? "The file itself was not stored, but the lines below are ready to review."
           : "",
-        typeof json.notes === "string" ? json.notes.trim() : "",
         duplicateCheckFailed
           ? "Could not check these against what you already logged."
           : duplicateCount > 0

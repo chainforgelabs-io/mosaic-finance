@@ -3,6 +3,7 @@ import { categoryLabel } from "@/lib/tracking/categories";
 import {
   advanceRecurringDate,
   countsTowardSpend,
+  daysBetween,
   isNeedCategory,
   roundMoney,
   type RecurringCadence,
@@ -32,6 +33,7 @@ export interface RepeatSuggestion {
 export interface StatementBaseline {
   months: string[];
   monthLabels: string;
+  coverageNote: string;
   partial: boolean;
   incomeMonthly: number;
   needsMonthly: number;
@@ -191,9 +193,50 @@ function suggestRepeats(lines: StatementLine[], today: string): RepeatSuggestion
   return repeats.sort((a, b) => b.amount - a.amount).slice(0, 5);
 }
 
+function datesInMonth(lines: StatementLine[], month: string): string[] {
+  return [...new Set(lines.map((line) => line.txn_date).filter((date): date is string => Boolean(date && monthKey(date) === month)))].sort();
+}
+
+/** A fragment of a card cycle is not a full month. A bank month is. */
+function monthIsCovered(lines: StatementLine[], month: string): boolean {
+  const inMonth = lines.filter((line) => line.txn_date && monthKey(line.txn_date) === month);
+  const dates = datesInMonth(inMonth, month);
+  if (dates.length === 0) return false;
+  const hasBank = inMonth.some(
+    (line) => line.instrument !== "credit" && line.line_role !== "card_payment" && line.line_role !== "transfer",
+  );
+  return hasBank || dates.length >= 10 || daysBetween(dates[0], dates[dates.length - 1]) >= 14;
+}
+
+function amountsMatch(left: number, right: number): boolean {
+  return Math.abs(left - right) <= 1;
+}
+
+/** A bank payment is already in the picture when the card statement shows the same payment. */
+export function cardPaymentIsCovered(payment: StatementLine, lines: StatementLine[]): boolean {
+  if (payment.line_role !== "card_payment") return false;
+  if (payment.instrument === "credit") return true;
+  if (!payment.txn_date) return false;
+  return lines.some((other) => {
+    if (other === payment || other.instrument !== "credit" || other.line_role !== "card_payment") return false;
+    if (!other.txn_date || !amountsMatch(Number(other.amount), Number(payment.amount))) return false;
+    return Math.abs(daysBetween(payment.txn_date as string, other.txn_date)) <= 7;
+  });
+}
+
+function coverageNote(incomeMonths: string[], spendMonths: string[]): string {
+  const incomeLabels = joinLabels(incomeMonths.map(monthName));
+  const spendLabels = joinLabels(spendMonths.map(monthName));
+  if (!incomeLabels && spendLabels) return `Spending is from ${spendLabels}. These statements did not show pay coming in.`;
+  if (incomeLabels && spendLabels && incomeLabels === spendLabels) return `Based on ${incomeLabels}.`;
+  if (incomeLabels && spendLabels) return `Money in is from ${incomeLabels}. Spending is from ${spendLabels}.`;
+  return incomeLabels ? `Money in is from ${incomeLabels}.` : "Based on these statements.";
+}
+
 /**
- * Average complete months. A statement that only covers the current month
- * is used once and marked partial, so the user still gets a starting picture.
+ * Income is averaged over months that show pay landing in the bank.
+ * Spending is averaged over months with a real span of activity.
+ * A payment to a card counts as spending only when that card's statement is not here.
  */
 export function buildStatementBaseline(lines: StatementLine[], today: string): StatementBaseline | null {
   const dated = lines.filter((line) => line.txn_date && Number(line.amount) > 0);
@@ -201,61 +244,86 @@ export function buildStatementBaseline(lines: StatementLine[], today: string): S
 
   const current = monthKey(today);
   const monthsPresent = [...new Set(dated.map((line) => monthKey(line.txn_date as string)))].sort();
-  const complete = monthsPresent.filter((month) => month < current);
-  const months = complete.length > 0 ? complete : monthsPresent;
-  const partial = complete.length === 0;
+  const earlier = monthsPresent.filter((month) => month < current);
+  const candidates = earlier.length > 0 ? earlier : monthsPresent;
+  const partial = earlier.length === 0;
+  const spendMonths = candidates.filter((month) => monthIsCovered(dated, month));
+  const monthsForSpend = spendMonths.length > 0 ? spendMonths : candidates;
 
   const totals = {
     income: 0,
     needs: 0,
     flexible: 0,
     creditCharges: 0,
-    cardPayments: 0,
+    creditPayments: 0,
   };
   const flexible = new Map<string, number>();
+  const incomeMonths = new Set<string>();
   let hasCredit = false;
   let hasDebit = false;
 
+  function addSpend(category: string, amount: number) {
+    if (isNeedCategory(category)) totals.needs += amount;
+    else {
+      totals.flexible += amount;
+      flexible.set(category, (flexible.get(category) ?? 0) + amount);
+    }
+  }
+
   for (const line of dated) {
     const month = monthKey(line.txn_date as string);
-    if (!months.includes(month)) continue;
+    if (!candidates.includes(month)) continue;
     const role = line.line_role ?? "purchase";
     const amount = Number(line.amount) || 0;
     if (line.instrument === "credit") hasCredit = true;
     if (line.instrument !== "credit") hasDebit = true;
 
     if (role === "transfer") continue;
-    if (role === "card_payment") {
-      totals.cardPayments += amount;
+    if (role === "income" && line.instrument !== "credit") {
+      totals.income += amount;
+      incomeMonths.add(month);
       continue;
     }
-    if (role === "income") {
-      totals.income += amount;
+    if (!monthsForSpend.includes(month)) continue;
+    if (role === "card_payment") {
+      if (line.instrument === "credit") totals.creditPayments += amount;
+      else if (!cardPaymentIsCovered(line, dated)) addSpend(line.suggested_category || "debt_payments", amount);
+      continue;
+    }
+    if (role === "income" && line.instrument === "credit") {
+      addSpend(line.suggested_category || "other", -amount);
       continue;
     }
     if (!countsTowardSpend({ direction: "out", line_role: role })) continue;
     if (line.instrument === "credit") totals.creditCharges += amount;
-    if (isNeedCategory(line.suggested_category)) totals.needs += amount;
-    else {
-      totals.flexible += amount;
-      flexible.set(line.suggested_category, (flexible.get(line.suggested_category) ?? 0) + amount);
-    }
+    addSpend(line.suggested_category, amount);
   }
 
-  const count = months.length;
-  const incomeMonthly = roundMoney(totals.income / count);
-  const needsMonthly = roundMoney(totals.needs / count);
-  const flexibleMonthly = roundMoney(totals.flexible / count);
+  const incomeCount = Math.max(incomeMonths.size, 1);
+  const spendCount = monthsForSpend.length;
+  const incomeMonthly = roundMoney(incomeMonths.size > 0 ? totals.income / incomeCount : 0);
+  const needsMonthly = roundMoney(totals.needs / spendCount);
+  const flexibleMonthly = roundMoney(totals.flexible / spendCount);
   const leftMonthly = roundMoney(incomeMonthly - needsMonthly - flexibleMonthly);
-  const creditGrowthMonthly = roundMoney((totals.creditCharges - totals.cardPayments) / count);
+  const creditMonths = monthsForSpend.filter((month) =>
+    dated.some((line) => line.txn_date && monthKey(line.txn_date) === month && line.instrument === "credit"),
+  );
+  const creditGrowthMonthly =
+    creditMonths.length > 0
+      ? roundMoney((totals.creditCharges - totals.creditPayments) / creditMonths.length)
+      : 0;
   const flexibleByCategory = [...flexible.entries()]
-    .map(([category, amount]) => ({ category, monthly: roundMoney(amount / count) }))
+    .map(([category, amount]) => ({ category, monthly: roundMoney(amount / spendCount) }))
     .filter((row) => row.monthly > 0)
     .sort((a, b) => b.monthly - a.monthly);
+  const incomeMonthList = [...incomeMonths].sort();
 
   return {
-    months,
-    monthLabels: joinLabels(months.map(monthName)),
+    months: monthsForSpend,
+    monthLabels: joinLabels(monthsForSpend.map(monthName)),
+    coverageNote: partial
+      ? "This only covers the current month, so the average is early. Another statement would make it steadier."
+      : coverageNote(incomeMonthList, monthsForSpend),
     partial,
     incomeMonthly,
     needsMonthly,
@@ -266,7 +334,7 @@ export function buildStatementBaseline(lines: StatementLine[], today: string): S
     hasCredit,
     hasDebit,
     repeats: suggestRepeats(
-      dated.filter((line) => months.includes(monthKey(line.txn_date as string))),
+      dated.filter((line) => line.txn_date && monthsForSpend.includes(monthKey(line.txn_date))),
       today,
     ),
     observation: baselineObservation({
