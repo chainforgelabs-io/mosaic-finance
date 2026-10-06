@@ -115,3 +115,116 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
   }
   return out;
 }
+
+export type DuplicateAction = "skip" | "merge" | "add";
+
+export interface ExistingSpend {
+  id: string;
+  txn_date: string;
+  amount: number;
+  category: string;
+  description: string | null;
+  note: string | null;
+}
+
+function cents(amount: number): number {
+  return Math.round(Number(amount) * 100);
+}
+
+function words(value: string): Set<string> {
+  return new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 2),
+  );
+}
+
+function descriptionScore(incoming: string, existing: string | null): number {
+  if (!existing?.trim() || !incoming.trim()) return 0;
+  const left = words(incoming);
+  const right = words(existing);
+  let shared = 0;
+  for (const word of left) {
+    if (right.has(word)) shared += 1;
+  }
+  return shared > 0 ? 3 : 0;
+}
+
+/**
+ * A statement line matches a logged spend when the date and amount are the same.
+ * Each logged row can match only one incoming line. Same-day repeats stay separate.
+ */
+export function matchUploadDuplicates<
+  T extends {
+    txn_date: string | null;
+    amount: number;
+    description: string;
+    suggested_category: string;
+  },
+>(
+  incoming: T[],
+  existing: ExistingSpend[],
+): Array<T & { duplicateOf: ExistingSpend | null; duplicateAction: DuplicateAction }> {
+  const used = new Set<string>();
+  return incoming.map((item) => {
+    if (!item.txn_date) return { ...item, duplicateOf: null, duplicateAction: "add" as const };
+    const itemCents = cents(item.amount);
+    let best: { row: ExistingSpend; score: number } | null = null;
+    for (const row of existing) {
+      if (used.has(row.id) || row.txn_date !== item.txn_date) continue;
+      if (cents(row.amount) !== itemCents) continue;
+      const score =
+        (row.category === item.suggested_category ? 2 : 0) +
+        descriptionScore(item.description, row.description);
+      if (!best || score > best.score) best = { row, score };
+    }
+    if (!best) return { ...item, duplicateOf: null, duplicateAction: "add" as const };
+    used.add(best.row.id);
+    return { ...item, duplicateOf: best.row, duplicateAction: "skip" as const };
+  });
+}
+
+export function mergeUploadPatch(
+  existing: { description: string | null; note: string | null; category: string },
+  incoming: {
+    description: string;
+    note?: string | null;
+    suggested_category: string;
+    categoryConfirmed: boolean;
+  },
+): {
+  description?: string;
+  note?: string;
+  category?: string;
+  category_confirmed?: boolean;
+} {
+  const patch: {
+    description?: string;
+    note?: string;
+    category?: string;
+    category_confirmed?: boolean;
+  } = {};
+  const incomingDescription = incoming.description.trim();
+  const existingDescription = existing.description?.trim() ?? "";
+  if (!existingDescription && incomingDescription) patch.description = incomingDescription;
+
+  const notes: string[] = [];
+  const existingNote = existing.note?.trim() ?? "";
+  if (existingNote) notes.push(existingNote);
+  const extras = [incomingDescription, incoming.note?.trim() ?? ""].filter(Boolean);
+  for (const extra of extras) {
+    if (extra.toLowerCase() === existingDescription.toLowerCase()) continue;
+    if (notes.some((note) => note.toLowerCase().includes(extra.toLowerCase()))) continue;
+    if (extra === incomingDescription && !existingDescription) continue;
+    notes.push(extra);
+  }
+  const note = notes.join(" · ");
+  if (note && note !== existingNote) patch.note = note;
+
+  if (incoming.categoryConfirmed && incoming.suggested_category !== existing.category) {
+    patch.category = incoming.suggested_category;
+    patch.category_confirmed = true;
+  }
+  return patch;
+}

@@ -1,7 +1,14 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { pdfPageChunks } from "@/lib/tracking/pdf-chunks";
-import { claudeText, dedupeSpendingItems, parseSpendingPayload } from "@/lib/tracking/spending-parse";
+import {
+  claudeText,
+  dedupeSpendingItems,
+  matchUploadDuplicates,
+  mergeUploadPatch,
+  parseSpendingPayload,
+  type ExistingSpend,
+} from "@/lib/tracking/spending-parse";
 
 describe("parseSpendingPayload", () => {
   it("reads JSON when the text block is not the first block", () => {
@@ -39,6 +46,108 @@ describe("dedupeSpendingItems", () => {
       suggested_category: "dining" as const,
     };
     expect(dedupeSpendingItems([line, { ...line, description: " coffee " }])).toHaveLength(1);
+  });
+});
+
+describe("upload duplicates", () => {
+  const existing: ExistingSpend[] = [
+    {
+      id: "a",
+      txn_date: "2026-09-02",
+      amount: 12.4,
+      category: "dining",
+      description: "Coffee",
+      note: null,
+    },
+    {
+      id: "b",
+      txn_date: "2026-09-02",
+      amount: 12.4,
+      category: "groceries",
+      description: "Market",
+      note: null,
+    },
+  ];
+
+  it("matches the same date and amount, and prefers the closer description", () => {
+    const [first] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Coffee shop",
+          suggested_category: "dining",
+        },
+      ],
+      existing,
+    );
+    expect(first?.duplicateOf?.id).toBe("a");
+    expect(first?.duplicateAction).toBe("skip");
+  });
+
+  it("does not reuse one logged row for two statement lines", () => {
+    const matched = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Coffee",
+          suggested_category: "dining",
+        },
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Coffee",
+          suggested_category: "dining",
+        },
+      ],
+      [existing[0]],
+    );
+    expect(matched.map((row) => row.duplicateOf?.id ?? null)).toEqual(["a", null]);
+  });
+
+  it("leaves a different amount alone", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 8,
+          description: "Coffee",
+          suggested_category: "dining",
+        },
+      ],
+      existing,
+    );
+    expect(row?.duplicateOf).toBeNull();
+  });
+
+  it("merges statement details without changing the amount", () => {
+    expect(
+      mergeUploadPatch(
+        { description: "", note: null, category: "other" },
+        {
+          description: "Coffee shop",
+          note: null,
+          suggested_category: "dining",
+          categoryConfirmed: true,
+        },
+      ),
+    ).toEqual({
+      description: "Coffee shop",
+      category: "dining",
+      category_confirmed: true,
+    });
+    expect(
+      mergeUploadPatch(
+        { description: "Coffee", note: null, category: "dining" },
+        {
+          description: "Coffee shop",
+          note: null,
+          suggested_category: "dining",
+          categoryConfirmed: false,
+        },
+      ),
+    ).toEqual({ note: "Coffee shop" });
   });
 });
 
