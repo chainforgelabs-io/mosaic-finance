@@ -16,7 +16,7 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [{ data: anchor }, { data: lastCheck }] = await Promise.all([
+  const [{ data: anchor }, { data: lastCheck }, { data: baseline }] = await Promise.all([
     supabase
       .from("cash_anchors")
       .select("starting_balance, anchor_date")
@@ -29,20 +29,41 @@ export async function GET() {
       .order("check_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("spending_baselines")
+      .select(
+        "income_monthly, needs_monthly, flexible_monthly, left_monthly, credit_growth_monthly, months_covered, partial, observation",
+      )
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
+
+  const picture = baseline
+    ? {
+        income_monthly: Number(baseline.income_monthly),
+        needs_monthly: Number(baseline.needs_monthly),
+        flexible_monthly: Number(baseline.flexible_monthly),
+        left_monthly: Number(baseline.left_monthly),
+        credit_growth_monthly: Number(baseline.credit_growth_monthly),
+        months_covered: Number(baseline.months_covered),
+        partial: Boolean(baseline.partial),
+        observation: baseline.observation ?? null,
+      }
+    : null;
 
   if (!anchor) {
     return NextResponse.json({
       anchor: null,
       expected_balance: null,
       last_check_date: lastCheck?.check_date ?? null,
+      baseline: picture,
     });
   }
 
   const today = todayIso();
   const { data: txns, error } = await supabase
     .from("transactions")
-    .select("txn_date, amount, direction")
+    .select("txn_date, amount, direction, line_role, instrument")
     .eq("user_id", user.id)
     .gt("txn_date", anchor.anchor_date)
     .lte("txn_date", today);
@@ -61,6 +82,7 @@ export async function GET() {
       today,
     ),
     last_check_date: lastCheck?.check_date ?? null,
+    baseline: picture,
   });
 }
 

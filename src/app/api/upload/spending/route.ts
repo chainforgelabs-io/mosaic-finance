@@ -9,9 +9,14 @@ import {
   loadProfileEntitlements,
   recordUsageEvent,
 } from "@/lib/entitlements";
-import { isSpendingCategory, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
+import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { pdfPageChunks, type PdfChunk } from "@/lib/tracking/pdf-chunks";
-import { claudeText, dedupeSpendingItems, parseSpendingPayload } from "@/lib/tracking/spending-parse";
+import {
+  claudeText,
+  dedupeSpendingItems,
+  normalizeStatementItems,
+  parseSpendingPayload,
+} from "@/lib/tracking/spending-parse";
 import { prepareSpendingMedia, UploadMediaError, type PreparedSpendingMedia } from "@/lib/tracking/upload-media";
 import type { ParsedSpendingItem } from "@/types/tracking";
 
@@ -26,19 +31,30 @@ const SPENDING_PARSE_PROMPT = `You are a spending-statement parser for Mosaic Fi
 
 The user uploaded a photo, screenshot, or PDF of a bank or card statement. Pages are often images with no selectable text. iPhone photos may have been converted from HEIC. Sensitive information (account numbers, SIN, full legal name, card numbers) may be cropped or redacted. That is expected — do NOT flag redacted fields as errors.
 
-Extract money-out lines only: purchases, fees, bill payments, cash withdrawals, and interest charges. For each:
+First classify the document as a whole:
+- instrument: "credit" for a credit card statement, "debit" for a bank, chequing, savings, or debit account.
+
+Then extract every transaction line, including money in. For each:
 - txn_date: ISO date YYYY-MM-DD. If a line shows only a day, use the statement period year and month printed on the page. If the year is not visible, null.
-- amount: The money-out amount as a positive number. Use the withdrawal, debit, or charge column. Do NOT use the running balance.
+- amount: The line amount as a positive number. Use the charge, withdrawal, deposit, or payment column. Do NOT use the running balance, the credit limit, or the statement total.
 - description: Merchant or description as shown.
-- suggested_category: One of: ${SPENDING_CATEGORIES.join(", ")}
+- line_role: one of purchase, income, card_payment, transfer, fee, interest.
+  - purchase: a purchase, cash withdrawal, or refund reversal that is new spending
+  - income: payroll, a deposit, a refund, or other money in
+  - card_payment: a payment that pays down a credit card. On a card statement this is often "payment thank you". On a bank statement it is a bill payment to a card. This is not spending and not income.
+  - transfer: money moved between the user's own accounts, other than a credit card payment
+  - fee: a bank or card fee
+  - interest: interest charged
+- suggested_category: for purchase, fee, and interest, one of: ${SPENDING_CATEGORIES.join(", ")}. For income, "paycheque" or "income".
 - note: Optional short note (currency if not CAD).
 
-Do not include deposits, payroll, refunds, other money in, transfers between the user's own accounts, opening or closing balances, credit limits, or summary totals.
+Do not include opening or closing balances, credit limits, minimum payments due, or summary totals.
 
 OUTPUT FORMAT: Return ONLY a valid JSON object:
 {
+  "instrument": "credit" | "debit",
   "transactions": [
-    { "txn_date": "YYYY-MM-DD" | null, "amount": number, "description": string, "suggested_category": string, "note": string | null }
+    { "txn_date": "YYYY-MM-DD" | null, "amount": number, "description": string, "line_role": "purchase" | "income" | "card_payment" | "transfer" | "fee" | "interest", "suggested_category": string, "note": string | null }
   ],
   "confidence": "high" | "medium" | "low",
   "notes": string,
@@ -49,7 +65,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON object:
 RULES:
 - Do NOT invent transactions that are not visible on these pages
 - Amounts must be positive numbers
-- In notes, say how many deposits and own-account transfers you skipped
+- In notes, say whether this looks like a credit card or a bank account, and mention anything you could not classify
 - If these pages do not show transaction lines, return an empty transactions array, confidence "low", and explain in notes
 - Prefer CAD. If another currency is shown, convert only if a CAD amount is also visible; otherwise keep the number and note the currency`;
 
@@ -75,7 +91,7 @@ function pageInstruction(
     periodYear && periodMonth
       ? ` The statement period already found is year ${periodYear}, month ${periodMonth}. Use that when a line does not show a year.`
       : "";
-  return `Parse the spending transactions on ${range}.${period} Use the withdrawal or money-out amount, not the running balance.`;
+  return `Read every transaction on ${range}, including money in and credit card payments.${period} Classify the statement as credit or debit. Use the line amount, not the running balance.`;
 }
 
 function foldConfidence(
@@ -157,7 +173,7 @@ async function readBlock(
   );
   const payload = parseSpendingPayload(text);
   return {
-    items: normalizeParsed(payload),
+    items: normalizeStatementItems(payload.transactions, payload.instrument),
     confidence: payload.confidence,
     notes: payload.notes,
     periodYear: payload.periodYear,
@@ -219,32 +235,6 @@ async function readPdf(buffer: Buffer, userId: string): Promise<{
   }
 
   return { items: dedupeSpendingItems(items), notes, confidence };
-}
-
-function normalizeParsed(raw: unknown): ParsedSpendingItem[] {
-  if (!raw || typeof raw !== "object") return [];
-  const obj = raw as Record<string, unknown>;
-  const list = Array.isArray(obj.transactions) ? obj.transactions : [];
-  const out: ParsedSpendingItem[] = [];
-  for (const item of list) {
-    if (!item || typeof item !== "object") continue;
-    const r = item as Record<string, unknown>;
-    const amount = Number(r.amount);
-    if (!Number.isFinite(amount) || amount <= 0) continue;
-    const catRaw = String(r.suggested_category ?? "other");
-    const suggested_category = isSpendingCategory(catRaw) ? catRaw : "other";
-    const dateRaw = r.txn_date;
-    const txn_date =
-      typeof dateRaw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
-    out.push({
-      txn_date,
-      amount: Math.round(amount * 100) / 100,
-      description: String(r.description ?? "").slice(0, 300),
-      suggested_category,
-      note: r.note != null ? String(r.note).slice(0, 300) : undefined,
-    });
-  }
-  return out;
 }
 
 export async function POST(req: NextRequest) {
@@ -362,7 +352,7 @@ export async function POST(req: NextRequest) {
                   data: prepared.buffer.toString("base64"),
                   mediaType: prepared.mediaType,
                 },
-                "Parse the spending transactions in this photo or screenshot. Use the withdrawal or money-out amount, not the running balance.",
+                "Identify whether this is a credit card or a bank statement, then extract every transaction line, including money in and card payments. Use the line amount, not the running balance.",
                 user.id,
               );
         const items = prepared.kind === "pdf" ? read.items : dedupeSpendingItems(read.items);

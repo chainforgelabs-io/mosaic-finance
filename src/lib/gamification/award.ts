@@ -5,7 +5,7 @@ import {
   type AchievementContext,
   type AchievementDef,
 } from "@/lib/gamification/achievements";
-import { computeMonthlyStreak, computeWeeklyStreak } from "@/lib/gamification/streaks";
+import { computeMonthlyStreak, computeWeeklyStreak, loggingActivityDates } from "@/lib/gamification/streaks";
 import { todayIso } from "@/lib/tracking/dates";
 import type { GamificationSummary } from "@/types/tracking";
 
@@ -46,8 +46,8 @@ export async function buildAchievementContext(
   userId: string,
   extras: Partial<AchievementContext> = {},
 ): Promise<AchievementContext> {
-  const [txnRes, snapRes, profileRes, checkRes] = await Promise.all([
-    supabase.from("transactions").select("txn_date").eq("user_id", userId),
+  const [txnRes, snapRes, profileRes, checkRes, baselineRes] = await Promise.all([
+    supabase.from("transactions").select("txn_date, source").eq("user_id", userId),
     supabase
       .from("net_worth_snapshots")
       .select("snapshot_date, debts_total, net_worth")
@@ -61,13 +61,16 @@ export async function buildAchievementContext(
       .limit(1)
       .maybeSingle(),
     supabase.from("balance_checks").select("check_date").eq("user_id", userId),
+    supabase.from("spending_baselines").select("updated_at").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const txnDates = ((txnRes.data ?? []) as { txn_date: string }[]).map((t) => t.txn_date);
-  const activityDates = [
-    ...txnDates,
-    ...((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
-  ];
+  const txnRows = (txnRes.data ?? []) as { txn_date: string; source?: string | null }[];
+  const txnDates = txnRows.map((t) => t.txn_date);
+  const activityDates = loggingActivityDates({
+    transactions: txnRows,
+    checkDates: ((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
+    baselineUpdatedAt: (baselineRes.data?.updated_at as string | null) ?? null,
+  });
   const snapshots = (snapRes.data ?? []) as {
     snapshot_date: string;
     debts_total: number;
@@ -121,22 +124,24 @@ export async function getGamificationSummary(
   userId: string,
   newUnlocks: AchievementDef[] = [],
 ): Promise<GamificationSummary> {
-  const [txnRes, snapRes, earned, checkRes] = await Promise.all([
-    supabase.from("transactions").select("txn_date").eq("user_id", userId),
+  const [txnRes, snapRes, earned, checkRes, baselineRes] = await Promise.all([
+    supabase.from("transactions").select("txn_date, source").eq("user_id", userId),
     supabase
       .from("net_worth_snapshots")
       .select("snapshot_date")
       .eq("user_id", userId),
     loadEarnedKeys(supabase, userId),
     supabase.from("balance_checks").select("check_date").eq("user_id", userId),
+    supabase.from("spending_baselines").select("updated_at").eq("user_id", userId).maybeSingle(),
   ]);
 
   const today = todayIso();
   const weekly = computeWeeklyStreak(
-    [
-      ...((txnRes.data ?? []) as { txn_date: string }[]).map((t) => t.txn_date),
-      ...((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
-    ],
+    loggingActivityDates({
+      transactions: (txnRes.data ?? []) as { txn_date: string; source?: string | null }[],
+      checkDates: ((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
+      baselineUpdatedAt: (baselineRes.data?.updated_at as string | null) ?? null,
+    }),
     today,
   );
   const monthly = computeMonthlyStreak(

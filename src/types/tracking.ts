@@ -8,6 +8,14 @@ export type TransactionSource = "manual" | "screenshot" | "scheduled" | "balance
 
 export type CashDirection = "in" | "out";
 export type RecurringCadence = "weekly" | "biweekly" | "monthly";
+export type StatementInstrument = "credit" | "debit";
+export type StatementLineRole =
+  | "purchase"
+  | "income"
+  | "card_payment"
+  | "transfer"
+  | "fee"
+  | "interest";
 
 export interface TransactionRow {
   id: string;
@@ -21,6 +29,8 @@ export interface TransactionRow {
   document_id: string | null;
   category_confirmed: boolean;
   direction?: CashDirection;
+  line_role?: StatementLineRole;
+  instrument?: StatementInstrument | null;
   recurring_item_id?: string | null;
   created_at: string;
   updated_at: string;
@@ -42,6 +52,17 @@ export interface CashAnchor {
   anchor_date: string;
 }
 
+export interface SpendingPicture {
+  income_monthly: number;
+  needs_monthly: number;
+  flexible_monthly: number;
+  left_monthly: number;
+  credit_growth_monthly: number;
+  months_covered: number;
+  partial: boolean;
+  observation: string | null;
+}
+
 export interface CaptureInput {
   amount: number;
   category: string;
@@ -61,6 +82,8 @@ export interface ParsedSpendingItem {
   description: string;
   suggested_category: string;
   note?: string;
+  instrument?: StatementInstrument;
+  line_role?: StatementLineRole;
 }
 
 export interface SnapshotBreakdownItem {

@@ -1,5 +1,19 @@
 import { addDays, addMonths, monthKey, startOfMonth, startOfWeekMonday } from "@/lib/tracking/dates";
 
+/** Statement imports should not backfill a logging streak. Confirming a picture still counts. */
+export function loggingActivityDates(input: {
+  transactions: { txn_date: string; source?: string | null }[];
+  checkDates?: string[];
+  baselineUpdatedAt?: string | null;
+}): string[] {
+  const dates = input.transactions
+    .filter((txn) => txn.source !== "screenshot")
+    .map((txn) => txn.txn_date);
+  if (input.checkDates) dates.push(...input.checkDates);
+  if (input.baselineUpdatedAt) dates.push(input.baselineUpdatedAt.slice(0, 10));
+  return dates;
+}
+
 export function computeWeeklyStreak(
   txnDates: string[],
   today: string,

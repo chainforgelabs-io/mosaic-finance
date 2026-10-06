@@ -18,6 +18,8 @@ import { CashKeypad } from "@/components/tracking/CashKeypad";
 import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
 import { RecurringPanel } from "@/components/tracking/RecurringPanel";
 import { SpendInbox } from "@/components/tracking/SpendInbox";
+import { StatementStart } from "@/components/tracking/StatementStart";
+import { StatementSummary } from "@/components/tracking/StatementSummary";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   SPENDING_CATEGORIES,
@@ -40,11 +42,13 @@ import {
 import {
   advanceRecurringDate,
   daysBetween,
+  countsTowardSpend,
   isOutflow,
   latestDate,
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
+import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
 import {
   matchUploadDuplicates,
   mergeUploadPatch,
@@ -61,6 +65,7 @@ import type {
   ParsedSpendingItem,
   RecurringCadence,
   RecurringItem,
+  SpendingPicture,
   TransactionRow,
 } from "@/types/tracking";
 
@@ -68,6 +73,12 @@ const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
+
+function rowsForPicture(rows: ReviewRow[]): ReviewRow[] {
+  return rows.filter(
+    (row) => row.included && row.amount > 0 && (!row.duplicateOf || row.duplicateAction !== "skip"),
+  );
+}
 
 function loadCustomCategories(): string[] {
   if (typeof window === "undefined") return [];
@@ -236,6 +247,12 @@ export default function CashFlowPage() {
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
   const [showBalance, setShowBalance] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const [picture, setPicture] = useState<SpendingPicture | null>(null);
+  const [statementPreview, setStatementPreview] = useState<ReturnType<typeof buildStatementBaseline>>(null);
+  const [linesOpen, setLinesOpen] = useState(false);
+  const [summarySaving, setSummarySaving] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [showStatementLines, setShowStatementLines] = useState(false);
   const [undo, setUndo] = useState<{ ids: string[]; label: string } | null>(null);
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
@@ -310,6 +327,7 @@ export default function CashFlowPage() {
       setAnchor(json.anchor ?? null);
       setExpectedBalance(json.expected_balance ?? null);
       setLastCheckDate(json.last_check_date ?? null);
+      setPicture(json.baseline ?? null);
       setCashLoaded(true);
     }
     if (recurringRes.ok) {
@@ -334,12 +352,6 @@ export default function CashFlowPage() {
   }, [undo]);
 
   useEffect(() => {
-    if (loading || !cashLoaded || anchor) return;
-    if (typeof window !== "undefined" && localStorage.getItem(SETUP_SKIP_KEY) === "1") return;
-    setShowSetup(true);
-  }, [loading, anchor, cashLoaded]);
-
-  useEffect(() => {
     function syncUpload() {
       setParsing(uploadJob.status === "parsing");
       setParseError(uploadJob.error);
@@ -358,8 +370,11 @@ export default function CashFlowPage() {
   }
 
   const visibleTxns = view === "month" ? monthTxns : transactions;
-  const spendTxns = visibleTxns.filter((txn) => isOutflow(txn.direction));
-  const incomeTxns = visibleTxns.filter((txn) => !isOutflow(txn.direction));
+  const spendTxns = visibleTxns.filter((txn) => countsTowardSpend(txn));
+  const incomeTxns = visibleTxns.filter((txn) => txn.line_role === "income" || (!txn.line_role && !isOutflow(txn.direction)));
+  const listedSpend = showStatementLines ? spendTxns : spendTxns.filter((txn) => txn.source !== "screenshot");
+  const listedIncome = showStatementLines ? incomeTxns : incomeTxns.filter((txn) => txn.source !== "screenshot");
+  const hiddenStatementLines = spendTxns.length + incomeTxns.length - listedSpend.length - listedIncome.length;
   const weekTotal = useMemo(() => outflowTotal(transactions), [transactions]);
   const monthTotal = useMemo(() => outflowTotal(monthTxns), [monthTxns]);
   const inboxItems = useMemo(() => {
@@ -372,13 +387,13 @@ export default function CashFlowPage() {
 
   const byCategory = useMemo(() => {
     const map = new Map<string, TransactionRow[]>();
-    for (const t of spendTxns) {
+    for (const t of listedSpend) {
       const cat = t.category;
       const list = map.get(cat) ?? [];
       list.push(t);
       map.set(cat, list);
     }
-    const keys = [...new Set([...SPENDING_CATEGORIES, ...spendTxns.map((t) => t.category)])];
+    const keys = [...new Set([...SPENDING_CATEGORIES, ...listedSpend.map((t) => t.category)])];
     return keys
       .map((cat) => ({
         category: cat,
@@ -386,9 +401,15 @@ export default function CashFlowPage() {
         items: map.get(cat) ?? [],
       }))
       .filter((g) => g.items.length > 0);
-  }, [spendTxns]);
+  }, [listedSpend]);
 
-  const categorySlices = byCategory.map((g) => ({ category: g.category, amount: g.amount }));
+  const categorySlices = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const txn of spendTxns) {
+      map.set(txn.category, (map.get(txn.category) ?? 0) + Number(txn.amount));
+    }
+    return [...map.entries()].map(([category, amount]) => ({ category, amount }));
+  }, [spendTxns]);
 
   const weeklyBars = useMemo(() => {
     const points: { label: string; amount: number }[] = [];
@@ -553,6 +574,10 @@ export default function CashFlowPage() {
       ]
         .filter(Boolean)
         .join(" ");
+      const preview = buildStatementBaseline(rowsForPicture(rows), todayIso());
+      setStatementPreview(preview);
+      setLinesOpen(preview == null);
+      setSummaryError(null);
       setUploadJob({ status: "ready", rows, notice: notice || null, error: null });
     } catch {
       setUploadJob({
@@ -610,6 +635,9 @@ export default function CashFlowPage() {
             source: "screenshot",
             document_id: r.documentId,
             category_confirmed: r.categoryConfirmed,
+            direction: r.line_role === "income" ? "in" : "out",
+            line_role: r.line_role ?? "purchase",
+            instrument: r.instrument ?? "debit",
           })),
         }),
       });
@@ -621,6 +649,52 @@ export default function CashFlowPage() {
       if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
     }
     setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+    setStatementPreview(null);
+    setLinesOpen(false);
+    await reload();
+  }
+
+  async function confirmPicture(repeats: RepeatSuggestion[]) {
+    if (!reviewRows) return;
+    const lines = rowsForPicture(reviewRows).filter((row) => row.txn_date);
+    setSummarySaving(true);
+    setSummaryError(null);
+    const res = await fetch("/api/cash/baseline", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        transactions: lines.map((row) => ({
+          txn_date: row.txn_date,
+          amount: row.amount,
+          category: row.suggested_category,
+          description: row.description,
+          note: row.note ?? null,
+          document_id: row.documentId,
+          line_role: row.line_role ?? "purchase",
+          instrument: row.instrument ?? "debit",
+        })),
+        repeats: repeats.map((item) => ({
+          name: item.name,
+          amount: item.amount,
+          category: item.category,
+          direction: item.direction,
+          cadence: item.cadence,
+          next_date: item.nextDate,
+        })),
+      }),
+    });
+    setSummarySaving(false);
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      setSummaryError(json.error ?? "Could not save that picture.");
+      return;
+    }
+    const json = await res.json();
+    if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+    setStatementPreview(null);
+    setLinesOpen(false);
     await reload();
   }
 
@@ -792,7 +866,7 @@ export default function CashFlowPage() {
     for (const t of history) {
       const key = monthKey(t.txn_date);
       if (key >= viewed) continue;
-      if (!isOutflow(t.direction)) continue;
+      if (!countsTowardSpend(t)) continue;
       totals.set(key, (totals.get(key) ?? 0) + Number(t.amount));
     }
     const values = [...totals.values()];
@@ -837,6 +911,9 @@ export default function CashFlowPage() {
     recurring,
     monthlyRoom,
     period: view,
+    statementBaseline: picture
+      ? { incomeMonthly: picture.income_monthly, needsMonthly: picture.needs_monthly }
+      : null,
   });
   const spentNow = view === "month" ? monthTotal : weekTotal;
   const lastActivity = latestDate([...history.map((txn) => txn.txn_date), lastCheckDate]);
@@ -850,7 +927,9 @@ export default function CashFlowPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Log variable spending for the household. Bills and paycheques can post on their dates.
+            {picture
+              ? "Log variable spending for the household. Bills and paycheques can post on their dates."
+              : "Upload the last three months of bank and card statements. One person can cover the household."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -875,6 +954,15 @@ export default function CashFlowPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
+      {cashLoaded && !picture && (
+        <StatementStart
+          parsing={parsing}
+          onUpload={requestUpload}
+          onManual={() => setShowSetup(true)}
+        />
+      )}
+
+      {picture && (
       <div className="rounded-xl bg-[#0f1923] p-5 sm:p-6">
         <p className="font-body text-[11px] font-medium uppercase tracking-widest text-white/50">
           Left to spend
@@ -883,7 +971,8 @@ export default function CashFlowPage() {
           {room.left != null ? formatMoneyExact(room.left) : "—"}
         </p>
         <p className="mt-2 font-body text-sm text-white/70">
-          Spent {formatMoneyExact(spentNow)}{" "}
+          {room.usesStatement ? "Flexible spending logged " : "Spent "}
+          {formatMoneyExact(room.usesStatement ? room.spent : spentNow)}{" "}
           {view === "month"
             ? monthStart === currentMonth
               ? "this month"
@@ -893,12 +982,23 @@ export default function CashFlowPage() {
               : formatWeekLabel(weekStart)}
         </p>
         <p className="mt-1 font-body text-xs text-white/50">
-          {room.left == null
-            ? "Set category budgets, or add a paycheque and bills, to see what's left."
-            : room.usesBudget
-              ? "From your spending room, after bills still due."
-              : "After income and bills still due."}
+          {room.usesStatement
+            ? "Typical money in, after needs, minus flexible spending logged this period."
+            : room.left == null
+              ? "Upload statements, or add a paycheque and bills, to see what's left."
+              : room.usesBudget
+                ? "From your spending room, after bills still due."
+                : "After income and bills still due."}
         </p>
+        {picture && (
+          <p className="mt-1 font-body text-xs text-white/50">
+            A typical month had {formatMoneyExact(picture.left_monthly)} left after flexible spending
+            {picture.partial ? ". That average is from the current month only." : "."}
+          </p>
+        )}
+        {picture?.observation && (
+          <p className="mt-2 font-body text-sm text-white/80">{picture.observation}</p>
+        )}
         {view === "week" && vsBaseline != null && (
           <p className={cn("mt-2 font-body text-sm", vsBaseline > 5 ? "text-red-300" : "text-emerald-300")}>
             {vsBaseline > 0 ? "+" : ""}
@@ -928,6 +1028,7 @@ export default function CashFlowPage() {
           </p>
         )}
       </div>
+      )}
 
       <CashKeypad
         history={history}
@@ -1039,7 +1140,7 @@ export default function CashFlowPage() {
           </div>
           {budgetCategories.map((cat) => {
             const spent = monthTxns
-              .filter((t) => t.category === cat && isOutflow(t.direction))
+              .filter((t) => t.category === cat && countsTowardSpend(t))
               .reduce((s, t) => s + Number(t.amount), 0);
             const limit = budgets[cat];
             if (limit == null && spent === 0) return null;
@@ -1078,7 +1179,7 @@ export default function CashFlowPage() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--warm-200)] bg-white px-4 py-2.5 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
         >
           {parsing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          Upload a statement
+          Upload statements
         </button>
         <input
           ref={fileRef}
@@ -1100,12 +1201,25 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : byCategory.length === 0 && incomeTxns.length === 0 ? (
+      ) : byCategory.length === 0 && listedIncome.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
-          <p className="font-display font-semibold text-[var(--text-primary)]">Nothing logged yet</p>
-          <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Type an amount above, or upload a photo, screenshot, or statement.
+          <p className="font-display font-semibold text-[var(--text-primary)]">
+            {picture ? "Nothing new this period" : "Nothing logged yet"}
           </p>
+          <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
+            {picture
+              ? "Statement lines stay in the monthly picture. Log variable spending above."
+              : "Upload statements to set what's left, or type an amount above."}
+          </p>
+          {hiddenStatementLines > 0 && !showStatementLines && (
+            <button
+              type="button"
+              onClick={() => setShowStatementLines(true)}
+              className="mt-3 font-body text-sm text-[var(--text-secondary)] underline"
+            >
+              Show statement lines
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -1167,11 +1281,20 @@ export default function CashFlowPage() {
               </ul>
             </div>
           ))}
-          {incomeTxns.length > 0 && (
+          {hiddenStatementLines > 0 && !showStatementLines && (
+            <button
+              type="button"
+              onClick={() => setShowStatementLines(true)}
+              className="font-body text-sm text-[var(--text-secondary)] underline"
+            >
+              Statement lines are already in the monthly picture. Show them.
+            </button>
+          )}
+          {listedIncome.length > 0 && (
             <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
               <div className="px-4 py-3 font-display text-sm font-semibold text-[var(--text-primary)]">Money in</div>
               <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
-                {incomeTxns.map((t) => (
+                {listedIncome.map((t) => (
                   <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-body text-sm text-[var(--text-primary)]">
@@ -1232,17 +1355,41 @@ export default function CashFlowPage() {
         />
       )}
 
-      {reviewRows && (
+      {statementPreview && !linesOpen && (
+        <StatementSummary
+          baseline={statementPreview}
+          notice={reviewNotice}
+          saving={summarySaving}
+          error={summaryError}
+          onConfirm={(repeats) => void confirmPicture(repeats)}
+          onReview={() => setLinesOpen(true)}
+          onClose={() => {
+            setStatementPreview(null);
+            setLinesOpen(false);
+            setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+          }}
+        />
+      )}
+
+      {reviewRows && linesOpen && (
         <ReviewModal
           rows={reviewRows}
           notice={reviewNotice}
           extras={customCategories}
           onAddCategory={addCategory}
-          onChange={(rows) =>
-            setUploadJob({ status: "ready", rows, notice: reviewNotice, error: null })
-          }
-          onCancel={() => setUploadJob({ status: "idle", rows: null, notice: null, error: null })}
-          onConfirm={confirmReview}
+          onChange={(rows) => {
+            setUploadJob({ status: "ready", rows, notice: reviewNotice, error: null });
+            setStatementPreview(buildStatementBaseline(rowsForPicture(rows), todayIso()));
+          }}
+          onCancel={() => {
+            if (statementPreview) setLinesOpen(false);
+            else {
+              setLinesOpen(false);
+              setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+            }
+          }}
+          onConfirm={statementPreview ? async () => setLinesOpen(false) : confirmReview}
+          finishLabel={statementPreview ? "Back to the picture" : undefined}
         />
       )}
 
@@ -1439,13 +1586,12 @@ function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue
           <Upload className="size-5 text-[var(--emerald-dark)]" />
         </div>
         <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
-          Upload spending
+          Upload statements
         </h2>
         <ul className="mt-3 space-y-2 font-body text-sm text-[var(--text-secondary)]">
-          <li>A photo, screenshot, or PDF of a transaction list works, including iPhone photos.</li>
-          <li>Crop out account numbers, card numbers, and your full name before uploading.</li>
-          <li>You can upload several files at once.</li>
-          <li>Each line gets a suggested category. You can edit it, and unconfirmed categories stay marked until you check them.</li>
+          <li>Upload the last three months of bank and card statements. Several files at once is fine, including iPhone photos.</li>
+          <li>One upload can cover the household. Crop out account numbers, card numbers, and your full name.</li>
+          <li>We&apos;ll show money in, needs, and flexible spending before saving anything.</li>
         </ul>
         <div className="mt-6 flex gap-2">
           <button
@@ -1476,6 +1622,7 @@ function ReviewModal({
   onChange,
   onCancel,
   onConfirm,
+  finishLabel,
 }: {
   rows: ReviewRow[];
   notice: string | null;
@@ -1484,6 +1631,7 @@ function ReviewModal({
   onChange: (rows: ReviewRow[]) => void;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
+  finishLabel?: string;
 }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -1655,11 +1803,11 @@ function ReviewModal({
             onClick={onCancel}
             className="flex-1 rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
           >
-            Discard
+            {finishLabel ? "Back" : "Discard"}
           </button>
           <button
             type="button"
-            disabled={saving || adding.length + merging.length + skipping.length === 0}
+            disabled={saving || (!finishLabel && adding.length + merging.length + skipping.length === 0)}
             onClick={async () => {
               setSaving(true);
               setSaveError(null);
@@ -1673,7 +1821,7 @@ function ReviewModal({
             }}
             className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
           >
-            {saveLabel}
+            {finishLabel ?? saveLabel}
           </button>
         </div>
       </div>

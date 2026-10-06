@@ -7,6 +7,47 @@ export interface CashTxn {
   txn_date: string;
   amount: number;
   direction?: string | null;
+  line_role?: string | null;
+  instrument?: string | null;
+  category?: string | null;
+  source?: string | null;
+}
+
+const SPEND_ROLES = new Set(["purchase", "fee", "interest"]);
+
+/** Needs are the bills and basics a statement average treats as already committed. */
+export const NEED_CATEGORIES = new Set([
+  "housing",
+  "utilities",
+  "insurance",
+  "groceries",
+  "transportation",
+  "health",
+  "debt_payments",
+  "condo_fees",
+]);
+
+export function isNeedCategory(category: string | null | undefined): boolean {
+  return NEED_CATEGORIES.has(category ?? "");
+}
+
+export function countsTowardSpend(txn: {
+  direction?: string | null;
+  line_role?: string | null;
+}): boolean {
+  const role = txn.line_role ?? (isOutflow(txn.direction) ? "purchase" : "income");
+  return SPEND_ROLES.has(role);
+}
+
+/** How a line moves the bank balance. Card purchases do not. Card payments do. */
+export function cashEffect(txn: CashTxn): number {
+  const amount = Number(txn.amount);
+  if (!Number.isFinite(amount)) return 0;
+  const role = txn.line_role ?? null;
+  if (role === "transfer") return 0;
+  if (role === "card_payment") return -Math.abs(amount);
+  if (txn.instrument === "credit" && role !== "income") return 0;
+  return isOutflow(txn.direction) ? -Math.abs(amount) : Math.abs(amount);
 }
 
 export interface RecurringOccurrence {
@@ -45,7 +86,7 @@ export function isOutflow(direction: string | null | undefined): boolean {
 
 export function outflowTotal(txns: CashTxn[]): number {
   return roundMoney(
-    txns.reduce((sum, txn) => sum + (isOutflow(txn.direction) ? Number(txn.amount) || 0 : 0), 0),
+    txns.reduce((sum, txn) => sum + (countsTowardSpend(txn) ? Number(txn.amount) || 0 : 0), 0),
   );
 }
 
@@ -87,9 +128,7 @@ export function expectedBalance(
   let balance = startingBalance;
   for (const txn of txns) {
     if (txn.txn_date <= anchorDate || txn.txn_date > asOf) continue;
-    const amount = Number(txn.amount);
-    if (!Number.isFinite(amount)) continue;
-    balance += isOutflow(txn.direction) ? -amount : amount;
+    balance += cashEffect(txn);
   }
   return roundMoney(balance);
 }
@@ -185,6 +224,7 @@ export interface LeftToSpendInput {
   recurring: RecurringOccurrence[];
   monthlyRoom: number | null;
   period: "week" | "month";
+  statementBaseline?: { incomeMonthly: number; needsMonthly: number } | null;
 }
 
 export interface LeftToSpend {
@@ -193,15 +233,37 @@ export interface LeftToSpend {
   commitments: number;
   income: number;
   usesBudget: boolean;
+  usesStatement: boolean;
 }
 
 export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
+  if (input.statementBaseline) {
+    const room = input.statementBaseline.incomeMonthly - input.statementBaseline.needsMonthly;
+    let logged = 0;
+    for (const txn of input.txns) {
+      if (txn.txn_date < input.periodStart || txn.txn_date > input.periodEnd) continue;
+      if (txn.source === "screenshot") continue;
+      if (!countsTowardSpend(txn)) continue;
+      if (isNeedCategory(txn.category)) continue;
+      logged += Number(txn.amount) || 0;
+    }
+    return {
+      left: roundMoney(periodRoom(room, input.period) - logged),
+      spent: roundMoney(logged),
+      commitments: periodRoom(input.statementBaseline.needsMonthly, input.period),
+      income: periodRoom(input.statementBaseline.incomeMonthly, input.period),
+      usesBudget: false,
+      usesStatement: true,
+    };
+  }
+
   let incomePosted = 0;
   let spent = 0;
   for (const txn of input.txns) {
     if (txn.txn_date < input.periodStart || txn.txn_date > input.periodEnd) continue;
     const amount = Number(txn.amount) || 0;
-    if (isOutflow(txn.direction)) spent += amount;
+    if (txn.line_role === "card_payment" || txn.line_role === "transfer") continue;
+    if (countsTowardSpend(txn)) spent += amount;
     else incomePosted += amount;
   }
 
@@ -226,6 +288,7 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
       commitments,
       income,
       usesBudget: false,
+      usesStatement: false,
     };
   }
 
@@ -236,10 +299,11 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
       commitments,
       income,
       usesBudget: true,
+      usesStatement: false,
     };
   }
 
-  return { left: null, spent, commitments, income, usesBudget: false };
+  return { left: null, spent, commitments, income, usesBudget: false, usesStatement: false };
 }
 
 export function splitLines(

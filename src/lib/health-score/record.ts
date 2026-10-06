@@ -3,6 +3,7 @@ import { calculateDerivedHealthScore } from "@/lib/calculations/health-score";
 import {
   computeMonthlyStreak,
   computeWeeklyStreak,
+  loggingActivityDates,
 } from "@/lib/gamification/streaks";
 
 export async function recordDerivedHealthScore(
@@ -15,6 +16,7 @@ export async function recordDerivedHealthScore(
     { data: txns },
     { data: goals },
     { data: checks },
+    { data: baseline },
   ] = await Promise.all([
     supabase
       .from("financial_profiles")
@@ -29,12 +31,14 @@ export async function recordDerivedHealthScore(
       .limit(12),
     supabase
       .from("transactions")
-      .select("txn_date")
+      .select("txn_date, source")
       .eq("user_id", userId)
+      .neq("source", "screenshot")
       .order("txn_date", { ascending: false })
       .limit(200),
     supabase.from("goals").select("status").eq("user_id", userId),
     supabase.from("balance_checks").select("check_date").eq("user_id", userId),
+    supabase.from("spending_baselines").select("updated_at").eq("user_id", userId).maybeSingle(),
   ]);
 
   const debts = Array.isArray(financial?.major_debts)
@@ -52,10 +56,11 @@ export async function recordDerivedHealthScore(
     today,
   );
   const { current: weeklyStreak } = computeWeeklyStreak(
-    [
-      ...(txns ?? []).map((t) => String(t.txn_date)),
-      ...((checks ?? []) as { check_date: string }[]).map((c) => String(c.check_date)),
-    ],
+    loggingActivityDates({
+      transactions: (txns ?? []) as { txn_date: string; source?: string | null }[],
+      checkDates: ((checks ?? []) as { check_date: string }[]).map((c) => String(c.check_date)),
+      baselineUpdatedAt: (baseline?.updated_at as string | null) ?? null,
+    }),
     today,
   );
 

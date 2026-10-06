@@ -14,6 +14,8 @@ const txnSchema = z.object({
   document_id: z.string().uuid().optional().nullable(),
   category_confirmed: z.boolean().optional(),
   direction: z.enum(["in", "out"]).optional(),
+  line_role: z.enum(["purchase", "income", "card_payment", "transfer", "fee", "interest"]).optional(),
+  instrument: z.enum(["credit", "debit"]).optional().nullable(),
   recurring_item_id: z.string().uuid().optional().nullable(),
 });
 
@@ -78,7 +80,9 @@ export async function POST(req: NextRequest) {
       note: t.note ?? null,
       source: t.source ?? "manual",
       document_id: t.document_id ?? null,
-      direction: t.direction ?? "out",
+      direction: t.direction ?? (t.line_role === "income" ? "in" : "out"),
+      line_role: t.line_role ?? (t.direction === "in" ? "income" : "purchase"),
+      instrument: t.instrument ?? null,
       recurring_item_id: t.recurring_item_id ?? null,
       category_confirmed:
         t.category_confirmed ?? (t.source ?? "manual") !== "screenshot",

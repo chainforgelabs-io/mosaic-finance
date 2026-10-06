@@ -1,3 +1,4 @@
+import { isSpendingCategory } from "@/lib/tracking/categories";
 import type { ParsedSpendingItem } from "@/types/tracking";
 
 export interface SpendingParsePayload {
@@ -6,6 +7,7 @@ export interface SpendingParsePayload {
   notes?: string;
   periodYear: number | null;
   periodMonth: number | null;
+  instrument: "credit" | "debit" | null;
   truncated: boolean;
 }
 
@@ -83,6 +85,7 @@ export function parseSpendingPayload(text: string): SpendingParsePayload {
         notes: typeof parsed.notes === "string" ? parsed.notes : undefined,
         periodYear: numberOrNull(parsed.period_year),
         periodMonth: numberOrNull(parsed.period_month),
+        instrument: parsed.instrument === "credit" || parsed.instrument === "debit" ? parsed.instrument : null,
         truncated: false,
       };
     } catch {
@@ -100,6 +103,7 @@ export function parseSpendingPayload(text: string): SpendingParsePayload {
     notes: "The reply was cut off, so later lines on these pages may be missing.",
     periodYear: null,
     periodMonth: null,
+    instrument: null,
     truncated: true,
   };
 }
@@ -108,10 +112,62 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
   const seen = new Set<string>();
   const out: ParsedSpendingItem[] = [];
   for (const item of items) {
-    const key = `${item.txn_date ?? ""}|${item.amount}|${item.description.trim().toLowerCase()}`;
+    const key = [
+      item.txn_date ?? "",
+      item.amount,
+      item.description.trim().toLowerCase(),
+      item.line_role ?? "purchase",
+      item.instrument ?? "debit",
+    ].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(item);
+  }
+  return out;
+}
+
+const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest"] as const;
+
+function categoryForRole(role: (typeof LINE_ROLES)[number], raw: unknown): string {
+  if (role === "card_payment") return "debt_payments";
+  if (role === "transfer") return "other";
+  if (role === "income") {
+    const slug = String(raw ?? "paycheque").trim().toLowerCase();
+    return slug === "income" ? "income" : "paycheque";
+  }
+  const catRaw = String(raw ?? "other");
+  return isSpendingCategory(catRaw) ? catRaw : "other";
+}
+
+export function normalizeStatementItems(
+  transactions: unknown,
+  fallbackInstrument: "credit" | "debit" | null,
+): ParsedSpendingItem[] {
+  const list = Array.isArray(transactions) ? transactions : [];
+  const out: ParsedSpendingItem[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const amount = Number(row.amount);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    const roleRaw = String(row.line_role ?? "purchase");
+    const line_role = (LINE_ROLES as readonly string[]).includes(roleRaw)
+      ? (roleRaw as (typeof LINE_ROLES)[number])
+      : "purchase";
+    const instrumentRaw = row.instrument ?? fallbackInstrument;
+    const instrument = instrumentRaw === "credit" ? "credit" : "debit";
+    const dateRaw = row.txn_date;
+    const txn_date =
+      typeof dateRaw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
+    out.push({
+      txn_date,
+      amount: Math.round(amount * 100) / 100,
+      description: String(row.description ?? "").slice(0, 300),
+      suggested_category: categoryForRole(line_role, row.suggested_category),
+      note: row.note != null ? String(row.note).slice(0, 300) : undefined,
+      instrument,
+      line_role,
+    });
   }
   return out;
 }

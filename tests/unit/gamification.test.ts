@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeMonthlyStreak, computeWeeklyStreak } from "@/lib/gamification/streaks";
+import { computeMonthlyStreak, computeWeeklyStreak, loggingActivityDates } from "@/lib/gamification/streaks";
 import { evaluateAchievements, type AchievementContext } from "@/lib/gamification/achievements";
 
 function ctx(partial: Partial<AchievementContext> = {}): AchievementContext {
@@ -16,6 +16,20 @@ function ctx(partial: Partial<AchievementContext> = {}): AchievementContext {
     ...partial,
   };
 }
+
+describe("logging activity", () => {
+  it("ignores imported statement dates and keeps a confirmed picture", () => {
+    expect(
+      loggingActivityDates({
+        transactions: [
+          { txn_date: "2026-07-02", source: "screenshot" },
+          { txn_date: "2026-08-03", source: "manual" },
+        ],
+        baselineUpdatedAt: "2026-10-06T12:00:00.000Z",
+      }),
+    ).toEqual(["2026-08-03", "2026-10-06"]);
+  });
+});
 
 describe("computeWeeklyStreak", () => {
   it("returns 0 when there are no transactions", () => {
