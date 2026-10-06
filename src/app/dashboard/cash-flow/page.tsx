@@ -2,19 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Flame,
   Loader2,
   Pencil,
-  Plus,
   Trash2,
   Upload,
   X,
 } from "lucide-react";
 import { SpendingCategoryChart } from "@/components/charts/SpendingCategoryChart";
 import { WeeklySpendChart } from "@/components/charts/WeeklySpendChart";
+import { BalanceCheckSheet } from "@/components/tracking/BalanceCheckSheet";
+import { CashKeypad } from "@/components/tracking/CashKeypad";
+import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
+import { RecurringPanel } from "@/components/tracking/RecurringPanel";
+import { SpendInbox } from "@/components/tracking/SpendInbox";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   SPENDING_CATEGORIES,
@@ -34,10 +37,28 @@ import {
   todayIso,
   weekRange,
 } from "@/lib/tracking/dates";
+import {
+  advanceRecurringDate,
+  daysBetween,
+  isOutflow,
+  latestDate,
+  leftToSpend,
+  outflowTotal,
+} from "@/lib/tracking/cash-capture";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import { usePlanStore } from "@/stores/plan-store";
-import type { ParsedSpendingItem, TransactionRow } from "@/types/tracking";
+import type {
+  CaptureInput,
+  CashAnchor,
+  CashDirection,
+  ParsedSpendingItem,
+  RecurringCadence,
+  RecurringItem,
+  TransactionRow,
+} from "@/types/tracking";
+
+const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
@@ -201,7 +222,14 @@ export default function CashFlowPage() {
   const [streak, setStreak] = useState(0);
   const [loggedThisWeek, setLoggedThisWeek] = useState(false);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
+  const [anchor, setAnchor] = useState<CashAnchor | null>(null);
+  const [expectedBalance, setExpectedBalance] = useState<number | null>(null);
+  const [lastCheckDate, setLastCheckDate] = useState<string | null>(null);
+  const [recurring, setRecurring] = useState<RecurringItem[]>([]);
+  const [showBalance, setShowBalance] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [undo, setUndo] = useState<{ ids: string[]; label: string } | null>(null);
+  const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
   const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(() => uploadJob.rows);
   const [reviewNotice, setReviewNotice] = useState<string | null>(() => uploadJob.notice);
@@ -265,6 +293,21 @@ export default function CashFlowPage() {
       setStreak(json.weeklyStreak ?? 0);
       setLoggedThisWeek(Boolean(json.loggedThisWeek));
     }
+    const [cashRes, recurringRes] = await Promise.all([
+      fetch("/api/cash", { credentials: "include" }),
+      fetch("/api/recurring", { credentials: "include" }),
+    ]);
+    if (cashRes.ok) {
+      const json = await cashRes.json();
+      setAnchor(json.anchor ?? null);
+      setExpectedBalance(json.expected_balance ?? null);
+      setLastCheckDate(json.last_check_date ?? null);
+      setCashLoaded(true);
+    }
+    if (recurringRes.ok) {
+      const json = await recurringRes.json();
+      setRecurring(json.items ?? []);
+    }
   }, [monthStart]);
 
   useEffect(() => {
@@ -275,6 +318,18 @@ export default function CashFlowPage() {
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
+
+  useEffect(() => {
+    if (!undo) return;
+    const timer = window.setTimeout(() => setUndo(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [undo]);
+
+  useEffect(() => {
+    if (loading || !cashLoaded || anchor) return;
+    if (typeof window !== "undefined" && localStorage.getItem(SETUP_SKIP_KEY) === "1") return;
+    setShowSetup(true);
+  }, [loading, anchor, cashLoaded]);
 
   useEffect(() => {
     function syncUpload() {
@@ -295,28 +350,27 @@ export default function CashFlowPage() {
   }
 
   const visibleTxns = view === "month" ? monthTxns : transactions;
-  const weekTotal = useMemo(
-    () => transactions.reduce((s, t) => s + Number(t.amount), 0),
-    [transactions],
-  );
-  const monthTotal = useMemo(
-    () => monthTxns.reduce((s, t) => s + Number(t.amount), 0),
-    [monthTxns],
-  );
-  const unconfirmed = useMemo(
-    () => visibleTxns.filter((t) => t.category_confirmed === false),
-    [visibleTxns],
-  );
+  const spendTxns = visibleTxns.filter((txn) => isOutflow(txn.direction));
+  const incomeTxns = visibleTxns.filter((txn) => !isOutflow(txn.direction));
+  const weekTotal = useMemo(() => outflowTotal(transactions), [transactions]);
+  const monthTotal = useMemo(() => outflowTotal(monthTxns), [monthTxns]);
+  const inboxItems = useMemo(() => {
+    const map = new Map<string, TransactionRow>();
+    for (const txn of [...history, ...transactions, ...monthTxns]) {
+      if (txn.category_confirmed === false) map.set(txn.id, txn);
+    }
+    return [...map.values()].sort((a, b) => (a.txn_date < b.txn_date ? 1 : -1));
+  }, [history, transactions, monthTxns]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, TransactionRow[]>();
-    for (const t of visibleTxns) {
+    for (const t of spendTxns) {
       const cat = t.category;
       const list = map.get(cat) ?? [];
       list.push(t);
       map.set(cat, list);
     }
-    const keys = [...new Set([...SPENDING_CATEGORIES, ...visibleTxns.map((t) => t.category)])];
+    const keys = [...new Set([...SPENDING_CATEGORIES, ...spendTxns.map((t) => t.category)])];
     return keys
       .map((cat) => ({
         category: cat,
@@ -324,7 +378,7 @@ export default function CashFlowPage() {
         items: map.get(cat) ?? [],
       }))
       .filter((g) => g.items.length > 0);
-  }, [visibleTxns]);
+  }, [spendTxns]);
 
   const categorySlices = byCategory.map((g) => ({ category: g.category, amount: g.amount }));
 
@@ -333,37 +387,82 @@ export default function CashFlowPage() {
     for (let i = 7; i >= 0; i--) {
       const start = addDays(thisWeek, -7 * i);
       const { end } = weekRange(start);
-      const amount = history
-        .filter((t) => t.txn_date >= start && t.txn_date <= end)
-        .reduce((s, t) => s + Number(t.amount), 0);
+      const amount = outflowTotal(
+        history.filter((t) => t.txn_date >= start && t.txn_date <= end),
+      );
       const [, m, d] = start.split("-");
       points.push({ label: `${Number(m)}/${Number(d)}`, amount });
     }
     return points;
   }, [history, thisWeek]);
 
-  async function handleAdd(payload: {
-    txn_date: string;
-    amount: number;
-    category: string;
-    note?: string;
-  }) {
+  async function reload() {
+    await Promise.all([loadWeek(weekStart), loadMeta()]);
+  }
+
+  async function handleCapture(input: CaptureInput): Promise<boolean> {
+    let recurringId: string | null = null;
+    if (input.recurring) {
+      const recRes = await fetch("/api/recurring", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: input.recurring.name,
+          amount: input.amount,
+          category: input.category,
+          direction: input.direction,
+          cadence: input.recurring.cadence,
+          next_date: advanceRecurringDate(input.txnDate, input.recurring.cadence),
+        }),
+      });
+      if (!recRes.ok) return false;
+      const recJson = await recRes.json();
+      recurringId = recJson.item?.id ?? null;
+    }
+
+    const lines = input.lines?.length ? input.lines : [{ amount: input.amount, category: input.category }];
     const res = await fetch("/api/transactions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ ...payload, source: "manual" }),
+      body: JSON.stringify({
+        transactions: lines.map((line, index) => ({
+          txn_date: input.txnDate,
+          amount: line.amount,
+          category: line.category,
+          direction: input.direction,
+          description: input.description ?? null,
+          note: input.note ?? null,
+          source: input.source ?? "manual",
+          category_confirmed: input.categoryConfirmed,
+          recurring_item_id: index === 0 ? recurringId : null,
+        })),
+      }),
     });
-    if (!res.ok) return;
+    if (!res.ok) return false;
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
-    setShowAdd(false);
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
+    const ids = (json.transactions ?? []).map((txn: TransactionRow) => txn.id).filter(Boolean);
+    setUndo({ ids, label: formatMoneyExact(input.amount) });
+    await reload();
+    return true;
+  }
+
+  async function undoLast() {
+    if (!undo) return;
+    await Promise.all(
+      undo.ids.map((id) =>
+        fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" }),
+      ),
+    );
+    setUndo(null);
+    await reload();
   }
 
   async function handleDelete(id: string) {
     await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
+    await reload();
   }
 
   function requestUpload() {
@@ -456,21 +555,7 @@ export default function CashFlowPage() {
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
     setUploadJob({ status: "idle", rows: null, notice: null, error: null });
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
-  }
-
-  async function confirmCategories(ids: string[]) {
-    await Promise.all(
-      ids.map((id) =>
-        fetch("/api/transactions", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ id, category_confirmed: true }),
-        }),
-      ),
-    );
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
+    await reload();
   }
 
   async function handleEdit(
@@ -494,7 +579,140 @@ export default function CashFlowPage() {
       throw new Error(json.error ?? "Could not save this spend.");
     }
     setEditing(null);
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
+    await reload();
+  }
+
+  async function assignCategory(id: string, category: string) {
+    await fetch("/api/transactions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, category, category_confirmed: true }),
+    });
+    await reload();
+  }
+
+  async function confirmSchedule(id: string, amount: number) {
+    const res = await fetch("/api/recurring", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, action: "confirm", amount }),
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    await reload();
+  }
+
+  async function skipSchedule(id: string) {
+    await fetch("/api/recurring", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, action: "skip" }),
+    });
+    await reload();
+  }
+
+  async function createSchedule(input: {
+    name: string;
+    amount: number;
+    category: string;
+    direction: CashDirection;
+    cadence: RecurringCadence;
+    next_date: string;
+  }) {
+    await fetch("/api/recurring", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(input),
+    });
+    await reload();
+  }
+
+  async function deleteSchedule(id: string) {
+    await fetch(`/api/recurring?id=${id}`, { method: "DELETE", credentials: "include" });
+    await reload();
+  }
+
+  async function saveSetup(input: {
+    startingBalance: number;
+    anchorDate: string;
+    paycheque: { name: string; amount: number; cadence: RecurringCadence; nextDate: string } | null;
+    bill: {
+      name: string;
+      amount: number;
+      category: string;
+      cadence: RecurringCadence;
+      nextDate: string;
+      direction: CashDirection;
+    } | null;
+  }) {
+    const anchorRes = await fetch("/api/cash", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        starting_balance: input.startingBalance,
+        anchor_date: input.anchorDate,
+      }),
+    });
+    if (!anchorRes.ok) throw new Error("Could not save starting balance");
+    const schedules = [
+      input.paycheque
+        ? {
+            name: input.paycheque.name,
+            amount: input.paycheque.amount,
+            category: "paycheque",
+            direction: "in" as const,
+            cadence: input.paycheque.cadence,
+            next_date: input.paycheque.nextDate,
+          }
+        : null,
+      input.bill
+        ? {
+            name: input.bill.name,
+            amount: input.bill.amount,
+            category: input.bill.category,
+            direction: input.bill.direction,
+            cadence: input.bill.cadence,
+            next_date: input.bill.nextDate,
+          }
+        : null,
+    ].filter((item) => item != null);
+    await Promise.all(
+      schedules.map((item) =>
+        fetch("/api/recurring", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(item),
+        }),
+      ),
+    );
+    setShowSetup(false);
+    await reload();
+  }
+
+  async function bookBalance(
+    actual: number,
+    book: "untracked" | "lines" | "none",
+    lines?: { amount: number; category: string; direction: CashDirection }[],
+  ) {
+    const res = await fetch("/api/cash/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ actual_balance: actual, book, lines }),
+    });
+    if (!res.ok) return false;
+    const json = await res.json();
+    if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    setShowBalance(false);
+    await reload();
+    return true;
   }
 
   const vsBaseline =
@@ -508,6 +726,7 @@ export default function CashFlowPage() {
     for (const t of history) {
       const key = monthKey(t.txn_date);
       if (key >= viewed) continue;
+      if (!isOutflow(t.direction)) continue;
       totals.set(key, (totals.get(key) ?? 0) + Number(t.amount));
     }
     const values = [...totals.values()];
@@ -538,6 +757,26 @@ export default function CashFlowPage() {
     ),
   );
   const currentMonth = startOfMonth(todayIso());
+  const today = todayIso();
+  const periodStart = view === "month" ? monthStart : range.start;
+  const periodEnd = view === "month" ? endOfMonth(monthStart) : range.end;
+  const monthlyRoom =
+    Object.keys(budgets).length > 0
+      ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
+      : monthlyExpenses;
+  const room = leftToSpend({
+    periodStart,
+    periodEnd,
+    txns: view === "month" ? monthTxns : transactions,
+    recurring,
+    monthlyRoom,
+    period: view,
+  });
+  const spentNow = view === "month" ? monthTotal : weekTotal;
+  const lastActivity = latestDate([...history.map((txn) => txn.txn_date), lastCheckDate]);
+  const quietDays = lastActivity ? daysBetween(lastActivity, today) : null;
+  const balanceDue =
+    anchor != null && (lastCheckDate == null || daysBetween(lastCheckDate, today) >= 7);
 
   return (
     <div className="w-full space-y-6">
@@ -545,32 +784,8 @@ export default function CashFlowPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            {view === "month"
-              ? `${formatMonthLabel(monthStart)}, by category.`
-              : "Log every spend this week. Honesty is the whole point."}
+            Log variable spending for the household. Bills and paycheques can post on their dates.
           </p>
-          <div className="mt-3 inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
-            <button
-              type="button"
-              onClick={() => setView("week")}
-              className={cn(
-                "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
-                view === "week" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
-              )}
-            >
-              Week
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("month")}
-              className={cn(
-                "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
-                view === "month" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
-              )}
-            >
-              Month
-            </button>
-          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--emerald-soft)] px-3 py-1.5">
@@ -581,12 +796,6 @@ export default function CashFlowPage() {
           </div>
         </div>
       </div>
-
-      {view === "week" && !loggedThisWeek && weekStart === thisWeek && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 font-body text-sm text-amber-800">
-          This week is empty. Log spending to keep your streak.
-        </div>
-      )}
 
       {propertyCost && (
         <div className="rounded-lg border border-[var(--warm-200)] bg-white px-4 py-3 font-body text-sm text-[var(--text-secondary)]">
@@ -600,6 +809,98 @@ export default function CashFlowPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
+      <div className="rounded-xl bg-[#0f1923] p-5 sm:p-6">
+        <p className="font-body text-[11px] font-medium uppercase tracking-widest text-white/50">
+          Left to spend
+        </p>
+        <p className="mt-1 font-display text-3xl font-bold tabular-nums text-white">
+          {room.left != null ? formatMoneyExact(room.left) : "—"}
+        </p>
+        <p className="mt-2 font-body text-sm text-white/70">
+          Spent {formatMoneyExact(spentNow)}{" "}
+          {view === "month"
+            ? monthStart === currentMonth
+              ? "this month"
+              : `in ${formatMonthLabel(monthStart)}`
+            : weekStart === thisWeek
+              ? "this week"
+              : formatWeekLabel(weekStart)}
+        </p>
+        <p className="mt-1 font-body text-xs text-white/50">
+          {room.left == null
+            ? "Set category budgets, or add a paycheque and bills, to see what's left."
+            : room.usesBudget
+              ? "From your spending room, after bills still due."
+              : "After income and bills still due."}
+        </p>
+        {view === "week" && vsBaseline != null && (
+          <p className={cn("mt-2 font-body text-sm", vsBaseline > 5 ? "text-red-300" : "text-emerald-300")}>
+            {vsBaseline > 0 ? "+" : ""}
+            {vsBaseline.toFixed(0)}% vs your typical weekly spend
+            {weeklyBaseline != null ? ` (${formatMoney(weeklyBaseline)})` : ""}
+          </p>
+        )}
+        {view === "month" && vsRecentMonths != null && priorMonthAverage != null && (
+          <p className={cn("mt-2 font-body text-sm", vsRecentMonths > 5 ? "text-red-300" : "text-emerald-300")}>
+            {vsRecentMonths > 0 ? "+" : ""}
+            {vsRecentMonths.toFixed(0)}% compared with the average of recent months ({formatMoney(priorMonthAverage)})
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            if (anchor == null || expectedBalance == null) setShowSetup(true);
+            else setShowBalance(true);
+          }}
+          className="mt-4 rounded-lg bg-white/10 px-3 py-2 font-display text-sm font-semibold text-white"
+        >
+          Balance check
+        </button>
+        {balanceDue && (
+          <p className="mt-2 font-body text-xs text-white/60">
+            Enter your bank balance when you have it. A check closes the gap and counts for this week.
+          </p>
+        )}
+      </div>
+
+      <CashKeypad
+        history={history}
+        extras={customCategories}
+        catchUpDays={quietDays}
+        onAddCategory={addCategory}
+        onSave={handleCapture}
+      />
+      <SpendInbox items={inboxItems} onAssign={assignCategory} />
+      <RecurringPanel
+        items={recurring}
+        today={today}
+        onConfirm={confirmSchedule}
+        onSkip={skipSchedule}
+        onCreate={createSchedule}
+        onDelete={deleteSchedule}
+      />
+      <div className="inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
+        <button
+          type="button"
+          onClick={() => setView("week")}
+          className={cn(
+            "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
+            view === "week" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+          )}
+        >
+          Week
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("month")}
+          className={cn(
+            "rounded-full px-3 py-1.5 font-display text-xs font-semibold",
+            view === "month" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+          )}
+        >
+          Month
+        </button>
+      </div>
       {view === "week" ? (
       <div className="flex items-center justify-between rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2">
         <button
@@ -658,32 +959,6 @@ export default function CashFlowPage() {
       </div>
       )}
 
-      <div className="rounded-xl bg-[#0f1923] p-5 sm:p-6">
-        <p className="font-body text-[11px] font-medium uppercase tracking-widest text-white/50">
-          {view === "month"
-            ? monthStart === currentMonth
-              ? "Spent this month"
-              : `Spent in ${formatMonthLabel(monthStart)}`
-            : "Spent this week"}
-        </p>
-        <p className="mt-1 font-display text-3xl font-bold tabular-nums text-white">
-          {formatMoneyExact(view === "month" ? monthTotal : weekTotal)}
-        </p>
-        {view === "week" && vsBaseline != null && (
-          <p className={cn("mt-2 font-body text-sm", vsBaseline > 5 ? "text-red-300" : "text-emerald-300")}>
-            {vsBaseline > 0 ? "+" : ""}
-            {vsBaseline.toFixed(0)}% vs your typical weekly spend
-            {weeklyBaseline != null ? ` (${formatMoney(weeklyBaseline)})` : ""}
-          </p>
-        )}
-        {view === "month" && vsRecentMonths != null && priorMonthAverage != null && (
-          <p className={cn("mt-2 font-body text-sm", vsRecentMonths > 5 ? "text-red-300" : "text-emerald-300")}>
-            {vsRecentMonths > 0 ? "+" : ""}
-            {vsRecentMonths.toFixed(0)}% compared with the average of recent months ({formatMoney(priorMonthAverage)})
-          </p>
-        )}
-      </div>
-
       {view === "month" && (
         <div className="space-y-3 rounded-xl border border-[var(--warm-200)] bg-white p-4">
           <div className="flex items-center justify-between">
@@ -698,7 +973,7 @@ export default function CashFlowPage() {
           </div>
           {budgetCategories.map((cat) => {
             const spent = monthTxns
-              .filter((t) => t.category === cat)
+              .filter((t) => t.category === cat && isOutflow(t.direction))
               .reduce((s, t) => s + Number(t.amount), 0);
             const limit = budgets[cat];
             if (limit == null && spent === 0) return null;
@@ -732,20 +1007,12 @@ export default function CashFlowPage() {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => setShowAdd(true)}
-          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)]"
-        >
-          <Plus className="size-4" />
-          Add spend
-        </button>
-        <button
-          type="button"
           onClick={requestUpload}
           disabled={parsing}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--warm-200)] bg-white px-4 py-2.5 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
         >
           {parsing ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          Upload
+          Upload a statement
         </button>
         <input
           ref={fileRef}
@@ -767,32 +1034,15 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : byCategory.length === 0 ? (
+      ) : byCategory.length === 0 && incomeTxns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">Nothing logged yet</p>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Add items one by one, or upload a photo, screenshot, or statement.
+            Type an amount above, or upload a photo, screenshot, or statement.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {unconfirmed.length > 0 && (
-            <div className="flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="font-body text-sm text-amber-900">
-                {unconfirmed.length === 1
-                  ? "1 spend still needs a category check."
-                  : `${unconfirmed.length} spends still need a category check.`}
-              </p>
-              <button
-                type="button"
-                onClick={() => confirmCategories(unconfirmed.map((t) => t.id))}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-800 px-3 py-2 font-display text-xs font-semibold text-white"
-              >
-                <Check className="size-3.5" />
-                Confirm all
-              </button>
-            </div>
-          )}
           {byCategory.map((g) => (
             <div key={g.category} className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
               <div className="flex items-center justify-between px-4 py-3">
@@ -819,8 +1069,8 @@ export default function CashFlowPage() {
                       <div className="mt-0.5 flex flex-wrap items-center gap-2">
                         <p className="font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
                         {t.category_confirmed === false && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-display text-[11px] font-semibold text-amber-800">
-                            Check category
+                          <span className="rounded-full bg-[var(--warm-100)] px-2 py-0.5 font-display text-[11px] font-semibold text-[var(--text-secondary)]">
+                            Inbox
                           </span>
                         )}
                       </div>
@@ -829,16 +1079,6 @@ export default function CashFlowPage() {
                       {formatMoneyExact(Number(t.amount))}
                     </span>
                     <div className="flex items-center gap-1">
-                      {t.category_confirmed === false && (
-                        <button
-                          type="button"
-                          onClick={() => confirmCategories([t.id])}
-                          className="rounded-md p-1.5 text-amber-800 hover:bg-amber-50"
-                          aria-label="Confirm category"
-                        >
-                          <Check className="size-3.5" />
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setEditing(t)}
@@ -861,6 +1101,42 @@ export default function CashFlowPage() {
               </ul>
             </div>
           ))}
+          {incomeTxns.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+              <div className="px-4 py-3 font-display text-sm font-semibold text-[var(--text-primary)]">Money in</div>
+              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
+                {incomeTxns.map((t) => (
+                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                        {t.description || t.note || categoryLabel(t.category)}
+                      </p>
+                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                    </div>
+                    <span className="font-body text-sm font-semibold tabular-nums">
+                      +{formatMoneyExact(Number(t.amount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                      aria-label="Edit income"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete income"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -878,18 +1154,6 @@ export default function CashFlowPage() {
         <WeeklySpendChart data={weeklyBars} baseline={weeklyBaseline} />
       </div>
       </div>
-
-      {showAdd && (
-        <QuickAddSheet
-          defaultDate={range.end < todayIso() ? range.end : todayIso()}
-          minDate={view === "month" ? monthStart : range.start}
-          maxDate={view === "month" ? endOfMonth(monthStart) : range.end}
-          extras={customCategories}
-          onAddCategory={addCategory}
-          onClose={() => setShowAdd(false)}
-          onSave={handleAdd}
-        />
-      )}
 
       {showHowTo && (
         <HowToModal
@@ -926,14 +1190,32 @@ export default function CashFlowPage() {
         />
       )}
 
-      <button
-        type="button"
-        onClick={() => setShowAdd(true)}
-        className="fixed bottom-24 right-4 z-30 flex size-14 items-center justify-center rounded-full bg-[var(--emerald)] text-white shadow-lg md:hidden"
-        aria-label="Log spend"
-      >
-        <Plus className="size-6" />
-      </button>
+      {undo && (
+        <div className="fixed bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-[var(--slate-950)] px-4 py-2 text-white shadow-lg">
+          <span className="font-body text-sm">Saved {undo.label}</span>
+          <button type="button" onClick={() => void undoLast()} className="font-display text-sm font-semibold">
+            Undo
+          </button>
+        </div>
+      )}
+
+      {showSetup && (
+        <CashSetupSheet
+          onClose={() => {
+            localStorage.setItem(SETUP_SKIP_KEY, "1");
+            setShowSetup(false);
+          }}
+          onSave={saveSetup}
+        />
+      )}
+
+      {showBalance && expectedBalance != null && (
+        <BalanceCheckSheet
+          expected={expectedBalance}
+          onClose={() => setShowBalance(false)}
+          onBook={bookBalance}
+        />
+      )}
 
       {showBudgets && (
         <BudgetSheet
@@ -949,111 +1231,6 @@ export default function CashFlowPage() {
       )}
 
       <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />
-    </div>
-  );
-}
-
-function QuickAddSheet({
-  defaultDate,
-  minDate,
-  maxDate,
-  extras,
-  onAddCategory,
-  onClose,
-  onSave,
-}: {
-  defaultDate: string;
-  minDate: string;
-  maxDate: string;
-  extras: string[];
-  onAddCategory: (slug: string) => void;
-  onClose: () => void;
-  onSave: (payload: {
-    txn_date: string;
-    amount: number;
-    category: string;
-    note?: string;
-  }) => Promise<void>;
-}) {
-  const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("other");
-  const [date, setDate] = useState(defaultDate);
-  const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function submit() {
-    const n = Number(amount);
-    if (!Number.isFinite(n) || n <= 0) return;
-    setSaving(true);
-    await onSave({ txn_date: date, amount: n, category, note: note || undefined });
-    setSaving(false);
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Add spend</h2>
-          <button type="button" onClick={onClose} aria-label="Close">
-            <X className="size-5 text-[var(--text-muted)]" />
-          </button>
-        </div>
-        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          Amount
-        </label>
-        <input
-          type="number"
-          inputMode="decimal"
-          min="0"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          className="mt-1 mb-4 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2.5 font-display text-lg tabular-nums"
-          autoFocus
-        />
-        <p className="mb-2 font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          Category
-        </p>
-        <div className="mb-4">
-          <CategoryPicker
-            value={category}
-            extras={extras}
-            onAdd={onAddCategory}
-            onChange={setCategory}
-            variant="pills"
-          />
-        </div>
-        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          Date
-        </label>
-        <input
-          type="date"
-          value={date}
-          min={minDate}
-          max={maxDate}
-          onChange={(e) => setDate(e.target.value)}
-          className="mt-1 mb-4 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-        />
-        <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          Note (optional)
-        </label>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Coffee, groceries…"
-          className="mt-1 mb-5 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-        />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={saving}
-          className="w-full rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] disabled:opacity-60"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-      </div>
     </div>
   );
 }
@@ -1109,7 +1286,9 @@ function EditSpendSheet({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">Edit spend</h2>
+          <h2 className="font-display text-lg font-semibold">
+            {txn.direction === "in" ? "Edit income" : "Edit spend"}
+          </h2>
           <button type="button" onClick={onClose} aria-label="Close">
             <X className="size-5 text-[var(--text-muted)]" />
           </button>

@@ -10,9 +10,11 @@ const txnSchema = z.object({
   category: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
   description: z.string().max(300).optional().nullable(),
   note: z.string().max(1000).optional().nullable(),
-  source: z.enum(["manual", "screenshot"]).optional().default("manual"),
+  source: z.enum(["manual", "screenshot", "scheduled", "balance_check", "catchup"]).optional(),
   document_id: z.string().uuid().optional().nullable(),
   category_confirmed: z.boolean().optional(),
+  direction: z.enum(["in", "out"]).optional(),
+  recurring_item_id: z.string().uuid().optional().nullable(),
 });
 
 const batchSchema = z.object({
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
       note: t.note ?? null,
       source: t.source ?? "manual",
       document_id: t.document_id ?? null,
+      direction: t.direction ?? "out",
+      recurring_item_id: t.recurring_item_id ?? null,
       category_confirmed:
         t.category_confirmed ?? (t.source ?? "manual") !== "screenshot",
     }),

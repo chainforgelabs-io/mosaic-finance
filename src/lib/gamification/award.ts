@@ -46,7 +46,7 @@ export async function buildAchievementContext(
   userId: string,
   extras: Partial<AchievementContext> = {},
 ): Promise<AchievementContext> {
-  const [txnRes, snapRes, profileRes] = await Promise.all([
+  const [txnRes, snapRes, profileRes, checkRes] = await Promise.all([
     supabase.from("transactions").select("txn_date").eq("user_id", userId),
     supabase
       .from("net_worth_snapshots")
@@ -60,16 +60,21 @@ export async function buildAchievementContext(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.from("balance_checks").select("check_date").eq("user_id", userId),
   ]);
 
   const txnDates = ((txnRes.data ?? []) as { txn_date: string }[]).map((t) => t.txn_date);
+  const activityDates = [
+    ...txnDates,
+    ...((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
+  ];
   const snapshots = (snapRes.data ?? []) as {
     snapshot_date: string;
     debts_total: number;
     net_worth: number;
   }[];
   const today = todayIso();
-  const weekly = computeWeeklyStreak(txnDates, today);
+  const weekly = computeWeeklyStreak(activityDates, today);
   const monthly = computeMonthlyStreak(
     snapshots.map((s) => s.snapshot_date),
     today,
@@ -116,18 +121,22 @@ export async function getGamificationSummary(
   userId: string,
   newUnlocks: AchievementDef[] = [],
 ): Promise<GamificationSummary> {
-  const [txnRes, snapRes, earned] = await Promise.all([
+  const [txnRes, snapRes, earned, checkRes] = await Promise.all([
     supabase.from("transactions").select("txn_date").eq("user_id", userId),
     supabase
       .from("net_worth_snapshots")
       .select("snapshot_date")
       .eq("user_id", userId),
     loadEarnedKeys(supabase, userId),
+    supabase.from("balance_checks").select("check_date").eq("user_id", userId),
   ]);
 
   const today = todayIso();
   const weekly = computeWeeklyStreak(
-    ((txnRes.data ?? []) as { txn_date: string }[]).map((t) => t.txn_date),
+    [
+      ...((txnRes.data ?? []) as { txn_date: string }[]).map((t) => t.txn_date),
+      ...((checkRes.data ?? []) as { check_date: string }[]).map((c) => c.check_date),
+    ],
     today,
   );
   const monthly = computeMonthlyStreak(

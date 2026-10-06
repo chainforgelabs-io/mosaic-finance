@@ -1,0 +1,259 @@
+import { addDays } from "@/lib/tracking/dates";
+
+export type CashDirection = "in" | "out";
+export type RecurringCadence = "weekly" | "biweekly" | "monthly";
+
+export interface CashTxn {
+  txn_date: string;
+  amount: number;
+  direction?: string | null;
+}
+
+export interface RecurringOccurrence {
+  id: string;
+  amount: number;
+  direction: CashDirection | string;
+  next_date: string;
+  cadence: RecurringCadence;
+  active: boolean;
+}
+
+const SPEND_DEFAULTS = ["dining", "groceries", "transportation", "shopping"];
+const INCOME_DEFAULTS = ["paycheque", "income"];
+
+export function roundMoney(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** Digits are cents. "640" is $6.40. There is no decimal key. */
+export function amountFromDigits(digits: string): number {
+  const clean = digits.replace(/\D/g, "").slice(0, 9);
+  if (!clean) return 0;
+  return Number(clean) / 100;
+}
+
+export function formatAmountInput(digits: string): string {
+  const cents = Math.round(amountFromDigits(digits) * 100);
+  const dollars = Math.floor(cents / 100);
+  const rem = cents % 100;
+  return `${dollars.toLocaleString("en-CA")}.${String(rem).padStart(2, "0")}`;
+}
+
+export function isOutflow(direction: string | null | undefined): boolean {
+  return (direction ?? "out") !== "in";
+}
+
+export function outflowTotal(txns: CashTxn[]): number {
+  return roundMoney(
+    txns.reduce((sum, txn) => sum + (isOutflow(txn.direction) ? Number(txn.amount) || 0 : 0), 0),
+  );
+}
+
+export function advanceRecurringDate(isoDate: string, cadence: RecurringCadence): string {
+  if (cadence === "weekly") return addDays(isoDate, 7);
+  if (cadence === "biweekly") return addDays(isoDate, 14);
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const target = new Date(Date.UTC(year, month - 1 + 1, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  const clamped = Math.min(day, last);
+  return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), clamped)).toISOString().slice(0, 10);
+}
+
+export function occurrencesInRange(
+  nextDate: string,
+  cadence: RecurringCadence,
+  start: string,
+  end: string,
+): string[] {
+  const dates: string[] = [];
+  let cursor = nextDate;
+  for (let i = 0; i < 24 && cursor <= end; i++) {
+    if (cursor >= start) dates.push(cursor);
+    cursor = advanceRecurringDate(cursor, cadence);
+  }
+  return dates;
+}
+
+/**
+ * Starting balance is the cash on hand at the end of anchorDate.
+ * Transactions after that date, through asOf, move the expected balance.
+ */
+export function expectedBalance(
+  startingBalance: number,
+  anchorDate: string,
+  txns: CashTxn[],
+  asOf: string,
+): number {
+  let balance = startingBalance;
+  for (const txn of txns) {
+    if (txn.txn_date <= anchorDate || txn.txn_date > asOf) continue;
+    const amount = Number(txn.amount);
+    if (!Number.isFinite(amount)) continue;
+    balance += isOutflow(txn.direction) ? -amount : amount;
+  }
+  return roundMoney(balance);
+}
+
+export function balanceGap(actual: number, expected: number): number {
+  return roundMoney(actual - expected);
+}
+
+export function gapBooking(
+  actual: number,
+  expected: number,
+): { direction: CashDirection; amount: number } | null {
+  const gap = balanceGap(actual, expected);
+  if (Math.abs(gap) < 0.005) return null;
+  if (gap < 0) return { direction: "out", amount: roundMoney(-gap) };
+  return { direction: "in", amount: gap };
+}
+
+export function daysBetween(earlier: string, later: string): number {
+  const [y1, m1, d1] = earlier.split("-").map(Number);
+  const [y2, m2, d2] = later.split("-").map(Number);
+  const a = Date.UTC(y1, m1 - 1, d1);
+  const b = Date.UTC(y2, m2 - 1, d2);
+  return Math.round((b - a) / 86_400_000);
+}
+
+export function latestDate(dates: Array<string | null | undefined>): string | null {
+  let best: string | null = null;
+  for (const date of dates) {
+    if (!date) continue;
+    if (!best || date > best) best = date;
+  }
+  return best;
+}
+
+function timeBucket(hour: number): string {
+  if (hour >= 5 && hour < 11) return "morning";
+  if (hour >= 11 && hour < 15) return "midday";
+  if (hour >= 15 && hour < 18) return "afternoon";
+  if (hour >= 18 && hour < 22) return "evening";
+  return "night";
+}
+
+export function predictCategories(
+  history: Array<CashTxn & { category: string; created_at?: string | null }>,
+  now: Date,
+  amount: number | null,
+  direction: CashDirection,
+  limit = 4,
+): string[] {
+  const weekday = now.getDay();
+  const bucket = timeBucket(now.getHours());
+  const scores = new Map<string, number>();
+
+  for (const txn of history) {
+    if ((direction === "in" ? isOutflow(txn.direction) : !isOutflow(txn.direction))) continue;
+    if (!txn.category || txn.category === "untracked") continue;
+    let score = 1;
+    const created = txn.created_at ? new Date(txn.created_at) : null;
+    if (created && !Number.isNaN(created.getTime())) {
+      if (created.getDay() === weekday) score += 3;
+      if (timeBucket(created.getHours()) === bucket) score += 3;
+    } else {
+      const [year, month, day] = txn.txn_date.split("-").map(Number);
+      const dated = new Date(year, month - 1, day);
+      if (dated.getDay() === weekday) score += 2;
+    }
+    if (amount != null && amount > 0 && Number(txn.amount) > 0) {
+      const ratio = amount / Number(txn.amount);
+      if (ratio >= 0.75 && ratio <= 1.25) score += 4;
+    }
+    scores.set(txn.category, (scores.get(txn.category) ?? 0) + score);
+  }
+
+  const ranked = [...scores.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([category]) => category);
+  const defaults = direction === "in" ? INCOME_DEFAULTS : SPEND_DEFAULTS;
+  const merged = [...ranked];
+  for (const category of defaults) {
+    if (!merged.includes(category)) merged.push(category);
+  }
+  return merged.slice(0, limit);
+}
+
+export function periodRoom(monthlyRoom: number, period: "week" | "month"): number {
+  if (period === "month") return roundMoney(monthlyRoom);
+  return roundMoney((monthlyRoom * 12) / 52);
+}
+
+export interface LeftToSpendInput {
+  periodStart: string;
+  periodEnd: string;
+  txns: CashTxn[];
+  recurring: RecurringOccurrence[];
+  monthlyRoom: number | null;
+  period: "week" | "month";
+}
+
+export interface LeftToSpend {
+  left: number | null;
+  spent: number;
+  commitments: number;
+  income: number;
+  usesBudget: boolean;
+}
+
+export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
+  let incomePosted = 0;
+  let spent = 0;
+  for (const txn of input.txns) {
+    if (txn.txn_date < input.periodStart || txn.txn_date > input.periodEnd) continue;
+    const amount = Number(txn.amount) || 0;
+    if (isOutflow(txn.direction)) spent += amount;
+    else incomePosted += amount;
+  }
+
+  let incomeDue = 0;
+  let commitments = 0;
+  for (const item of input.recurring) {
+    if (!item.active) continue;
+    const count = occurrencesInRange(item.next_date, item.cadence, input.periodStart, input.periodEnd).length;
+    const total = count * Number(item.amount);
+    if (item.direction === "in") incomeDue += total;
+    else commitments += total;
+  }
+
+  const income = roundMoney(incomePosted + incomeDue);
+  spent = roundMoney(spent);
+  commitments = roundMoney(commitments);
+
+  if (income > 0) {
+    return {
+      left: roundMoney(income - commitments - spent),
+      spent,
+      commitments,
+      income,
+      usesBudget: false,
+    };
+  }
+
+  if (input.monthlyRoom != null && input.monthlyRoom > 0) {
+    return {
+      left: roundMoney(periodRoom(input.monthlyRoom, input.period) - commitments - spent),
+      spent,
+      commitments,
+      income,
+      usesBudget: true,
+    };
+  }
+
+  return { left: null, spent, commitments, income, usesBudget: false };
+}
+
+export function splitLines(
+  total: number,
+  firstCategory: string,
+  secondAmount: number,
+  secondCategory: string,
+): { amount: number; category: string }[] | null {
+  const second = roundMoney(secondAmount);
+  const first = roundMoney(total - second);
+  if (first <= 0 || second <= 0) return null;
+  if (!firstCategory || !secondCategory) return null;
+  return [
+    { amount: first, category: firstCategory },
+    { amount: second, category: secondCategory },
+  ];
+}

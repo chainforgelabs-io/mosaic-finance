@@ -25,7 +25,7 @@ export function MotivationStrip({ className }: { className?: string }) {
   if (!data) return null;
 
   const nudge = !data.loggedThisWeek
-    ? { href: "/dashboard/cash-flow", label: "Log this week’s spending" }
+    ? { href: "/dashboard/cash-flow", label: "Log a spend or check your balance" }
     : !data.snapshottedThisMonth
       ? { href: "/dashboard/assets", label: "Update net worth this month" }
       : null;
@@ -111,7 +111,7 @@ function StreakCell({
         {value}
       </p>
       <p className="font-body text-[11px] text-[var(--text-muted)]">
-        {active ? "Done" : "Due"}
+        {active ? "Done" : "Not yet"}
       </p>
     </div>
   );

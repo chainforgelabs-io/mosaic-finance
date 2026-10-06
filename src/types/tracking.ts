@@ -4,7 +4,10 @@ import type {
   GoalType,
 } from "@/lib/tracking/categories";
 
-export type TransactionSource = "manual" | "screenshot";
+export type TransactionSource = "manual" | "screenshot" | "scheduled" | "balance_check" | "catchup";
+
+export type CashDirection = "in" | "out";
+export type RecurringCadence = "weekly" | "biweekly" | "monthly";
 
 export interface TransactionRow {
   id: string;
@@ -17,8 +20,39 @@ export interface TransactionRow {
   source: TransactionSource;
   document_id: string | null;
   category_confirmed: boolean;
+  direction?: CashDirection;
+  recurring_item_id?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface RecurringItem {
+  id: string;
+  name: string;
+  amount: number;
+  category: string;
+  direction: CashDirection;
+  cadence: RecurringCadence;
+  next_date: string;
+  active: boolean;
+}
+
+export interface CashAnchor {
+  starting_balance: number;
+  anchor_date: string;
+}
+
+export interface CaptureInput {
+  amount: number;
+  category: string;
+  direction: CashDirection;
+  categoryConfirmed: boolean;
+  txnDate: string;
+  note?: string;
+  description?: string;
+  source?: "manual" | "catchup";
+  lines?: { amount: number; category: string }[];
+  recurring?: { name: string; cadence: RecurringCadence } | null;
 }
 
 export interface ParsedSpendingItem {

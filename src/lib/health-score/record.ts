@@ -14,6 +14,7 @@ export async function recordDerivedHealthScore(
     { data: snapshots },
     { data: txns },
     { data: goals },
+    { data: checks },
   ] = await Promise.all([
     supabase
       .from("financial_profiles")
@@ -33,6 +34,7 @@ export async function recordDerivedHealthScore(
       .order("txn_date", { ascending: false })
       .limit(200),
     supabase.from("goals").select("status").eq("user_id", userId),
+    supabase.from("balance_checks").select("check_date").eq("user_id", userId),
   ]);
 
   const debts = Array.isArray(financial?.major_debts)
@@ -50,7 +52,10 @@ export async function recordDerivedHealthScore(
     today,
   );
   const { current: weeklyStreak } = computeWeeklyStreak(
-    (txns ?? []).map((t) => String(t.txn_date)),
+    [
+      ...(txns ?? []).map((t) => String(t.txn_date)),
+      ...((checks ?? []) as { check_date: string }[]).map((c) => String(c.check_date)),
+    ],
     today,
   );
 

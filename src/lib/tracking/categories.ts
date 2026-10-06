@@ -19,6 +19,20 @@ export const SPENDING_CATEGORIES = [
 
 export type SpendingCategory = (typeof SPENDING_CATEGORIES)[number];
 
+/** Categories shown on the capture pad. The rest stay behind More. */
+export const KEYPAD_CATEGORIES = [
+  "groceries",
+  "dining",
+  "transportation",
+  "shopping",
+  "entertainment",
+  "health",
+  "kids",
+  "housing",
+  "subscriptions",
+  "other",
+] as const;
+
 export const SPENDING_CATEGORY_LABELS: Record<SpendingCategory, string> = {
   housing: "Housing",
   groceries: "Groceries",
@@ -35,7 +49,7 @@ export const SPENDING_CATEGORY_LABELS: Record<SpendingCategory, string> = {
   gifts_donations: "Gifts & Donations",
   debt_payments: "Debt Payments",
   condo_fees: "Condo fees",
-  other: "Other",
+  other: "Flex/Misc",
 };
 
 export const SPENDING_CATEGORY_COLORS: Record<SpendingCategory, string> = {
@@ -157,8 +171,15 @@ export function presentGoalName(raw: string): string {
   return trimmed;
 }
 
+const EXTRA_CATEGORY_LABELS: Record<string, string> = {
+  income: "Income",
+  paycheque: "Paycheque",
+  untracked: "Untracked",
+};
+
 export function categoryLabel(category: string): string {
   if (isSpendingCategory(category)) return SPENDING_CATEGORY_LABELS[category];
+  if (EXTRA_CATEGORY_LABELS[category]) return EXTRA_CATEGORY_LABELS[category];
   return humanizeKey(category);
 }
 
