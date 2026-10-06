@@ -91,12 +91,11 @@ export function WaitlistForm({
       <form
         onSubmit={onSubmit}
         className={cn(
-          "flex w-full flex-col gap-3",
-          variant === "section" && "items-stretch",
+          "grid w-full grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch",
           variant === "page" && "gap-4",
         )}
       >
-        <div className="flex min-w-0 flex-col gap-1 text-left">
+        <div className="min-w-0 text-left sm:col-span-2">
           <label htmlFor={`waitlist-email-${source}`} className="sr-only">
             Email
           </label>
@@ -114,42 +113,35 @@ export function WaitlistForm({
           />
         </div>
 
-        <div
+        <div className="min-w-0 text-left">
+          <label htmlFor={`waitlist-province-${source}`} className="sr-only">
+            Province or territory
+          </label>
+          <select
+            id={`waitlist-province-${source}`}
+            name="province"
+            value={province}
+            onChange={(e) => setProvince(e.target.value)}
+            className={cn(inputBase, "cursor-pointer appearance-none bg-white")}
+            disabled={status === "submitting"}
+          >
+            <option value="">Province (optional)</option>
+            {PROVINCES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="submit"
+          disabled={status === "submitting"}
           className={cn(
-            "flex min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch",
-            variant === "hero" && "sm:justify-center",
+            "inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-full bg-emerald px-8 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark disabled:opacity-60 sm:w-auto",
+            variant === "page" && "py-3.5",
           )}
         >
-          <div className="min-w-0 flex-1 text-left sm:max-w-[240px]">
-            <label htmlFor={`waitlist-province-${source}`} className="sr-only">
-              Province or territory
-            </label>
-            <select
-              id={`waitlist-province-${source}`}
-              name="province"
-              value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              className={cn(inputBase, "cursor-pointer appearance-none bg-white")}
-              disabled={status === "submitting"}
-            >
-              <option value="">Province (optional)</option>
-              {PROVINCES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={status === "submitting"}
-            className={cn(
-              "inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-emerald px-8 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark disabled:opacity-60",
-              variant === "section" && "w-full sm:w-auto sm:self-end",
-              variant === "page" && "w-full py-3.5 sm:w-auto sm:self-end",
-            )}
-          >
             {status === "submitting" ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -158,8 +150,7 @@ export function WaitlistForm({
             ) : (
               "Join the waitlist"
             )}
-          </button>
-        </div>
+        </button>
       </form>
 
       {status === "error" && errorMessage && (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { priceIdForCheckout } from "@/lib/stripe/client";
-import { expectedPriceCents } from "@/lib/config/pricing";
+import { expectedPriceCents, matchesPublishedCadAmount } from "@/lib/config/pricing";
 import { getFoundingStatus } from "@/lib/founding";
 import { captureAPIError } from "@/lib/sentry";
 import { z } from "zod";
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     const price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
     const expected = expectedPriceCents(tier, interval, founding);
-    if (price.currency !== "cad" || price.unit_amount !== expected) {
+    if (!matchesPublishedCadAmount(price, expected)) {
       return NextResponse.json(
         {
           error:
@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${appUrl}/dashboard/settings?checkout=cancelled`,
       metadata: { userId: user.id, tier, interval, founding: String(founding) },
       currency: "cad",
+      adaptive_pricing: { enabled: false },
     };
 
     if (profile?.stripe_customer_id) {

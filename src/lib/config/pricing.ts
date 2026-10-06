@@ -102,3 +102,36 @@ export function expectedPriceCents(
   const dollars = Number(label.replace(/[^0-9.]/g, ""));
   return Math.round(dollars * 100);
 }
+
+function amountCents(
+  unitAmount: number | null | undefined,
+  unitAmountDecimal?: string | null,
+): number | null {
+  if (typeof unitAmount === "number") return unitAmount;
+  if (unitAmountDecimal == null || unitAmountDecimal === "") return null;
+  const parsed = Number(unitAmountDecimal);
+  return Number.isFinite(parsed) ? Math.round(parsed) : null;
+}
+
+type CadPriceOption = {
+  unit_amount: number | null;
+  unit_amount_decimal?: string | null;
+};
+
+/** True when this Stripe Price charges the published CAD amount. A CAD currency option counts when the price's default currency is something else. */
+export function matchesPublishedCadAmount(
+  price: {
+    currency: string;
+    unit_amount: number | null;
+    unit_amount_decimal?: string | null;
+    currency_options?: { cad?: CadPriceOption };
+  },
+  expectedCents: number,
+): boolean {
+  if (price.currency === "cad") {
+    return amountCents(price.unit_amount, price.unit_amount_decimal) === expectedCents;
+  }
+  const cad = price.currency_options?.cad;
+  if (!cad) return false;
+  return amountCents(cad.unit_amount, cad.unit_amount_decimal) === expectedCents;
+}

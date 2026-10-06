@@ -13,7 +13,7 @@ export function CalculatorShell({
   const cta = isLaunchLive() ? "/signup" : "/waitlist";
   return (
     <main className="min-h-screen bg-white">
-      <Nav hideAuth={!isLaunchLive()} />
+      <Nav hideAuth={!isLaunchLive()} onLight />
       <div className="mx-auto max-w-2xl px-6 pb-20 pt-28">
         <p className="font-display text-xs font-semibold uppercase tracking-wider text-emerald">
           Calculator

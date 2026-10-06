@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import { spendHistoryHeading } from "@/lib/tracking/dates";
 import { formatCompact } from "@/lib/tracking/format";
 
 interface Point {
@@ -8,15 +9,24 @@ interface Point {
   amount: number;
 }
 
-export function WeeklySpendChart({ data, baseline }: { data: Point[]; baseline?: number | null }) {
+export function WeeklySpendChart({
+  data,
+  baseline,
+  period = "week",
+}: {
+  data: Point[];
+  baseline?: number | null;
+  period?: "week" | "month";
+}) {
+  const heading = spendHistoryHeading(period);
   return (
     <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
       <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
-        Weekly spending
+        {heading.title}
       </h3>
       <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
-        Last 8 weeks
-        {baseline != null ? ` · baseline ${formatCompact(baseline)}/wk` : ""}
+        {heading.range}
+        {baseline != null ? ` · baseline ${formatCompact(baseline)}${heading.unit}` : ""}
       </p>
       <div className="h-[200px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>

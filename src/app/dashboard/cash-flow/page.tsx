@@ -34,6 +34,9 @@ import {
   formatMonthLabel,
   formatWeekLabel,
   monthKey,
+  RECENT_MONTHS,
+  RECENT_WEEKS,
+  recentMonthStarts,
   startOfMonth,
   startOfWeekMonday,
   todayIso,
@@ -286,6 +289,10 @@ export default function CashFlowPage() {
       : null;
   const weeklyBaseline =
     budgetWeekly ?? (monthlyExpenses != null ? (monthlyExpenses * 12) / 52 : null);
+  const monthlyBaseline =
+    Object.values(budgets).length > 0
+      ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
+      : monthlyExpenses;
 
   const loadWeek = useCallback(async (start: string) => {
     const { end } = weekRange(start);
@@ -296,7 +303,7 @@ export default function CashFlowPage() {
   }, []);
 
   const loadMeta = useCallback(async () => {
-    const historyStart = startOfMonth(addMonths(todayIso(), -5));
+    const historyStart = startOfMonth(addMonths(todayIso(), -(RECENT_MONTHS - 1)));
     const [histRes, gamRes] = await Promise.all([
       fetch(`/api/transactions?start=${historyStart}&end=${todayIso()}`, { credentials: "include" }),
       fetch("/api/gamification/summary", { credentials: "include" }),
@@ -422,7 +429,7 @@ export default function CashFlowPage() {
 
   const weeklyBars = useMemo(() => {
     const points: { label: string; amount: number }[] = [];
-    for (let i = 7; i >= 0; i--) {
+    for (let i = RECENT_WEEKS - 1; i >= 0; i--) {
       const start = addDays(thisWeek, -7 * i);
       const { end } = weekRange(start);
       const amount = outflowTotal(
@@ -433,6 +440,17 @@ export default function CashFlowPage() {
     }
     return points;
   }, [history, thisWeek]);
+
+  const monthlyBars = useMemo(() => {
+    return recentMonthStarts(todayIso()).map((start) => {
+      const end = endOfMonth(start);
+      const amount = outflowTotal(
+        history.filter((t) => t.txn_date >= start && t.txn_date <= end),
+      );
+      const label = new Date(`${start}T00:00:00`).toLocaleDateString("en-CA", { month: "short" });
+      return { label, amount };
+    });
+  }, [history]);
 
   async function reload() {
     await Promise.all([loadWeek(weekStart), loadMeta()]);
@@ -1032,7 +1050,9 @@ export default function CashFlowPage() {
         </button>
         {balanceDue && (
           <p className="mt-2 font-body text-xs text-white/60">
-            Enter your bank balance when you have it. A check closes the gap and counts for this week.
+            {view === "month"
+              ? "Enter your bank balance when you have it. A check closes the gap."
+              : "Enter your bank balance when you have it. A check closes the gap and counts for this week."}
           </p>
         )}
       </div>
@@ -1348,7 +1368,11 @@ export default function CashFlowPage() {
               : "No spending logged this week yet."
           }
         />
-        <WeeklySpendChart data={weeklyBars} baseline={weeklyBaseline} />
+        <WeeklySpendChart
+          data={view === "month" ? monthlyBars : weeklyBars}
+          baseline={view === "month" ? monthlyBaseline : weeklyBaseline}
+          period={view}
+        />
       </div>
       </div>
 

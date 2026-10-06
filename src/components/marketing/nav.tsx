@@ -30,10 +30,13 @@ function navLinkHref(
 export function Nav({
   hideAuth = false,
   hideNavLinks = false,
+  onLight = false,
 }: {
   hideAuth?: boolean;
   /** Logo only — hides section links and mobile menu (e.g. focused waitlist page). */
   hideNavLinks?: boolean;
+  /** White page. Keep the wordmark and links dark so they stay readable before scroll. */
+  onLight?: boolean;
 }) {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
@@ -47,21 +50,22 @@ export function Nav({
 
   const showLinks = !hideNavLinks;
   const startHref = isLaunchLive() ? "/signup" : "/#waitlist";
+  const solid = onLight || scrolled;
 
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-        scrolled
+        solid
           ? "bg-white/95 backdrop-blur-sm border-b border-warm-200"
           : "bg-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="min-w-0 sm:hidden">
-          <MosaicLogo size="sm" theme={scrolled ? "light" : "dark"} />
+          <MosaicLogo size="sm" theme={solid ? "light" : "dark"} />
         </div>
         <div className="hidden min-w-0 sm:block">
-          <MosaicLogo theme={scrolled ? "light" : "dark"} />
+          <MosaicLogo theme={solid ? "light" : "dark"} />
         </div>
 
         {/* Desktop links */}
@@ -72,7 +76,7 @@ export function Nav({
                 key={link.href}
                 href={navLinkHref(link.href, hideAuth, pathname)}
                 className={`font-display text-sm font-medium transition-colors ${
-                  scrolled
+                  solid
                     ? "text-text-secondary hover:text-text-primary"
                     : "text-text-inverse/70 hover:text-text-inverse"
                 }`}
@@ -85,7 +89,7 @@ export function Nav({
                 <a
                   href="/login"
                   className={`font-display text-sm font-medium transition-colors ${
-                    scrolled
+                    solid
                       ? "text-text-secondary hover:text-text-primary"
                       : "text-text-inverse/60 hover:text-text-inverse"
                   }`}
@@ -115,7 +119,7 @@ export function Nav({
             <button
               type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
-              className={`p-1 ${scrolled ? "text-text-primary" : "text-text-inverse"}`}
+              className={`p-1 ${solid ? "text-text-primary" : "text-text-inverse"}`}
               aria-label="Toggle menu"
             >
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}

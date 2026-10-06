@@ -52,6 +52,34 @@ export function formatWeekLabel(weekStart: string): string {
   return `${start.toLocaleDateString("en-CA", opts)} – ${end.toLocaleDateString("en-CA", opts)}`;
 }
 
+export const RECENT_WEEKS = 8;
+export const RECENT_MONTHS = 6;
+
+/** Month starts ending with the month that contains `today`, oldest first. */
+export function recentMonthStarts(today: string, count = RECENT_MONTHS): string[] {
+  const current = startOfMonth(today);
+  return Array.from({ length: count }, (_, index) => addMonths(current, index - (count - 1)));
+}
+
+export function spendHistoryHeading(period: "week" | "month"): {
+  title: string;
+  range: string;
+  unit: "/wk" | "/mo";
+} {
+  if (period === "month") {
+    return {
+      title: "Monthly spending",
+      range: `Last ${RECENT_MONTHS} months`,
+      unit: "/mo",
+    };
+  }
+  return {
+    title: "Weekly spending",
+    range: `Last ${RECENT_WEEKS} weeks`,
+    unit: "/wk",
+  };
+}
+
 export function formatMonthLabel(isoDate: string): string {
   const date = new Date(`${startOfMonth(isoDate)}T00:00:00`);
   return date.toLocaleDateString("en-CA", { month: "long", year: "numeric" });

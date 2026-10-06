@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { categorySlug, inferGoalType, isSpendingCategory, presentGoalName } from "@/lib/tracking/categories";
-import { addDays, endOfMonth, monthKey, startOfMonth, startOfWeekMonday } from "@/lib/tracking/dates";
+import {
+  addDays,
+  endOfMonth,
+  monthKey,
+  recentMonthStarts,
+  spendHistoryHeading,
+  startOfMonth,
+  startOfWeekMonday,
+} from "@/lib/tracking/dates";
 import { parseHoldingsCsv } from "@/lib/tracking/holdings-csv";
 import { holdingSchema } from "@/lib/schemas/holdings";
 import { goalDraftToPayload, horizonFromStored } from "@/lib/tracking/goal-draft";
@@ -23,6 +31,26 @@ describe("tracking date helpers", () => {
     expect(startOfMonth("2026-08-31")).toBe("2026-08-01");
     expect(endOfMonth("2026-08-15")).toBe("2026-08-31");
     expect(endOfMonth("2026-02-01")).toBe("2026-02-28");
+  });
+
+  it("lists recent months oldest first", () => {
+    expect(recentMonthStarts("2026-10-06", 6)).toEqual([
+      "2026-05-01",
+      "2026-06-01",
+      "2026-07-01",
+      "2026-08-01",
+      "2026-09-01",
+      "2026-10-01",
+    ]);
+  });
+
+  it("uses month language for the month spending chart", () => {
+    expect(spendHistoryHeading("month")).toEqual({
+      title: "Monthly spending",
+      range: "Last 6 months",
+      unit: "/mo",
+    });
+    expect(spendHistoryHeading("week").title).toBe("Weekly spending");
   });
 });
 
