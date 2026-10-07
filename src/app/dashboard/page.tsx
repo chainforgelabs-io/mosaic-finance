@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
+import { isTrialActive } from "@/lib/entitlements";
 import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
 import { HealthScore } from "@/components/app/HealthScore";
-import { FinancialCard } from "@/components/app/FinancialCard";
-import { EmptyState } from "@/components/app/EmptyState";
 import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
@@ -18,6 +17,7 @@ import { RetirementProgressBar } from "@/components/charts/RetirementProgressBar
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
+import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import {
@@ -27,9 +27,11 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Banknote,
+  Wallet,
+  Target,
 } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 const GENERATING_CHART_PLACEHOLDERS = [
   {
@@ -116,16 +118,45 @@ function ChartPlaceholder({ title, subtitle }: { title: string; subtitle: string
   );
 }
 
-function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
+function useLiveHealthScore() {
+  const [liveScore, setLiveScore] = useState<{ score: number; delta90: number | null } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/health-score", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.score != null) {
+          setLiveScore({ score: Number(d.score), delta90: d.delta90 ?? null });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return liveScore;
+}
+
+function PrePlanKPIStrip({
+  data,
+  snapshotNetWorth = null,
+}: {
+  data: PrePlanData | null;
+  snapshotNetWorth?: number | null;
+}) {
+  const liveScore = useLiveHealthScore();
   const inv = data?.totalInvestments;
   const fix = data?.totalFixedAssets;
   const totalAssetSum = (inv ?? 0) + (fix ?? 0);
   const hasAssetFigure = inv != null || fix != null;
 
-  const debtForPicture = data?.totalDebt ?? 0;
+  const totalDebtNum = data?.totalDebt ?? null;
+  const debtForPicture = totalDebtNum ?? 0;
   let netWorthDisplay = "--";
   if (hasAssetFigure) {
     netWorthDisplay = fmtKpi(totalAssetSum - debtForPicture);
+  } else if (snapshotNetWorth != null && Number.isFinite(snapshotNetWorth)) {
+    netWorthDisplay = fmtKpi(snapshotNetWorth);
   }
 
   let cashFlowDisplay = "--";
@@ -134,25 +165,31 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
   }
 
   const totalAssetsDisplay = hasAssetFigure ? fmtKpi(totalAssetSum) : "--";
-  const totalDebtNum = debtForPicture;
-  const totalDebtDisplay = fmtKpi(totalDebtNum);
+  const totalDebtDisplay = totalDebtNum != null ? fmtKpi(totalDebtNum) : "--";
   const emergencyMonths = data?.emergencyFundMonths ?? null;
 
   return (
     <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
       <div className="flex flex-col md:flex-row items-center gap-6">
         <div className="flex flex-col items-center shrink-0">
-          <div className="flex size-[88px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
-            <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
-              --
-            </span>
-          </div>
+          {liveScore != null ? (
+            <HealthScore score={liveScore.score} size="sm" />
+          ) : (
+            <div className="flex size-[80px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
+              <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
+                --
+              </span>
+            </div>
+          )}
           <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
             Health Score
           </p>
-          <p className="font-[family-name:var(--font-body)] text-[10px] text-amber-400/90 mt-0.5">
-            Pending report
-          </p>
+          {liveScore?.delta90 != null && (
+            <p className="mt-0.5 font-[family-name:var(--font-body)] text-[10px] text-white/60">
+              90-day {liveScore.delta90 >= 0 ? "+" : ""}
+              {liveScore.delta90}
+            </p>
+          )}
         </div>
 
         <div className="hidden md:block w-px h-20 bg-white/10" />
@@ -320,15 +357,88 @@ function DashboardGenerating() {
   );
 }
 
+const TRACKING_LINKS = [
+  { href: "/dashboard/cash-flow", label: "Cash Flow", icon: Banknote },
+  { href: "/dashboard/assets", label: "Net Worth", icon: Wallet },
+  { href: "/dashboard/goals", label: "Goals", icon: Target },
+] as const;
+
 function DashboardNoPlan() {
+  const prePlanData = usePlanStore((s) => s.prePlanData);
+  const user = usePlanStore((s) => s.user);
+  const [snapshots, setSnapshots] = useState<{ date: string; netWorth: number }[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/net-worth/snapshots", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return;
+        const rows = (json.snapshots ?? []) as { snapshot_date?: string; net_worth?: number }[];
+        setSnapshots(
+          rows
+            .map((row) => ({
+              date: String(row.snapshot_date ?? ""),
+              netWorth: Number(row.net_worth),
+            }))
+            .filter((row) => row.date && Number.isFinite(row.netWorth)),
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const latestNetWorth = snapshots.length > 0 ? snapshots[snapshots.length - 1].netWorth : null;
+  const reportAvailable =
+    user?.tier === "progress" ||
+    user?.tier === "mastery" ||
+    isTrialActive(user?.trialEndsAt);
+
   return (
-    <EmptyState
-      icon={FileText}
-      title="Your Progress Report will appear here once you complete setup."
-      description="Complete onboarding to generate your Progress Report — an educational snapshot of your trajectory and options. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
-      ctaLabel="Complete Setup"
-      ctaHref="/onboarding"
-    />
+    <div className="space-y-6">
+      <PrePlanKPIStrip data={prePlanData} snapshotNetWorth={latestNetWorth} />
+      <MotivationStrip />
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {TRACKING_LINKS.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex items-center justify-between rounded-lg border border-[var(--warm-200)] bg-white px-4 py-3 transition-colors hover:border-[var(--emerald)]"
+          >
+            <span className="flex items-center gap-2 font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
+              <item.icon className="size-4 text-[var(--emerald)]" />
+              {item.label}
+            </span>
+            <ArrowRight className="size-4 text-[var(--text-muted)]" />
+          </Link>
+        ))}
+      </div>
+
+      <NetWorthHistoryChart data={snapshots} />
+
+      <div className="flex flex-col gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="font-[family-name:var(--font-display)] text-base font-semibold text-[var(--text-primary)]">
+            Progress Report
+          </h2>
+          <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+            {reportAvailable
+              ? "A Progress Report is an educational snapshot of your trajectory. Your Health Score, net worth, and streaks are already here. This is educational information, not financial advice."
+              : "Progress Reports are included on Progress and Mastery. Your Health Score, net worth, and streaks stay free on Pulse."}
+          </p>
+        </div>
+        <Link
+          href={reportAvailable ? "/onboarding" : "/dashboard/settings?tab=subscription"}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-[family-name:var(--font-display)] text-sm font-semibold text-white transition-colors hover:bg-[#059669]"
+        >
+          {reportAvailable ? "Start fact-find" : "See Progress"}
+          <ArrowRight className="size-4" />
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -432,15 +542,7 @@ function ExpandablePlanSection({
 }
 
 function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
-  const [liveScore, setLiveScore] = useState<{ score: number; delta90: number | null } | null>(null);
-  useEffect(() => {
-    void fetch("/api/health-score", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.score != null) setLiveScore({ score: d.score, delta90: d.delta90 ?? null });
-      })
-      .catch(() => undefined);
-  }, []);
+  const liveScore = useLiveHealthScore();
   const rawPlanData = usePlanStore((s) => s.rawPlanData);
   const prePlanData = usePlanStore((s) => s.prePlanData);
   const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;

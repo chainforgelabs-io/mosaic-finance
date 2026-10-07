@@ -85,7 +85,7 @@ All covered by unit tests in `tests/unit/{guarantee,reconcile-debt-plan,cron-aut
 - **H3 · Dates roll over at ~6 pm Mountain / 8 pm Eastern.** `todayIso()` uses server time (UTC on Vercel), so a snapshot saved at 10:42 pm on Oct 6 is dated Oct 7; late-evening spending lands on tomorrow. Pass the client's local date or the profile timezone.
 - **H4 · Founding-member cap is not atomic.** `getFoundingStatus().open` is read once at checkout; the webhook sets `is_founding_member = true` without re-checking. Concurrent buyers at 199/200 all get the $8 price for life.
 - **H5 · Checkout creates Stripe prices/products at request time** when env price IDs don't match the ladder; `customer.subscription.deleted` can't map them and downgrades the app tier to `pulse` on an Academy cancel.
-- **H6 · Dashboard for a user without a report is an empty state.** `planStatus === "none"` renders only "Complete Setup" — no live Health Score, net worth, streaks, or badges, all of which AGENTS.md says are free forever. A Pulse user who skips fact-find (or whose trial lapsed before generating) sees nothing on the home screen.
+- **H6 · Dashboard for a user without a report is an empty state.** — FIXED. `planStatus === "none"` now shows the live Health Score, net worth (holdings or the latest snapshot), streaks and badges, cash flow / net worth / goals links, and snapshot history. The Progress Report is a side card: fact-find while the trial or a paid tier is active, otherwise a link to Progress.
 - **H7 (was) · Walkthrough canned replies** → fixed, see B1.
 - **H8 (was) · Score/guarantee/debt defects** → fixed, see §2.
 - **H9 (was) · Cron fail-open** → fixed, see B3.
@@ -136,6 +136,6 @@ Created during testing and **left in place** (all reversible): one net-worth sna
 2. Review the B4 copy and prompt change (listed in that commit) before the next report regeneration.
 3. Apply `035_protect_profile_entitlements.sql` to production; confirm Stripe webhook (service role) still updates tiers.
 4. Fix H4/H5 (atomic founding cap; no runtime price creation), then switch Stripe to live keys and re-run the checkout smoke with a test card in live-test mode.
-5. Fix H2/H3/H6 — they shape the first impression for every new free user.
+5. Fix H2/H3 — they shape the first impression for every new free user. H6 (free dashboard without a report) is fixed.
 6. Resolve M1/M2/M4 copy-vs-behaviour gaps; set Sentry replay masking (M5); decide on Skool/Zapier (M6).
 7. Re-run the sweep scripts against the preview; confirm zero 4xx/5xx in console on every dashboard route.
