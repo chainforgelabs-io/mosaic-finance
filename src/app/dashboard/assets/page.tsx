@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { recordedDebt } from "@/lib/calculations/financial";
 import { usePlanStore } from "@/stores/plan-store";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocationChart";
@@ -31,6 +32,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
+import { presentGoalName } from "@/lib/tracking/categories";
 import Link from "next/link";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
@@ -585,7 +587,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData, planStatus } = usePlanStore();
+  const { rawPlanData, planStatus, plan } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -781,22 +783,13 @@ export default function AssetsPage() {
   const planTotalDebt = debtPlan?.total_debt;
   const planDebtNum =
     typeof planTotalDebt === "number" && !Number.isNaN(planTotalDebt) ? planTotalDebt : null;
-  const parsedDebts = debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
-  const planDebtNames = new Set(parsedDebts.map((d) => d.name.toLowerCase()));
-  const manualDebts = (profile?.major_debts ?? [])
-    .map((d, index) => ({ ...d, index }))
-    .filter((d) => parsedDebts.length === 0 || !planDebtNames.has(d.type.toLowerCase()));
-  const uncountedManualDebt =
-    planDebtNum != null && planDebtNum > 0
-      ? manualDebts.reduce((s, d) => s + (Number(d.amount) || 0), 0)
-      : 0;
-  // Prefer plan when it shows debt; if plan says 0 but profile has debts, use profile (plan parse can miss debt)
-  const totalDebt =
-    (planDebtNum != null && planDebtNum > 0
-      ? planDebtNum
-      : profileDebtTotal > 0
-        ? profileDebtTotal
-        : planDebtNum ?? profileDebtTotal) + uncountedManualDebt;
+  const parsedDebts =
+    profileDebtTotal > 0 ? [] : debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
+  const manualDebts =
+    profileDebtTotal > 0
+      ? (profile?.major_debts ?? []).map((d, index) => ({ ...d, index }))
+      : [];
+  const totalDebt = recordedDebt(profileDebtTotal, planDebtNum);
   const liveNetWorth = totalAssets - totalDebt;
   const netWorth =
     fixedAssets.length > 0 || holdings.length > 0
@@ -996,7 +989,7 @@ export default function AssetsPage() {
               <AssetClassAllocationChart accounts={holdings} />
             )}
           </div>
-          {planStatus === "generating" ? (
+          {planStatus === "generating" && !plan ? (
             <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
               <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
                 Recommended allocation
@@ -1225,7 +1218,7 @@ export default function AssetsPage() {
                   {manualDebts.map((d) => (
                     <div key={`${d.type}-${d.index}`} className="flex items-center justify-between rounded-lg bg-[var(--warm-50)] px-3 py-2">
                       <div>
-                        <p className="font-body text-sm">{d.type}</p>
+                        <p className="font-body text-sm">{presentGoalName(d.type)}</p>
                         {d.rate != null && <p className="font-body text-xs text-amber-600">{d.rate}%</p>}
                       </div>
                       <div className="flex items-center gap-3">
@@ -1263,7 +1256,7 @@ export default function AssetsPage() {
                     {manualDebts.map((d) => (
                       <tr key={`${d.type}-${d.index}`} className="border-b border-[var(--warm-50)] last:border-0">
                         <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
-                          {d.type}
+                          {presentGoalName(d.type)}
                           <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="ml-2 font-body text-xs text-[var(--text-muted)] underline">
                             Remove
                           </button>

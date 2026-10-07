@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { recordedDebt } from "@/lib/calculations/financial";
 import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
 import { HealthScore } from "@/components/app/HealthScore";
 import { FinancialCard } from "@/components/app/FinancialCard";
@@ -121,9 +122,10 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
   const totalAssetSum = (inv ?? 0) + (fix ?? 0);
   const hasAssetFigure = inv != null || fix != null;
 
+  const debtForPicture = data?.totalDebt ?? 0;
   let netWorthDisplay = "--";
-  if (hasAssetFigure && data?.totalDebt != null) {
-    netWorthDisplay = fmtKpi(totalAssetSum - data.totalDebt);
+  if (hasAssetFigure) {
+    netWorthDisplay = fmtKpi(totalAssetSum - debtForPicture);
   }
 
   let cashFlowDisplay = "--";
@@ -132,9 +134,8 @@ function PrePlanKPIStrip({ data }: { data: PrePlanData | null }) {
   }
 
   const totalAssetsDisplay = hasAssetFigure ? fmtKpi(totalAssetSum) : "--";
-  const totalDebtNum = data?.totalDebt ?? null;
-  const totalDebtDisplay =
-    totalDebtNum != null ? fmtKpi(totalDebtNum) : "--";
+  const totalDebtNum = debtForPicture;
+  const totalDebtDisplay = fmtKpi(totalDebtNum);
   const emergencyMonths = data?.emergencyFundMonths ?? null;
 
   return (
@@ -283,7 +284,7 @@ function DashboardGenerating() {
                     prePlanData.totalDebt && prePlanData.totalDebt > 0 ? "var(--error)" : "var(--text-primary)",
                 }}
               >
-                {fmtSnapshotValue(prePlanData.totalDebt)}
+                {fmtSnapshotValue(prePlanData.totalDebt ?? 0)}
               </p>
             </div>
             <div className="rounded-lg bg-[var(--warm-50)] p-4">
@@ -445,14 +446,14 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
   const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
   const debtPlan = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
 
-  const planDebt = (debtPlan?.total_debt as number) ?? 0;
+  const planDebt = typeof debtPlan?.total_debt === "number" ? debtPlan.total_debt : null;
   const liveInv = prePlanData?.totalInvestments ?? 0;
   const liveFix = prePlanData?.totalFixedAssets ?? 0;
   const liveAssets = liveInv + liveFix;
   const hasLiveAssets =
     prePlanData?.totalInvestments != null || prePlanData?.totalFixedAssets != null;
 
-  const totalDebt = planDebt > 0 ? planDebt : (prePlanData?.totalDebt ?? 0);
+  const totalDebt = recordedDebt(prePlanData?.totalDebt ?? 0, planDebt);
   const netWorthNum = (diag?.net_worth as number) ?? null;
   const totalAssets = hasLiveAssets
     ? liveAssets
@@ -489,7 +490,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
           <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
           <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" />
           <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
-          <DashGlassCard label="Total Debt" value={totalDebt ? fmtKpi(totalDebt) : "--"} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} />
+          <DashGlassCard label="Total Debt" value={fmtKpi(totalDebt)} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} />
           <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
             <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
               Emergency Fund
@@ -686,7 +687,7 @@ function DashboardDelivered() {
 }
 
 export default function DashboardPage() {
-  const { planStatus, isLoading } = usePlanStore();
+  const { planStatus, plan, isLoading } = usePlanStore();
 
   if (isLoading) {
     return (
@@ -712,7 +713,8 @@ export default function DashboardPage() {
       </div>
 
       {planStatus === "none" && <DashboardNoPlan />}
-      {planStatus === "generating" && <DashboardGenerating />}
+      {planStatus === "generating" && !plan && <DashboardGenerating />}
+      {planStatus === "generating" && plan && <DashboardDelivered />}
       {planStatus === "failed" && <DashboardFailed />}
       {planStatus === "pending_review" && <DashboardPending />}
       {planStatus === "delivered" && <DashboardDelivered />}

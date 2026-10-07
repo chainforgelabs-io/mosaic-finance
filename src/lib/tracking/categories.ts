@@ -165,8 +165,8 @@ export function presentGoalName(raw: string): string {
   if ((GOAL_TYPES as readonly string[]).includes(key)) {
     return GOAL_TYPE_LABELS[key as GoalType];
   }
-  if (/^[a-z0-9_]+$/.test(key)) {
-    return humanizeKey(key);
+  if (/^[a-z0-9_]+$/.test(trimmed)) {
+    return humanizeKey(trimmed);
   }
   return trimmed;
 }

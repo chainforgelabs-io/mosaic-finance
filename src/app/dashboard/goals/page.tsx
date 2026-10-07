@@ -64,7 +64,7 @@ export default function GoalsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
-          <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
+          <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
             Track the outcomes continued use of Mosaic should help you hit.
           </p>
         </div>
@@ -269,13 +269,23 @@ function GoalCard({
           </button>
         )}
         {onArchive && (
-          <button type="button" onClick={onArchive} className="text-[var(--text-muted)]" aria-label="Archive">
-            <Archive className="size-3.5" />
+          <button
+            type="button"
+            onClick={onArchive}
+            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--text-secondary)]"
+            aria-label="Archive"
+          >
+            <Archive className="size-4" />
           </button>
         )}
         {onDelete && (
-          <button type="button" onClick={onDelete} className="text-[var(--text-muted)] hover:text-[var(--error)]" aria-label="Delete">
-            <Trash2 className="size-3.5" />
+          <button
+            type="button"
+            onClick={onDelete}
+            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:text-[var(--error)]"
+            aria-label="Delete"
+          >
+            <Trash2 className="size-4" />
           </button>
         )}
       </div>

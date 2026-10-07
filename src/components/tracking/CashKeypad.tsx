@@ -110,7 +110,7 @@ export function CashKeypad({
         </button>
       </div>
 
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="mb-3 flex flex-wrap gap-2">
         {predicted.map((category) => (
           <CategoryChip
             key={category}

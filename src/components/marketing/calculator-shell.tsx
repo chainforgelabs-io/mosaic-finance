@@ -19,7 +19,7 @@ export function CalculatorShell({
           Calculator
         </p>
         <h1 className="mt-2 font-display text-3xl font-bold text-text-primary">{title}</h1>
-        <p className="mt-2 font-body text-sm text-text-muted">
+        <p className="mt-2 font-body text-sm text-text-secondary">
           Educational estimates using published CRA-style limits. Not tax advice.
         </p>
         <div className="mt-8">{children}</div>

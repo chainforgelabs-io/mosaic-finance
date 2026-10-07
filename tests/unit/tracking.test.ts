@@ -61,6 +61,8 @@ describe("goal names", () => {
     expect(presentGoalName("home_upgrade")).toBe("Home upgrade");
     expect(presentGoalName("travel")).toBe("Travel");
     expect(presentGoalName("Pay off debt")).toBe("Pay off debt");
+    expect(presentGoalName("QA Goal")).toBe("QA Goal");
+    expect(presentGoalName("emergency_fund")).toBe("Emergency fund");
   });
 
   it("builds a category slug from a label", () => {

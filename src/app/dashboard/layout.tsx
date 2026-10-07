@@ -37,7 +37,8 @@ function applyLatestPlanFromDb(
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData } = usePlanStore();
+  const profileLoad = useRef(false);
+  const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData, setLoading } = usePlanStore();
 
   useEffect(() => {
     const supabase = createClient();
@@ -53,9 +54,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [clearUser, router]);
 
   useEffect(() => {
-    if (user) return;
+    if (user) {
+      if (!profileLoad.current) setLoading(false);
+      return;
+    }
 
+    profileLoad.current = true;
     async function loadUser() {
+      setLoading(true);
+      try {
       const supabase = createClient();
 
       const {
@@ -132,11 +139,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       } else {
         setPlanStatus("none");
       }
+      } finally {
+        profileLoad.current = false;
+        setLoading(false);
+      }
 
     }
 
     loadUser();
-  }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, router]);
+  }, [user, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setLoading, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -265,8 +276,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen bg-[var(--warm-50)]">
       <AppSidebar
-        userAlias={user?.alias ?? "User"}
+        userAlias={user?.alias ?? ""}
         tier={user?.tier ?? "pulse"}
+        trialEndsAt={user?.trialEndsAt}
         planStatus={planStatus}
         planId={plan?.id}
         role={user?.role}

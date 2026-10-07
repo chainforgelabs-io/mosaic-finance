@@ -45,6 +45,22 @@ export async function POST(req: NextRequest) {
         const customerId = subscription.customer as string;
         const priceId = subscription.items.data[0]?.price?.id;
         const meta = priceId ? priceMetaFromPriceId(priceId) : null;
+        const metaTier = subscription.metadata?.tier;
+        const metaInterval = subscription.metadata?.interval;
+        const fromCheckout =
+          !meta &&
+          (metaTier === "progress" || metaTier === "mastery" || metaTier === "academy") &&
+          (metaInterval === "monthly" || metaInterval === "annual")
+            ? {
+                kind: metaTier === "academy" ? ("academy" as const) : ("app" as const),
+                tier: metaTier === "academy" ? ("pulse" as const) : metaTier,
+                interval: metaInterval,
+                founding: subscription.metadata?.founding === "true",
+                academy:
+                  metaTier === "academy" || (metaTier === "mastery" && metaInterval === "annual"),
+              }
+            : null;
+        const applied = meta ?? fromCheckout;
         const isActive =
           subscription.status === "active" ||
           subscription.status === "trialing";
@@ -71,14 +87,14 @@ export async function POST(req: NextRequest) {
           current_period_end: periodEndIso,
         };
 
-        if (meta?.kind === "academy") {
+        if (applied?.kind === "academy") {
           update.academy_access = isActive;
-        } else if (meta && isActive) {
-          update.subscription_tier = meta.tier;
-          update.subscription_interval = meta.interval;
+        } else if (applied && isActive) {
+          update.subscription_tier = applied.tier;
+          update.subscription_interval = applied.interval;
           update.stripe_subscription_id = subscription.id;
-          if (meta.founding) update.is_founding_member = true;
-          if (meta.academy || (meta.tier === "mastery" && meta.interval === "annual")) {
+          if (applied.founding) update.is_founding_member = true;
+          if (applied.academy || (applied.tier === "mastery" && applied.interval === "annual")) {
             update.academy_access = true;
           }
         } else if (!isActive) {
@@ -87,15 +103,15 @@ export async function POST(req: NextRequest) {
 
         await supabase.from("user_profiles").update(update).eq("id", profile.id);
 
-        if (event.type === "customer.subscription.created" && isActive && meta) {
+        if (event.type === "customer.subscription.created" && isActive && applied) {
           const { data: authData } = await supabase.auth.admin.getUserById(profile.id);
           const email = authData.user?.email;
           if (email) {
-            await sendSubscriptionConfirmedEmail(email, meta.tier);
-            if (meta.tier === "mastery") {
+            await sendSubscriptionConfirmedEmail(email, applied.tier);
+            if (applied.tier === "mastery") {
               await notifySkool(email, "club");
             }
-            if (meta.academy) {
+            if (applied.academy) {
               await notifySkool(email, "academy");
             }
           }

@@ -4,6 +4,7 @@ import { pdfPageChunks } from "@/lib/tracking/pdf-chunks";
 import {
   claudeText,
   dedupeSpendingItems,
+  normalizeStatementItems,
   matchUploadDuplicates,
   mergeUploadPatch,
   parseSpendingPayload,
@@ -37,6 +38,38 @@ describe("parseSpendingPayload", () => {
   });
 });
 
+describe("normalizeStatementItems", () => {
+  it("counts refunds and deposits as money in, and a refund reversal as spending", () => {
+    const rows = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 57.11,
+          description: "Merchant refund",
+          suggested_category: "shopping",
+          line_role: "purchase",
+        },
+        {
+          txn_date: "2026-09-03",
+          amount: 1500,
+          description: "Direct deposit payroll",
+          suggested_category: "other",
+          line_role: "purchase",
+        },
+        {
+          txn_date: "2026-09-04",
+          amount: 20,
+          description: "Refund reversal",
+          suggested_category: "shopping",
+          line_role: "income",
+        },
+      ],
+      "credit",
+    );
+    expect(rows.map((row) => row.line_role)).toEqual(["income", "income", "purchase"]);
+  });
+});
+
 describe("dedupeSpendingItems", () => {
   it("drops the same line twice", () => {
     const line = {
@@ -46,6 +79,16 @@ describe("dedupeSpendingItems", () => {
       suggested_category: "dining" as const,
     };
     expect(dedupeSpendingItems([line, { ...line, description: " coffee " }])).toHaveLength(1);
+  });
+
+  it("keeps a second identical line", () => {
+    const line = {
+      txn_date: "2026-09-02",
+      amount: 12.4,
+      description: "Coffee",
+      suggested_category: "dining" as const,
+    };
+    expect(dedupeSpendingItems([line, { ...line }])).toHaveLength(2);
   });
 });
 
@@ -104,6 +147,21 @@ describe("upload duplicates", () => {
       [existing[0]],
     );
     expect(matched.map((row) => row.duplicateOf?.id ?? null)).toEqual(["a", null]);
+  });
+
+  it("does not treat a different merchant as a duplicate", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Pharmacy",
+          suggested_category: "health",
+        },
+      ],
+      existing,
+    );
+    expect(row?.duplicateOf).toBeNull();
   });
 
   it("leaves a different amount alone", () => {

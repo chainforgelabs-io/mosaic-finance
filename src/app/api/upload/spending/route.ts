@@ -24,8 +24,8 @@ export const maxDuration = 300;
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_FILES = 8;
-const PAGES_PER_CHUNK = 2;
-const PARSE_MAX_TOKENS = 12000;
+const PAGES_PER_CHUNK = 1;
+const PARSE_MAX_TOKENS = 16000;
 
 const SPENDING_PARSE_PROMPT = `You are a spending-statement parser for Mosaic Finance, a Canadian financial tracking and education platform.
 
@@ -39,8 +39,8 @@ Then extract every transaction line, including money in. For each:
 - amount: The line amount as a positive number. Use the charge, withdrawal, deposit, or payment column. Do NOT use the running balance, the credit limit, or the statement total.
 - description: Merchant or description as shown.
 - line_role: one of purchase, income, card_payment, transfer, fee, interest.
-  - purchase: a purchase, cash withdrawal, or refund reversal that is new spending
-  - income: payroll, EI, maternity or parental benefits, government deposits, and other money in. A line that says payroll or EI is income even when it sits among withdrawals.
+  - purchase: a purchase, cash withdrawal, or refund reversal that is new spending. Do not use purchase for a refund or a credit.
+  - income: payroll, EI, maternity or parental benefits, government deposits, bank deposits, and other money in. A refund, return, or merchant credit lowers spending — mark it income, not purchase. A line that says payroll, EI, or deposit is income even when it sits among withdrawals.
   - card_payment: a payment that pays down a credit card. On a card statement this is often "payment thank you" or "payment from". On a bank statement it is a bill payment or transfer to a card. This is not spending and not income.
   - transfer: money moved between the user's own accounts, such as to their own investment account, other than a credit card payment. An Interac e-Transfer that leaves the account is a purchase, not a transfer, unless it is clearly to the user's own account.
   - fee: a bank or card fee
@@ -64,6 +64,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON object:
 
 RULES:
 - Do NOT invent transactions that are not visible on these pages
+- Include every transaction row on these pages, including the last lines. Do not stop early.
 - Amounts must be positive numbers
 - notes: one short sentence, or an empty string. Do not explain each line.
 - If these pages do not show transaction lines, return an empty transactions array, confidence "low", and explain in notes

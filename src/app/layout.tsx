@@ -31,10 +31,14 @@ export const metadata: Metadata = {
   title: "Mosaic Finance — The financial operating system for Canadians",
   description:
     "The financial operating system for Canadians. Track net worth, spending, and goals, with Charlie, your AI money guide, and educational Progress Reports. Educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+  alternates: {
+    canonical: appUrl,
+  },
   openGraph: {
     title: "Mosaic Finance — The financial operating system for Canadians",
     description:
       "Track net worth, spending, and goals in one place. Charlie is your AI money guide. Educational information, not financial advice.",
+    url: appUrl,
     siteName: "Mosaic Finance",
     locale: "en_CA",
     type: "website",

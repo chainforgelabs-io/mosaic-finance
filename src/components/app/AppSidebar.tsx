@@ -17,11 +17,15 @@ import {
   Target,
   MoreHorizontal,
   Receipt,
+  GraduationCap,
+  Users,
+  Zap,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Tier } from "@/types";
+import { isTrialActive } from "@/lib/entitlements";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
 
@@ -30,6 +34,7 @@ type AppUserRole = "user" | "admin" | null | undefined;
 interface AppSidebarProps {
   userAlias: string;
   tier: Tier;
+  trialEndsAt?: string | null;
   planStatus?: string;
   planId?: string;
   role?: AppUserRole;
@@ -65,6 +70,9 @@ function learnItems(planId?: string): NavItem[] {
     { label: "Check-in", href: "/dashboard/meeting", icon: Video },
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Tax Year-End Pack", href: "/dashboard/tax-pack", icon: Receipt },
+    { label: "Academy", href: "/dashboard/academy", icon: GraduationCap },
+    { label: "Money Club", href: "/dashboard/money-club", icon: Users },
+    { label: "Priority", href: "/dashboard/priority", icon: Zap },
   ];
 }
 
@@ -82,6 +90,7 @@ function itemActive(pathname: string, item: NavItem): boolean {
 export function AppSidebar({
   userAlias,
   tier,
+  trialEndsAt,
   planStatus,
   planId,
   role,
@@ -112,7 +121,8 @@ export function AppSidebar({
 
   function renderLink(item: NavItem, opts?: { mobile?: boolean }) {
     const isActive = itemActive(pathname, item);
-    const isDisabled = item.requiresPlan && planStatus !== "delivered";
+    const isDisabled =
+      item.requiresPlan && planStatus !== "delivered" && planStatus !== "pending_review";
     const mobile = opts?.mobile;
 
     if (isDisabled) {
@@ -222,7 +232,12 @@ export function AppSidebar({
           />
           <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-[var(--slate-950)] px-4 pb-8 pt-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-display text-sm font-semibold text-white">More</p>
+              <div>
+                <p className="font-display text-sm font-semibold text-white">More</p>
+                {userAlias ? (
+                  <p className="font-body text-xs text-[var(--text-muted)]">{userAlias}</p>
+                ) : null}
+              </div>
               <button type="button" onClick={() => setMoreOpen(false)} aria-label="Close">
                 <X className="size-5 text-[var(--text-muted)]" />
               </button>
@@ -230,7 +245,8 @@ export function AppSidebar({
             <div className="flex flex-col gap-1">
               {moreItems.map((item) => {
                 const isActive = itemActive(pathname, item);
-                const isDisabled = item.requiresPlan && planStatus !== "delivered";
+                const isDisabled =
+                  item.requiresPlan && planStatus !== "delivered" && planStatus !== "pending_review";
                 if (isDisabled) {
                   return (
                     <div key={item.label} className="flex items-center gap-3 rounded-lg px-3 py-3 opacity-40">
@@ -287,7 +303,11 @@ export function AppSidebar({
           <div className="flex flex-col md:max-lg:hidden">
             <span className="font-display text-sm font-medium text-white">{userAlias}</span>
             <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-              <TierBadge tier={tier} className="w-fit" />
+              <TierBadge
+                tier={isTrialActive(trialEndsAt) && tier === "pulse" ? "progress" : tier}
+                label={isTrialActive(trialEndsAt) && tier === "pulse" ? "Progress trial" : undefined}
+                className="w-fit"
+              />
               {role === "admin" && (
                 <span className="rounded border border-white/20 bg-white/5 px-1.5 py-0.5 font-display text-[10px] font-medium uppercase tracking-wide text-[var(--emerald)]">
                   Admin

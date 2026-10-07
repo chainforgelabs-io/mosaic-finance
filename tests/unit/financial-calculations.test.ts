@@ -6,6 +6,7 @@ import {
   calculateDebtAvalanche,
   calculateDebtSnowball,
   calculateNetWorth,
+  recordedDebt,
   calculateMonthlyCashFlow,
   type DebtInfo,
 } from '@/lib/calculations/financial';
@@ -179,6 +180,21 @@ describe('Financial Calculations', () => {
 
     it('returns zero when assets equal debts', () => {
       expect(calculateNetWorth(50000, 50000)).toBe(0);
+    });
+  });
+
+  describe('recordedDebt', () => {
+    it('uses profile liabilities when they are on file', () => {
+      expect(recordedDebt(218000, 436000)).toBe(218000);
+    });
+
+    it('falls back to the report total when the profile has no debt', () => {
+      expect(recordedDebt(0, 12000)).toBe(12000);
+    });
+
+    it('is zero when neither source has debt', () => {
+      expect(recordedDebt(0, null)).toBe(0);
+      expect(recordedDebt(0, 0)).toBe(0);
     });
   });
 

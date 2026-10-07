@@ -81,6 +81,15 @@ export function formatTierPrice(
   return `${p.monthly}/mo`;
 }
 
+/** Same ladder, with a CAD marker so checkout cards match the public site. */
+export function formatTierPriceCad(
+  tier: Tier,
+  interval: BillingInterval = "monthly",
+  opts?: { founding?: boolean },
+): string {
+  return formatTierPrice(tier, interval, opts).replace("$", "CA$");
+}
+
 export function formatAcademyPrice(interval: BillingInterval = "monthly"): string {
   return interval === "annual"
     ? `${ACADEMY_PRICING.annual}/yr`

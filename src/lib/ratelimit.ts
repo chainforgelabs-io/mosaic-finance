@@ -18,7 +18,7 @@ export const ratelimit = {
   }),
   upload: new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(5, '10 m'),
+    limiter: Ratelimit.slidingWindow(12, "10 m"),
   }),
   marketQuotes: new Ratelimit({
     redis,

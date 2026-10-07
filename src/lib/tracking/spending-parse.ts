@@ -109,7 +109,7 @@ export function parseSpendingPayload(text: string): SpendingParsePayload {
 }
 
 export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpendingItem[] {
-  const seen = new Set<string>();
+  const firstRaw = new Map<string, string>();
   const out: ParsedSpendingItem[] = [];
   for (const item of items) {
     const key = [
@@ -119,8 +119,13 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
       item.line_role ?? "purchase",
       item.instrument ?? "debit",
     ].join("|");
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const prior = firstRaw.get(key);
+    if (prior != null) {
+      const sameLetters = prior.trim().toLowerCase() === item.description.trim().toLowerCase();
+      if (sameLetters && prior !== item.description) continue;
+    } else {
+      firstRaw.set(key, item.description);
+    }
     out.push(item);
   }
   return out;
@@ -128,8 +133,12 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
 
 const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest"] as const;
 
-const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep)\b/i;
-const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave)\b|\bei\b/i;
+const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep|direct deposit)\b/i;
+const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst)\b|\bei\b/i;
+const REFUND_REVERSAL = /\b(refund reversal|reversal of (a )?refund)\b/i;
+const REFUND_HINT = /\b(refund|refunded|merchant credit|purchase return|returned item)\b/i;
+const DEPOSIT_HINT = /\b(direct deposit|deposit from|deposit)\b/i;
+const SECURITY_DEPOSIT = /\bsecurity deposit\b/i;
 
 function slugFromLabel(raw: unknown): string | null {
   const slug = String(raw ?? "")
@@ -143,7 +152,14 @@ function slugFromLabel(raw: unknown): string | null {
 }
 
 function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
-  if ((role === "transfer" || role === "purchase" || role === "fee") && (PAY_HINT.test(description) || BENEFIT_HINT.test(description))) {
+  if (REFUND_REVERSAL.test(description)) return "purchase";
+  if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
+  if (
+    REFUND_HINT.test(description) ||
+    PAY_HINT.test(description) ||
+    BENEFIT_HINT.test(description) ||
+    (DEPOSIT_HINT.test(description) && role !== "card_payment")
+  ) {
     return "income";
   }
   return role;
@@ -262,6 +278,8 @@ export function matchUploadDuplicates<
       const score =
         (row.category === item.suggested_category ? 2 : 0) +
         descriptionScore(item.description, row.description);
+      const bothDescribed = Boolean(item.description.trim() && row.description?.trim());
+      if (bothDescribed && score === 0) continue;
       if (!best || score > best.score) best = { row, score };
     }
     if (!best) return { ...item, duplicateOf: null, duplicateAction: "add" as const };

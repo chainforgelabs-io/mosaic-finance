@@ -295,6 +295,7 @@ export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
   let fullResponse = '';
   let flushedUpTo = 0;
+  let streamedText = false;
 
   /** While streaming: hold back a suffix in case a completion/topics tag is still forming. */
   function getVisibleEnd(fr: string): number {
@@ -348,6 +349,7 @@ export async function POST(req: NextRequest) {
             const visibleEnd = getVisibleEnd(fullResponse);
             if (visibleEnd > flushedUpTo) {
               const chunk = fullResponse.slice(flushedUpTo, visibleEnd);
+              if (chunk) streamedText = true;
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`,
@@ -359,6 +361,7 @@ export async function POST(req: NextRequest) {
             // No tag to buffer — stream everything
             const chunk = fullResponse.slice(flushedUpTo);
             if (chunk) {
+              streamedText = true;
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({ type: 'delta', text: chunk })}\n\n`,
@@ -385,6 +388,7 @@ export async function POST(req: NextRequest) {
           const visibleEnd = getFinalVisibleEnd(fullResponse);
           if (flushedUpTo < visibleEnd) {
             const remaining = fullResponse.slice(flushedUpTo, visibleEnd);
+            if (remaining) streamedText = true;
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({ type: 'delta', text: remaining })}\n\n`,
@@ -488,14 +492,20 @@ export async function POST(req: NextRequest) {
           userId: user.id,
           sessionId,
         });
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: 'error',
-              message: 'Something went wrong. Please try again.',
-            })}\n\n`,
-          ),
-        );
+        if (streamedText) {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'done', sessionComplete: false })}\n\n`),
+          );
+        } else {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                type: 'error',
+                message: 'Something went wrong. Please try again.',
+              })}\n\n`,
+            ),
+          );
+        }
         controller.close();
       }
     },

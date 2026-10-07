@@ -21,7 +21,7 @@ function fmtFull(n: number): string {
 function card(label: string, value: unknown, unit?: string): FinancialCardData | null {
   if (value == null) return null;
   const num = Number(value);
-  const display = Number.isNaN(num) ? String(value) : fmt(num);
+  const display = unit || Number.isNaN(num) ? String(value) : fmt(num);
   return { label, value: display, unit };
 }
 

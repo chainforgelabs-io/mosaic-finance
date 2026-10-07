@@ -6,9 +6,8 @@ import { usePlanStore } from "@/stores/plan-store";
 import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
 import {
-  formatTierPrice,
+  formatTierPriceCad,
   TIER_FEATURES,
-  TIER_LABELS,
   type BillingInterval,
 } from "@/lib/config/pricing";
 import { isTrialActive } from "@/lib/entitlements";
@@ -214,13 +213,16 @@ function ProfileTab() {
 function getTierFeatures(billing: BillingInterval, founding: boolean): {
   tier: Tier;
   price: string;
+  compare: string | null;
   features: string[];
 }[] {
   return (["pulse", "progress", "mastery"] as Tier[]).map((tier) => ({
     tier,
-    price: formatTierPrice(tier, billing, {
+    price: formatTierPriceCad(tier, billing, {
       founding: founding && tier === "progress",
     }),
+    compare:
+      founding && tier === "progress" ? formatTierPriceCad(tier, billing) : null,
     features: TIER_FEATURES[tier],
   }));
 }
@@ -412,7 +414,16 @@ function SubscriptionTabInner() {
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] mb-1">
             Current plan
           </p>
-          <TierBadge tier={currentTier} />
+          <TierBadge
+            tier={trialOn && currentTier === "pulse" ? "progress" : currentTier}
+            label={
+              trialOn && currentTier === "pulse"
+                ? "Progress trial"
+                : founding && currentTier === "progress"
+                  ? "Founding Progress"
+                  : undefined
+            }
+          />
         </div>
         <div className="text-left sm:ml-auto sm:text-right">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
@@ -461,7 +472,7 @@ function SubscriptionTabInner() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tierFeatures.map(({ tier, price, features }) => {
+        {tierFeatures.map(({ tier, price, compare, features }) => {
           const isCurrent = tier === currentTier;
           return (
             <div
@@ -473,9 +484,19 @@ function SubscriptionTabInner() {
               }`}
             >
               <div className="flex items-center justify-between mb-3">
-                <TierBadge tier={tier} />
-                <span className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)]">
-                  {price}
+                <TierBadge
+                  tier={tier}
+                  label={founding && tier === "progress" ? "Founding Progress" : undefined}
+                />
+                <span className="text-right">
+                  {compare && (
+                    <span className="mr-2 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] line-through">
+                      {compare}
+                    </span>
+                  )}
+                  <span className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)]">
+                    {price}
+                  </span>
                 </span>
               </div>
               <ul className="space-y-2">
@@ -950,8 +971,19 @@ function NotificationsTab() {
 
 // ─── Settings Page ────────────────────────────────────────────────
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+function SettingsPageInner() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const tabFromUrl: SettingsTab =
+    tabParam === "subscription" || tabParam === "privacy" || tabParam === "notifications"
+      ? tabParam
+      : "profile";
+  const [activeTab, setActiveTab] = useState<SettingsTab>(tabFromUrl);
+  const [seenTab, setSeenTab] = useState(tabParam);
+  if (tabParam !== seenTab) {
+    setSeenTab(tabParam);
+    setActiveTab(tabFromUrl);
+  }
 
   return (
     <div>
@@ -995,5 +1027,19 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
+          Loading settings…
+        </p>
+      }
+    >
+      <SettingsPageInner />
+    </Suspense>
   );
 }

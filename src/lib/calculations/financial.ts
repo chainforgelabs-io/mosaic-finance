@@ -158,6 +158,12 @@ export function calculateNetWorth(
   return totalAssets - totalDebts;
 }
 
+/** Recorded liability rows win. The report total is only the fallback when none are on file. */
+export function recordedDebt(profileDebt: number, planDebt: number | null): number {
+  if (profileDebt > 0) return profileDebt;
+  return planDebt != null && planDebt > 0 ? planDebt : 0;
+}
+
 export function calculateMonthlyCashFlow(
   annualIncome: number,
   monthlyExpenses: number,

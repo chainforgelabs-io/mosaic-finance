@@ -6,6 +6,7 @@ import type { Tier } from "@/types";
 interface TierBadgeProps {
   tier: Tier;
   className?: string;
+  label?: string;
 }
 
 const tierStyles: Record<Tier, string> = {
@@ -20,7 +21,7 @@ const tierLabels: Record<Tier, string> = {
   mastery: "Mastery",
 };
 
-export function TierBadge({ tier, className }: TierBadgeProps) {
+export function TierBadge({ tier, className, label }: TierBadgeProps) {
   return (
     <span
       className={cn(
@@ -29,7 +30,7 @@ export function TierBadge({ tier, className }: TierBadgeProps) {
         className,
       )}
     >
-      {tierLabels[tier]}
+      {label ?? tierLabels[tier]}
     </span>
   );
 }

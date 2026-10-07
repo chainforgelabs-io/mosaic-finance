@@ -485,7 +485,7 @@ function FactFindConversation() {
                   }
                   break;
                 case "error":
-                  setError(data.message ?? "An error occurred");
+                  if (!accumulated.trim()) setError(data.message ?? "An error occurred");
                   break;
               }
             } catch {
@@ -521,7 +521,7 @@ function FactFindConversation() {
                 }
               }
             }
-            if (data.type === "error") {
+            if (data.type === "error" && !accumulated.trim()) {
               setError(data.message ?? "An error occurred");
             }
           } catch {
@@ -634,6 +634,7 @@ function FactFindConversation() {
       if (!res.ok) throw new Error("Failed to start session");
 
       const { sessionId: newSessionId } = await res.json();
+      setError(null);
       setSessionId(newSessionId);
     } catch (err) {
       setError(
@@ -895,7 +896,8 @@ function FactFindConversation() {
                           <button
                             onClick={() => {
                               const lastUser = [...messages].reverse().find((m) => m.role === "user");
-                              void sendMessage(lastUser?.content);
+                              if (lastUser?.content) void sendMessage(lastUser.content);
+                              else void sendMessage();
                             }}
                             className="mt-2 font-body text-[13px] font-medium text-[var(--emerald)] hover:underline"
                           >

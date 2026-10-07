@@ -302,7 +302,8 @@ export default function CashFlowPage() {
     setTransactions(json.transactions ?? []);
   }, []);
 
-  const loadMeta = useCallback(async () => {
+  const loadMeta = useCallback(async (monthOverride?: string) => {
+    const month = monthOverride ?? monthStart;
     const historyStart = startOfMonth(addMonths(todayIso(), -(RECENT_MONTHS - 1)));
     const [histRes, gamRes] = await Promise.all([
       fetch(`/api/transactions?start=${historyStart}&end=${todayIso()}`, { credentials: "include" }),
@@ -312,10 +313,10 @@ export default function CashFlowPage() {
       const json = await histRes.json();
       setHistory(json.transactions ?? []);
     }
-    const monthEnd = endOfMonth(monthStart);
+    const monthEnd = endOfMonth(month);
     const [budgetRes, monthRes] = await Promise.all([
       fetch("/api/budgets", { credentials: "include" }),
-      fetch(`/api/transactions?start=${monthStart}&end=${monthEnd}`, { credentials: "include" }),
+      fetch(`/api/transactions?start=${month}&end=${monthEnd}`, { credentials: "include" }),
     ]);
     if (budgetRes.ok) {
       const json = await budgetRes.json();
@@ -718,10 +719,16 @@ export default function CashFlowPage() {
     }
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    const dates = lines.flatMap((row) => (row.txn_date ? [row.txn_date] : []));
+    const latest = dates.reduce((max, date) => (date > max ? date : max), dates[0] ?? todayIso());
+    const statementMonth = startOfMonth(latest);
+    setView("month");
+    setMonthStart(statementMonth);
     setUploadJob({ status: "idle", rows: null, notice: null, error: null });
     setStatementPreview(null);
     setLinesOpen(false);
-    await reload();
+    await loadMeta(statementMonth);
+    await loadWeek(weekStart);
   }
 
   async function handleEdit(

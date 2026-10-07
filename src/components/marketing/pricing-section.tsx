@@ -165,7 +165,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                   </span>
                 </div>
                 {tier.id === "progress" && founding.open && (
-                  <span className="font-body text-[13px] text-text-muted line-through">
+                  <span className="font-body text-[13px] text-text-secondary line-through">
                     {formatTierPrice("progress", billing)}
                   </span>
                 )}
