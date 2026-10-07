@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface HealthScoreProps {
   score: number;
@@ -26,10 +26,36 @@ export function HealthScore({ score, size = "md", className }: HealthScoreProps)
   const [displayScore, setDisplayScore] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const shownRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
 
   const { dimension, strokeWidth, fontSize } = sizeMap[size];
   const radius = (dimension - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
+
+  // Tween from whatever is currently shown to `target`. Re-used for the first
+  // reveal and for later prop changes (e.g. the live score replacing the report score).
+  const animateTo = useCallback((target: number) => {
+    if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+    const from = shownRef.current;
+    const duration = 1200;
+    const startTime = performance.now();
+
+    function animate(currentTime: number) {
+      // rAF timestamps are frame-start times and can precede `startTime`;
+      // clamp so the ease never runs negative and flashes a negative score.
+      const elapsed = Math.max(0, currentTime - startTime);
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = Math.round(from + (target - from) * eased);
+      shownRef.current = next;
+      setDisplayScore(next);
+      if (progress < 1) frameRef.current = requestAnimationFrame(animate);
+      else frameRef.current = null;
+    }
+
+    frameRef.current = requestAnimationFrame(animate);
+  }, []);
 
   useEffect(() => {
     if (hasAnimated) return;
@@ -38,18 +64,7 @@ export function HealthScore({ score, size = "md", className }: HealthScoreProps)
       ([entry]) => {
         if (entry.isIntersecting) {
           setHasAnimated(true);
-          const duration = 1200;
-          const startTime = performance.now();
-
-          function animate(currentTime: number) {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setDisplayScore(Math.round(eased * score));
-            if (progress < 1) requestAnimationFrame(animate);
-          }
-
-          requestAnimationFrame(animate);
+          animateTo(score);
           observer.disconnect();
         }
       },
@@ -58,7 +73,21 @@ export function HealthScore({ score, size = "md", className }: HealthScoreProps)
 
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [score, hasAnimated]);
+  }, [score, hasAnimated, animateTo]);
+
+  // The score prop can change after the first reveal (plan score -> live score).
+  useEffect(() => {
+    if (!hasAnimated) return;
+    if (shownRef.current === score && frameRef.current == null) return;
+    animateTo(score);
+  }, [score, hasAnimated, animateTo]);
+
+  useEffect(
+    () => () => {
+      if (frameRef.current != null) cancelAnimationFrame(frameRef.current);
+    },
+    [],
+  );
 
   const strokeDashoffset = circumference - (displayScore / 100) * circumference;
   const color = getScoreColor(score);

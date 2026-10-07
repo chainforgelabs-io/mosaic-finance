@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/cron-auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { mosaicCard, mosaicEmailHtml } from "@/lib/email/chrome";
 import { sendMosaicEmailEach } from "@/lib/email/send";
@@ -11,8 +12,7 @@ import {
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://mosaicfinance.ai";
 
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization");
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

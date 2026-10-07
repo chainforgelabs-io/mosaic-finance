@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/cron-auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendTrialDay10Email, sendTrialExpiredEmail } from "@/lib/resend/client";
 import {
@@ -8,8 +9,7 @@ import {
 } from "@/lib/email/trial";
 
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization");
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

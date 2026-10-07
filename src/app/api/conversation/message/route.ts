@@ -54,7 +54,18 @@ const SESSION_TYPE_CONFIG: Record<string, {
     tagOpen: '',
     knowledgeStage: 'ad-hoc',
   },
+  // Guided Progress Report walkthrough: same prompt and snapshot as ad-hoc; the
+  // client supplies each report section as the user turn.
+  walkthrough: {
+    prompt: AD_HOC_SYSTEM_PROMPT,
+    completionTag: /(?!)/,
+    stripTag: /(?!)/,
+    tagOpen: '',
+    knowledgeStage: 'ad-hoc',
+  },
 };
+
+const SNAPSHOT_SESSION_TYPES = new Set(['ad-hoc', 'annual-review', 'walkthrough']);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -261,8 +272,8 @@ export async function POST(req: NextRequest) {
     systemPrompt += knowledgeContext;
   }
 
-  // Full financial snapshot (ad-hoc + annual-review only; cached per session)
-  if (sessionType === 'ad-hoc' || sessionType === 'annual-review') {
+  // Full financial snapshot (ad-hoc, annual-review, walkthrough; cached per session)
+  if (SNAPSHOT_SESSION_TYPES.has(sessionType)) {
     const meta =
       session.metadata && typeof session.metadata === 'object'
         ? (session.metadata as Record<string, unknown>)

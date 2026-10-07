@@ -126,7 +126,7 @@ export async function PATCH(req: NextRequest) {
     gamification = await getGamificationSummary(supabase, user.id, unlocks);
   }
 
-  void recordDerivedHealthScore(supabase, user.id);
+  await recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ goal: data, gamification });
 }

@@ -15,6 +15,7 @@ import {
 } from "@/lib/entitlements";
 import { calculateSLADeadline, getSLAPriority } from "@/lib/calculations/sla";
 import { recordReportHealthScore } from "@/lib/health-score/record";
+import { reconcileDebtPlan } from "@/lib/plan/reconcile-debt-plan";
 
 export type TriggerPlanGenerationResult =
   | { success: true; planId: string; status: string; resumed?: boolean }
@@ -275,6 +276,9 @@ async function runPlanGenerationBackground(
       await svc.from("financial_plans").update({ status: "failed" }).eq("id", planId);
       return;
     }
+
+    // Payoff months and interest totals come from the calculator, not the model.
+    planData = reconcileDebtPlan(planData, financialProfile.data?.major_debts);
 
     let pdfPath: string | null = null;
     try {

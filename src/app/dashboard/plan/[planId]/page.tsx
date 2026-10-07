@@ -77,7 +77,7 @@ function PlanNav({
 
 export default function PlanViewPage() {
   const { planId } = useParams<{ planId: string }>();
-  const { plan, loadMockData } = usePlanStore();
+  const { plan } = usePlanStore();
   const [activeSectionId, setActiveSectionId] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -105,12 +105,6 @@ export default function PlanViewPage() {
       setDownloading(false);
     }
   }
-
-  useEffect(() => {
-    if (!plan || plan.status !== "delivered") {
-      loadMockData("delivered");
-    }
-  }, [plan, loadMockData]);
 
   useEffect(() => {
     if (plan?.sections.length && !activeSectionId) {

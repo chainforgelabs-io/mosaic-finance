@@ -138,7 +138,9 @@ export async function POST() {
         : null,
   });
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
-  void recordDerivedHealthScore(supabase, user.id);
+  // Awaited on purpose: a fire-and-forget promise can be dropped when the
+  // serverless function returns, leaving the live score stale.
+  await recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ snapshot, gamification }, { status: monthMatch ? 200 : 201 });
 }

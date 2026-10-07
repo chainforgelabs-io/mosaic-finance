@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/cron-auth";
 import { captureAPIError } from "@/lib/sentry";
 import { runScan, getCurrentMode } from "@/lib/signals/run-scan";
 import { intendedScanSlot } from "@/lib/signals/gap-detection";
@@ -15,8 +16,7 @@ export const maxDuration = 300;
  * is no second tick in the hour to fall back on.
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization");
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

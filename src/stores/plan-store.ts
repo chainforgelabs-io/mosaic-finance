@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import type { FinancialPlan, PlanStatus, UserProfile, MarketContextReport } from "@/types";
-import { mockDeliveredPlan, mockUser, mockMarketContext } from "@/lib/mock-data";
 
 export interface PrePlanData {
   annualIncome: number | null;
@@ -32,7 +31,6 @@ interface PlanStore {
   setMarketContext: (report: MarketContextReport) => void;
   setPrePlanData: (data: PrePlanData) => void;
   setLoading: (isLoading: boolean) => void;
-  loadMockData: (scenario: "none" | "pending" | "delivered") => void;
 }
 
 export const usePlanStore = create<PlanStore>((set) => ({
@@ -52,27 +50,4 @@ export const usePlanStore = create<PlanStore>((set) => ({
   setMarketContext: (marketContext) => set({ marketContext }),
   setPrePlanData: (prePlanData) => set({ prePlanData }),
   setLoading: (isLoading) => set({ isLoading }),
-
-  loadMockData: (scenario) => {
-    set({ user: mockUser, isLoading: false });
-    switch (scenario) {
-      case "none":
-        set({ plan: null, planStatus: "none", marketContext: null });
-        break;
-      case "pending":
-        set({
-          plan: { ...mockDeliveredPlan, status: "pending_review", deliveredAt: undefined, estimatedDelivery: "Within 24 hours", sections: [], healthScore: 0 },
-          planStatus: "pending_review",
-          marketContext: mockMarketContext,
-        });
-        break;
-      case "delivered":
-        set({
-          plan: mockDeliveredPlan,
-          planStatus: "delivered",
-          marketContext: mockMarketContext,
-        });
-        break;
-    }
-  },
 }));

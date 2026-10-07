@@ -105,6 +105,9 @@ export async function PATCH(req: NextRequest) {
         category: item.category,
         description: item.name,
         direction: item.direction,
+        // The column default is "purchase"; money in must be tagged as income
+        // or it is counted as spending by every left-to-spend calculation.
+        line_role: item.direction === "in" ? "income" : "purchase",
         source: "scheduled",
         category_confirmed: true,
         recurring_item_id: item.id,
@@ -120,7 +123,7 @@ export async function PATCH(req: NextRequest) {
     if (updateError) return NextResponse.json({ error: "Failed to update schedule" }, { status: 500 });
 
     const unlocks = action === "confirm" ? await awardForEvent(supabase, user.id) : [];
-    if (action === "confirm") void recordDerivedHealthScore(supabase, user.id);
+    if (action === "confirm") await recordDerivedHealthScore(supabase, user.id);
     const gamification =
       action === "confirm" ? await getGamificationSummary(supabase, user.id, unlocks) : null;
     return NextResponse.json({ ok: true, gamification });

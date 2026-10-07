@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
   const unlocks = await awardForEvent(supabase, user.id);
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
-  void recordDerivedHealthScore(supabase, user.id);
+  await recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({ transactions: data ?? [], gamification }, { status: 201 });
 }

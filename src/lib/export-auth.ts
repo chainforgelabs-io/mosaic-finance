@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { bearerMatches } from "@/lib/cron-auth";
 
 /**
  * Bearer auth for the machine-readable export API. Two independent tokens
@@ -21,7 +22,7 @@ export function authorizeExport(request: NextRequest): NextResponse | null {
   }
 
   const auth = request.headers.get("authorization");
-  if (!tokens.some((t) => auth === `Bearer ${t}`)) {
+  if (!tokens.some((t) => bearerMatches(auth, t))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;

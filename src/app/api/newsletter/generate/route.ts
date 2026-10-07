@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isCronRequest } from "@/lib/cron-auth";
 import {
   generateAndSendNewsletter,
   generateNewsletter,
@@ -8,8 +9,7 @@ import { captureAPIError } from "@/lib/sentry";
 
 export async function POST(request: NextRequest) {
   try {
-    const cronSecret = request.headers.get("authorization");
-    const isCron = cronSecret === `Bearer ${process.env.CRON_SECRET}`;
+    const isCron = isCronRequest(request);
 
     if (!isCron) {
       const supabase = await createClient();
@@ -67,9 +67,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization");
-
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

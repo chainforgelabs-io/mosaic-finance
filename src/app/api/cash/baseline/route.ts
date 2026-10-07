@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   const unlocks = rows.length > 0 ? await awardForEvent(supabase, user.id) : [];
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
-  if (rows.length > 0) void recordDerivedHealthScore(supabase, user.id);
+  if (rows.length > 0) await recordDerivedHealthScore(supabase, user.id);
 
   return NextResponse.json({
     baseline: {

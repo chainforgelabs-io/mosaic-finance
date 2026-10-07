@@ -17,11 +17,15 @@ export async function recordDerivedHealthScore(
     { data: goals },
     { data: checks },
     { data: baseline },
+    { data: holdings },
+    { data: fixedAssets },
   ] = await Promise.all([
     supabase
       .from("financial_profiles")
-      .select("annual_income, monthly_expenses, emergency_fund_months, major_debts")
+      .select("annual_income, monthly_expenses, monthly_savings, emergency_fund_months, major_debts")
       .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle(),
     supabase
       .from("net_worth_snapshots")
@@ -39,6 +43,8 @@ export async function recordDerivedHealthScore(
     supabase.from("goals").select("status").eq("user_id", userId),
     supabase.from("balance_checks").select("check_date").eq("user_id", userId),
     supabase.from("spending_baselines").select("updated_at").eq("user_id", userId).maybeSingle(),
+    supabase.from("investment_holdings").select("total_value").eq("user_id", userId),
+    supabase.from("fixed_assets").select("estimated_value").eq("user_id", userId),
   ]);
 
   const debts = Array.isArray(financial?.major_debts)
@@ -48,6 +54,14 @@ export async function recordDerivedHealthScore(
     (sum, d) => sum + Number(d.amount ?? d.balance ?? 0),
     0,
   );
+
+  // Before the first monthly check-in there is no snapshot, but the tracked
+  // holdings, fixed assets, and debts still describe a real net worth.
+  const liveAssets =
+    (holdings ?? []).reduce((sum, h) => sum + (Number(h.total_value) || 0), 0) +
+    (fixedAssets ?? []).reduce((sum, a) => sum + (Number(a.estimated_value) || 0), 0);
+  const hasLivePicture = (holdings?.length ?? 0) + (fixedAssets?.length ?? 0) > 0;
+  const liveNetWorth = hasLivePicture ? liveAssets - totalDebt : null;
 
   const today = new Date().toISOString().slice(0, 10);
   const snapList = snapshots ?? [];
@@ -68,12 +82,14 @@ export async function recordDerivedHealthScore(
     annualIncome: financial?.annual_income != null ? Number(financial.annual_income) : null,
     monthlyExpenses:
       financial?.monthly_expenses != null ? Number(financial.monthly_expenses) : null,
+    monthlySavings:
+      financial?.monthly_savings != null ? Number(financial.monthly_savings) : null,
     emergencyFundMonths:
       financial?.emergency_fund_months != null
         ? Number(financial.emergency_fund_months)
         : null,
     totalDebt: debts.length ? totalDebt : null,
-    netWorth: snapList[0]?.net_worth != null ? Number(snapList[0].net_worth) : null,
+    netWorth: snapList[0]?.net_worth != null ? Number(snapList[0].net_worth) : liveNetWorth,
     priorNetWorth: snapList[1]?.net_worth != null ? Number(snapList[1].net_worth) : null,
     weeklyStreak,
     monthlySnapshotStreak: monthlyStreak,

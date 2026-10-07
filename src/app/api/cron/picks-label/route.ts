@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronRequest } from "@/lib/cron-auth";
 import { captureAPIError } from "@/lib/sentry";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runLabeler } from "@/lib/signals/labeler";
@@ -13,8 +14,7 @@ export const maxDuration = 300;
  * Each stage is independent — a failure in one never blocks the others.
  */
 export async function GET(request: NextRequest) {
-  const cronSecret = request.headers.get("authorization");
-  if (cronSecret !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isCronRequest(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

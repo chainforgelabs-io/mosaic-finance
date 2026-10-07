@@ -3,6 +3,12 @@ import { calculateSavingsRate } from "@/lib/calculations/financial";
 export interface HealthScoreInputs {
   annualIncome: number | null;
   monthlyExpenses: number | null;
+  /**
+   * What the household actually puts away each month, when stated. The
+   * fact-find's `monthly_expenses` excludes tax and debt service, so
+   * income/12 - expenses overstates savings badly (71% vs a real 7.7%).
+   */
+  monthlySavings?: number | null;
   emergencyFundMonths: number | null;
   totalDebt: number | null;
   netWorth: number | null;
@@ -31,9 +37,28 @@ function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
 
-function savingsComponent(annualIncome: number | null, monthlyExpenses: number | null): number {
-  if (annualIncome == null || monthlyExpenses == null || annualIncome <= 0) return 40;
-  const rate = calculateSavingsRate(annualIncome, monthlyExpenses);
+export function savingsRateForScore(inputs: {
+  annualIncome: number | null;
+  monthlyExpenses: number | null;
+  monthlySavings?: number | null;
+}): number | null {
+  const { annualIncome, monthlyExpenses, monthlySavings } = inputs;
+  if (annualIncome == null || annualIncome <= 0) return null;
+  if (monthlySavings != null && Number.isFinite(monthlySavings)) {
+    const monthlyIncome = annualIncome / 12;
+    return Math.max(0, Math.min(100, (monthlySavings / monthlyIncome) * 100));
+  }
+  if (monthlyExpenses == null) return null;
+  return calculateSavingsRate(annualIncome, monthlyExpenses);
+}
+
+function savingsComponent(
+  annualIncome: number | null,
+  monthlyExpenses: number | null,
+  monthlySavings: number | null | undefined,
+): number {
+  const rate = savingsRateForScore({ annualIncome, monthlyExpenses, monthlySavings });
+  if (rate == null) return 40;
   if (rate >= 20) return 100;
   if (rate >= 15) return 85;
   if (rate >= 10) return 70;
@@ -85,7 +110,7 @@ function consistencyComponent(weeklyStreak: number, monthlySnapshotStreak: numbe
 
 export function calculateDerivedHealthScore(inputs: HealthScoreInputs): DerivedHealthScore {
   const breakdown: HealthScoreBreakdown = {
-    savings: savingsComponent(inputs.annualIncome, inputs.monthlyExpenses),
+    savings: savingsComponent(inputs.annualIncome, inputs.monthlyExpenses, inputs.monthlySavings),
     emergency: emergencyComponent(inputs.emergencyFundMonths),
     debt: debtComponent(inputs.annualIncome, inputs.totalDebt),
     netWorthTrend: netWorthComponent(inputs.netWorth, inputs.priorNetWorth),

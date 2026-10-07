@@ -21,48 +21,73 @@ import {
   Send,
   CheckCircle2,
 } from "lucide-react";
-import type { PlanSection, ConversationMessage } from "@/types";
+import type { PlanSection, ConversationMessage, ActionItem } from "@/types";
 
-function generateWalkthroughIntro(section: PlanSection): string {
-  const introMap: Record<string, string> = {
-    "executive-summary": `Let's start with the big picture. Your financial health score is ${
-      section.cards.find((c) => c.label === "HEALTH SCORE")?.value || "strong"
-    }, which puts you in a solid position.\n\n${section.summary}\n\nThe key takeaway here is that you have a strong foundation with clear opportunities for improvement. Your savings rate is above average, and with some strategic adjustments, we can accelerate your timeline significantly.\n\nDo you have any questions about your overall financial snapshot?`,
+const SESSION_TYPE = "walkthrough" as const;
+const MAX_MESSAGE_CHARS = 3900; // ConversationMessageSchema caps at 4000
+const CHARLIE_UNAVAILABLE =
+  "Charlie couldn't respond just now. Please try again in a moment.";
 
-    "cash-flow": `Now let's look at how money flows through your life each month. Understanding this is the foundation of everything else in your Progress Report.\n\nYour net income of ${
-      section.cards.find((c) => c.label === "NET INCOME")?.value || "$6,250"
-    }/month supports a healthy savings rate. ${section.summary}\n\nThe biggest insight here is that even small optimizations in your discretionary spending can have outsized effects when redirected to investments over decades.\n\nWould you like me to break down any specific expense category?`,
-
-    "debt-management": `Let's talk about your debt picture. Not all debt is created equal, and understanding the difference is key to a smart payoff strategy.\n\n${section.summary}\n\nYour mortgage is structured well — the focus area is your line of credit, where accelerating payments saves significant interest. The avalanche method (targeting highest-rate debt first) is optimal here.\n\nAny questions about this debt repayment approach?`,
-
-    "retirement": `This is where long-term planning gets exciting. Let's look at your retirement projections.\n\n${section.summary}\n\nThe math here is powerful — by maintaining your contribution rate and optimizing your investment allocation, you could potentially retire ${
-      section.cards.find((c) => c.label === "TARGET RETIREMENT")?.value || "earlier than expected"
-    }. The most critical factor is consistency.\n\nWhat questions do you have about your retirement projections?`,
-
-    "investment-strategy": `Now let's dive into how your money is currently invested. This is where your risk profile shapes the educational options we show.\n\n${section.summary}\n\nThe suggested portfolio targets a ${
-      section.cards.find((c) => c.label === "WEIGHTED MER")?.value || "0.18%"
-    } weighted MER, which is significantly lower than the Canadian average of ~1.5%. This fee reduction alone could add over $100,000 to your portfolio over 25 years.\n\nWould you like me to explain any of the ETF considerations in more detail?`,
-
-    "tax-optimization": `Tax efficiency is often the most overlooked area of personal finance, but it can have enormous impact.\n\n${section.summary}\n\nThe priority waterfall — RRSP match, TFSA, RRSP, then non-registered — is an educational framework for capturing tax advantages. With ${
-      section.cards.find((c) => c.label === "RRSP ROOM")?.value || "$18,200"
-    } of unused RRSP room, there's an immediate opportunity.\n\nDo you have questions about this tax strategy?`,
-
-    "insurance-estate": `Let's look at the protection side of your Progress Report. Insurance and estate topics aren't exciting, but they protect everything else we've discussed.\n\n${section.summary}\n\nThe key educational takeaway: a $500K term life policy and a basic will are high-priority items that most Canadians delay too long. The cost is relatively modest for the protection provided.\n\nThis is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.\n\nAny questions about the insurance or estate considerations?`,
-
-    "next-steps": `Finally, let's talk about turning this Progress Report into action. Tracking only helps if you follow through — with your advisor's guidance.\n\n${section.summary}\n\nI've prioritized items by impact and urgency. The two highest-impact items you could discuss this week are setting up automated RRSP contributions and increasing your line of credit payments. Together, these two changes could improve your projected retirement age by 2.5 years.\n\nThis is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.\n\nWould you like to discuss the timeline for any of these items?`,
-  };
-
-  return introMap[section.id] || `Let's review your ${section.title}.\n\n${section.summary}\n\nDo you have any questions about this section?`;
+/**
+ * The user turn that asks Charlie to walk through one section of the report.
+ * Only the assistant reply is rendered; this request is not shown in the chat.
+ */
+function buildSectionIntroRequest(section: PlanSection, index: number, total: number): string {
+  const cards = section.cards.map((c) => `${c.label}: ${c.value}${c.unit ? ` ${c.unit}` : ""}`);
+  const items = section.actionItems.map((a) => `- ${a.text}`);
+  const parts = [
+    `I'm walking through my Progress Report with you. This is section ${index + 1} of ${total}: "${section.title}".`,
+    `Here is the section as written in my report:\n\n${section.summary}`,
+    cards.length ? `Key figures: ${cards.join("; ")}` : "",
+    items.length ? `Action items listed in the report:\n${items.join("\n")}` : "",
+    "Please walk me through this section in plain language — what it says about my situation and why it matters — then ask whether I have any questions about it. Keep it to a few short paragraphs.",
+  ].filter(Boolean);
+  return parts.join("\n\n").slice(0, MAX_MESSAGE_CHARS);
 }
 
-function generateFollowUpResponse(userMessage: string, section: PlanSection): string {
-  const responses = [
-    `That's a great question about your ${section.title.toLowerCase()}. Based on your plan data, ${section.prose.split(".").slice(0, 2).join(".")}.\n\nThe key thing to remember is that these considerations are interconnected — changes in this area will positively impact your overall health score.`,
-    `I understand your concern. Let me clarify — ${section.actionItems[0]?.text || "the primary consideration"} is prioritized because it has the highest expected impact relative to effort. However, the timeline is flexible and we can adjust based on your comfort level.\n\nWould you like to explore an alternative approach?`,
-    `Absolutely. Looking at the data in your plan, ${section.prose.split(".").slice(2, 4).join(".")}.\n\nThis is one of those areas where consistency matters more than perfection. Starting with any amount is better than waiting for the "perfect" time.`,
+/** Top action items to echo on the completion card: the Next Steps section first, then the rest. */
+function topActionItems(sections: PlanSection[], limit = 3): ActionItem[] {
+  const ordered = [
+    ...sections.filter((s) => s.id === "next-steps"),
+    ...sections.filter((s) => s.id !== "next-steps"),
   ];
+  const rank = { high: 0, medium: 1, low: 2 } as const;
+  return ordered
+    .flatMap((s) => s.actionItems)
+    .sort((a, b) => rank[a.priority] - rank[b.priority])
+    .slice(0, limit);
+}
 
-  return responses[Math.floor(Math.random() * responses.length)];
+/** Read one SSE response from /api/conversation/message, calling onDelta with the accumulated text. */
+async function readCharlieStream(res: Response, onDelta: (accumulated: string) => void): Promise<void> {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let accumulated = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      let data: { type?: string; text?: string; message?: string };
+      try {
+        data = JSON.parse(line.slice(6));
+      } catch {
+        continue;
+      }
+      if (data.type === "delta" && typeof data.text === "string") {
+        accumulated += data.text;
+        onDelta(accumulated);
+      } else if (data.type === "error") {
+        throw new Error(data.message ?? "stream error");
+      }
+    }
+  }
+  if (!accumulated) throw new Error("Empty response");
 }
 
 function SectionPanel({
@@ -199,6 +224,8 @@ function ConversationPanel({
   onNextSection,
   isLastSection,
   hasReceivedIntro,
+  totalSections,
+  topItems,
 }: {
   section: PlanSection;
   messages: ConversationMessage[];
@@ -208,6 +235,8 @@ function ConversationPanel({
   onNextSection: () => void;
   isLastSection: boolean;
   hasReceivedIntro: boolean;
+  totalSections: number;
+  topItems: ActionItem[];
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -258,28 +287,23 @@ function ConversationPanel({
               </span>
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3">
-              You&apos;ve walked through all 8 sections of your Progress Report. Here are your top 3 items to consider:
+              You&apos;ve walked through all {totalSections} sections of your Progress Report.
+              {topItems.length > 0 && " Here are the action items from your report to consider discussing with a licensed advisor:"}
             </p>
-            <ol className="space-y-2">
-              <li className="flex items-start gap-2">
-                <span className="bg-[var(--emerald)] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</span>
-                <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
-                  Maximize RRSP contribution ($18,200 room available)
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="bg-[var(--emerald)] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span>
-                <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
-                  Consolidate investments into low-MER ETF portfolio
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="bg-[var(--emerald)] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0">3</span>
-                <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
-                  Accelerate line of credit repayment to $600/mo
-                </span>
-              </li>
-            </ol>
+            {topItems.length > 0 && (
+              <ol className="space-y-2">
+                {topItems.map((item, i) => (
+                  <li key={item.id} className="flex items-start gap-2">
+                    <span className="bg-[var(--emerald)] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                      {i + 1}
+                    </span>
+                    <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
+                      {item.text}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
         )}
 
@@ -341,7 +365,7 @@ function ConversationPanel({
 }
 
 export default function WalkthroughPage() {
-  const { plan, loadMockData } = usePlanStore();
+  const { plan } = usePlanStore();
   const {
     currentSectionIndex,
     messages,
@@ -350,6 +374,7 @@ export default function WalkthroughPage() {
     setCurrentSectionIndex,
     advanceSection,
     addMessage,
+    updateMessage,
     setIsStreaming,
     setIsComplete,
     reset,
@@ -358,12 +383,10 @@ export default function WalkthroughPage() {
   const [hasReceivedIntro, setHasReceivedIntro] = useState(false);
   const [showMobileSection, setShowMobileSection] = useState(false);
   const introSentForSection = useRef<number>(-1);
-
-  useEffect(() => {
-    if (!plan || plan.status !== "delivered") {
-      loadMockData("delivered");
-    }
-  }, [plan, loadMockData]);
+  const sessionIdRef = useRef<string | null>(null);
+  const sessionPromiseRef = useRef<Promise<string | null> | null>(null);
+  const sessionBlockedRef = useRef(false);
+  const streamingRef = useRef(false);
 
   useEffect(() => {
     reset();
@@ -372,53 +395,122 @@ export default function WalkthroughPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const simulateStreaming = useCallback(
-    (content: string, onComplete?: () => void) => {
+  const postAssistant = useCallback(
+    (content: string) =>
+      addMessage({
+        id: `msg-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+        role: "assistant",
+        content,
+        timestamp: new Date().toISOString(),
+      }),
+    [addMessage],
+  );
+
+  /** Start (or resume) the walkthrough session once; surfaces entitlement errors as a Charlie message. */
+  const ensureSession = useCallback(async (): Promise<string | null> => {
+    if (sessionIdRef.current) return sessionIdRef.current;
+    if (sessionBlockedRef.current) return null;
+    if (!sessionPromiseRef.current) {
+      sessionPromiseRef.current = (async () => {
+        try {
+          const res = await fetch("/api/conversation/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionType: SESSION_TYPE }),
+          });
+          if (!res.ok) {
+            const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+            sessionBlockedRef.current = res.status === 402;
+            postAssistant(typeof body?.error === "string" ? body.error : CHARLIE_UNAVAILABLE);
+            return null;
+          }
+          const { sessionId } = (await res.json()) as { sessionId: string };
+          sessionIdRef.current = sessionId;
+          return sessionId;
+        } catch {
+          postAssistant(CHARLIE_UNAVAILABLE);
+          return null;
+        } finally {
+          sessionPromiseRef.current = null;
+        }
+      })();
+    }
+    return sessionPromiseRef.current;
+  }, [postAssistant]);
+
+  /** Send one user turn to Charlie and stream the reply into the chat. */
+  const askCharlie = useCallback(
+    async (message: string, onComplete?: () => void) => {
+      const sessionId = await ensureSession();
+      if (!sessionId) {
+        onComplete?.();
+        return;
+      }
+      streamingRef.current = true;
       setIsStreaming(true);
-      setTimeout(() => {
-        addMessage({
-          id: `msg-${Date.now()}`,
-          role: "assistant",
-          content,
-          timestamp: new Date().toISOString(),
+      const assistantId = `msg-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      let added = false;
+      try {
+        const res = await fetch("/api/conversation/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, message, sessionType: SESSION_TYPE }),
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await readCharlieStream(res, (accumulated) => {
+          if (!added) {
+            added = true;
+            addMessage({
+              id: assistantId,
+              role: "assistant",
+              content: accumulated,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            updateMessage(assistantId, accumulated);
+          }
+        });
+      } catch {
+        if (!added) postAssistant(CHARLIE_UNAVAILABLE);
+      } finally {
+        streamingRef.current = false;
         setIsStreaming(false);
         onComplete?.();
-      }, 800 + Math.random() * 600);
+      }
     },
-    [addMessage, setIsStreaming]
+    [ensureSession, addMessage, updateMessage, postAssistant, setIsStreaming],
   );
 
   useEffect(() => {
     if (!plan?.sections.length) return;
     if (introSentForSection.current === currentSectionIndex) return;
+    if (streamingRef.current) return; // never open a second stream (dev double-mount)
     introSentForSection.current = currentSectionIndex;
 
     const section = plan.sections[currentSectionIndex];
-    const intro = generateWalkthroughIntro(section);
     setHasReceivedIntro(false);
-    simulateStreaming(intro, () => setHasReceivedIntro(true));
-  }, [currentSectionIndex, plan, simulateStreaming]);
+    void askCharlie(
+      buildSectionIntroRequest(section, currentSectionIndex, plan.sections.length),
+      () => setHasReceivedIntro(true),
+    );
+  }, [currentSectionIndex, plan, askCharlie]);
 
   const handleSendMessage = useCallback(
     (text: string) => {
-      if (!plan) return;
+      if (!plan || streamingRef.current) return;
       addMessage({
         id: `msg-user-${Date.now()}`,
         role: "user",
         content: text,
         timestamp: new Date().toISOString(),
       });
-
-      const section = plan.sections[currentSectionIndex];
-      const response = generateFollowUpResponse(text, section);
-      simulateStreaming(response);
+      void askCharlie(text.slice(0, MAX_MESSAGE_CHARS));
     },
-    [plan, currentSectionIndex, addMessage, simulateStreaming]
+    [plan, addMessage, askCharlie]
   );
 
   const handleNextSection = useCallback(() => {
-    if (!plan) return;
+    if (!plan || streamingRef.current) return;
     if (currentSectionIndex >= plan.sections.length - 1) {
       setIsComplete(true);
       return;
@@ -428,10 +520,11 @@ export default function WalkthroughPage() {
 
   const handleNavigateSection = useCallback(
     (index: number) => {
+      if (streamingRef.current || index === currentSectionIndex) return;
       setCurrentSectionIndex(index);
       introSentForSection.current = -1;
     },
-    [setCurrentSectionIndex]
+    [setCurrentSectionIndex, currentSectionIndex]
   );
 
   if (!plan || plan.status !== "delivered") {
@@ -493,6 +586,8 @@ export default function WalkthroughPage() {
           onNextSection={handleNextSection}
           isLastSection={currentSectionIndex === plan.sections.length - 1}
           hasReceivedIntro={hasReceivedIntro}
+          totalSections={plan.sections.length}
+          topItems={topActionItems(plan.sections)}
         />
       </div>
     </div>

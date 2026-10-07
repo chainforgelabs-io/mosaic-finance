@@ -147,7 +147,13 @@ export async function POST(req: NextRequest) {
         metadata: { userId: user.id },
       });
       customerId = created.id;
-      await supabase.from("user_profiles").update({ stripe_customer_id: created.id }).eq("id", user.id);
+      // stripe_customer_id is an entitlement column (migration 035): only the
+      // service role may write it, so this one update does not use the user client.
+      const { createServiceClient } = await import("@/lib/supabase/service");
+      await createServiceClient()
+        .from("user_profiles")
+        .update({ stripe_customer_id: created.id })
+        .eq("id", user.id);
     }
 
     const sessionParams: Record<string, unknown> = {

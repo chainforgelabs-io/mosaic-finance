@@ -17,11 +17,14 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
 
+  // The 90-day delta compares like with like: derived scores only. Report
+  // scores come from a different rubric and would show a phantom move.
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
   const { data: older } = await supabase
     .from("health_score_history")
     .select("score")
     .eq("user_id", user.id)
+    .eq("source", "derived")
     .lte("recorded_at", ninetyDaysAgo)
     .order("recorded_at", { ascending: false })
     .limit(1)
@@ -36,7 +39,10 @@ export async function GET() {
     breakdown = derived.breakdown;
   }
 
-  const delta = older?.score != null && score != null ? score - older.score : null;
+  const delta =
+    older?.score != null && score != null && latest?.source !== "report"
+      ? score - older.score
+      : null;
 
   return NextResponse.json({
     score,

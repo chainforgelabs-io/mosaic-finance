@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { computeMonthlyStreak, computeWeeklyStreak } from "@/lib/gamification/streaks";
+import {
+  computeMonthlyStreak,
+  computeWeeklyStreak,
+  loggingActivityDates,
+} from "@/lib/gamification/streaks";
+import { derivedScoreDelta, guaranteeEligible } from "@/lib/health-score/guarantee";
 
 export async function GET() {
   const supabase = await createClient();
@@ -12,19 +17,32 @@ export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [{ data: txns }, { data: snaps }, { data: scores }] = await Promise.all([
-    supabase.from("transactions").select("txn_date").eq("user_id", user.id),
-    supabase.from("net_worth_snapshots").select("snapshot_date").eq("user_id", user.id),
-    supabase
-      .from("health_score_history")
-      .select("score, recorded_at")
-      .eq("user_id", user.id)
-      .gte("recorded_at", ninetyDaysAgo)
-      .order("recorded_at", { ascending: true }),
-  ]);
+  const [{ data: txns }, { data: checks }, { data: baseline }, { data: snaps }, { data: scores }] =
+    await Promise.all([
+      supabase
+        .from("transactions")
+        .select("txn_date, source")
+        .eq("user_id", user.id)
+        .neq("source", "screenshot"),
+      supabase.from("balance_checks").select("check_date").eq("user_id", user.id),
+      supabase.from("spending_baselines").select("updated_at").eq("user_id", user.id).maybeSingle(),
+      supabase.from("net_worth_snapshots").select("snapshot_date").eq("user_id", user.id),
+      supabase
+        .from("health_score_history")
+        .select("score, source, recorded_at")
+        .eq("user_id", user.id)
+        .gte("recorded_at", ninetyDaysAgo)
+        .order("recorded_at", { ascending: true }),
+    ]);
 
+  // Same activity definition as the streak the user sees on the dashboard:
+  // statement imports do not count, balance checks and confirmed pictures do.
   const { current: weeksLogged } = computeWeeklyStreak(
-    (txns ?? []).map((t) => String(t.txn_date)),
+    loggingActivityDates({
+      transactions: (txns ?? []) as { txn_date: string; source?: string | null }[],
+      checkDates: ((checks ?? []) as { check_date: string }[]).map((c) => String(c.check_date)),
+      baselineUpdatedAt: (baseline?.updated_at as string | null) ?? null,
+    }),
     today,
   );
   const { current: snapshots } = computeMonthlyStreak(
@@ -32,10 +50,10 @@ export async function GET() {
     today,
   );
 
-  const first = scores?.[0]?.score ?? null;
-  const last = scores && scores.length > 0 ? scores[scores.length - 1].score : null;
-  const scoreDelta = first != null && last != null ? last - first : null;
-  const eligible = weeksLogged >= 13 && snapshots >= 3 && scoreDelta != null && scoreDelta <= 0;
+  const scoreDelta = derivedScoreDelta(
+    (scores ?? []) as { score: number; source?: string | null; recorded_at: string }[],
+  );
+  const eligible = guaranteeEligible({ weeksLogged, snapshots, scoreDelta });
 
   return NextResponse.json({
     weeksLogged,

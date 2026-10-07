@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
         category: "untracked",
         description: "Balance check",
         direction: booking.direction,
+        line_role: booking.direction === "in" ? "income" : "purchase",
         source: "balance_check",
         category_confirmed: true,
       });
@@ -100,16 +101,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Those lines do not add up to the gap." }, { status: 400 });
     }
     const { error } = await supabase.from("transactions").insert(
-      lines.map((line) => ({
-        user_id: user.id,
-        txn_date: today,
-        amount: line.amount,
-        category: line.category,
-        description: "Balance check",
-        direction: line.direction ?? (gap < 0 ? "out" : "in"),
-        source: "balance_check" as const,
-        category_confirmed: true,
-      })),
+      lines.map((line) => {
+        const direction = line.direction ?? (gap < 0 ? "out" : "in");
+        return {
+          user_id: user.id,
+          txn_date: today,
+          amount: line.amount,
+          category: line.category,
+          description: "Balance check",
+          direction,
+          line_role: direction === "in" ? "income" : "purchase",
+          source: "balance_check" as const,
+          category_confirmed: true,
+        };
+      }),
     );
     if (error) return NextResponse.json({ error: "Failed to book the gap" }, { status: 500 });
   }
@@ -124,7 +129,7 @@ export async function POST(req: NextRequest) {
   if (checkError) return NextResponse.json({ error: "Failed to save balance check" }, { status: 500 });
 
   const unlocks = await awardForEvent(supabase, user.id);
-  void recordDerivedHealthScore(supabase, user.id);
+  await recordDerivedHealthScore(supabase, user.id);
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
 
   return NextResponse.json({ gap, expected_balance: expected, gamification });
