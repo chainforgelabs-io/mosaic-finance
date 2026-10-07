@@ -45,8 +45,8 @@ const GENERATING_CHART_PLACEHOLDERS = [
     subtitle: "Balances and payoff strategy",
   },
   {
-    title: "Recommended Allocation",
-    subtitle: "Target portfolio mix from your Progress Report",
+    title: "Illustrative mix",
+    subtitle: "Example asset-class mix from your Progress Report",
   },
   {
     title: "Net Worth Trajectory",

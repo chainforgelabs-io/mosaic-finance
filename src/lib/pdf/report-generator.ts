@@ -1,6 +1,7 @@
 import path from 'node:path';
 import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
+import { sanitizeInvestmentSection } from '@/lib/plan/sanitize-investment-section';
 
 async function launchBrowser() {
   const minimalArgs = [
@@ -88,7 +89,7 @@ function actionItems(items: string[]): string {
 }
 
 function buildReportHTML(plan: Record<string, unknown>): string {
-  const p = plan as Record<string, Record<string, unknown>>;
+  const p = sanitizeInvestmentSection(plan) as Record<string, Record<string, unknown>>;
   const fhd = p.financial_health_diagnostic ?? {};
   const rr = p.retirement_readiness ?? {};
   const ipb = p.investment_portfolio_blueprint ?? {};
@@ -368,12 +369,12 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   <div class="sh">
     <div class="sh-accent" style="background:#8b5cf6;"></div>
     <h2>Investment Portfolio Blueprint</h2>
-    <p>Personalized asset allocation and ETF considerations</p>
+    <p>An educational look at asset-class mix and example funds</p>
   </div>
 
   ${ipb.current_portfolio_assessment ? `<div class="prose-block"><strong>Current Assessment</strong><p>${ipb.current_portfolio_assessment}</p></div>` : ''}
 
-  <h3 style="font-size:13px;">Suggested Allocation</h3>
+  <h3 style="font-size:13px;">Illustrative asset-class mix</h3>
   <div class="bar-chart">
     ${Object.entries(alloc).map(([key, val]) => {
       const color = allocColors[key] ?? '#c9aa71';
@@ -386,16 +387,17 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   ${coreETFs.length > 0 ? `
-  <h3 style="font-size:13px;">Core ETF Considerations</h3>
+  <h3 style="font-size:13px;">Example funds in these categories</h3>
+  <p style="font-size:12px;color:#6b7280;margin:0 0 8px;">Named funds are examples of a category. This is educational information, not financial advice.</p>
   <table class="tbl">
-    <tr><th>Ticker</th><th>Name</th><th>MER</th><th>Allocation</th><th>Rationale</th></tr>
+    <tr><th>Ticker</th><th>Name</th><th>MER</th><th>What it holds</th></tr>
     ${coreETFs.map((etf) =>
-      `<tr><td class="ticker">${etf.ticker}</td><td>${etf.name}</td><td>${etf.mer}%</td><td style="font-weight:700;">${etf.allocation_percent}%</td><td style="font-size:11px;color:#6b7280;">${etf.rationale}</td></tr>`).join('')}
+      `<tr><td class="ticker">${etf.ticker}</td><td>${etf.name}</td><td>${etf.mer}%</td><td style="font-size:11px;color:#6b7280;">${etf.rationale}</td></tr>`).join('')}
   </table>` : ''}
 
   <div class="two-col">
-    ${ipb.account_location_strategy ? `<div class="prose-block" style="margin:0;"><strong>Account Location</strong><p>${ipb.account_location_strategy}</p></div>` : ''}
-    ${ipb.rebalancing_schedule ? `<div class="prose-block" style="margin:0;"><strong>Rebalancing</strong><p>${ipb.rebalancing_schedule}</p></div>` : ''}
+    ${ipb.account_location_strategy ? `<div class="prose-block" style="margin:0;"><strong>How registered accounts are taxed</strong><p>${ipb.account_location_strategy}</p><p style="font-size:11px;color:#6b7280;">This explains how account types are taxed. It does not say where money should move.</p></div>` : ''}
+    ${ipb.rebalancing_schedule ? `<div class="prose-block" style="margin:0;"><strong>What rebalancing means</strong><p>${ipb.rebalancing_schedule}</p></div>` : ''}
   </div>
 
   ${(ipb.action_items as string[])?.length > 0 ? `

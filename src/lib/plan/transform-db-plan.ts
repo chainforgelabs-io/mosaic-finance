@@ -7,6 +7,7 @@ import type {
   CoverageRec,
   RiskLabel,
 } from "@/types";
+import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
 
 function fmt(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -111,21 +112,23 @@ function buildSections(raw: any): PlanSection[] {
       ticker: etf.ticker ?? "",
       name: etf.name ?? "",
       mer: etf.mer != null ? `${etf.mer}%` : "",
-      allocation: etf.allocation_percent != null ? `${etf.allocation_percent}%` : "",
       rationale: etf.rationale ?? "",
     }));
 
     sections.push({
       id: "investment_portfolio_blueprint",
       title: "Investment Portfolio Blueprint",
-      subtitle: "Personalized asset allocation and ETF considerations",
+      subtitle: "An educational look at asset-class mix and example funds",
       status: "ai_generated",
       summary: ipb.current_portfolio_assessment ?? "",
       cards: allocCards,
       prose: proseLines(
-        labeledProse("Current Portfolio Assessment", ipb.current_portfolio_assessment),
-        labeledProse("Account Location Strategy", ipb.account_location_strategy),
-        labeledProse("Rebalancing Schedule", ipb.rebalancing_schedule),
+        labeledProse("Current portfolio", ipb.current_portfolio_assessment),
+        labeledProse("How registered accounts are taxed", ipb.account_location_strategy),
+        "This explains how account types are taxed. It does not say where money should move.",
+        labeledProse("What rebalancing means", ipb.rebalancing_schedule),
+        etfTable.length > 0 &&
+          "Named funds are examples of a category. This is educational information, not financial advice.",
       ),
       actionItems: actionItems(ipb, "ipb"),
       etfTable: etfTable.length > 0 ? etfTable : undefined,
@@ -297,13 +300,22 @@ export function transformDbPlanToFinancialPlan(
   dbPlan: DbPlanRow,
   options?: { userId?: string; riskLabel?: RiskLabel },
 ): FinancialPlan {
-  const raw =
+  const parsed =
     typeof dbPlan.plan_data === "string"
       ? JSON.parse(dbPlan.plan_data)
       : (dbPlan.plan_data ?? {});
-
-  const diag = raw.financial_health_diagnostic;
-  const ret = raw.retirement_readiness;
+  const raw = sanitizeInvestmentSection(parsed as Record<string, unknown>);
+  const diag = raw.financial_health_diagnostic as
+    | {
+        financial_health_score?: number;
+        net_worth?: number;
+        cash_flow_monthly?: number;
+        savings_rate_percent?: number;
+      }
+    | undefined;
+  const ret = raw.retirement_readiness as
+    | { current_trajectory?: number; retirement_number?: number }
+    | undefined;
 
   const healthScore = diag?.financial_health_score ?? 0;
   const netWorth =
@@ -316,7 +328,9 @@ export function transformDbPlanToFinancialPlan(
     diag?.cash_flow_monthly != null ? fmt(diag.cash_flow_monthly) : "--";
   const savingsRate =
     diag?.savings_rate_percent != null ? `${diag.savings_rate_percent}%` : "--";
-  const retirementGap = ret ? fmt(ret.retirement_number - ret.current_trajectory) : "--";
+  const retirementGap = ret
+    ? fmt((ret.retirement_number ?? 0) - (ret.current_trajectory ?? 0))
+    : "--";
 
   return {
     id: dbPlan.id,

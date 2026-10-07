@@ -155,7 +155,7 @@ describe('Plan JSON Schema Validation', () => {
   });
 
   describe('investment_portfolio_blueprint', () => {
-    it('requires at least one core ETF recommendation', () => {
+    it('allows a report with no named funds', () => {
       const result = FinancialPlanSchema.safeParse(
         createPlanWithOverrides({
           investment_portfolio_blueprint: {
@@ -164,7 +164,21 @@ describe('Plan JSON Schema Validation', () => {
           },
         }),
       );
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+    });
+
+    it('allows an example fund without a portfolio weight or return figure', () => {
+      const result = FinancialPlanSchema.safeParse(
+        createPlanWithOverrides({
+          investment_portfolio_blueprint: {
+            ...VALID_PLAN_DATA.investment_portfolio_blueprint,
+            core_etf_recommendations: [
+              { ticker: 'XEQT', name: 'iShares Core Equity ETF Portfolio', mer: 0.2, rationale: 'Holds global equities in one fund' },
+            ],
+          },
+        }),
+      );
+      expect(result.success).toBe(true);
     });
 
     it('requires allocation percentages between 0 and 100', () => {

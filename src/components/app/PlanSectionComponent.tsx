@@ -234,9 +234,12 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
 
         {section.etfTable && section.etfTable.length > 0 && (
           <div className="mb-6">
-            <h4 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] uppercase tracking-wider mb-3">
-              ETF Considerations
+            <h4 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] uppercase tracking-wider mb-1">
+              Example funds
             </h4>
+            <p className="mb-3 font-[family-name:var(--font-body)] text-xs leading-relaxed text-[var(--text-muted)]">
+              Named funds are examples of a category. This is educational information, not financial advice.
+            </p>
             <div className="overflow-x-auto rounded-lg border border-[var(--warm-200)]">
               <table className="w-full text-left">
                 <thead>
@@ -251,10 +254,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                       MER
                     </th>
                     <th className="px-4 py-3 font-[family-name:var(--font-display)] text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                      Allocation
-                    </th>
-                    <th className="px-4 py-3 font-[family-name:var(--font-display)] text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                      Rationale
+                      What it holds
                     </th>
                   </tr>
                 </thead>
@@ -272,9 +272,6 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                       </td>
                       <td className="px-4 py-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] tabular-nums">
                         {etf.mer}
-                      </td>
-                      <td className="px-4 py-3 font-[family-name:var(--font-body)] text-sm font-semibold text-[var(--text-primary)] tabular-nums">
-                        {etf.allocation}
                       </td>
                       <td className="px-4 py-3 font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)]">
                         {etf.rationale}

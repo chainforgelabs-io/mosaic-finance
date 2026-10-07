@@ -59,7 +59,8 @@ export interface ETFRecommendation {
   ticker: string;
   name: string;
   mer: string;
-  allocation: string;
+  /** Present only on reports generated before weights were removed from the fund table. */
+  allocation?: string;
   rationale: string;
 }
 

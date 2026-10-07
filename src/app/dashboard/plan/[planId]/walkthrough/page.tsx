@@ -169,11 +169,14 @@ function SectionPanel({
 
         {section.etfTable && section.etfTable.length > 0 && (
           <div className="mt-4 overflow-x-auto">
+            <p className="mb-2 font-[family-name:var(--font-body)] text-[11px] leading-relaxed text-[var(--text-muted)]">
+              Named funds are examples of a category. This is educational information, not financial advice.
+            </p>
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-[var(--warm-200)]">
                   <th className="pb-2 font-semibold text-[var(--text-muted)]">Ticker</th>
-                  <th className="pb-2 font-semibold text-[var(--text-muted)]">Alloc</th>
+                  <th className="pb-2 font-semibold text-[var(--text-muted)]">Name</th>
                   <th className="pb-2 font-semibold text-[var(--text-muted)]">MER</th>
                 </tr>
               </thead>
@@ -181,7 +184,7 @@ function SectionPanel({
                 {section.etfTable.map((etf) => (
                   <tr key={etf.ticker} className="border-b border-[var(--warm-200)]/50">
                     <td className="py-1.5 font-semibold text-[var(--emerald)]">{etf.ticker}</td>
-                    <td className="py-1.5 tabular-nums">{etf.allocation}</td>
+                    <td className="py-1.5 text-[var(--text-secondary)]">{etf.name}</td>
                     <td className="py-1.5 tabular-nums text-[var(--text-secondary)]">{etf.mer}</td>
                   </tr>
                 ))}

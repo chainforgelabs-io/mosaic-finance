@@ -16,6 +16,7 @@ import {
 import { calculateSLADeadline, getSLAPriority } from "@/lib/calculations/sla";
 import { recordReportHealthScore } from "@/lib/health-score/record";
 import { reconcileDebtPlan } from "@/lib/plan/reconcile-debt-plan";
+import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
 
 export type TriggerPlanGenerationResult =
   | { success: true; planId: string; status: string; resumed?: boolean }
@@ -279,6 +280,7 @@ async function runPlanGenerationBackground(
 
     // Payoff months and interest totals come from the calculator, not the model.
     planData = reconcileDebtPlan(planData, financialProfile.data?.major_debts);
+    planData = sanitizeInvestmentSection(planData);
 
     let pdfPath: string | null = null;
     try {

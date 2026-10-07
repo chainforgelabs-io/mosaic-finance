@@ -83,8 +83,8 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
   },
   "investment_portfolio_blueprint": {
     "recommended_allocation": { "canadian_equity": number, "us_equity": number, "international_equity": number, "fixed_income": number, "alternatives": number },
-    "core_etf_recommendations": [{ "ticker": string, "name": string, "mer": number, "allocation_percent": number, "rationale": string, "five_year_return_benchmark": string }],
-    "satellite_recommendations": [{ "ticker": string, "name": string, "mer": number, "allocation_percent": number, "rationale": string }],
+    "core_etf_recommendations": [{ "ticker": string, "name": string, "mer": number, "rationale": string }],
+    "satellite_recommendations": [],
     "rebalancing_schedule": string,
     "account_location_strategy": string,
     "current_portfolio_assessment": string,
@@ -144,11 +144,14 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 CRITICAL RULES:
 - Be concise: keep narrative strings to 2-3 sentences, action items to one sentence each, and avoid restating data the client already knows
 - Every number must be calculated from the client's actual data
-- ETF recommendations must be real Canadian-listed ETFs (XEQT, VEQT, ZAG, XBB, etc.)
-- MER values must be accurate to the best of your knowledge
+- recommended_allocation is an illustrative mix of asset classes whose percentages sum to 100, loosely matched to the user's risk score. Describe it as an example mix. Do not tell the user to buy, sell, hold, or rebalance into that mix
+- core_etf_recommendations holds at most 3 real Canadian-listed ETFs that illustrate those asset classes. Each object has only ticker, name, mer, and rationale. The rationale describes what the fund holds. Do not assign a portfolio weight, do not cite historical or expected returns, and do not say the user should buy, sell, or hold the fund. MER values must be accurate to the best of your knowledge
+- satellite_recommendations must be an empty array
+- account_location_strategy explains how RRSP, TFSA, FHSA, and non-registered accounts are taxed in the user's province, using the account types they already have as context. Do not rank accounts, name a contribution order, or say where a holding should sit
+- rebalancing_schedule explains what rebalancing means for an asset-class mix. Do not tell the user to trade
 - Tax analysis must be province-specific
 - Retirement projections must include CPP and OAS estimates
-- All considerations must be suitability-appropriate for the client's risk profile
+- Describe the user's current position and the tradeoffs of different approaches. Do not tell them what to buy or sell
 - Flag any areas of uncertainty with explicit disclaimers within that section
 - Any value you cannot calculate with confidence must be flagged with "[VERIFY WITH A PROFESSIONAL]" rather than fabricating a number
 - Write as an educational Progress Report: current position, trajectory, and options to learn about

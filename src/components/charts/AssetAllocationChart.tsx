@@ -29,10 +29,10 @@ export function AssetAllocationChart() {
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
       <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
-        Recommended Allocation
+        Illustrative mix
       </h3>
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-        Target portfolio asset mix based on your risk profile assessment
+        An example asset-class mix for a profile like yours.
       </p>
       <div className="flex items-center gap-6">
         <div className="w-[170px] h-[170px] shrink-0">

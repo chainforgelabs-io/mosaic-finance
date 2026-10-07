@@ -53,8 +53,10 @@ const ETFRecommendationSchema = z.object({
   ticker: z.string().min(1).max(10),
   name: z.string().min(1),
   mer: z.number().min(0).max(5),
-  allocation_percent: z.number().min(0).max(100),
   rationale: z.string().min(1),
+  /** Older reports stored a portfolio weight on each ticker. New reports omit it. */
+  allocation_percent: z.number().min(0).max(100).optional(),
+  /** Older reports stored a historical return. New reports omit it. */
   five_year_return_benchmark: z.string().optional(),
 });
 
@@ -66,7 +68,7 @@ const InvestmentPortfolioBlueprintSchema = z.object({
     fixed_income: z.number().min(0).max(100),
     alternatives: z.number().min(0).max(100),
   }),
-  core_etf_recommendations: z.array(ETFRecommendationSchema).min(1),
+  core_etf_recommendations: z.array(ETFRecommendationSchema),
   satellite_recommendations: z.array(ETFRecommendationSchema),
   rebalancing_schedule: z.string().min(1),
   account_location_strategy: z.string().min(1),

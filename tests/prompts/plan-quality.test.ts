@@ -150,7 +150,7 @@ describe('ETF Ticker Validation', () => {
 
   it('core ETF allocations sum to a reasonable percentage', () => {
     const total = VALID_PLAN_DATA.investment_portfolio_blueprint.core_etf_recommendations
-      .reduce((sum, etf) => sum + etf.allocation_percent, 0);
+      .reduce((sum, etf) => sum + (etf.allocation_percent ?? 0), 0);
     expect(total).toBeGreaterThanOrEqual(50);
     expect(total).toBeLessThanOrEqual(100);
   });

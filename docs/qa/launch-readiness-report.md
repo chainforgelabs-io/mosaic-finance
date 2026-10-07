@@ -4,16 +4,16 @@
 
 ## Verdict
 
-**Not ready for public onboarding and marketing yet.** The free tracking surface (cash flow, budgets, goals, net worth, gamification, calculators) is solid and the paid AI surfaces work end to end — Charlie streams a first token in ~1–2 s, the report PDF renders, checkout sessions open for every tier. But the sweep found four launch blockers, three of which are fixed in this PR, plus a set of trust-breaking calculation defects (also fixed) and a compliance exposure in the report's investment section that needs a human decision before launch.
+**Not ready for public onboarding and marketing yet.** The free tracking surface (cash flow, budgets, goals, net worth, gamification, calculators) is solid and the paid AI surfaces work end to end — Charlie streams a first token in ~1–2 s, the report PDF renders, checkout sessions open for every tier. But the sweep found four launch blockers, three of which are fixed in the launch-readiness PR, plus a set of trust-breaking calculation defects (also fixed). The investment-section compliance exposure (B4) is fixed in the follow-up: new reports no longer assign a weight or a return to a named fund, and the on-screen report and PDF no longer call the mix a recommendation.
 
 | | Before | After this PR |
 |---|---|---|
-| Blockers | 4 | 1 (needs product/compliance decision; see B4) |
+| Blockers | 4 | 0 (B4 fixed in the follow-up; see below) |
 | High | 9 | 4 |
 | Medium | 13 | 12 |
 | Low | 11 | 11 |
 
-Recommended path: merge this PR → decide B4 (investment-section copy) → apply migration 035 to production → fix the two Stripe High items → flip Stripe to live → launch.
+Recommended path: apply migration 035 to production → fix the two Stripe High items → flip Stripe to live → launch. B4 (investment-section copy) is fixed; review that copy before the next report regeneration.
 
 ---
 
@@ -32,9 +32,9 @@ Recommended path: merge this PR → decide B4 (investment-section copy) → appl
 - Six cron routes and the newsletter route compared `authorization === \`Bearer ${process.env.CRON_SECRET}\``. With the env var unset, `Authorization: Bearer undefined` is accepted and triggers nurture/education emails, picks scans, trial lifecycle, and newsletter sends.
 - **Fix:** shared `isCronRequest()` / `bearerMatches()` (`src/lib/cron-auth.ts`) — rejects when the secret is empty, constant-time compare. Export tokens use the same helper.
 
-### B4 · Progress Report investment section recommends specific securities — NOT FIXED (decision needed)
-- `plan-generation.ts` asks the model for `recommended_allocation`, `core_etf_recommendations[{ticker, five_year_return_benchmark}]`, `satellite_recommendations`, `account_location_strategy`, `rrsp_contribution_recommendation`; the schema requires ≥1 ETF pick. UI labels: "Recommended Allocation" (dashboard, net-worth page, chart), and the PDF/transform say **"Personalized asset allocation and ETF considerations"** — a phrase AGENTS.md bans outright. The user's report names XEQT/VEQT-class tickers with historical returns.
-- Changing this touches prompt content and report section structure (AGENTS.md rule 6), so it needs your call. Suggested direction: rename to "Illustrative mix for your risk profile", drop tickers and return benchmarks (or label named ETFs as "examples, not recommendations"), remove `five_year_return_benchmark`, and relabel "Recommended Allocation" everywhere.
+### B4 · Progress Report investment section recommends specific securities — FIXED
+- The prompt asked for `core_etf_recommendations` with a portfolio weight and `five_year_return_benchmark`, and the schema required at least one ticker. The UI and PDF said "Recommended Allocation" and "Personalized asset allocation and ETF considerations".
+- **Fix:** the prompt now asks for an illustrative asset-class mix and at most three example funds (ticker, name, MER, what the fund holds). No weight, no return figure, no satellite picks, and the account section explains how registered accounts are taxed. `sanitizeInvestmentSection` strips weights, return figures, and satellite picks before save and again when an already-stored report is shown or exported to PDF. Labels are "Illustrative mix" and "Example funds". A report already on file still contains the old prose until it is regenerated; the fund table no longer shows the weight or the return.
 
 ---
 
@@ -133,7 +133,7 @@ Created during testing and **left in place** (all reversible): one net-worth sna
 ## 8. Before launch checklist
 
 1. Merge this PR; verify on the Vercel preview (steps in the PR).
-2. Decide B4 and ship the copy/prompt change with compliance sign-off.
+2. Review the B4 copy and prompt change (listed in that commit) before the next report regeneration.
 3. Apply `035_protect_profile_entitlements.sql` to production; confirm Stripe webhook (service role) still updates tiers.
 4. Fix H4/H5 (atomic founding cap; no runtime price creation), then switch Stripe to live keys and re-run the checkout smoke with a test card in live-test mode.
 5. Fix H2/H3/H6 — they shape the first impression for every new free user.

@@ -992,7 +992,7 @@ export default function AssetsPage() {
           {planStatus === "generating" && !plan ? (
             <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
               <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
-                Recommended allocation
+                Illustrative mix
               </h3>
               <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
                 Filled in from your Progress Report
