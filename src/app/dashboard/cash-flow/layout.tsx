@@ -3,6 +3,8 @@ import { SectionTabs } from "@/components/app/SectionTabs";
 const TABS = [
   { label: "Track", href: "/dashboard/cash-flow", match: "exact" as const },
   { label: "Plan", href: "/dashboard/cash-flow/plan", match: "prefix" as const },
+  { label: "Ledger", href: "/dashboard/cash-flow/ledger", match: "prefix" as const },
+  { label: "Review", href: "/dashboard/cash-flow/review", match: "prefix" as const },
 ];
 
 export default function CashFlowLayout({ children }: { children: React.ReactNode }) {
