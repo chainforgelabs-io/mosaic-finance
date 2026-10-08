@@ -34,6 +34,7 @@ interface DebtItem {
   amount: number;
   rate?: number;
   monthly_payment?: number;
+  credit_limit?: number | null;
 }
 
 const STEPS = ["Investments", "Fixed assets", "Debts", "Save"] as const;
@@ -59,6 +60,7 @@ export function MonthlyCheckIn({
   const [holdVals, setHoldVals] = useState<Record<string, string>>({});
   const [assetVals, setAssetVals] = useState<Record<string, string>>({});
   const [debtVals, setDebtVals] = useState<Record<string, string>>({});
+  const [limitVals, setLimitVals] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +69,7 @@ export function MonthlyCheckIn({
     setHoldVals(Object.fromEntries(holdings.map((h) => [h.id, String(h.total_value)])));
     setAssetVals(Object.fromEntries(fixedAssets.map((a) => [a.id, String(a.estimated_value)])));
     setDebtVals(Object.fromEntries(debts.map((d, i) => [`${i}`, String(d.amount)])));
+    setLimitVals(Object.fromEntries(debts.map((d, i) => [`${i}`, d.credit_limit != null ? String(d.credit_limit) : ""])));
   }, [open, holdings, fixedAssets, debts]);
 
   if (!open) return null;
@@ -104,12 +107,17 @@ export function MonthlyCheckIn({
           });
         }),
       );
-      const nextDebts = debts.map((d, i) => ({
-        type: d.type,
-        balance: Number(debtVals[`${i}`]) || 0,
-        rate: d.rate,
-        monthly_payment: d.monthly_payment,
-      }));
+      const nextDebts = debts.map((d, i) => {
+        const limitRaw = (limitVals[`${i}`] ?? "").trim();
+        const limit = limitRaw === "" ? undefined : Number(limitRaw);
+        return {
+          type: d.type,
+          balance: Number(debtVals[`${i}`]) || 0,
+          rate: d.rate,
+          monthly_payment: d.monthly_payment,
+          ...(limit != null && Number.isFinite(limit) && limit >= 0 ? { credit_limit: limit } : {}),
+        };
+      });
       await fetch("/api/financial-profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -187,8 +195,15 @@ export function MonthlyCheckIn({
                 id: `${i}`,
                 label: d.type,
                 value: debtVals[`${i}`] ?? "",
+                secondary: {
+                  label: "Credit limit (optional)",
+                  value: limitVals[`${i}`] ?? "",
+                  placeholder: "Leave blank for loans",
+                },
               }))}
               onChange={(id, v) => setDebtVals((p) => ({ ...p, [id]: v }))}
+              onSecondaryChange={(id, v) => setLimitVals((p) => ({ ...p, [id]: v }))}
+              hint="Balances count against net worth. A credit limit lets the Tracking tab show available credit and liquidity."
             />
           )}
           {step === 3 && (
@@ -244,33 +259,63 @@ export function MonthlyCheckIn({
 function ValueList({
   items,
   empty,
+  hint,
   onChange,
+  onSecondaryChange,
 }: {
-  items: { id: string; label: string; value: string }[];
+  items: {
+    id: string;
+    label: string;
+    value: string;
+    secondary?: { label: string; value: string; placeholder?: string };
+  }[];
   empty: string;
+  hint?: string;
   onChange: (id: string, value: string) => void;
+  onSecondaryChange?: (id: string, value: string) => void;
 }) {
   if (items.length === 0) {
     return <p className="font-body text-sm text-[var(--text-muted)]">{empty}</p>;
   }
   return (
-    <ul className="space-y-3">
-      {items.map((item) => (
-        <li key={item.id}>
-          <label className="font-body text-xs font-medium text-[var(--text-secondary)]">
-            {item.label}
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={item.value}
-            onChange={(e) => onChange(item.id, e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm tabular-nums"
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-3">
+      {hint && <p className="font-body text-xs text-[var(--text-muted)]">{hint}</p>}
+      <ul className="space-y-3">
+        {items.map((item) => (
+          <li key={item.id} className={cn(item.secondary && "grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-2")}>
+            <div>
+              <label className="font-body text-xs font-medium text-[var(--text-secondary)]">
+                {item.label}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={item.value}
+                onChange={(e) => onChange(item.id, e.target.value)}
+                className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm tabular-nums"
+              />
+            </div>
+            {item.secondary && (
+              <div>
+                <label className="font-body text-xs font-medium text-[var(--text-muted)]">
+                  {item.secondary.label}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={item.secondary.value}
+                  placeholder={item.secondary.placeholder}
+                  onChange={(e) => onSecondaryChange?.(item.id, e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm tabular-nums"
+                />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

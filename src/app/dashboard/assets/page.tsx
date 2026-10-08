@@ -64,7 +64,7 @@ interface FinancialProfile {
   monthly_expenses: number | null;
   monthly_savings: number | null;
   emergency_fund_months: number | null;
-  major_debts: { type: string; amount: number; rate?: number; monthly_payment?: number }[] | null;
+  major_debts: { type: string; amount: number; rate?: number; monthly_payment?: number; credit_limit?: number | null }[] | null;
   financial_goals: { goal: string; target_amount?: number; target_year?: number }[] | null;
 }
 
@@ -692,12 +692,13 @@ export default function AssetsPage() {
         balance,
         ...(d.rate != null ? { rate: d.rate } : {}),
         ...(d.monthly_payment != null ? { monthly_payment: d.monthly_payment } : {}),
+        ...(d.credit_limit != null ? { credit_limit: d.credit_limit } : {}),
       }];
     });
   }
 
   async function saveDebtList(
-    rows: { type: string; balance: number; rate?: number; monthly_payment?: number }[],
+    rows: { type: string; balance: number; rate?: number; monthly_payment?: number; credit_limit?: number }[],
   ) {
     const res = await fetch("/api/financial-profile", {
       method: "PATCH",
@@ -1404,6 +1405,7 @@ export default function AssetsPage() {
           ),
           rate: d.rate,
           monthly_payment: d.monthly_payment,
+          credit_limit: d.credit_limit,
         }))}
         onClose={() => setCheckInOpen(false)}
         onSaved={async (nextUnlocks) => {
