@@ -3,13 +3,18 @@ import {
   advanceRecurringDate,
   amountFromDigits,
   balanceGap,
+  cashEffect,
+  countsTowardSpend,
   expectedBalance,
   formatAmountInput,
   gapBooking,
+  isSavings,
   leftToSpend,
   occurrencesInRange,
   predictCategories,
+  predictSavingsCategories,
   splitLines,
+  transactionKind,
 } from "@/lib/tracking/cash-capture";
 
 describe("cents keypad", () => {
@@ -99,6 +104,51 @@ describe("left to spend", () => {
     });
     expect(result.left).toBe(3900);
     expect(result.usesBudget).toBe(true);
+  });
+
+  it("treats money set aside as leaving the account without calling it spending or income", () => {
+    const result = leftToSpend({
+      periodStart: "2026-10-01",
+      periodEnd: "2026-10-31",
+      txns: [
+        { txn_date: "2026-10-02", amount: 3000, direction: "in", line_role: "income" },
+        { txn_date: "2026-10-03", amount: 500, direction: "out", line_role: "savings", category: "tfsa" },
+        { txn_date: "2026-10-06", amount: 100, direction: "out" },
+      ],
+      recurring: [],
+      monthlyRoom: null,
+      period: "month",
+    });
+    expect(result.income).toBe(3000);
+    expect(result.spent).toBe(100);
+    expect(result.savings).toBe(500);
+    expect(result.left).toBe(2400);
+  });
+});
+
+describe("savings role", () => {
+  it("never counts toward spending and still moves the bank balance", () => {
+    const saved = { txn_date: "2026-10-03", amount: 500, direction: "out", line_role: "savings" };
+    expect(countsTowardSpend(saved)).toBe(false);
+    expect(isSavings(saved)).toBe(true);
+    expect(transactionKind(saved)).toBe("savings");
+    expect(cashEffect(saved)).toBe(-500);
+  });
+
+  it("sorts logged lines into income, expense, savings, or neutral", () => {
+    expect(transactionKind({ direction: "in", line_role: "income" })).toBe("income");
+    expect(transactionKind({ direction: "out", line_role: "purchase" })).toBe("expense");
+    expect(transactionKind({ direction: "out", line_role: "card_payment" })).toBe("neutral");
+    expect(transactionKind({ direction: "out" })).toBe("expense");
+  });
+
+  it("suggests the savings accounts used most, then defaults", () => {
+    const history = [
+      { txn_date: "2026-09-01", amount: 200, direction: "out", line_role: "savings", category: "fhsa" },
+      { txn_date: "2026-09-15", amount: 200, direction: "out", line_role: "savings", category: "fhsa" },
+      { txn_date: "2026-09-20", amount: 50, direction: "out", category: "dining" },
+    ];
+    expect(predictSavingsCategories(history)).toEqual(["fhsa", "tfsa", "rrsp", "cash_savings"]);
   });
 });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Loader2, Upload } from "lucide-react";
 
 export function StatementStart({
@@ -34,6 +35,13 @@ export function StatementStart({
       >
         Enter a balance instead
       </button>
+      <p className="mt-3 border-t border-[var(--warm-100)] pt-3 text-center font-body text-xs text-[var(--text-muted)]">
+        Prefer to plan first?{" "}
+        <Link href="/dashboard/cash-flow/plan" className="font-semibold text-[var(--emerald-dark)] underline">
+          Build your budget plan
+        </Link>{" "}
+        from statements, history, or a template.
+      </p>
     </div>
   );
 }

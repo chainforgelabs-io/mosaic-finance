@@ -15,7 +15,19 @@ export type StatementLineRole =
   | "card_payment"
   | "transfer"
   | "fee"
-  | "interest";
+  | "interest"
+  | "savings";
+
+/** What the keypad is logging: money out, money in, or money set aside. */
+export type CaptureMode = "out" | "in" | "save";
+
+export interface BudgetPlanEntry {
+  kind: "income" | "expense" | "savings";
+  category: string;
+  /** First day of the month, YYYY-MM-01. */
+  month: string;
+  amount: number;
+}
 
 export interface TransactionRow {
   id: string;
@@ -67,6 +79,8 @@ export interface CaptureInput {
   amount: number;
   category: string;
   direction: CashDirection;
+  /** Set to "savings" when money is being set aside rather than spent. */
+  lineRole?: StatementLineRole;
   categoryConfirmed: boolean;
   txnDate: string;
   note?: string;

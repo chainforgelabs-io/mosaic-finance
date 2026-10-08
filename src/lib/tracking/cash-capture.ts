@@ -42,6 +42,27 @@ export function countsTowardSpend(txn: {
   return SPEND_ROLES.has(role);
 }
 
+/** Money set aside. Leaves the bank like a purchase but is never spending. */
+export function isSavings(txn: { line_role?: string | null }): boolean {
+  return txn.line_role === "savings";
+}
+
+export type TransactionKind = "income" | "expense" | "savings" | "neutral";
+
+/** Which plan section a logged line belongs to. Card payments and transfers are neutral. */
+export function transactionKind(txn: {
+  direction?: string | null;
+  line_role?: string | null;
+  description?: string | null;
+}): TransactionKind {
+  if (isSavings(txn)) return "savings";
+  const role = resolvedLineRole(txn);
+  if (role === "card_payment" || role === "transfer") return "neutral";
+  if (role === "income") return "income";
+  if (SPEND_ROLES.has(role)) return "expense";
+  return isOutflow(txn.direction) ? "expense" : "income";
+}
+
 /** How a line moves the bank balance. Card purchases do not. Card payments do. */
 export function cashEffect(txn: CashTxn): number {
   const amount = Number(txn.amount);
@@ -217,6 +238,27 @@ export function predictCategories(
   return merged.slice(0, limit);
 }
 
+const SAVINGS_DEFAULTS = ["tfsa", "rrsp", "cash_savings", "emergency_fund"];
+
+/** Savings chips: the accounts used most, then common defaults. */
+export function predictSavingsCategories(
+  history: Array<CashTxn & { category: string }>,
+  limit = 4,
+): string[] {
+  const counts = new Map<string, number>();
+  for (const txn of history) {
+    if (!isSavings(txn) || !txn.category) continue;
+    counts.set(txn.category, (counts.get(txn.category) ?? 0) + 1);
+  }
+  const ranked = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([category]) => category);
+  for (const category of SAVINGS_DEFAULTS) {
+    if (!ranked.includes(category)) ranked.push(category);
+  }
+  return ranked.slice(0, limit);
+}
+
 export function periodRoom(monthlyRoom: number, period: "week" | "month"): number {
   if (period === "month") return roundMoney(monthlyRoom);
   return roundMoney((monthlyRoom * 12) / 52);
@@ -237,6 +279,8 @@ export interface LeftToSpend {
   spent: number;
   commitments: number;
   income: number;
+  /** Money set aside this period. Reduces what is left without counting as spending. */
+  savings: number;
   usesBudget: boolean;
   usesStatement: boolean;
 }
@@ -245,18 +289,24 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
   if (input.statementBaseline) {
     const room = input.statementBaseline.incomeMonthly - input.statementBaseline.needsMonthly;
     let logged = 0;
+    let savings = 0;
     for (const txn of input.txns) {
       if (txn.txn_date < input.periodStart || txn.txn_date > input.periodEnd) continue;
       if (txn.source === "screenshot") continue;
+      if (isSavings(txn)) {
+        savings += Number(txn.amount) || 0;
+        continue;
+      }
       if (!countsTowardSpend(txn)) continue;
       if (isNeedCategory(txn.category)) continue;
       logged += Number(txn.amount) || 0;
     }
     return {
-      left: roundMoney(periodRoom(room, input.period) - logged),
+      left: roundMoney(periodRoom(room, input.period) - logged - savings),
       spent: roundMoney(logged),
       commitments: periodRoom(input.statementBaseline.needsMonthly, input.period),
       income: periodRoom(input.statementBaseline.incomeMonthly, input.period),
+      savings: roundMoney(savings),
       usesBudget: false,
       usesStatement: true,
     };
@@ -264,10 +314,15 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
 
   let incomePosted = 0;
   let spent = 0;
+  let savings = 0;
   for (const txn of input.txns) {
     if (txn.txn_date < input.periodStart || txn.txn_date > input.periodEnd) continue;
     const amount = Number(txn.amount) || 0;
     if (txn.line_role === "card_payment" || txn.line_role === "transfer") continue;
+    if (isSavings(txn)) {
+      savings += amount;
+      continue;
+    }
     if (countsTowardSpend(txn)) spent += amount;
     else incomePosted += amount;
   }
@@ -285,13 +340,15 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
   const income = roundMoney(incomePosted + incomeDue);
   spent = roundMoney(spent);
   commitments = roundMoney(commitments);
+  savings = roundMoney(savings);
 
   if (income > 0) {
     return {
-      left: roundMoney(income - commitments - spent),
+      left: roundMoney(income - commitments - spent - savings),
       spent,
       commitments,
       income,
+      savings,
       usesBudget: false,
       usesStatement: false,
     };
@@ -299,16 +356,17 @@ export function leftToSpend(input: LeftToSpendInput): LeftToSpend {
 
   if (input.monthlyRoom != null && input.monthlyRoom > 0) {
     return {
-      left: roundMoney(periodRoom(input.monthlyRoom, input.period) - commitments - spent),
+      left: roundMoney(periodRoom(input.monthlyRoom, input.period) - commitments - spent - savings),
       spent,
       commitments,
       income,
+      savings,
       usesBudget: true,
       usesStatement: false,
     };
   }
 
-  return { left: null, spent, commitments, income, usesBudget: false, usesStatement: false };
+  return { left: null, spent, commitments, income, savings, usesBudget: false, usesStatement: false };
 }
 
 export function splitLines(

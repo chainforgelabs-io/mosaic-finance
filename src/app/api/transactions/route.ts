@@ -14,7 +14,7 @@ const txnSchema = z.object({
   document_id: z.string().uuid().optional().nullable(),
   category_confirmed: z.boolean().optional(),
   direction: z.enum(["in", "out"]).optional(),
-  line_role: z.enum(["purchase", "income", "card_payment", "transfer", "fee", "interest"]).optional(),
+  line_role: z.enum(["purchase", "income", "card_payment", "transfer", "fee", "interest", "savings"]).optional(),
   instrument: z.enum(["credit", "debit"]).optional().nullable(),
   recurring_item_id: z.string().uuid().optional().nullable(),
 });

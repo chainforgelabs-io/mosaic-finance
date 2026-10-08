@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
   Flame,
   Loader2,
   Pencil,
+  PiggyBank,
   Trash2,
   Upload,
   X,
@@ -46,10 +48,12 @@ import {
   advanceRecurringDate,
   daysBetween,
   countsTowardSpend,
+  isSavings,
   latestDate,
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
+import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
 import {
@@ -62,6 +66,7 @@ import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import { usePlanStore } from "@/stores/plan-store";
 import type {
+  BudgetPlanEntry,
   CaptureInput,
   CashAnchor,
   CashDirection,
@@ -276,6 +281,8 @@ export default function CashFlowPage() {
   const [view, setView] = useState<"week" | "month">("month");
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const [budgets, setBudgets] = useState<Record<string, number>>({});
+  const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
+  const [hasAnyPlan, setHasAnyPlan] = useState<boolean | null>(null);
   const [showBudgets, setShowBudgets] = useState(false);
   const [monthTxns, setMonthTxns] = useState<TransactionRow[]>([]);
   const [customCategories, setCustomCategories] = useState<string[]>(() => loadCustomCategories());
@@ -283,16 +290,18 @@ export default function CashFlowPage() {
 
   const range = weekRange(weekStart);
   const thisWeek = startOfWeekMonday(todayIso());
-  const budgetWeekly =
-    Object.values(budgets).length > 0
-      ? Object.values(budgets).reduce((s, n) => s + n, 0) * 12 / 52
-      : null;
+  const planIndex = useMemo(() => indexPlan(planEntries), [planEntries]);
+  const plannedExpenses = useMemo(() => planTotals(planEntries, monthStart).expense, [planEntries, monthStart]);
+  const monthlyBudgetTotal =
+    plannedExpenses > 0
+      ? plannedExpenses
+      : Object.values(budgets).length > 0
+        ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
+        : null;
+  const budgetWeekly = monthlyBudgetTotal != null ? (monthlyBudgetTotal * 12) / 52 : null;
   const weeklyBaseline =
     budgetWeekly ?? (monthlyExpenses != null ? (monthlyExpenses * 12) / 52 : null);
-  const monthlyBaseline =
-    Object.values(budgets).length > 0
-      ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
-      : monthlyExpenses;
+  const monthlyBaseline = monthlyBudgetTotal ?? monthlyExpenses;
 
   const loadWeek = useCallback(async (start: string) => {
     const { end } = weekRange(start);
@@ -314,9 +323,10 @@ export default function CashFlowPage() {
       setHistory(json.transactions ?? []);
     }
     const monthEnd = endOfMonth(month);
-    const [budgetRes, monthRes] = await Promise.all([
+    const [budgetRes, monthRes, planRes] = await Promise.all([
       fetch("/api/budgets", { credentials: "include" }),
       fetch(`/api/transactions?start=${month}&end=${monthEnd}`, { credentials: "include" }),
+      fetch(`/api/budget-plan?year=${month.slice(0, 4)}`, { credentials: "include" }),
     ]);
     if (budgetRes.ok) {
       const json = await budgetRes.json();
@@ -325,6 +335,11 @@ export default function CashFlowPage() {
         map[b.category] = Number(b.monthly_limit);
       }
       setBudgets(map);
+    }
+    if (planRes.ok) {
+      const json = await planRes.json();
+      setPlanEntries((json.entries ?? []) as BudgetPlanEntry[]);
+      setHasAnyPlan(Boolean(json.hasAnyPlan));
     }
     if (monthRes.ok) {
       const json = await monthRes.json();
@@ -388,7 +403,8 @@ export default function CashFlowPage() {
 
   const visibleTxns = view === "month" ? monthTxns : transactions;
   const spendTxns = visibleTxns.filter((txn) => countsTowardSpend(txn));
-  const incomeTxns = visibleTxns.filter((txn) => resolvedLineRole(txn) === "income");
+  const incomeTxns = visibleTxns.filter((txn) => !isSavings(txn) && resolvedLineRole(txn) === "income");
+  const savingsTxns = visibleTxns.filter((txn) => isSavings(txn));
   const listedSpend = showStatementLines ? spendTxns : spendTxns.filter((txn) => txn.source !== "screenshot");
   const listedIncome = showStatementLines ? incomeTxns : incomeTxns.filter((txn) => txn.source !== "screenshot");
   const hiddenStatementLines = spendTxns.length + incomeTxns.length - listedSpend.length - listedIncome.length;
@@ -489,6 +505,7 @@ export default function CashFlowPage() {
           amount: line.amount,
           category: line.category,
           direction: input.direction,
+          line_role: input.lineRole,
           description: input.description ?? null,
           note: input.note ?? null,
           source: input.source ?? "manual",
@@ -940,11 +957,12 @@ export default function CashFlowPage() {
       ...new Set([
         ...SPENDING_CATEGORIES,
         ...customCategories,
-        ...monthTxns.map((t) => t.category),
+        ...monthTxns.filter((t) => !isSavings(t)).map((t) => t.category),
         ...Object.keys(budgets),
+        ...planEntries.filter((entry) => entry.kind === "expense").map((entry) => entry.category),
       ]),
     ],
-    [customCategories, monthTxns, budgets],
+    [customCategories, monthTxns, budgets, planEntries],
   );
 
   const propertyCost = visibleTxns.some((t) =>
@@ -956,10 +974,7 @@ export default function CashFlowPage() {
   const today = todayIso();
   const periodStart = view === "month" ? monthStart : range.start;
   const periodEnd = view === "month" ? endOfMonth(monthStart) : range.end;
-  const monthlyRoom =
-    Object.keys(budgets).length > 0
-      ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
-      : monthlyExpenses;
+  const monthlyRoom = monthlyBudgetTotal ?? monthlyExpenses;
   const room = leftToSpend({
     periodStart,
     periodEnd,
@@ -1046,6 +1061,11 @@ export default function CashFlowPage() {
                 ? "From your spending room, after bills still due."
                 : "After income and bills still due."}
         </p>
+        {room.savings > 0 && (
+          <p className="mt-1 font-body text-xs text-white/60">
+            {formatMoneyExact(room.savings)} set aside this period also came out of what is left.
+          </p>
+        )}
         {picture && (
           <p className="mt-1 font-body text-xs text-white/50">
             A typical month had {formatMoneyExact(picture.left_monthly)} left after flexible spending
@@ -1086,6 +1106,23 @@ export default function CashFlowPage() {
           </p>
         )}
       </div>
+      )}
+
+      {cashLoaded && hasAnyPlan === false && (
+        <div className="flex flex-col gap-3 rounded-xl border border-[var(--warm-200)] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">Set up your budget plan</h2>
+            <p className="mt-1 font-body text-xs text-[var(--text-secondary)]">
+              Put a number on each month for money in, expenses, and savings. Tracking then shows where you landed.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/cash-flow/plan"
+            className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[var(--slate-950)] px-4 py-2 font-display text-sm font-semibold text-white"
+          >
+            Build the plan
+          </Link>
+        </div>
       )}
 
       <CashKeypad
@@ -1188,19 +1225,29 @@ export default function CashFlowPage() {
         <div className="space-y-3 rounded-xl border border-[var(--warm-200)] bg-white p-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-sm font-semibold">Category budgets</h2>
-            <button
-              type="button"
-              onClick={() => setShowBudgets(true)}
-              className="font-display text-xs font-semibold text-[var(--emerald)]"
-            >
-              Set budgets
-            </button>
+            <div className="flex items-center gap-3">
+              {plannedExpenses > 0 && (
+                <Link
+                  href="/dashboard/cash-flow/plan"
+                  className="font-display text-xs font-semibold text-[var(--text-secondary)] underline"
+                >
+                  From your plan
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowBudgets(true)}
+                className="font-display text-xs font-semibold text-[var(--emerald)]"
+              >
+                Set budgets
+              </button>
+            </div>
           </div>
           {budgetCategories.map((cat) => {
             const spent = monthTxns
               .filter((t) => t.category === cat && countsTowardSpend(t))
               .reduce((s, t) => s + Number(t.amount), 0);
-            const limit = budgets[cat];
+            const limit = effectiveBudget(planIndex, budgets, cat, monthStart);
             if (limit == null && spent === 0) return null;
             const pct = limit ? Math.min(100, (spent / limit) * 100) : 0;
             return (
@@ -1259,7 +1306,7 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : byCategory.length === 0 && listedIncome.length === 0 ? (
+      ) : byCategory.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">
             {picture ? "Nothing new this period" : "Nothing logged yet"}
@@ -1376,6 +1423,51 @@ export default function CashFlowPage() {
                       onClick={() => handleDelete(t.id)}
                       className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                       aria-label="Delete income"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {savingsTxns.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2 font-display text-sm font-semibold text-[var(--text-primary)]">
+                  <PiggyBank className="size-4 text-sky-700" />
+                  Set aside
+                </div>
+                <span className="font-display text-sm font-bold tabular-nums">
+                  {formatMoneyExact(savingsTxns.reduce((sum, t) => sum + Number(t.amount), 0))}
+                </span>
+              </div>
+              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
+                {savingsTxns.map((t) => (
+                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                        {categoryLabel(t.category)}
+                        {t.description || t.note ? ` · ${t.description || t.note}` : ""}
+                      </p>
+                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                    </div>
+                    <span className="font-body text-sm font-semibold tabular-nums">
+                      {formatMoneyExact(Number(t.amount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                      aria-label="Edit savings"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete savings"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
