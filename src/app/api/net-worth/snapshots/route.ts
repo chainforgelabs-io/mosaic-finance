@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
+import { enrichBreakdown } from "@/lib/net-worth/tracking";
 import { monthKey, todayIso } from "@/lib/tracking/dates";
 import type { SnapshotBreakdown } from "@/types/tracking";
 
@@ -58,6 +59,7 @@ export async function POST() {
     type?: string;
     amount?: number;
     balance?: number;
+    credit_limit?: number | null;
   }[];
 
   const investments = holdings.map((h) => ({
@@ -74,13 +76,16 @@ export async function POST() {
   const debts = debtsRaw.map((d) => ({
     type: String(d.type ?? "Debt"),
     value: num(d.amount ?? d.balance),
+    ...(d.credit_limit != null && Number.isFinite(Number(d.credit_limit))
+      ? { credit_limit: num(d.credit_limit) }
+      : {}),
   }));
 
   const investments_total = investments.reduce((s, i) => s + i.value, 0);
   const fixed_assets_total = fixed_assets.reduce((s, i) => s + i.value, 0);
   const debts_total = debts.reduce((s, i) => s + i.value, 0);
   const net_worth = investments_total + fixed_assets_total - debts_total;
-  const breakdown: SnapshotBreakdown = { investments, fixed_assets, debts };
+  const breakdown: SnapshotBreakdown = enrichBreakdown({ investments, fixed_assets, debts });
 
   const snapshot_date = todayIso();
   const thisMonth = monthKey(snapshot_date);

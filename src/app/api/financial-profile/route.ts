@@ -25,6 +25,7 @@ function sanitizeFactFindBody(raw: unknown): unknown {
         balance,
         rate: optionalNumber(debt.rate),
         monthly_payment: optionalNumber(debt.monthly_payment),
+        credit_limit: optionalNumber(debt.credit_limit),
       }];
     });
   }
@@ -64,6 +65,7 @@ const DebtSchema = z.object({
   balance: z.number(),
   rate: z.number().optional(),
   monthly_payment: z.number().optional(),
+  credit_limit: z.number().nonnegative().optional(),
 });
 
 const GoalSchema = z.object({
@@ -111,6 +113,7 @@ export async function POST(req: NextRequest) {
           balance: row.balance,
           rate: row.rate ?? null,
           monthly_payment: row.monthly_payment ?? null,
+          credit_limit: row.credit_limit ?? null,
         }))
       : null;
 
@@ -215,6 +218,7 @@ export async function PATCH(req: NextRequest) {
       balance: row.balance,
       rate: row.rate ?? null,
       monthly_payment: row.monthly_payment ?? null,
+      credit_limit: row.credit_limit ?? null,
     }));
   }
 

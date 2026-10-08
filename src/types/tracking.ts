@@ -107,12 +107,20 @@ export interface SnapshotBreakdownItem {
   category?: string;
   type?: string;
   value: number;
+  /** Liabilities only: credit limit, so available credit can be derived. */
+  credit_limit?: number | null;
 }
 
 export interface SnapshotBreakdown {
   investments: SnapshotBreakdownItem[];
   fixed_assets: SnapshotBreakdownItem[];
   debts: SnapshotBreakdownItem[];
+  /** Derived totals, written from the snapshot route onward. Older rows lack them. */
+  short_term_total?: number;
+  long_term_total?: number;
+  available_credit?: number;
+  cash_total?: number;
+  liquidity?: number;
 }
 
 export interface NetWorthSnapshotRow {
