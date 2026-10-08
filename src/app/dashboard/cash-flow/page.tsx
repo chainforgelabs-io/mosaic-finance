@@ -46,11 +46,11 @@ import {
   advanceRecurringDate,
   daysBetween,
   countsTowardSpend,
-  isOutflow,
   latestDate,
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
+import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
 import {
   matchUploadDuplicates,
@@ -388,7 +388,7 @@ export default function CashFlowPage() {
 
   const visibleTxns = view === "month" ? monthTxns : transactions;
   const spendTxns = visibleTxns.filter((txn) => countsTowardSpend(txn));
-  const incomeTxns = visibleTxns.filter((txn) => txn.line_role === "income" || (!txn.line_role && !isOutflow(txn.direction)));
+  const incomeTxns = visibleTxns.filter((txn) => resolvedLineRole(txn) === "income");
   const listedSpend = showStatementLines ? spendTxns : spendTxns.filter((txn) => txn.source !== "screenshot");
   const listedIncome = showStatementLines ? incomeTxns : incomeTxns.filter((txn) => txn.source !== "screenshot");
   const hiddenStatementLines = spendTxns.length + incomeTxns.length - listedSpend.length - listedIncome.length;
@@ -533,33 +533,56 @@ export default function CashFlowPage() {
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const list = Array.from(files);
     setUploadJob({ status: "parsing", rows: null, notice: null, error: null });
-    const fd = new FormData();
-    Array.from(files).forEach((f) => fd.append("files", f));
     try {
-      const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
-      const json = await res.json();
-      if (!res.ok) {
+      // One request per file. A combined upload was dropping a whole statement
+      // when a later file failed, and the modal still looked complete.
+      const parsedRows: Array<
+        ParsedSpendingItem & {
+          key: string;
+          included: boolean;
+          categoryConfirmed: boolean;
+          documentId: string | null;
+        }
+      > = [];
+      const failures: string[] = [];
+      const notes: string[] = [];
+      let stored = true;
+      for (const file of list) {
+        const fd = new FormData();
+        fd.append("files", file);
+        const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          failures.push(file.name);
+          continue;
+        }
+        if (json.stored === false) stored = false;
+        if (typeof json.notes === "string" && json.notes.trim()) notes.push(json.notes.trim());
+        const documentId =
+          Array.isArray(json.documentIds) && json.documentIds.length === 1
+            ? String(json.documentIds[0])
+            : null;
+        for (const t of (json.transactions ?? []) as ParsedSpendingItem[]) {
+          parsedRows.push({
+            ...t,
+            key: `${parsedRows.length}-${t.description}`,
+            included: true,
+            categoryConfirmed: false,
+            documentId,
+          });
+        }
+      }
+      if (parsedRows.length === 0) {
         setUploadJob({
           status: "error",
           rows: null,
           notice: null,
-          error: json.error ?? "Could not read that file.",
+          error: failures.length > 0 ? `Could not read ${failures.join(", ")}.` : "Could not read that file.",
         });
         return;
       }
-      const documentId =
-        Array.isArray(json.documentIds) && json.documentIds.length === 1
-          ? String(json.documentIds[0])
-          : null;
-      const parsedRows = (json.transactions as ParsedSpendingItem[]).map((t, i) => ({
-        ...t,
-        txn_date: t.txn_date,
-        key: `${i}-${t.description}`,
-        included: true,
-        categoryConfirmed: false,
-        documentId,
-      }));
       const dates = parsedRows
         .map((row) => row.txn_date)
         .filter((date): date is string => Boolean(date))
@@ -573,9 +596,7 @@ export default function CashFlowPage() {
         );
         if (existingRes.ok) {
           const existingJson = await existingRes.json();
-          existing = ((existingJson.transactions ?? []) as TransactionRow[])
-            .filter((txn) => isOutflow(txn.direction))
-            .map((txn) => ({
+          existing = ((existingJson.transactions ?? []) as TransactionRow[]).map((txn) => ({
               id: txn.id,
               txn_date: txn.txn_date,
               amount: Number(txn.amount),
@@ -590,7 +611,9 @@ export default function CashFlowPage() {
       const rows = matchUploadDuplicates(parsedRows, existing);
       const duplicateCount = rows.filter((row) => row.duplicateOf).length;
       const notice = [
-        json.stored === false
+        failures.length > 0 ? `Could not read ${failures.join(", ")}. The other files are listed below.` : "",
+        notes.length > 0 ? notes.join(" ") : "",
+        stored === false
           ? "The file itself was not stored, but the lines below are ready to review."
           : "",
         duplicateCheckFailed

@@ -1,4 +1,5 @@
 import { addDays } from "@/lib/tracking/dates";
+import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 
 export type CashDirection = "in" | "out";
 export type RecurringCadence = "weekly" | "biweekly" | "monthly";
@@ -8,6 +9,7 @@ export interface CashTxn {
   amount: number;
   direction?: string | null;
   line_role?: string | null;
+  description?: string | null;
   instrument?: string | null;
   category?: string | null;
   source?: string | null;
@@ -34,8 +36,9 @@ export function isNeedCategory(category: string | null | undefined): boolean {
 export function countsTowardSpend(txn: {
   direction?: string | null;
   line_role?: string | null;
+  description?: string | null;
 }): boolean {
-  const role = txn.line_role ?? (isOutflow(txn.direction) ? "purchase" : "income");
+  const role = resolvedLineRole(txn);
   return SPEND_ROLES.has(role);
 }
 
@@ -43,10 +46,12 @@ export function countsTowardSpend(txn: {
 export function cashEffect(txn: CashTxn): number {
   const amount = Number(txn.amount);
   if (!Number.isFinite(amount)) return 0;
-  const role = txn.line_role ?? null;
+  const role = resolvedLineRole(txn);
   if (role === "transfer") return 0;
   if (role === "card_payment") return -Math.abs(amount);
-  if (txn.instrument === "credit" && role !== "income") return 0;
+  // Card purchases and card credits change the card balance, not the bank.
+  if (txn.instrument === "credit") return 0;
+  if (role === "income") return Math.abs(amount);
   return isOutflow(txn.direction) ? -Math.abs(amount) : Math.abs(amount);
 }
 

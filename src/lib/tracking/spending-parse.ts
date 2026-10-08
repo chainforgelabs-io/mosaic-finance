@@ -136,9 +136,24 @@ const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "in
 const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep|direct deposit)\b/i;
 const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst)\b|\bei\b/i;
 const REFUND_REVERSAL = /\b(refund reversal|reversal of (a )?refund)\b/i;
-const REFUND_HINT = /\b(refund|refunded|merchant credit|purchase return|returned item)\b/i;
+const REFUND_HINT =
+  /\b(refund|refunded|merchant credit|purchase return|returned item|rebate|cash\s?back|price adjustment|tax refund|government deposit|govt deposit)\b|\breturn\b/i;
+const CREDIT_SUFFIX = /\b(?:CR|CREDIT)\s*$/i;
 const DEPOSIT_HINT = /\b(direct deposit|deposit from|deposit)\b/i;
 const SECURITY_DEPOSIT = /\bsecurity deposit\b/i;
+const SUMMARY_LINE =
+  /\b(opening balance|closing balance|previous balance|new balance|statement balance|credit limit|minimum payment|payment due|total purchases|total payments|total credits|total fees|total debits)\b|^(balance|total)$/i;
+
+/** A statement credit lowers spending. Card payments and transfers are left alone. */
+export function isStatementCredit(description: string): boolean {
+  if (REFUND_REVERSAL.test(description)) return false;
+  if (/\bcredit card\b/i.test(description)) return false;
+  return REFUND_HINT.test(description) || CREDIT_SUFFIX.test(description);
+}
+
+export function isSummaryLine(description: string): boolean {
+  return SUMMARY_LINE.test(description.trim());
+}
 
 function slugFromLabel(raw: unknown): string | null {
   const slug = String(raw ?? "")
@@ -153,16 +168,32 @@ function slugFromLabel(raw: unknown): string | null {
 
 function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
   if (REFUND_REVERSAL.test(description)) return "purchase";
+  if (role === "card_payment") return role;
   if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
   if (
-    REFUND_HINT.test(description) ||
+    isStatementCredit(description) ||
     PAY_HINT.test(description) ||
     BENEFIT_HINT.test(description) ||
-    (DEPOSIT_HINT.test(description) && role !== "card_payment")
+    DEPOSIT_HINT.test(description)
   ) {
     return "income";
   }
   return role;
+}
+
+/** Role used for totals. Re-reads the description so a credit saved earlier as a purchase is not spending. */
+export function resolvedLineRole(txn: {
+  description?: string | null;
+  line_role?: string | null;
+  direction?: string | null;
+}): (typeof LINE_ROLES)[number] {
+  const raw = txn.line_role ?? "";
+  const role = (LINE_ROLES as readonly string[]).includes(raw)
+    ? (raw as (typeof LINE_ROLES)[number])
+    : txn.direction === "in"
+      ? "income"
+      : "purchase";
+  return refineRole(txn.description ?? "", role);
 }
 
 function categoryForRole(
@@ -198,6 +229,7 @@ export function normalizeStatementItems(
       ? (roleRaw as (typeof LINE_ROLES)[number])
       : "purchase";
     const description = String(row.description ?? "").slice(0, 300);
+    if (isSummaryLine(description)) continue;
     const line_role = refineRole(description, parsedRole);
     const instrumentRaw = row.instrument ?? fallbackInstrument;
     const instrument = instrumentRaw === "credit" ? "credit" : "debit";
@@ -271,10 +303,17 @@ export function matchUploadDuplicates<
   return incoming.map((item) => {
     if (!item.txn_date) return { ...item, duplicateOf: null, duplicateAction: "add" as const };
     const itemCents = cents(item.amount);
+    const candidates = existing.filter(
+      (row) => !used.has(row.id) && row.txn_date === item.txn_date && cents(row.amount) === itemCents,
+    );
+    // One logged line at this date and amount is the same statement line, even when a
+    // re-read phrases the merchant differently. Two lines at the same amount stay distinct.
+    if (candidates.length === 1) {
+      used.add(candidates[0].id);
+      return { ...item, duplicateOf: candidates[0], duplicateAction: "skip" as const };
+    }
     let best: { row: ExistingSpend; score: number } | null = null;
-    for (const row of existing) {
-      if (used.has(row.id) || row.txn_date !== item.txn_date) continue;
-      if (cents(row.amount) !== itemCents) continue;
+    for (const row of candidates) {
       const score =
         (row.category === item.suggested_category ? 2 : 0) +
         descriptionScore(item.description, row.description);

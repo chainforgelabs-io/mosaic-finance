@@ -1,13 +1,16 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { pdfPageChunks } from "@/lib/tracking/pdf-chunks";
+import { countsTowardSpend } from "@/lib/tracking/cash-capture";
 import {
   claudeText,
   dedupeSpendingItems,
+  isSummaryLine,
   normalizeStatementItems,
   matchUploadDuplicates,
   mergeUploadPatch,
   parseSpendingPayload,
+  resolvedLineRole,
   type ExistingSpend,
 } from "@/lib/tracking/spending-parse";
 
@@ -67,6 +70,62 @@ describe("normalizeStatementItems", () => {
       "credit",
     );
     expect(rows.map((row) => row.line_role)).toEqual(["income", "income", "purchase"]);
+  });
+
+  it("treats a trailing credit mark and a return as money in, and drops a balance line", () => {
+    const rows = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-07-04",
+          amount: 28.5,
+          description: "AMAZON MARKETPLACE CR",
+          line_role: "purchase",
+          suggested_category: "shopping",
+        },
+        {
+          txn_date: "2026-07-05",
+          amount: 40,
+          description: "STORE RETURN",
+          line_role: "purchase",
+          suggested_category: "shopping",
+        },
+        {
+          txn_date: "2026-07-06",
+          amount: 1200,
+          description: "Previous balance",
+          line_role: "purchase",
+          suggested_category: "other",
+        },
+        {
+          txn_date: "2026-07-07",
+          amount: 75,
+          description: "PAYMENT THANK YOU",
+          line_role: "card_payment",
+          suggested_category: "debt_payments",
+        },
+      ],
+      "credit",
+    );
+    expect(rows.map((row) => [row.description, row.line_role])).toEqual([
+      ["AMAZON MARKETPLACE CR", "income"],
+      ["STORE RETURN", "income"],
+      ["PAYMENT THANK YOU", "card_payment"],
+    ]);
+    expect(isSummaryLine("Previous balance")).toBe(true);
+    expect(
+      countsTowardSpend({
+        direction: "out",
+        line_role: "purchase",
+        description: "AMAZON MARKETPLACE CR",
+      }),
+    ).toBe(false);
+    expect(
+      resolvedLineRole({
+        direction: "out",
+        line_role: "purchase",
+        description: "STORE RETURN",
+      }),
+    ).toBe("income");
   });
 });
 
@@ -162,6 +221,22 @@ describe("upload duplicates", () => {
       existing,
     );
     expect(row?.duplicateOf).toBeNull();
+  });
+
+  it("matches a re-read when it is the only line at that date and amount", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Online order",
+          suggested_category: "shopping",
+        },
+      ],
+      [existing[0]],
+    );
+    expect(row?.duplicateOf?.id).toBe("a");
+    expect(row?.duplicateAction).toBe("skip");
   });
 
   it("leaves a different amount alone", () => {

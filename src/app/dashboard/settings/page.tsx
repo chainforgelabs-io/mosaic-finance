@@ -473,7 +473,12 @@ function SubscriptionTabInner() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tierFeatures.map(({ tier, price, compare, features }) => {
-          const isCurrent = tier === currentTier;
+          const trialProgress = trialOn && currentTier === "pulse";
+          const shownTier = trialProgress ? "progress" : currentTier;
+          const isCurrent = tier === shownTier;
+          // A reverse trial is Progress, but the user still needs the Upgrade
+          // button on that card to start a paid Founding checkout.
+          const subscribeDuringTrial = trialProgress && tier === "progress";
           return (
             <div
               key={tier}
@@ -483,18 +488,18 @@ function SubscriptionTabInner() {
                   : "border-[var(--warm-200)] bg-white"
               }`}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3 flex flex-col items-start gap-2">
                 <TierBadge
                   tier={tier}
-                  label={founding && tier === "progress" ? "Founding Progress" : undefined}
+                  label={(founding || foundingOpen) && tier === "progress" ? "Founding Progress" : undefined}
                 />
-                <span className="text-right">
+                <span className="flex flex-wrap items-baseline gap-x-2">
                   {compare && (
-                    <span className="mr-2 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] line-through">
+                    <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] line-through">
                       {compare}
                     </span>
                   )}
-                  <span className="font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)]">
+                  <span className="whitespace-nowrap font-[family-name:var(--font-display)] font-semibold text-lg text-[var(--text-primary)]">
                     {price}
                   </span>
                 </span>
@@ -515,22 +520,29 @@ function SubscriptionTabInner() {
                   </li>
                 ))}
               </ul>
-              {isCurrent ? (
+              {isCurrent && !subscribeDuringTrial ? (
                 <p className="mt-4 text-center font-[family-name:var(--font-display)] text-sm font-medium text-[var(--emerald)]">
                   Current Plan
                 </p>
-              ) : (
-                <button
-                  type="button"
-                  disabled={billingBusy}
-                  onClick={() => void handleTierChange(tier)}
-                  className="mt-4 w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {tierFeatures.findIndex((t) => t.tier === tier) >
-                  tierFeatures.findIndex((t) => t.tier === currentTier)
-                    ? "Upgrade"
-                    : "Downgrade"}
-                </button>
+              ) : trialProgress && tier === "pulse" ? null : (
+                <>
+                  {subscribeDuringTrial && (
+                    <p className="mt-4 text-center font-[family-name:var(--font-display)] text-sm font-medium text-[var(--emerald)]">
+                      Current Plan
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={billingBusy}
+                    onClick={() => void handleTierChange(tier)}
+                    className={`${subscribeDuringTrial ? "mt-2" : "mt-4"} w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {tierFeatures.findIndex((t) => t.tier === tier) >
+                    tierFeatures.findIndex((t) => t.tier === shownTier)
+                      ? "Upgrade"
+                      : "Downgrade"}
+                  </button>
+                </>
               )}
             </div>
           );
@@ -995,8 +1007,8 @@ function SettingsPageInner() {
 
       <div className="max-w-[680px]">
         {/* Tabs */}
-        <div className="-mx-1 mb-8 overflow-x-auto border-b border-[var(--warm-200)] px-1">
-          <div className="flex min-w-max gap-1">
+        <div className="mb-8 border-b border-[var(--warm-200)]">
+          <div className="flex gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1004,14 +1016,14 @@ function SettingsPageInner() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-sm font-medium sm:px-4 ${
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-xs font-medium sm:gap-2 sm:px-3 sm:text-sm ${
                   isActive
                     ? "border-[var(--emerald)] text-[var(--emerald)]"
                     : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
+                <Icon className="hidden h-4 w-4 shrink-0 sm:block" />
+                <span className="truncate">{tab.label}</span>
               </button>
             );
           })}
