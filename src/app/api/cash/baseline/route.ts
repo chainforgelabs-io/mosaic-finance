@@ -13,7 +13,7 @@ const lineSchema = z.object({
   description: z.string().max(300).optional().nullable(),
   note: z.string().max(300).optional().nullable(),
   document_id: z.string().uuid().optional().nullable(),
-  line_role: z.enum(["purchase", "income", "card_payment", "transfer", "fee", "interest"]),
+  line_role: z.enum(["purchase", "income", "card_payment", "transfer", "fee", "interest", "savings"]),
   instrument: z.enum(["credit", "debit"]),
 });
 

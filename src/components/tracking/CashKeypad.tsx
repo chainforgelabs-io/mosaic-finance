@@ -3,7 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import { AmountPad } from "@/components/tracking/AmountPad";
 import {
+  INCOME_CATEGORIES,
   KEYPAD_CATEGORIES,
+  SAVINGS_CATEGORIES,
   SPENDING_CATEGORIES,
   categoryLabel,
   categorySlug,
@@ -11,12 +13,34 @@ import {
 import {
   amountFromDigits,
   predictCategories,
+  predictSavingsCategories,
   splitLines,
   type CashDirection,
 } from "@/lib/tracking/cash-capture";
 import { todayIso } from "@/lib/tracking/dates";
 import { cn } from "@/lib/utils";
-import type { CaptureInput, RecurringCadence, TransactionRow } from "@/types/tracking";
+import type { CaptureInput, CaptureMode, RecurringCadence, TransactionRow } from "@/types/tracking";
+
+const MODE_LABELS: Record<CaptureMode, string> = {
+  out: "Out",
+  in: "In",
+  save: "Save",
+};
+
+function directionFor(mode: CaptureMode): CashDirection {
+  return mode === "in" ? "in" : "out";
+}
+
+function lineRoleFor(mode: CaptureMode): CaptureInput["lineRole"] {
+  return mode === "save" ? "savings" : undefined;
+}
+
+/** The full list behind More, by what is being logged. */
+function optionsFor(mode: CaptureMode, extras: string[]): string[] {
+  if (mode === "save") return [...SAVINGS_CATEGORIES];
+  if (mode === "in") return [...INCOME_CATEGORIES, "income"];
+  return [...new Set([...KEYPAD_CATEGORIES, ...SPENDING_CATEGORIES, ...extras, "untracked"])];
+}
 
 const CADENCE_LABELS: Record<RecurringCadence, string> = {
   weekly: "Weekly",
@@ -38,7 +62,8 @@ export function CashKeypad({
   onSave: (input: CaptureInput) => Promise<boolean>;
 }) {
   const [digits, setDigits] = useState("");
-  const [direction, setDirection] = useState<CashDirection>("out");
+  const [mode, setMode] = useState<CaptureMode>("out");
+  const direction = directionFor(mode);
   const [moreOpen, setMoreOpen] = useState(false);
   const [detailsCategory, setDetailsCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -47,8 +72,11 @@ export function CashKeypad({
   const amount = amountFromDigits(digits);
 
   const predicted = useMemo(
-    () => predictCategories(history, new Date(), amount > 0 ? amount : null, direction),
-    [history, amount, direction],
+    () =>
+      mode === "save"
+        ? predictSavingsCategories(history)
+        : predictCategories(history, new Date(), amount > 0 ? amount : null, direction),
+    [history, amount, direction, mode],
   );
 
   async function save(input: CaptureInput) {
@@ -79,6 +107,7 @@ export function CashKeypad({
       amount,
       category,
       direction,
+      lineRole: lineRoleFor(mode),
       categoryConfirmed: true,
       txnDate: todayIso(),
       source,
@@ -88,26 +117,22 @@ export function CashKeypad({
   return (
     <div className="mx-auto w-full max-w-md">
       <div className="mb-3 flex rounded-full border border-[var(--warm-200)] bg-white p-1">
-        <button
-          type="button"
-          onClick={() => setDirection("out")}
-          className={cn(
-            "flex-1 rounded-full py-2 font-display text-sm font-semibold",
-            direction === "out" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
-          )}
-        >
-          Out
-        </button>
-        <button
-          type="button"
-          onClick={() => setDirection("in")}
-          className={cn(
-            "flex-1 rounded-full py-2 font-display text-sm font-semibold",
-            direction === "in" ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
-          )}
-        >
-          In
-        </button>
+        {(Object.keys(MODE_LABELS) as CaptureMode[]).map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => {
+              setMode(option);
+              setMoreOpen(false);
+            }}
+            className={cn(
+              "flex-1 rounded-full py-2 font-display text-sm font-semibold",
+              mode === option ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+            )}
+          >
+            {MODE_LABELS[option]}
+          </button>
+        ))}
       </div>
 
       <div className="mb-3 flex flex-wrap gap-2">
@@ -133,8 +158,9 @@ export function CashKeypad({
           onClick={() =>
             void save({
               amount,
-              category: "other",
+              category: mode === "save" ? "other_savings" : mode === "in" ? "other_income" : "other",
               direction,
+              lineRole: lineRoleFor(mode),
               categoryConfirmed: false,
               txnDate: todayIso(),
               source: "manual",
@@ -146,11 +172,14 @@ export function CashKeypad({
         </button>
       </div>
       <p className="mb-3 font-body text-[11px] text-[var(--text-muted)]">
-        Tap a category to save. Hold one to add a note, merchant, date, split, or repeat.
+        {mode === "save"
+          ? "Tap the account the money went to. Savings leave the bank but never count as spending."
+          : "Tap a category to save. Hold one to add a note, merchant, date, split, or repeat."}
       </p>
 
       {moreOpen && (
         <MoreCategories
+          mode={mode}
           extras={extras}
           current={predicted}
           onAddCategory={onAddCategory}
@@ -158,7 +187,7 @@ export function CashKeypad({
         />
       )}
 
-      {catchUpDays != null && catchUpDays >= 3 && (
+      {mode === "out" && catchUpDays != null && catchUpDays >= 3 && (
         <div className="mb-3 rounded-lg border border-[var(--warm-200)] bg-white px-3 py-3">
           <p className="font-body text-sm text-[var(--text-secondary)]">
             It has been {catchUpDays} days since the last entry. Type one amount for those days, or log what you remember.
@@ -184,7 +213,7 @@ export function CashKeypad({
         <DetailsSheet
           category={detailsCategory}
           amount={amount}
-          direction={direction}
+          mode={mode}
           extras={extras}
           onClose={() => setDetailsCategory(null)}
           onSave={(input) => save(input)}
@@ -245,11 +274,13 @@ function CategoryChip({
 }
 
 function MoreCategories({
+  mode,
   extras,
   current,
   onAddCategory,
   onPick,
 }: {
+  mode: CaptureMode;
   extras: string[];
   current: string[];
   onAddCategory: (slug: string) => void;
@@ -257,9 +288,7 @@ function MoreCategories({
 }) {
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
-  const options = [...new Set([...KEYPAD_CATEGORIES, ...SPENDING_CATEGORIES, ...extras, "untracked"])].filter(
-    (category) => !current.includes(category),
-  );
+  const options = optionsFor(mode, extras).filter((category) => !current.includes(category));
 
   return (
     <div className="mb-3 rounded-xl border border-[var(--warm-200)] bg-white p-3">
@@ -275,6 +304,7 @@ function MoreCategories({
           </button>
         ))}
       </div>
+      {mode === "out" && (
       <div className="mt-3 flex gap-2">
         <input
           type="text"
@@ -302,6 +332,7 @@ function MoreCategories({
           Add
         </button>
       </div>
+      )}
       {invalid && (
         <p className="mt-1 font-body text-[11px] text-red-700">Use a short name, like rental condo fees.</p>
       )}
@@ -312,18 +343,19 @@ function MoreCategories({
 function DetailsSheet({
   category,
   amount,
-  direction,
+  mode,
   extras,
   onClose,
   onSave,
 }: {
   category: string;
   amount: number;
-  direction: CashDirection;
+  mode: CaptureMode;
   extras: string[];
   onClose: () => void;
   onSave: (input: CaptureInput) => void;
 }) {
+  const direction = directionFor(mode);
   const [chosen, setChosen] = useState(category);
   const [note, setNote] = useState("");
   const [merchant, setMerchant] = useState("");
@@ -335,7 +367,7 @@ function DetailsSheet({
   const [repeatName, setRepeatName] = useState("");
   const [cadence, setCadence] = useState<RecurringCadence>("monthly");
   const [formError, setFormError] = useState<string | null>(null);
-  const options = [...new Set([chosen, secondCategory, ...KEYPAD_CATEGORIES, ...SPENDING_CATEGORIES, ...extras])];
+  const options = [...new Set([chosen, secondCategory, ...optionsFor(mode, extras)])];
 
   function submit() {
     const lines = split
@@ -345,7 +377,7 @@ function DetailsSheet({
       setFormError("The split needs two amounts that add up to the total.");
       return;
     }
-    if (repeat && !repeatName.trim()) {
+    if (repeat && mode !== "save" && !repeatName.trim()) {
       setFormError("Name the bill or paycheque you want to repeat.");
       return;
     }
@@ -353,13 +385,14 @@ function DetailsSheet({
       amount,
       category: chosen,
       direction,
+      lineRole: lineRoleFor(mode),
       categoryConfirmed: true,
       txnDate: date,
       note: note.trim() || undefined,
       description: merchant.trim() || undefined,
       source: "manual",
       lines: lines ?? undefined,
-      recurring: repeat ? { name: repeatName.trim(), cadence } : null,
+      recurring: repeat && mode !== "save" ? { name: repeatName.trim(), cadence } : null,
     });
   }
 
@@ -443,11 +476,13 @@ function DetailsSheet({
             </select>
           </div>
         )}
+        {mode !== "save" && (
         <label className="mb-3 flex items-center gap-2 font-body text-sm">
           <input type="checkbox" checked={repeat} onChange={(event) => setRepeat(event.target.checked)} />
           Repeat this
         </label>
-        {repeat && (
+        )}
+        {repeat && mode !== "save" && (
           <div className="mb-3 space-y-2">
             <input
               value={repeatName}

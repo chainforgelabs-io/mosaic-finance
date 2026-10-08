@@ -71,6 +71,73 @@ export const SPENDING_CATEGORY_COLORS: Record<SpendingCategory, string> = {
   other: "#9ca3af",
 };
 
+/** Money in. Labels describe where pay comes from, nothing more. */
+export const INCOME_CATEGORIES = [
+  "paycheque",
+  "paycheque_2",
+  "side_income",
+  "benefits",
+  "other_income",
+] as const;
+
+export type IncomeCategory = (typeof INCOME_CATEGORIES)[number];
+
+export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {
+  paycheque: "Paycheque",
+  paycheque_2: "Paycheque 2",
+  side_income: "Side income",
+  benefits: "Benefits",
+  other_income: "Other income",
+};
+
+/** Money set aside. Account labels only; the user decides what goes where. */
+export const SAVINGS_CATEGORIES = [
+  "tfsa",
+  "rrsp",
+  "fhsa",
+  "resp",
+  "cash_savings",
+  "emergency_fund",
+  "debt_principal",
+  "other_savings",
+] as const;
+
+export type SavingsCategory = (typeof SAVINGS_CATEGORIES)[number];
+
+export const SAVINGS_CATEGORY_LABELS: Record<SavingsCategory, string> = {
+  tfsa: "TFSA",
+  rrsp: "RRSP",
+  fhsa: "FHSA",
+  resp: "RESP",
+  cash_savings: "Cash savings",
+  emergency_fund: "Emergency fund",
+  debt_principal: "Extra debt principal",
+  other_savings: "Other savings",
+};
+
+export type CategoryKind = "income" | "expense" | "savings";
+
+export const CATEGORY_KINDS: CategoryKind[] = ["income", "expense", "savings"];
+
+export const CATEGORY_KIND_LABELS: Record<CategoryKind, string> = {
+  income: "Income",
+  expense: "Expenses",
+  savings: "Savings",
+};
+
+/** Built-in kind for a slug. Custom slugs default to expense unless the catalog says otherwise. */
+export function categoryKind(category: string): CategoryKind {
+  if ((INCOME_CATEGORIES as readonly string[]).includes(category) || category === "income") return "income";
+  if ((SAVINGS_CATEGORIES as readonly string[]).includes(category)) return "savings";
+  return "expense";
+}
+
+export function defaultCategoriesForKind(kind: CategoryKind): readonly string[] {
+  if (kind === "income") return INCOME_CATEGORIES;
+  if (kind === "savings") return SAVINGS_CATEGORIES;
+  return SPENDING_CATEGORIES;
+}
+
 export const GOAL_TYPES = [
   "emergency_fund",
   "debt_payoff",
@@ -173,14 +240,71 @@ export function presentGoalName(raw: string): string {
 
 const EXTRA_CATEGORY_LABELS: Record<string, string> = {
   income: "Income",
-  paycheque: "Paycheque",
   untracked: "Untracked",
+  ...INCOME_CATEGORY_LABELS,
+  ...SAVINGS_CATEGORY_LABELS,
 };
 
 export function categoryLabel(category: string): string {
   if (isSpendingCategory(category)) return SPENDING_CATEGORY_LABELS[category];
   if (EXTRA_CATEGORY_LABELS[category]) return EXTRA_CATEGORY_LABELS[category];
   return humanizeKey(category);
+}
+
+/** A user's catalog row. Built-in slugs may be renamed or archived; new slugs are custom. */
+export interface UserCategory {
+  slug: string;
+  label: string;
+  kind: CategoryKind;
+  is_need: boolean;
+  sort_order: number;
+  archived: boolean;
+}
+
+export interface CategoryOption {
+  slug: string;
+  label: string;
+  kind: CategoryKind;
+  isNeed: boolean;
+  custom: boolean;
+}
+
+/** Built-ins merged with the user's catalog, archived rows removed, in display order. */
+export function resolveCategories(catalog: UserCategory[], kind: CategoryKind): CategoryOption[] {
+  const bySlug = new Map(catalog.map((row) => [row.slug, row]));
+  const seen = new Set<string>();
+  const options: CategoryOption[] = [];
+  for (const slug of defaultCategoriesForKind(kind)) {
+    const row = bySlug.get(slug);
+    if (row?.archived) continue;
+    seen.add(slug);
+    options.push({
+      slug,
+      label: row?.label ?? categoryLabel(slug),
+      kind,
+      isNeed: row?.is_need ?? false,
+      custom: false,
+    });
+  }
+  const custom = catalog
+    .filter((row) => row.kind === kind && !row.archived && !seen.has(row.slug))
+    .sort((a, b) => a.sort_order - b.sort_order || a.label.localeCompare(b.label));
+  for (const row of custom) {
+    options.push({ slug: row.slug, label: row.label, kind, isNeed: row.is_need, custom: true });
+  }
+  return options;
+}
+
+/** Label lookup that honours renames in the user's catalog. */
+export function labelFor(catalog: UserCategory[], category: string): string {
+  const row = catalog.find((entry) => entry.slug === category);
+  return row?.label ?? categoryLabel(category);
+}
+
+/** Kind lookup that honours the user's catalog, then built-ins. */
+export function kindFor(catalog: UserCategory[], category: string): CategoryKind {
+  const row = catalog.find((entry) => entry.slug === category);
+  return row?.kind ?? categoryKind(category);
 }
 
 export function categorySlug(label: string): string | null {

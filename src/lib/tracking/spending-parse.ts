@@ -131,7 +131,7 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
   return out;
 }
 
-const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest"] as const;
+const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest", "savings"] as const;
 
 const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep|direct deposit)\b/i;
 const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst)\b|\bei\b/i;
@@ -167,6 +167,7 @@ function slugFromLabel(raw: unknown): string | null {
 }
 
 function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
+  if (role === "savings") return role;
   if (REFUND_REVERSAL.test(description)) return "purchase";
   if (role === "card_payment") return role;
   if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
