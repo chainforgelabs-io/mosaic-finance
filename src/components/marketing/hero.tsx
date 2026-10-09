@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
 import { isLaunchLive } from "@/lib/config/launch";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 import Link from "next/link";
 
 export function Hero() {
@@ -39,7 +40,9 @@ export function Hero() {
           data-animate
           className="mb-3 inline-block rounded-full border border-emerald/30 bg-emerald/10 px-4 py-1.5 font-display text-xs font-semibold uppercase tracking-[0.08em] text-emerald"
         >
-          {isLaunchLive() ? "Start free — 14 days of Progress included" : "Launching Soon"}
+          {isLaunchLive()
+            ? `Start free — ${TRIAL_COPY.days} of Progress included`
+            : "Launching Soon"}
         </p>
         <p
           data-animate

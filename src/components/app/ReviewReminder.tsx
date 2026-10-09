@@ -5,6 +5,7 @@ import { Calendar, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { usePlanStore } from "@/stores/plan-store";
+import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 
 export function ReviewReminder() {
   const tier = usePlanStore((s) => s.user?.tier ?? "pulse");
@@ -13,6 +14,7 @@ export function ReviewReminder() {
   const [daysSinceLastReview, setDaysSinceLastReview] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!MASTERY_PUBLIC) return;
     async function check() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -56,7 +58,7 @@ export function ReviewReminder() {
     check();
   }, [cadenceDays]);
 
-  if (!isDue) return null;
+  if (!MASTERY_PUBLIC || !isDue) return null;
 
   return (
     <div className="rounded-lg border border-[var(--emerald)]/30 bg-[var(--emerald)]/5 p-5">

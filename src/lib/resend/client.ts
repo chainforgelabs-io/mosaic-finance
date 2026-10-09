@@ -10,6 +10,7 @@ import { sendMosaicEmail } from "@/lib/email/send";
 import { nurtureIssue, prelaunchIssue } from "@/lib/email/nurture-content";
 import { getFoundingStatus } from "@/lib/founding";
 import { daysRemaining } from "@/lib/email/trial";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 const CIM_REVIEWER_EMAIL = process.env.CIM_REVIEWER_EMAIL!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://mosaicfinance.ai";
@@ -125,16 +126,16 @@ export async function sendWaitlistWelcomeEmail(userEmail: string) {
 export async function sendTrialStartedEmail(userEmail: string) {
   await sendMosaicEmail({
     to: userEmail,
-    subject: "Your 14-day Progress trial is on",
+    subject: `Your ${TRIAL_COPY.hyphen} Progress trial is on`,
     list: "all",
     html: mosaicEmailHtml({
       email: userEmail,
       list: "all",
-      title: "Charlie is unlocked for 14 days",
-      preheader: "Two weeks of Progress — no credit card.",
+      title: `Charlie is unlocked for ${TRIAL_COPY.days}`,
+      preheader: `${TRIAL_COPY.days} of Progress — no credit card.`,
       bodyHtml: mosaicCard(
         "What is included",
-        `<p style="margin:0;">You have two weeks of Progress — fact-find, Progress Report, and Charlie included. No credit card yet. Tracking, budgets, and the Health Score stay free after the trial on Pulse.</p>
+        `<p style="margin:0;">You have ${TRIAL_COPY.days} of Progress — fact-find, Progress Report, Charlie, and statement parsing included. No credit card yet. Tracking, budgets, and the Health Score stay free after the trial on Pulse.</p>
          ${mosaicButton(`${APP_URL}/onboarding`, "Start your fact-find")}`,
       ),
     }),

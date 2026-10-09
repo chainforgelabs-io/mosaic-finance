@@ -1,5 +1,6 @@
 import { mosaicButton, mosaicCallout, mosaicCard } from "@/lib/email/chrome";
 import type { FoundingStatus } from "@/lib/founding";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 export interface NurtureIssue {
   stepIndex: number;
@@ -56,7 +57,7 @@ export const NURTURE_ISSUES: NurtureIssue[] = [
       )}
       ${mosaicCard(
         "What Charlie is",
-        `<p style="margin:0;">Charlie is your AI money guide. It explains the Canadian-rules picture on your numbers. Education, not advice. Included in the 14-day Progress trial, then on paid Progress.</p>`,
+        `<p style="margin:0;">Charlie is your AI money guide. It explains the Canadian-rules picture on your numbers. Education, not advice. Included in the ${TRIAL_COPY.hyphen} Progress trial, then on paid Progress.</p>`,
       )}
       ${mosaicButton(`${appUrl}/signup`, "Create a free Pulse account")}`,
   },
@@ -76,7 +77,7 @@ export const NURTURE_ISSUES: NurtureIssue[] = [
         <ul style="margin:0;padding-left:18px;">
           <li style="margin-bottom:8px;"><strong>Pulse</strong> — tracking, budgets, net worth, Score. Free forever.</li>
           <li style="margin-bottom:8px;"><strong>Progress</strong> — fact-find, Progress Report, Charlie. $17/mo standard, $8/mo founding.</li>
-          <li style="margin-bottom:0;">14-day reverse trial of Progress with no credit card. 30-day refund after you subscribe.</li>
+          <li style="margin-bottom:0;">${TRIAL_COPY.hyphen} reverse trial of Progress with no credit card. 30-day refund after you subscribe.</li>
         </ul>`,
       )}
       ${mosaicCallout("No pitch on returns or dollars saved. Tracking stays free if you never upgrade.")}
@@ -85,19 +86,19 @@ export const NURTURE_ISSUES: NurtureIssue[] = [
   },
   {
     stepIndex: 3,
-    subject: "Your 14-day Progress trial is waiting",
-    preheader: "No credit card. Pulse keeps tracking after the two weeks.",
-    title: "Two weeks of Progress, then Pulse still yours",
+    subject: `Your ${TRIAL_COPY.hyphen} Progress trial is waiting`,
+    preheader: "No credit card. Pulse keeps tracking after the week.",
+    title: "A week of Progress, then Pulse still yours",
     body: (appUrl) =>
       `${mosaicCard(
         "If you create an account this week",
         `<ul style="margin:0;padding-left:18px;">
-          <li style="margin-bottom:8px;">14 days of Charlie and a full Progress Report — no card.</li>
+          <li style="margin-bottom:8px;">${TRIAL_COPY.days} of Charlie and a full Progress Report — no card.</li>
           <li style="margin-bottom:8px;">After that, Pulse keeps spending, budgets, net worth, and the Score.</li>
           <li style="margin-bottom:0;">Upgrade later only if you want the report refreshing and Charlie to stay.</li>
         </ul>`,
       )}
-      ${mosaicButton(`${appUrl}/signup`, "Start the 14-day trial")}`,
+      ${mosaicButton(`${appUrl}/signup`, `Start the ${TRIAL_COPY.hyphen} trial`)}`,
   },
 ];
 

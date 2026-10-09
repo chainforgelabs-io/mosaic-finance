@@ -26,6 +26,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Tier } from "@/types";
 import { isTrialActive } from "@/lib/entitlements";
+import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
 
@@ -58,7 +59,7 @@ function trackItems(): NavItem[] {
 }
 
 function learnItems(planId?: string): NavItem[] {
-  return [
+  const launchLearn: NavItem[] = [
     { label: "Progress Report", href: "/dashboard/plan", icon: FileText },
     {
       label: "Walkthrough",
@@ -67,13 +68,16 @@ function learnItems(planId?: string): NavItem[] {
       requiresPlan: true,
       match: "walkthrough",
     },
-    { label: "Check-in", href: "/dashboard/meeting", icon: Video },
+    { label: "Charlie", href: "/dashboard/meeting", icon: Video },
+  ];
+  const masteryLearn: NavItem[] = [
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
     { label: "Tax Year-End Pack", href: "/dashboard/tax-pack", icon: Receipt },
     { label: "Academy", href: "/dashboard/academy", icon: GraduationCap },
     { label: "Money Club", href: "/dashboard/money-club", icon: Users },
     { label: "Priority", href: "/dashboard/priority", icon: Zap },
   ];
+  return MASTERY_PUBLIC ? [...launchLearn, ...masteryLearn] : launchLearn;
 }
 
 function isReviewerRole(role: AppUserRole): boolean {
@@ -316,7 +320,7 @@ export function AppSidebar({
             </div>
           </div>
         </div>
-        {tier !== "mastery" && (
+        {tier === "pulse" && (
           <Link
             href="/dashboard/settings?tab=subscription"
             className="mt-3 flex items-center gap-1 font-display text-xs font-medium text-[var(--emerald)] transition-colors hover:text-[var(--emerald-dark)] md:max-lg:hidden"

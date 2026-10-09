@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Tier } from "@/types";
 import { createServiceClient } from "@/lib/supabase/service";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 export type PaidTier = "progress" | "mastery";
 
@@ -95,18 +96,17 @@ export function entitlementDenied(reason: string, message: string) {
 
 export const ENTITLEMENT_COPY = {
   charlie:
-    "Charlie is included on Progress and Mastery. Start a 14-day reverse trial or upgrade to keep talking.",
+    `Charlie is included on Progress. Start a ${TRIAL_COPY.hyphen} reverse trial or upgrade to keep talking.`,
   report:
-    "Progress Reports are included on Progress and Mastery. Upgrade to generate yours.",
-  parse:
-    "Statement and receipt parsing is included on Progress and Mastery.",
+    "Progress Reports are included on Progress. Upgrade to generate yours.",
+  parse: "Statement and receipt parsing is included on Progress.",
   taxPack: "The Tax Year-End Pack is a Mastery benefit.",
   checkIn: "Quarterly guided check-ins are included with Mastery.",
   club: "The Mosaic Money Club is included with Mastery.",
   charlieCap:
-    "You've used a lot of Charlie this month. We'll keep the conversation going — consider Mastery if you want unlimited check-ins.",
+    "You've used a lot of Charlie this month. We'll keep the conversation going.",
   reportCap:
-    "You've already regenerated your Progress Report this month. It refreshes again next month on Progress, or anytime on Mastery.",
+    "You've already regenerated your Progress Report this month. It refreshes again next month on Progress.",
 } as const;
 
 function startOfMonthIso(now = new Date()): string {

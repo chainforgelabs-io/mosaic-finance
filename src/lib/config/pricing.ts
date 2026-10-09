@@ -1,4 +1,5 @@
 import type { Tier } from "@/types";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 /** Monthly vs annual display (annual prices are yearly totals, billed annually). */
 export type BillingInterval = "monthly" | "annual";
@@ -39,7 +40,7 @@ export const TIER_FEATURES: Record<Tier, string[]> = {
     "Spending tracker, budgets, net worth, and goals",
     "Live Financial Health Score + streaks",
     "Canadian calculators and newsletter",
-    "14-day reverse trial of Progress — no credit card",
+    `${TRIAL_COPY.hyphen} reverse trial of Progress — no credit card`,
   ],
   progress: [
     "Everything in Pulse",

@@ -20,7 +20,7 @@ import {
 import {
   daysRemaining,
   optedOutOfMarketing,
-  shouldSendTrialDay10,
+  shouldSendTrialReminder,
   shouldSendTrialExpired,
 } from "@/lib/email/trial";
 import {
@@ -101,9 +101,9 @@ describe("unsubscribe tokens", () => {
 describe("trial lifecycle windows", () => {
   const now = new Date("2026-09-21T15:00:00Z");
 
-  it("sends day-10 once when trial ends within 4 days", () => {
+  it("sends the trial reminder once when trial ends within 4 days", () => {
     expect(
-      shouldSendTrialDay10({
+      shouldSendTrialReminder({
         subscriptionTier: "pulse",
         trialEndsAt: "2026-09-24T15:00:00Z",
         alreadySentAt: null,
@@ -111,7 +111,7 @@ describe("trial lifecycle windows", () => {
       }),
     ).toBe(true);
     expect(
-      shouldSendTrialDay10({
+      shouldSendTrialReminder({
         subscriptionTier: "pulse",
         trialEndsAt: "2026-09-24T15:00:00Z",
         alreadySentAt: "2026-09-20T15:00:00Z",
@@ -119,7 +119,7 @@ describe("trial lifecycle windows", () => {
       }),
     ).toBe(false);
     expect(
-      shouldSendTrialDay10({
+      shouldSendTrialReminder({
         subscriptionTier: "progress",
         trialEndsAt: "2026-09-24T15:00:00Z",
         alreadySentAt: null,
@@ -181,6 +181,14 @@ describe("nurture issues", () => {
     expect(NURTURE_ISSUES).toHaveLength(4);
     expect(nurtureIssue(0).subject).toMatch(/mistakes/i);
     expect(nurtureIssue(99).stepIndex).toBe(3);
+  });
+
+  it("describes a 7-day reverse trial, not 14 days", () => {
+    const html = NURTURE_ISSUES.map((issue) =>
+      `${issue.subject} ${issue.body("https://mosaicfinance.ai")}`,
+    ).join("\n");
+    expect(html).toMatch(/7-day/);
+    expect(html).not.toMatch(/14-day|14 days|two weeks/i);
   });
 
   it("keeps pre-launch notes on calculators, not signup", () => {

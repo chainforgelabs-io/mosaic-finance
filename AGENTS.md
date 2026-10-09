@@ -7,7 +7,7 @@ Read this before every task. If a task conflicts with this file, stop and ask.
 
 Mosaic Finance (mosaicfinance.ai) is a Canadian personal-finance **tracking and education** app. It is not an advice product. Users track spending, budgets, net worth, holdings, and goals for free. Paid tiers add Charlie (the AI money guide), the Progress Report (the codebase may call it a "plan"), and statement/receipt parsing.
 
-Tiers: **Pulse** (free, with a 14-day card-free reverse trial of Progress) → **Progress** → **Mastery**.
+Tiers: **Pulse** (free, with a 7-day card-free reverse trial of Progress) → **Progress**. **Mastery** stays in code (Club, Academy, tax pack, check-ins) but is not sold or shown until a later launch. Flip `MASTERY_PUBLIC` in `src/lib/config/launch-surface.ts` when that ships.
 
 ## Stack
 
@@ -87,7 +87,7 @@ Every price sits on a ladder where the digit sum reduces to 8. Never introduce a
 | Money Club | — | ✅ |
 | Academy | — | annual plan only |
 
-Reverse-trial users get full Progress for 14 days. Soft caps are enforced quietly; only users who actually hit one should ever see it.
+Reverse-trial users get full Progress for 7 days. Soft caps are enforced quietly; only users who actually hit one should ever see it. Launch marketing and in-app checkout show Pulse and Progress only.
 
 ## AI calls
 

@@ -11,18 +11,21 @@ import {
   type BillingInterval,
 } from "@/lib/config/pricing";
 import { isLaunchLive } from "@/lib/config/launch";
+import { MASTERY_PUBLIC, PUBLIC_TIERS, TRIAL_COPY } from "@/lib/config/launch-surface";
 import type { Tier } from "@/types";
 
-const TIERS: {
+const ALL_TIERS: {
   id: Tier;
   style: "outlined" | "dark" | "emerald";
   highlighted: boolean;
   paid: boolean;
 }[] = [
   { id: "pulse", style: "outlined", highlighted: false, paid: false },
-  { id: "progress", style: "dark", highlighted: false, paid: true },
+  { id: "progress", style: "dark", highlighted: !MASTERY_PUBLIC, paid: true },
   { id: "mastery", style: "emerald", highlighted: true, paid: true },
 ];
+
+const TIERS = ALL_TIERS.filter((tier) => PUBLIC_TIERS.includes(tier.id));
 
 function priceLabel(tierId: Tier, interval: BillingInterval, founding: boolean): string {
   return formatTierPrice(tierId, interval, { founding: founding && tierId === "progress" });
@@ -99,7 +102,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           className="mb-8 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          14-day reverse trial of Progress, no card. First payment refundable for 30 days.
+          {TRIAL_COPY.hyphen} reverse trial of Progress, no card. First payment refundable for 30 days.
           Consistency Guarantee on 90 days of weekly logs + monthly snapshots.
           {founding.open
             ? ` ${founding.remaining} founding Progress spots left at $8/mo.`
@@ -138,7 +141,9 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           </div>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          className={`grid gap-6 sm:grid-cols-2 ${MASTERY_PUBLIC ? "lg:grid-cols-3" : ""}`}
+        >
           {TIERS.map((tier) => (
             <div
               key={tier.id}

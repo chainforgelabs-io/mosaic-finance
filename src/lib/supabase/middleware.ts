@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { isDeferredDashboardPath } from '@/lib/config/launch-surface';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -57,6 +58,12 @@ export async function updateSession(request: NextRequest) {
     } else {
       url.pathname = '/dashboard';
     }
+    return NextResponse.redirect(url);
+  }
+
+  if (user && isDeferredDashboardPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 

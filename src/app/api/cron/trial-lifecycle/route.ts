@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { sendTrialDay10Email, sendTrialExpiredEmail } from "@/lib/resend/client";
 import {
   optedOutOfMarketing,
-  shouldSendTrialDay10,
+  shouldSendTrialReminder,
   shouldSendTrialExpired,
 } from "@/lib/email/trial";
 
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       continue;
     }
     if (
-      !shouldSendTrialDay10({
+      !shouldSendTrialReminder({
         subscriptionTier: row.subscription_tier as string,
         trialEndsAt: row.trial_ends_at as string | null,
         alreadySentAt: row.trial_day10_emailed_at as string | null,

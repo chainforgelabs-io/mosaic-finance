@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isLaunchLive } from "@/lib/config/launch";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 const ITEMS = [
   {
@@ -17,7 +18,7 @@ const ITEMS = [
   {
     q: "When do I get charged?",
     a: isLaunchLive()
-      ? "Pulse is free. Progress starts after a 14-day reverse trial — no card to try. First payment has a 30-day refund. Founding Progress is $8/mo locked for the first 200 members."
+      ? `Pulse is free. Progress starts after a ${TRIAL_COPY.hyphen} reverse trial — no card to try. First payment has a 30-day refund. Founding Progress is $8/mo locked for the first 200 members.`
       : "Not until we launch. Join the waitlist to lock in Founding Member pricing.",
   },
   {

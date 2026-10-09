@@ -11,6 +11,11 @@ import {
   type BillingInterval,
 } from "@/lib/config/pricing";
 import { isTrialActive } from "@/lib/entitlements";
+import {
+  MASTERY_PUBLIC,
+  PUBLIC_TIERS,
+  TRIAL_COPY,
+} from "@/lib/config/launch-surface";
 import { PROVINCES } from "@/lib/constants/provinces";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
 import type { NotificationPreferences } from "@/types";
@@ -210,13 +215,21 @@ function ProfileTab() {
 
 // ─── Subscription Tab ─────────────────────────────────────────────
 
-function getTierFeatures(billing: BillingInterval, founding: boolean): {
+function getTierFeatures(
+  billing: BillingInterval,
+  founding: boolean,
+  extra: Tier[] = [],
+): {
   tier: Tier;
   price: string;
   compare: string | null;
   features: string[];
 }[] {
-  return (["pulse", "progress", "mastery"] as Tier[]).map((tier) => ({
+  const tiers: Tier[] = [];
+  for (const tier of [...PUBLIC_TIERS, ...extra]) {
+    if (!tiers.includes(tier)) tiers.push(tier);
+  }
+  return tiers.map((tier) => ({
     tier,
     price: formatTierPriceCad(tier, billing, {
       founding: founding && tier === "progress",
@@ -244,7 +257,11 @@ function SubscriptionTabInner() {
     snapshots: number;
     scoreDelta: number | null;
   } | null>(null);
-  const tierFeatures = getTierFeatures(billingInterval, founding || foundingOpen);
+  const tierFeatures = getTierFeatures(
+    billingInterval,
+    founding || foundingOpen,
+    currentTier === "mastery" ? ["mastery"] : [],
+  );
 
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -390,7 +407,7 @@ function SubscriptionTabInner() {
   const billingPeriodLabel =
     currentTier === "pulse"
       ? trialOn
-        ? "14-day Progress trial active"
+        ? `${TRIAL_COPY.hyphen} Progress trial active`
         : "No active subscription"
       : user?.isFoundingMember
         ? "Founding member · locked Progress price"
@@ -471,7 +488,9 @@ function SubscriptionTabInner() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${MASTERY_PUBLIC ? "lg:grid-cols-3" : ""}`}
+      >
         {tierFeatures.map(({ tier, price, compare, features }) => {
           const trialProgress = trialOn && currentTier === "pulse";
           const shownTier = trialProgress ? "progress" : currentTier;
@@ -580,6 +599,7 @@ function SubscriptionTabInner() {
         </div>
       )}
 
+      {MASTERY_PUBLIC && (
       <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
         <p className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
           Mosaic Academy
@@ -620,6 +640,7 @@ function SubscriptionTabInner() {
           </button>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -923,22 +944,26 @@ function NotificationsTab() {
         void persist(next);
       },
     },
-    {
-      label: "Quarterly check-in reminder",
-      description:
-        "Reminder to review and update your Progress Report every quarter.",
-      enabled: quarterlyRePlan,
-      onToggle: () => {
-        const next: NotificationPreferences = {
-          plan_ready: planReady,
-          weekly_market: weeklyMarket,
-          education_emails: educationEmails,
-          quarterly_replan: !quarterlyRePlan,
-        };
-        setQuarterlyRePlan(next.quarterly_replan);
-        void persist(next);
-      },
-    },
+    ...(MASTERY_PUBLIC
+      ? [
+          {
+            label: "Quarterly check-in reminder",
+            description:
+              "Reminder to review and update your Progress Report every quarter.",
+            enabled: quarterlyRePlan,
+            onToggle: () => {
+              const next: NotificationPreferences = {
+                plan_ready: planReady,
+                weekly_market: weeklyMarket,
+                education_emails: educationEmails,
+                quarterly_replan: !quarterlyRePlan,
+              };
+              setQuarterlyRePlan(next.quarterly_replan);
+              void persist(next);
+            },
+          },
+        ]
+      : []),
   ];
 
   return (

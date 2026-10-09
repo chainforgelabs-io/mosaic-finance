@@ -10,6 +10,7 @@ import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
 import { ReviewReminder } from "@/components/app/ReviewReminder";
 import { ClubCard } from "@/components/app/ClubCard";
+import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { PendingReviewBanner } from "@/components/app/PendingReviewBanner";
 import { PlanStaleBanner } from "@/components/app/PlanStaleBanner";
 import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
@@ -422,7 +423,7 @@ function DashboardNoPlan() {
           <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
             {reportAvailable
               ? "A Progress Report is an educational snapshot of your trajectory. Your Health Score, net worth, and streaks are already here. This is educational information, not financial advice."
-              : "Progress Reports are included on Progress and Mastery. Your Health Score, net worth, and streaks stay free on Pulse."}
+              : "Progress Reports are included on Progress. Your Health Score, net worth, and streaks stay free on Pulse."}
           </p>
         </div>
         <Link
@@ -736,10 +737,10 @@ function DashboardDelivered() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <HouseholdCard />
         <MeetingHistory />
-        <ClubCard />
+        {MASTERY_PUBLIC && <ClubCard />}
       </div>
 
-      {marketContext && (
+      {MASTERY_PUBLIC && marketContext && (
         <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">

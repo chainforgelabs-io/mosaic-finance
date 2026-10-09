@@ -8,6 +8,7 @@ import {
   resetPasswordSchema,
 } from "@/lib/schemas/auth";
 import { PROVINCE_CODE_MAP } from "@/lib/constants/provinces";
+import { trialEndsAtIso } from "@/lib/config/launch-surface";
 
 const profileInsertSchema = signUpSchema.pick({ alias: true, province: true });
 
@@ -41,7 +42,7 @@ export async function insertUserProfileAfterSignUp(formData: {
     };
   }
 
-  const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const trialEndsAt = trialEndsAtIso();
   const { error: profileError } = await supabase.from("user_profiles").insert({
     id: user.id,
     alias: parsed.data.alias,

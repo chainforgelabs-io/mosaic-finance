@@ -5,6 +5,7 @@ import { expectedPriceCents, formatAcademyPrice, formatTierPriceCad, matchesPubl
 import type { BillingInterval } from "@/lib/config/pricing";
 import type Stripe from "stripe";
 import { getFoundingStatus } from "@/lib/founding";
+import { isPublicCheckoutTier } from "@/lib/config/launch-surface";
 import { captureAPIError } from "@/lib/sentry";
 import { z } from "zod";
 
@@ -90,6 +91,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { tier, interval } = parsed.data;
+    if (!isPublicCheckoutTier(tier)) {
+      return NextResponse.json(
+        { error: "That plan isn't available yet." },
+        { status: 400 },
+      );
+    }
     const founding =
       tier === "progress" ? (await getFoundingStatus()).open : false;
     const priceId = priceIdForCheckout(tier, interval, { founding });

@@ -13,7 +13,7 @@ export function daysRemaining(trialEndsAt: string, now = new Date()): number {
   return Math.max(0, Math.ceil(ms / ONE_DAY_MS));
 }
 
-export function shouldSendTrialDay10(opts: {
+export function shouldSendTrialReminder(opts: {
   subscriptionTier: string;
   trialEndsAt: string | null | undefined;
   alreadySentAt: string | null | undefined;

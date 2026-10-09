@@ -19,6 +19,7 @@ import {
   charlieSendClass,
 } from "@/components/app/ConversationBubble";
 import { normalizeTier } from "@/lib/entitlements";
+import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { usePlanStore } from "@/stores/plan-store";
 
 type MeetingType = "annual-review" | "ad-hoc";
@@ -52,7 +53,8 @@ const MEETING_OPTIONS: {
 ];
 
 export default function MeetingPage() {
-  const canCheckIn = normalizeTier(usePlanStore((s) => s.user?.tier)) === "mastery";
+  const storedTier = normalizeTier(usePlanStore((s) => s.user?.tier));
+  const canCheckIn = MASTERY_PUBLIC && storedTier === "mastery";
   const [meetingType, setMeetingType] = useState<MeetingType | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ConvMessage[]>([]);
@@ -242,12 +244,14 @@ export default function MeetingPage() {
               Chat with Charlie
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">
-              Check in, ask questions, or update your Progress Report.
+              Ask questions about your Progress Report. Educational only.
             </p>
           </div>
 
           <div className="space-y-4">
-            {MEETING_OPTIONS.map((option) => {
+            {MEETING_OPTIONS.filter(
+              (option) => option.type !== "annual-review" || MASTERY_PUBLIC,
+            ).map((option) => {
               const Icon = option.icon;
               if (option.type === "annual-review" && !canCheckIn) {
                 return (

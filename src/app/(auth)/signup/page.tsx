@@ -9,6 +9,7 @@ import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { insertUserProfileAfterSignUp, signInWithGoogle } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { signUpSchema, PROVINCES, type SignUpFormData } from "@/lib/schemas/auth";
+import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -84,7 +85,7 @@ export default function SignUpPage() {
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)] sm:text-[28px]">
             Create your account
             <span className="mt-2 block font-body text-sm font-normal text-[var(--text-secondary)]">
-              14 days of Progress included. No credit card. Pulse stays free after.
+              {TRIAL_COPY.days} of Progress included. No credit card. Pulse stays free after.
             </span>
           </h1>
           <p className="mt-2 text-center font-body text-[15px] text-[var(--text-secondary)]">

@@ -10,6 +10,7 @@ import { generatePDF } from "@/lib/pdf/report-generator";
 import { sendPlanDeliveryEmail } from "@/lib/resend/client";
 import { captureAPIError } from "@/lib/sentry";
 import {
+  ENTITLEMENT_COPY,
   loadProfileEntitlements,
   recordUsageEvent,
 } from "@/lib/entitlements";
@@ -49,7 +50,7 @@ export async function triggerPlanGeneration(
     return {
       success: false,
       error:
-        "Progress Reports are included on Progress and Mastery. Upgrade to generate yours.",
+        ENTITLEMENT_COPY.report,
       statusCode: 402,
     };
   }
