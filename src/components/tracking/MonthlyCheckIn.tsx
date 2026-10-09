@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { classifyLiability, type LiabilityTerm } from "@/lib/net-worth/tracking";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import type { UnlockItem } from "@/components/tracking/UnlockToast";
 
@@ -35,6 +36,7 @@ interface DebtItem {
   rate?: number;
   monthly_payment?: number;
   credit_limit?: number | null;
+  term?: "short" | "long" | null;
 }
 
 const STEPS = ["Investments", "Fixed assets", "Debts", "Save"] as const;
@@ -61,6 +63,7 @@ export function MonthlyCheckIn({
   const [assetVals, setAssetVals] = useState<Record<string, string>>({});
   const [debtVals, setDebtVals] = useState<Record<string, string>>({});
   const [limitVals, setLimitVals] = useState<Record<string, string>>({});
+  const [termVals, setTermVals] = useState<Record<string, LiabilityTerm>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -70,6 +73,7 @@ export function MonthlyCheckIn({
     setAssetVals(Object.fromEntries(fixedAssets.map((a) => [a.id, String(a.estimated_value)])));
     setDebtVals(Object.fromEntries(debts.map((d, i) => [`${i}`, String(d.amount)])));
     setLimitVals(Object.fromEntries(debts.map((d, i) => [`${i}`, d.credit_limit != null ? String(d.credit_limit) : ""])));
+    setTermVals(Object.fromEntries(debts.map((d, i) => [`${i}`, classifyLiability(d.type, d.term)])));
   }, [open, holdings, fixedAssets, debts]);
 
   if (!open) return null;
@@ -116,6 +120,7 @@ export function MonthlyCheckIn({
           rate: d.rate,
           monthly_payment: d.monthly_payment,
           ...(limit != null && Number.isFinite(limit) && limit >= 0 ? { credit_limit: limit } : {}),
+          term: termVals[`${i}`] ?? classifyLiability(d.type, d.term),
         };
       });
       await fetch("/api/financial-profile", {
@@ -200,10 +205,12 @@ export function MonthlyCheckIn({
                   value: limitVals[`${i}`] ?? "",
                   placeholder: "Leave blank for loans",
                 },
+                term: termVals[`${i}`] ?? classifyLiability(d.type, d.term),
               }))}
               onChange={(id, v) => setDebtVals((p) => ({ ...p, [id]: v }))}
               onSecondaryChange={(id, v) => setLimitVals((p) => ({ ...p, [id]: v }))}
-              hint="Balances count against net worth. A credit limit lets the Tracking tab show available credit and liquidity."
+              onTermChange={(id, term) => setTermVals((p) => ({ ...p, [id]: term }))}
+              hint="Balances count against net worth. A credit limit lets the Tracking tab show available credit and liquidity. Short vs long-term is a guess from the name — change it if it is wrong."
             />
           )}
           {step === 3 && (
@@ -262,17 +269,20 @@ function ValueList({
   hint,
   onChange,
   onSecondaryChange,
+  onTermChange,
 }: {
   items: {
     id: string;
     label: string;
     value: string;
     secondary?: { label: string; value: string; placeholder?: string };
+    term?: LiabilityTerm;
   }[];
   empty: string;
   hint?: string;
   onChange: (id: string, value: string) => void;
   onSecondaryChange?: (id: string, value: string) => void;
+  onTermChange?: (id: string, term: LiabilityTerm) => void;
 }) {
   if (items.length === 0) {
     return <p className="font-body text-sm text-[var(--text-muted)]">{empty}</p>;
@@ -310,6 +320,26 @@ function ValueList({
                   onChange={(e) => onSecondaryChange?.(item.id, e.target.value)}
                   className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm tabular-nums"
                 />
+              </div>
+            )}
+            {item.term && onTermChange && (
+              <div className={cn(item.secondary && "col-span-2")}>
+                <p className="mb-1 font-body text-xs font-medium text-[var(--text-muted)]">Term</p>
+                <div className="inline-flex rounded-full border border-[var(--warm-200)] p-0.5">
+                  {(["short", "long"] as LiabilityTerm[]).map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => onTermChange(item.id, term)}
+                      className={cn(
+                        "rounded-full px-2.5 py-0.5 font-display text-[11px] font-semibold",
+                        item.term === term ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+                      )}
+                    >
+                      {term === "short" ? "Short-term" : "Long-term"}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </li>

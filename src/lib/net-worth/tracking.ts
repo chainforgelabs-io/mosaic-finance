@@ -20,8 +20,19 @@ const SHORT_TERM_HINTS = [
   "store card",
 ];
 
-/** Revolving or short-dated balances are short-term; everything else is long-term. */
-export function classifyLiability(type: string | null | undefined): LiabilityTerm {
+export function isLiabilityTerm(value: unknown): value is LiabilityTerm {
+  return value === "short" || value === "long";
+}
+
+/**
+ * Revolving or short-dated balances are short-term; everything else is long-term.
+ * `override` wins when the user has set a term on the debt row.
+ */
+export function classifyLiability(
+  type: string | null | undefined,
+  override?: LiabilityTerm | null,
+): LiabilityTerm {
+  if (isLiabilityTerm(override)) return override;
   const text = String(type ?? "").toLowerCase();
   if (!text) return "long";
   const words = text.split(/[^a-z]+/).filter(Boolean);
@@ -102,7 +113,7 @@ export function snapshotGroups(snapshot: SnapshotLike): SnapshotGroups {
     availableCredit = num(breakdown.available_credit);
   } else {
     for (const debt of debts) {
-      if (classifyLiability(debt.type ?? debt.name) === "short") shortTerm += num(debt.value);
+      if (classifyLiability(debt.type ?? debt.name, debt.term) === "short") shortTerm += num(debt.value);
       else longTerm += num(debt.value);
       availableCredit += availableCreditFor(debt);
     }
@@ -147,7 +158,7 @@ export function enrichBreakdown(breakdown: SnapshotBreakdown): SnapshotBreakdown
   let longTerm = 0;
   let availableCredit = 0;
   for (const debt of breakdown.debts) {
-    if (classifyLiability(debt.type ?? debt.name) === "short") shortTerm += num(debt.value);
+    if (classifyLiability(debt.type ?? debt.name, debt.term) === "short") shortTerm += num(debt.value);
     else longTerm += num(debt.value);
     availableCredit += availableCreditFor(debt);
   }
@@ -332,7 +343,7 @@ export function groupComparison(
   const value = (item: SnapshotBreakdownItem) => num(item.value);
   const credit = (item: SnapshotBreakdownItem) => availableCreditFor(item);
   const byTerm = (items: SnapshotBreakdownItem[] | undefined, term: LiabilityTerm) =>
-    (items ?? []).filter((d) => classifyLiability(d.type ?? d.name) === term);
+    (items ?? []).filter((d) => classifyLiability(d.type ?? d.name, d.term) === term);
   const withCredit = (items: SnapshotBreakdownItem[] | undefined) => (items ?? []).filter((d) => d.credit_limit != null);
 
   const totalRow = (key: NetWorthGroup | "assets" | "liabilities" | "netWorth", label: string, invert: boolean): ComparisonRow => {

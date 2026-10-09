@@ -40,6 +40,7 @@ interface DebtItem {
   rate?: number;
   monthly_payment?: number;
   credit_limit?: number | null;
+  term?: "short" | "long" | null;
 }
 
 interface PageData {
@@ -69,6 +70,7 @@ async function loadAll(): Promise<PageData> {
       rate?: number;
       monthly_payment?: number;
       credit_limit?: number | null;
+      term?: "short" | "long" | null;
     }>;
     debts = raw.map((d) => ({
       type: d.type,
@@ -76,6 +78,7 @@ async function loadAll(): Promise<PageData> {
       rate: d.rate,
       monthly_payment: d.monthly_payment,
       credit_limit: d.credit_limit,
+      term: d.term,
     }));
   }
   return { snapshots, holdings, fixedAssets, debts };

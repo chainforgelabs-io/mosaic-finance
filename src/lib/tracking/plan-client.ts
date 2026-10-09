@@ -1,8 +1,29 @@
 "use client";
 
 import type { BudgetPlanEntry } from "@/types/tracking";
-import type { CategoryKind, UserCategory } from "@/lib/tracking/categories";
-import { categoryKind, categoryLabel } from "@/lib/tracking/categories";
+import {
+  categoryKind,
+  categoryLabel,
+  defaultCategoriesForKind,
+  type CategoryKind,
+  type UserCategory,
+} from "@/lib/tracking/categories";
+
+/** Custom (non-built-in) slugs from the catalog, for keypad extras. */
+export function extraSlugs(catalog: UserCategory[], kind: CategoryKind = "expense"): string[] {
+  const builtins = new Set(defaultCategoriesForKind(kind));
+  return catalog
+    .filter((row) => row.kind === kind && !row.archived && !builtins.has(row.slug))
+    .map((row) => row.slug);
+}
+
+/** Persist a keypad-created category to the catalog so it shows on every device. */
+export async function persistCustomCategory(
+  slug: string,
+  kind: CategoryKind = "expense",
+): Promise<UserCategory | null> {
+  return saveCategory({ slug, label: categoryLabel(slug), kind });
+}
 
 export const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 const CUSTOM_MIGRATED_KEY = "mosaic-custom-categories-synced";

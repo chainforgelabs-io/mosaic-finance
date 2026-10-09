@@ -26,6 +26,7 @@ function sanitizeFactFindBody(raw: unknown): unknown {
         rate: optionalNumber(debt.rate),
         monthly_payment: optionalNumber(debt.monthly_payment),
         credit_limit: optionalNumber(debt.credit_limit),
+        term: debt.term === "short" || debt.term === "long" ? debt.term : undefined,
       }];
     });
   }
@@ -66,6 +67,7 @@ const DebtSchema = z.object({
   rate: z.number().optional(),
   monthly_payment: z.number().optional(),
   credit_limit: z.number().nonnegative().optional(),
+  term: z.enum(["short", "long"]).optional(),
 });
 
 const GoalSchema = z.object({
@@ -114,6 +116,7 @@ export async function POST(req: NextRequest) {
           rate: row.rate ?? null,
           monthly_payment: row.monthly_payment ?? null,
           credit_limit: row.credit_limit ?? null,
+          term: row.term ?? null,
         }))
       : null;
 
@@ -219,6 +222,7 @@ export async function PATCH(req: NextRequest) {
       rate: row.rate ?? null,
       monthly_payment: row.monthly_payment ?? null,
       credit_limit: row.credit_limit ?? null,
+      term: row.term ?? null,
     }));
   }
 

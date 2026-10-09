@@ -109,6 +109,8 @@ export interface SnapshotBreakdownItem {
   value: number;
   /** Liabilities only: credit limit, so available credit can be derived. */
   credit_limit?: number | null;
+  /** Liabilities only: user override for short vs long-term. */
+  term?: "short" | "long" | null;
 }
 
 export interface SnapshotBreakdown {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
-import { enrichBreakdown } from "@/lib/net-worth/tracking";
+import { enrichBreakdown, isLiabilityTerm } from "@/lib/net-worth/tracking";
 import { monthKey, todayIso } from "@/lib/tracking/dates";
 import type { SnapshotBreakdown } from "@/types/tracking";
 
@@ -60,6 +60,7 @@ export async function POST() {
     amount?: number;
     balance?: number;
     credit_limit?: number | null;
+    term?: "short" | "long" | null;
   }[];
 
   const investments = holdings.map((h) => ({
@@ -79,6 +80,7 @@ export async function POST() {
     ...(d.credit_limit != null && Number.isFinite(Number(d.credit_limit))
       ? { credit_limit: num(d.credit_limit) }
       : {}),
+    ...(isLiabilityTerm(d.term) ? { term: d.term } : {}),
   }));
 
   const investments_total = investments.reduce((s, i) => s + i.value, 0);

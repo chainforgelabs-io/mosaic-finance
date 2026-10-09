@@ -18,6 +18,8 @@ import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
 import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
+import { lineSeries } from "@/lib/net-worth/tracking";
+import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import {
@@ -366,7 +368,7 @@ const TRACKING_LINKS = [
 function DashboardNoPlan() {
   const prePlanData = usePlanStore((s) => s.prePlanData);
   const user = usePlanStore((s) => s.user);
-  const [snapshots, setSnapshots] = useState<{ date: string; netWorth: number }[]>([]);
+  const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -374,15 +376,7 @@ function DashboardNoPlan() {
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (cancelled || !json) return;
-        const rows = (json.snapshots ?? []) as { snapshot_date?: string; net_worth?: number }[];
-        setSnapshots(
-          rows
-            .map((row) => ({
-              date: String(row.snapshot_date ?? ""),
-              netWorth: Number(row.net_worth),
-            }))
-            .filter((row) => row.date && Number.isFinite(row.netWorth)),
-        );
+        setSnapshots((json.snapshots ?? []) as NetWorthSnapshotRow[]);
       })
       .catch(() => undefined);
     return () => {
@@ -390,7 +384,8 @@ function DashboardNoPlan() {
     };
   }, []);
 
-  const latestNetWorth = snapshots.length > 0 ? snapshots[snapshots.length - 1].netWorth : null;
+  const series = lineSeries(snapshots);
+  const latestNetWorth = series.length > 0 ? series[series.length - 1].netWorth : null;
   const reportAvailable =
     user?.tier === "progress" ||
     user?.tier === "mastery" ||
@@ -417,7 +412,7 @@ function DashboardNoPlan() {
         ))}
       </div>
 
-      <NetWorthHistoryChart data={snapshots} />
+      <NetWorthHistoryChart data={series} showToggles />
 
       <div className="flex flex-col gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   categoryVariance,
   ledgerHeaderKpis,
+  ledgerOpening,
   ledgerRows,
   monthPeriod,
   monthlySeries,
@@ -148,6 +149,34 @@ describe("ledger", () => {
     expect(rows[1].balance).toBe(5197 - 1269);
     expect(rows[rows.length - 1].balance).toBe(5197 - 1269 - 2114 - 476 - 1000 + 4012 - 400);
     expect(rows.find((row) => row.txn.line_role === "savings")?.kind).toBe("savings");
+  });
+
+  it("starts the running balance from an opening amount", () => {
+    const rows = ledgerRows(
+      txns.filter((txn) => txn.txn_date.startsWith("2026-03") && txn.line_role === "income").slice(0, 1),
+      2500,
+    );
+    expect(rows[0].balance).toBe(2500 + 5197);
+  });
+
+  it("rolls a cash anchor forward as the year's opening", () => {
+    const prior = [
+      { txn_date: "2025-11-02", amount: 200, direction: "out" as const, line_role: "purchase" },
+      { txn_date: "2025-12-20", amount: 500, direction: "in" as const, line_role: "income" },
+    ];
+    expect(
+      ledgerOpening(2026, prior, { starting_balance: 1000, anchor_date: "2025-10-31" }),
+    ).toBe(1300);
+  });
+
+  it("sums prior-year cash effects when there is no pre-year anchor", () => {
+    const prior = [
+      { txn_date: "2025-06-01", amount: 400, direction: "in" as const, line_role: "income" },
+      { txn_date: "2025-08-01", amount: 50, direction: "out" as const, line_role: "purchase" },
+      { txn_date: "2026-01-02", amount: 10, direction: "out" as const, line_role: "purchase" },
+    ];
+    expect(ledgerOpening(2026, prior, { starting_balance: 9000, anchor_date: "2026-01-15" })).toBe(350);
+    expect(ledgerOpening(2026, prior, null)).toBe(350);
   });
 
   it("summarises the header tiles", () => {
