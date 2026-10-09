@@ -3,6 +3,7 @@ import { PLAN_KINDS, indexPlan, planAmount, type PlanKind } from "@/lib/tracking
 import {
   cashEffect,
   daysBetween,
+  expectedBalance,
   roundMoney,
   transactionKind,
   type CashTxn,
@@ -251,6 +252,24 @@ export interface LedgerRow<T extends CashTxn = CashTxn> {
   effect: number;
   /** Running sum of effects from the oldest line to this one. */
   balance: number;
+}
+
+/**
+ * Cash on hand at the start of `year`.
+ * Prefers the cash anchor rolled forward through Dec 31 of the prior year;
+ * otherwise the running cash effect of every line dated before Jan 1.
+ */
+export function ledgerOpening(
+  year: number,
+  priorTxns: CashTxn[],
+  anchor?: { starting_balance: number; anchor_date: string } | null,
+): number {
+  const lastPrior = `${year - 1}-12-31`;
+  const beforeYear = priorTxns.filter((txn) => txn.txn_date <= lastPrior);
+  if (anchor && anchor.anchor_date <= lastPrior) {
+    return expectedBalance(anchor.starting_balance, anchor.anchor_date, beforeYear, lastPrior);
+  }
+  return roundMoney(beforeYear.reduce((sum, txn) => sum + cashEffect(txn), 0));
 }
 
 /**

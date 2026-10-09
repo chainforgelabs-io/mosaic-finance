@@ -87,6 +87,12 @@ describe("classifyLiability", () => {
   it("does not match 'loc' inside other words", () => {
     expect(classifyLiability("Relocation loan")).toBe("long");
   });
+
+  it("lets a stored term override the keyword", () => {
+    expect(classifyLiability("Visa credit card", "long")).toBe("long");
+    expect(classifyLiability("Mortgage", "short")).toBe("short");
+    expect(classifyLiability("Mortgage", null)).toBe("long");
+  });
 });
 
 describe("availableCreditFor", () => {
@@ -119,6 +125,20 @@ describe("snapshotGroups", () => {
     expect(groups.longTerm).toBe(410000);
     expect(groups.availableCredit).toBe(33200);
     expect(groups.cash).toBe(6500);
+  });
+
+  it("honours a per-debt term override when splitting groups", () => {
+    const custom = snap("2026-04-01", {
+      investments: [],
+      fixed_assets: [],
+      debts: [
+        { type: "Visa credit card", value: 2000, term: "long" },
+        { type: "Mortgage", value: 10000, term: "short" },
+      ],
+    });
+    const groups = snapshotGroups(custom);
+    expect(groups.shortTerm).toBe(10000);
+    expect(groups.longTerm).toBe(2000);
   });
 
   it("falls back to debts_total when a legacy snapshot has no debt items", () => {

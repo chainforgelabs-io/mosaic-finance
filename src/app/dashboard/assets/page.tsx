@@ -39,6 +39,7 @@ import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast"
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
+import { classifyLiability, lineSeries, type LiabilityTerm } from "@/lib/net-worth/tracking";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
@@ -64,7 +65,7 @@ interface FinancialProfile {
   monthly_expenses: number | null;
   monthly_savings: number | null;
   emergency_fund_months: number | null;
-  major_debts: { type: string; amount: number; rate?: number; monthly_payment?: number; credit_limit?: number | null }[] | null;
+  major_debts: { type: string; amount: number; rate?: number; monthly_payment?: number; credit_limit?: number | null; term?: LiabilityTerm | null }[] | null;
   financial_goals: { goal: string; target_amount?: number; target_year?: number }[] | null;
 }
 
@@ -605,6 +606,7 @@ export default function AssetsPage() {
   const [debtName, setDebtName] = useState("");
   const [debtBalance, setDebtBalance] = useState("");
   const [debtRate, setDebtRate] = useState("");
+  const [debtTerm, setDebtTerm] = useState<LiabilityTerm>("long");
   const [debtError, setDebtError] = useState<string | null>(null);
   const [debtSaving, setDebtSaving] = useState(false);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
@@ -693,12 +695,13 @@ export default function AssetsPage() {
         ...(d.rate != null ? { rate: d.rate } : {}),
         ...(d.monthly_payment != null ? { monthly_payment: d.monthly_payment } : {}),
         ...(d.credit_limit != null ? { credit_limit: d.credit_limit } : {}),
+        term: d.term ?? classifyLiability(d.type),
       }];
     });
   }
 
   async function saveDebtList(
-    rows: { type: string; balance: number; rate?: number; monthly_payment?: number; credit_limit?: number }[],
+    rows: { type: string; balance: number; rate?: number; monthly_payment?: number; credit_limit?: number; term?: LiabilityTerm }[],
   ) {
     const res = await fetch("/api/financial-profile", {
       method: "PATCH",
@@ -731,16 +734,29 @@ export default function AssetsPage() {
     try {
       await saveDebtList([
         ...profileDebtPayload(profile?.major_debts ?? null),
-        { type: name, balance, ...(rate != null ? { rate } : {}) },
+        { type: name, balance, ...(rate != null ? { rate } : {}), term: debtTerm },
       ]);
       setDebtName("");
       setDebtBalance("");
       setDebtRate("");
+      setDebtTerm("long");
       setDebtOpen(false);
     } catch (err) {
       setDebtError(err instanceof Error ? err.message : "Could not save that liability.");
     } finally {
       setDebtSaving(false);
+    }
+  }
+
+  async function handleDebtTerm(index: number, term: LiabilityTerm) {
+    const rows = profileDebtPayload(profile?.major_debts ?? null);
+    if (!rows[index]) return;
+    rows[index] = { ...rows[index], term };
+    setDebtError(null);
+    try {
+      await saveDebtList(rows);
+    } catch (err) {
+      setDebtError(err instanceof Error ? err.message : "Could not update that liability.");
     }
   }
 
@@ -942,9 +958,7 @@ export default function AssetsPage() {
           </div>
         )}
 
-        <NetWorthHistoryChart
-          data={snapshots.map((s) => ({ date: s.snapshot_date, netWorth: Number(s.net_worth) }))}
-        />
+        <NetWorthHistoryChart data={lineSeries(snapshots)} showToggles />
 
         {snapshots.length > 0 && (
           <BucketDeltas
@@ -1160,7 +1174,10 @@ export default function AssetsPage() {
                   Name
                   <input
                     value={debtName}
-                    onChange={(e) => setDebtName(e.target.value)}
+                    onChange={(e) => {
+                      setDebtName(e.target.value);
+                      setDebtTerm(classifyLiability(e.target.value));
+                    }}
                     placeholder="Car loan"
                     className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
                   />
@@ -1184,6 +1201,17 @@ export default function AssetsPage() {
                     placeholder="5.9"
                     className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
                   />
+                </label>
+                <label className="font-body text-sm text-[var(--text-secondary)] sm:col-span-2">
+                  Term
+                  <select
+                    value={debtTerm}
+                    onChange={(e) => setDebtTerm(e.target.value as LiabilityTerm)}
+                    className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm text-[var(--text-primary)]"
+                  >
+                    <option value="short">Short-term (card, line of credit)</option>
+                    <option value="long">Long-term (mortgage, loan)</option>
+                  </select>
                 </label>
                 <div className="flex items-end">
                   <button
@@ -1221,6 +1249,10 @@ export default function AssetsPage() {
                       <div>
                         <p className="font-body text-sm">{presentGoalName(d.type)}</p>
                         {d.rate != null && <p className="font-body text-xs text-amber-600">{d.rate}%</p>}
+                        <TermSelect
+                          value={classifyLiability(d.type, d.term)}
+                          onChange={(term) => void handleDebtTerm(d.index, term)}
+                        />
                       </div>
                       <div className="flex items-center gap-3">
                         <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(d.amount)}</p>
@@ -1261,6 +1293,10 @@ export default function AssetsPage() {
                           <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="ml-2 font-body text-xs text-[var(--text-muted)] underline">
                             Remove
                           </button>
+                          <TermSelect
+                            value={classifyLiability(d.type, d.term)}
+                            onChange={(term) => void handleDebtTerm(d.index, term)}
+                          />
                         </td>
                         <td className="py-2.5 text-right font-[family-name:var(--font-body)] text-sm font-medium tabular-nums text-[var(--text-primary)]">{fmtFull(d.amount)}</td>
                         <td className="py-2.5 text-right">
@@ -1406,6 +1442,7 @@ export default function AssetsPage() {
           rate: d.rate,
           monthly_payment: d.monthly_payment,
           credit_limit: d.credit_limit,
+          term: d.term,
         }))}
         onClose={() => setCheckInOpen(false)}
         onSaved={async (nextUnlocks) => {
@@ -1421,6 +1458,20 @@ export default function AssetsPage() {
       />
       <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />
     </div>
+  );
+}
+
+function TermSelect({ value, onChange }: { value: LiabilityTerm; onChange: (term: LiabilityTerm) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as LiabilityTerm)}
+      className="mt-1 rounded border border-[var(--warm-200)] bg-white px-1.5 py-0.5 font-body text-[11px] text-[var(--text-secondary)]"
+      aria-label="Liability term"
+    >
+      <option value="short">Short-term</option>
+      <option value="long">Long-term</option>
+    </select>
   );
 }
 

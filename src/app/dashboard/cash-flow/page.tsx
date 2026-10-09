@@ -53,6 +53,7 @@ import {
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
+import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
 import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
@@ -245,6 +246,8 @@ export default function CashFlowPage() {
       const json = await recurringRes.json();
       setRecurring(json.items ?? []);
     }
+    const catalog = await migrateLocalCategories(await fetchCatalog());
+    setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(catalog)])]);
   }, [monthStart]);
 
   useEffect(() => {
@@ -277,7 +280,8 @@ export default function CashFlowPage() {
 
   function addCategory(slug: string) {
     rememberCategory(slug);
-    setCustomCategories(loadCustomCategories());
+    setCustomCategories((prev) => [...new Set([...prev, slug])]);
+    void persistCustomCategory(slug);
   }
 
   const visibleTxns = view === "month" ? monthTxns : transactions;

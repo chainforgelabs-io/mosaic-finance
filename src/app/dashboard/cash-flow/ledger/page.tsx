@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { EditSpendSheet } from "@/components/tracking/EditSpendSheet";
 import { CATEGORY_KIND_LABELS, labelFor, type UserCategory } from "@/lib/tracking/categories";
-import { ledgerHeaderKpis, ledgerRows, yearPeriod, type LedgerRow } from "@/lib/tracking/budget-kpis";
+import { extraSlugs, fetchCatalog, persistCustomCategory } from "@/lib/tracking/plan-client";
+import { ledgerHeaderKpis, ledgerOpening, ledgerRows, yearPeriod, type LedgerRow } from "@/lib/tracking/budget-kpis";
+import type { CashAnchor } from "@/types/tracking";
 import { type TransactionKind } from "@/lib/tracking/cash-capture";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
-import { fetchCatalog } from "@/lib/tracking/plan-client";
 import { cn } from "@/lib/utils";
 import type { TransactionRow } from "@/types/tracking";
 
@@ -41,18 +42,32 @@ function loadCustomCategories(): string[] {
   }
 }
 
-async function loadYear(targetYear: number): Promise<{ txns: TransactionRow[]; catalog: UserCategory[] }> {
+async function loadYear(targetYear: number): Promise<{
+  txns: TransactionRow[];
+  priorTxns: TransactionRow[];
+  catalog: UserCategory[];
+  anchor: CashAnchor | null;
+}> {
   const period = yearPeriod(targetYear);
-  const [txnRes, catalog] = await Promise.all([
+  const lastPrior = `${targetYear - 1}-12-31`;
+  const [txnRes, priorRes, catalog, cashRes] = await Promise.all([
     fetch(`/api/transactions?start=${period.start}&end=${period.end}`, { credentials: "include" }),
+    fetch(`/api/transactions?end=${lastPrior}`, { credentials: "include" }),
     fetchCatalog(),
+    fetch("/api/cash", { credentials: "include" }),
   ]);
   let txns: TransactionRow[] = [];
   if (txnRes.ok) {
     const json = await txnRes.json();
     txns = (json.transactions ?? []) as TransactionRow[];
   }
-  return { txns, catalog };
+  let priorTxns: TransactionRow[] = [];
+  if (priorRes.ok) {
+    const json = await priorRes.json();
+    priorTxns = (json.transactions ?? []) as TransactionRow[];
+  }
+  const cash = cashRes.ok ? await cashRes.json() : null;
+  return { txns, priorTxns, catalog, anchor: (cash?.anchor as CashAnchor | null) ?? null };
 }
 
 function formatDate(iso: string): string {
@@ -73,6 +88,8 @@ export default function LedgerPage() {
   const loading = loadedYear !== year;
   const [editing, setEditing] = useState<TransactionRow | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [opening, setOpening] = useState(0);
+  const [openingSource, setOpeningSource] = useState<"anchor" | "prior" | "none">("none");
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +97,16 @@ export default function LedgerPage() {
       if (cancelled) return;
       setTxns(data.txns);
       setCatalog(data.catalog);
-      setCustomCategories(loadCustomCategories());
+      setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(data.catalog)])]);
+      const nextOpening = ledgerOpening(year, data.priorTxns, data.anchor);
+      setOpening(nextOpening);
+      setOpeningSource(
+        data.anchor && data.anchor.anchor_date <= `${year - 1}-12-31`
+          ? "anchor"
+          : data.priorTxns.length > 0
+            ? "prior"
+            : "none",
+      );
       setLoadedYear(year);
     });
     return () => {
@@ -89,11 +115,14 @@ export default function LedgerPage() {
   }, [year]);
 
   const reload = useCallback(() => {
-    loadYear(year).then((data) => setTxns(data.txns));
+    loadYear(year).then((data) => {
+      setTxns(data.txns);
+      setOpening(ledgerOpening(year, data.priorTxns, data.anchor));
+    });
   }, [year]);
 
   const kpis = useMemo(() => ledgerHeaderKpis(txns, today), [txns, today]);
-  const rows = useMemo(() => ledgerRows(txns), [txns]);
+  const rows = useMemo(() => ledgerRows(txns, opening), [txns, opening]);
 
   const months = useMemo(() => {
     const set = new Set(txns.map((txn) => monthKey(txn.txn_date)));
@@ -150,7 +179,8 @@ export default function LedgerPage() {
   function addCategory(slug: string) {
     const next = [...new Set([...loadCustomCategories(), slug])];
     localStorage.setItem(CUSTOM_CATEGORY_KEY, JSON.stringify(next));
-    setCustomCategories(next);
+    setCustomCategories((prev) => [...new Set([...prev, slug])]);
+    void persistCustomCategory(slug);
   }
 
   const currentYear = Number(today.slice(0, 4));
@@ -208,6 +238,15 @@ export default function LedgerPage() {
           tone={kpis.trackingBalanceYtd >= 0 ? "good" : "bad"}
         />
       </div>
+
+      {openingSource !== "none" && (
+        <p className="font-body text-xs text-[var(--text-muted)]">
+          Running balance starts at {formatMoney(opening)}
+          {openingSource === "anchor"
+            ? ", from your starting cash rolled to the end of last year."
+            : ", the cash effect of last year’s entries."}
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <select
