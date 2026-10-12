@@ -5,11 +5,20 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isLaunchLive } from "@/lib/config/launch";
 import { TRIAL_COPY } from "@/lib/config/launch-surface";
+import { GUARANTEE_LONG, GUARANTEE_NAME } from "@/lib/config/offer";
 
 const ITEMS = [
   {
     q: "Is this financial advice?",
     a: "No. Mosaic is a financial tracking and education tool. Charlie is your AI money guide. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+  },
+  {
+    q: `How does the ${GUARANTEE_NAME} work?`,
+    a: `${GUARANTEE_LONG} It is not conditioned on returns, savings, or following any action list.`,
+  },
+  {
+    q: "What does the Financial Health Score measure?",
+    a: "Consistency of tracking: whether you logged spending this week, snapshotted net worth this month, and how your tracked picture is trending. It is not a credit score, a portfolio return, or a forecast.",
   },
   {
     q: "What data do you collect?",
@@ -18,8 +27,8 @@ const ITEMS = [
   {
     q: "When do I get charged?",
     a: isLaunchLive()
-      ? `Pulse is free. Progress starts after a ${TRIAL_COPY.hyphen} reverse trial — no card to try. First payment has a 30-day refund. Founding Progress is $8/mo locked for the first 200 members.`
-      : "Not until we launch. Join the waitlist to lock in Founding Member pricing.",
+      ? `Pulse is free forever. Progress starts after a ${TRIAL_COPY.hyphen} reverse trial — no card to try. First payment has a 30-day refund. Founding Progress is $8/mo or $80/yr, locked for life for the first 200 members.`
+      : "Not until we launch. Tracking stays free. Join the waitlist to be first in line for one of 200 founding Progress spots at $8/mo or $80/yr, locked for life.",
   },
   {
     q: "How does Charlie work?",

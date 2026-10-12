@@ -5,28 +5,27 @@ import { useEffect, useRef } from "react";
 const STEPS = [
   {
     num: 1,
-    title: "Tell Charlie about your financial situation",
-    desc: "A warm, adaptive conversation covers your income, goals, debts, and accounts. One question at a time. No forms.",
+    title: "Log this week",
+    desc: "Tap in what you spent. A few seconds on your phone, no bank login. That one habit is the whole engine.",
   },
   {
     num: 2,
-    title: "Get your Progress Report instantly",
-    desc: "Net worth, trajectory, and educational context on tax accounts and retirement — based on your numbers and your province. Ready as soon as you finish.",
+    title: "Snapshot your net worth each month",
+    desc: "Update your balances once a month. Your Financial Health Score moves with what you log, so you can see the direction — not just the number.",
   },
   {
     num: 3,
-    title: "Walk through it with Charlie",
-    desc: "Charlie, your AI education guide, walks you through each section and explains your options. Speak with a licensed financial advisor before implementing any changes.",
+    title: "Let Charlie explain the picture",
+    desc: "On Progress, Charlie, your AI money guide, turns your numbers into a Progress Report and walks you through it in plain Canadian terms. Educational information, not advice — speak with a licensed financial advisor before implementing changes.",
   },
 ];
 
-const FAKE_MESSAGES = [
-  { from: "ai", text: "Hi! Let's start with a quick picture of where you are financially. What's your approximate annual income?" },
-  { from: "user", text: "Around $85,000 before tax." },
-  { from: "ai", text: "Great. And roughly how much do you save or invest each month?" },
-  { from: "user", text: "About $800 goes into my TFSA." },
-  { from: "ai", text: "Nice — that's a solid savings rate. Do you have any other accounts like an RRSP or FHSA?" },
-];
+const LOOP_ROWS = [
+  { label: "Spending logged", value: "This week", done: true },
+  { label: "Net worth snapshot", value: "Saved for October", done: true },
+  { label: "Weekly streak", value: "6 weeks", done: true },
+  { label: "Progress Report", value: "Refreshed monthly", done: false },
+] as const;
 
 export function SolutionSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -76,7 +75,7 @@ export function SolutionSection() {
           className="mb-16 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Track your money in three steps.
+          A weekly loop. Not a one-time document.
         </h2>
 
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
@@ -105,42 +104,59 @@ export function SolutionSection() {
             </div>
           </div>
 
-          {/* Conversation preview */}
+          {/* Weekly loop preview (illustrative, not a user's data) */}
           <div
             data-animate
             className="hidden rounded-2xl border border-white/[0.06] bg-slate-900 p-6 lg:block"
             style={{ opacity: 0, transform: "translateY(16px)" }}
+            aria-hidden="true"
           >
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-5 flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-white/10" />
               <div className="h-3 w-3 rounded-full bg-white/10" />
               <div className="h-3 w-3 rounded-full bg-white/10" />
             </div>
-            <div className="space-y-4">
-              {FAKE_MESSAGES.map((msg, i) => (
+            <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald">
+              This week
+            </p>
+            <div className="mt-3 flex items-end justify-between gap-4">
+              <div>
+                <p className="font-display text-5xl font-extrabold tabular-nums text-white">
+                  63
+                </p>
+                <p className="mt-1 font-body text-xs text-text-muted">
+                  Financial Health Score
+                </p>
+              </div>
+              <p className="rounded-full bg-emerald/15 px-3 py-1 font-display text-xs font-semibold text-emerald-soft">
+                90-day +7
+              </p>
+            </div>
+            <div className="mt-6 space-y-2">
+              {LOOP_ROWS.map((row) => (
                 <div
-                  key={i}
-                  className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
+                  key={row.label}
+                  className="flex items-center justify-between rounded-lg bg-white/[0.04] px-4 py-3"
                 >
-                  <div
-                    className={`max-w-[85%] rounded-xl px-4 py-2.5 font-body text-[13px] leading-relaxed ${
-                      msg.from === "user"
-                        ? "bg-emerald/15 text-emerald-soft"
-                        : "bg-white/[0.06] text-text-inverse/80"
-                    }`}
-                  >
-                    {msg.text}
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full ${
+                        row.done ? "bg-emerald" : "bg-white/20"
+                      }`}
+                    />
+                    <span className="font-body text-[13px] text-text-inverse/85">
+                      {row.label}
+                    </span>
                   </div>
+                  <span className="font-display text-xs font-semibold text-text-inverse/60">
+                    {row.value}
+                  </span>
                 </div>
               ))}
-              <div className="flex justify-start">
-                <div className="flex gap-1 rounded-xl bg-white/[0.06] px-4 py-3">
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-text-muted" />
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-text-muted [animation-delay:150ms]" />
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-text-muted [animation-delay:300ms]" />
-                </div>
-              </div>
             </div>
+            <p className="mt-4 font-body text-[11px] text-text-muted">
+              Illustration. The Score measures tracking consistency, not investment returns.
+            </p>
           </div>
         </div>
       </div>

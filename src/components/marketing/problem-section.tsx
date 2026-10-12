@@ -67,18 +67,19 @@ export function ProblemSection() {
           className="mb-3 max-w-3xl font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Most people track spending in their head. That is not a picture of
-          their money.
+          Most people cannot say whether last month moved them forward or
+          backward.
         </h2>
         <p
           data-animate
           className="mb-12 max-w-2xl font-body text-[17px] leading-relaxed text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Without a clear picture of income, spending, debts, and net worth, it
-          is hard to see whether you are paying down debt, building savings, or
-          moving toward your goals. Mosaic is a tracker and education tool —
-          not a substitute for a licensed advisor.
+          Spending lives in your head, balances live in six apps, and nobody
+          tells you the direction. Without that weekly picture, it is hard to
+          know if you are paying down debt, building savings, or drifting.
+          Mosaic is a tracker and education tool — not a substitute for a
+          licensed advisor.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

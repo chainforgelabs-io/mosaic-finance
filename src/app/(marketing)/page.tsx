@@ -7,6 +7,7 @@ import { SolutionSection } from "@/components/marketing/solution-section";
 import { AlwaysAvailableSection } from "@/components/marketing/always-available-section";
 import { PositioningSection } from "@/components/marketing/positioning-section";
 import { TrustSection } from "@/components/marketing/trust-section";
+import { OfferSection } from "@/components/marketing/offer-section";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { FinalCta } from "@/components/marketing/final-cta";
@@ -20,12 +21,13 @@ export default function MarketingPage() {
       <Nav hideAuth={!live} />
       <Hero />
       <ProblemSection />
+      <SolutionSection />
       <ShowcaseSection />
       <PlanSections />
-      <SolutionSection />
       <AlwaysAvailableSection />
       <PositioningSection />
       <TrustSection />
+      <OfferSection />
       <PricingSection ctaHref={live ? "/signup" : "/waitlist"} />
       <FaqSection />
       <FinalCta />

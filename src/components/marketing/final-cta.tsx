@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
+import { GUARANTEE_SHORT, OFFER_NAME } from "@/lib/config/offer";
 
 export function FinalCta() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -40,16 +41,23 @@ export function FinalCta() {
           className="mb-4 font-display text-[28px] font-bold leading-tight text-white sm:text-[36px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Stop guessing. Start tracking.
+          {`Start ${OFFER_NAME.replace(/^The /, "the ")}.`}
         </h2>
         <p
           data-animate
-          className="mb-8 font-body text-[17px] text-text-muted"
+          className="mb-3 font-body text-[17px] text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          The financial operating system for Canadians. Track your money, learn
-          the rules, and stay consistent. Charlie is your AI money guide —
-          educational, not advice. No credit card.
+          Log this week. Snapshot this month. Know where you stand. Tracking
+          is free forever; Progress adds Charlie, your AI money guide, and the
+          Progress Report — educational, not advice. No credit card.
+        </p>
+        <p
+          data-animate
+          className="mb-8 font-display text-sm font-semibold text-emerald-soft"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          {GUARANTEE_SHORT}
         </p>
         <div
           data-animate

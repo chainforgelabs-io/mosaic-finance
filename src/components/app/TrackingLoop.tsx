@@ -7,6 +7,11 @@ import { HealthScore } from "@/components/app/HealthScore";
 import { outflowTotal, type CashTxn } from "@/lib/tracking/cash-capture";
 import { startOfWeekMonday, todayIso, weekRange } from "@/lib/tracking/dates";
 import { formatMoneyExact } from "@/lib/tracking/format";
+import { GUARANTEE_NAME, GUARANTEE_SHORT } from "@/lib/config/offer";
+import {
+  GUARANTEE_SNAPSHOTS_REQUIRED,
+  GUARANTEE_WEEKS_REQUIRED,
+} from "@/lib/health-score/guarantee";
 import type { GamificationSummary } from "@/types/tracking";
 
 interface TrackingLoopProps {
@@ -18,11 +23,17 @@ interface ReportEntry {
   started: boolean;
 }
 
+interface GuaranteeStatus {
+  weeksLogged: number;
+  snapshots: number;
+}
+
 export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
   const [score, setScore] = useState<number | null>(null);
   const [delta90, setDelta90] = useState<number | null>(null);
   const [summary, setSummary] = useState<GamificationSummary | null>(null);
   const [weekSpend, setWeekSpend] = useState<number | null>(null);
+  const [guarantee, setGuarantee] = useState<GuaranteeStatus | null>(null);
   const [entry, setEntry] = useState<ReportEntry>({ path: "/onboarding", started: false });
 
   useEffect(() => {
@@ -54,6 +65,17 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
       .then((data) => {
         if (cancelled || !data) return;
         setWeekSpend(outflowTotal((data.transactions ?? []) as CashTxn[]));
+      })
+      .catch(() => undefined);
+
+    void fetch("/api/guarantee/status", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        setGuarantee({
+          weeksLogged: Number(data.weeksLogged ?? 0),
+          snapshots: Number(data.snapshots ?? 0),
+        });
       })
       .catch(() => undefined);
 
@@ -152,6 +174,24 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
           {primary.label}
           <ArrowRight className="size-4" />
         </Link>
+
+        <div className="mt-6 rounded-lg border border-[var(--emerald)]/30 bg-[var(--emerald)]/5 px-4 py-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.08em] text-[var(--emerald)]">
+              {GUARANTEE_NAME}
+            </p>
+            {guarantee && (
+              <p className="font-body text-xs tabular-nums text-[var(--text-secondary)]">
+                {Math.min(guarantee.weeksLogged, GUARANTEE_WEEKS_REQUIRED)}/{GUARANTEE_WEEKS_REQUIRED} weeks
+                {" · "}
+                {Math.min(guarantee.snapshots, GUARANTEE_SNAPSHOTS_REQUIRED)}/{GUARANTEE_SNAPSHOTS_REQUIRED} snapshots
+              </p>
+            )}
+          </div>
+          <p className="mt-1 font-body text-sm leading-relaxed text-[var(--text-secondary)]">
+            {GUARANTEE_SHORT}
+          </p>
+        </div>
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">

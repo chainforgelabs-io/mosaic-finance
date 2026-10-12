@@ -8,6 +8,7 @@ import { isLaunchLive } from "@/lib/config/launch";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
+  { label: "Guarantee", href: "/#offer" },
   { label: "Pricing", href: "/#pricing" },
   { label: "Why Trust Us", href: "/#trust" },
 ];
