@@ -129,12 +129,12 @@ export default function OnboardingProfilePage() {
           getUserProfileData(),
         ]);
 
-        if (progress.profileComplete && progress.redirectPath !== "/onboarding") {
+        if (progress.profileComplete && progress.resumePath !== "/onboarding") {
           completeStep("profile");
           if (progress.factFindComplete) completeStep("fact-find");
           if (progress.riskProfileComplete) completeStep("risk-profile");
           if (progress.holdingsExist) completeStep("holdings");
-          router.replace(progress.redirectPath);
+          router.replace(progress.resumePath);
           return;
         }
 

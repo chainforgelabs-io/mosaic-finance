@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import {
+  authLandingPath,
+  onboardingResumePath,
+  reportEntryPath,
+  reportStarted,
+} from "@/lib/onboarding/paths";
 import { financialProfileSchema } from "@/lib/schemas/onboarding";
 import type { FactFindAccount, FactFindHolding } from "@/stores/onboarding";
 
@@ -131,12 +137,18 @@ export type OnboardingProgress = {
   riskProfileComplete: boolean;
   holdingsExist: boolean;
   planExists: boolean;
+  /** Post-auth landing. Tracking comes before the Progress Report. */
   redirectPath: string;
+  /** Next step when someone opens the profile screen they already finished. */
+  resumePath: string;
+  /** Where the dashboard invitation sends someone who wants a Progress Report. */
+  reportEntryPath: string;
+  reportStarted: boolean;
 };
 
 /**
- * Queries the DB to determine how far the user has progressed through onboarding
- * and returns the appropriate redirect path so they can resume.
+ * Queries the DB for how far a Progress Report has gotten.
+ * Sign-in lands on the tracking dashboard either way.
  */
 export async function getOnboardingProgress(): Promise<OnboardingProgress> {
   const supabase = await createClient();
@@ -150,7 +162,10 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     riskProfileComplete: false,
     holdingsExist: false,
     planExists: false,
-    redirectPath: "/onboarding",
+    redirectPath: "/dashboard",
+    resumePath: "/onboarding",
+    reportEntryPath: "/onboarding",
+    reportStarted: false,
   };
 
   if (!user) return empty;
@@ -192,44 +207,25 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
         .maybeSingle(),
     ]);
 
-  const profileComplete = !!(
-    profileRes.data?.age && profileRes.data?.employment_type
-  );
-  const factFindComplete = !!factFindRes.data;
-  const riskProfileComplete = !!riskRes.data;
-  const holdingsExist = !!holdingsRes.data;
-  const planExists = !!planRes.data;
-
-  let redirectPath: string;
-  if (planExists) {
-    redirectPath = "/dashboard";
-  } else if (holdingsExist) {
-    redirectPath = "/dashboard";
-  } else if (riskProfileComplete) {
-    redirectPath = "/onboarding/holdings";
-  } else if (factFindComplete) {
-    redirectPath = "/onboarding/goals";
-  } else if (profileComplete) {
-    redirectPath = "/onboarding/fact-find";
-  } else {
-    redirectPath = "/onboarding";
-  }
-
-  const role = profileRes.data?.role;
-  if (
-    redirectPath === "/dashboard" &&
-    role === "admin"
-  ) {
-    redirectPath = "/admin/approval-queue";
-  }
+  const flags = {
+    profileComplete: !!(profileRes.data?.age && profileRes.data?.employment_type),
+    factFindComplete: !!factFindRes.data,
+    riskProfileComplete: !!riskRes.data,
+    holdingsExist: !!holdingsRes.data,
+    planExists: !!planRes.data,
+    isAdmin: profileRes.data?.role === "admin",
+  };
 
   return {
-    profileComplete,
-    factFindComplete,
-    riskProfileComplete,
-    holdingsExist,
-    planExists,
-    redirectPath,
+    profileComplete: flags.profileComplete,
+    factFindComplete: flags.factFindComplete,
+    riskProfileComplete: flags.riskProfileComplete,
+    holdingsExist: flags.holdingsExist,
+    planExists: flags.planExists,
+    redirectPath: authLandingPath(flags),
+    resumePath: onboardingResumePath(flags),
+    reportEntryPath: reportEntryPath(flags),
+    reportStarted: reportStarted(flags),
   };
 }
 

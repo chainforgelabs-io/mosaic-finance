@@ -23,6 +23,7 @@ import { lineSeries } from "@/lib/net-worth/tracking";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
+import { TrackingLoop } from "@/components/app/TrackingLoop";
 import {
   FileText,
   ArrowRight,
@@ -143,11 +144,12 @@ function useLiveHealthScore() {
 function PrePlanKPIStrip({
   data,
   snapshotNetWorth = null,
+  showScore = true,
 }: {
   data: PrePlanData | null;
   snapshotNetWorth?: number | null;
+  showScore?: boolean;
 }) {
-  const liveScore = useLiveHealthScore();
   const inv = data?.totalInvestments;
   const fix = data?.totalFixedAssets;
   const totalAssetSum = (inv ?? 0) + (fix ?? 0);
@@ -174,28 +176,9 @@ function PrePlanKPIStrip({
   return (
     <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
       <div className="flex flex-col md:flex-row items-center gap-6">
-        <div className="flex flex-col items-center shrink-0">
-          {liveScore != null ? (
-            <HealthScore score={liveScore.score} size="sm" />
-          ) : (
-            <div className="flex size-[80px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
-              <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
-                --
-              </span>
-            </div>
-          )}
-          <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
-            Health Score
-          </p>
-          {liveScore?.delta90 != null && (
-            <p className="mt-0.5 font-[family-name:var(--font-body)] text-[10px] text-white/60">
-              90-day {liveScore.delta90 >= 0 ? "+" : ""}
-              {liveScore.delta90}
-            </p>
-          )}
-        </div>
+        {showScore && <PrePlanScore />}
 
-        <div className="hidden md:block w-px h-20 bg-white/10" />
+        {showScore && <div className="hidden md:block w-px h-20 bg-white/10" />}
 
         <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
           <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
@@ -245,6 +228,33 @@ function PrePlanKPIStrip({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PrePlanScore() {
+  const liveScore = useLiveHealthScore();
+
+  return (
+    <div className="flex flex-col items-center shrink-0">
+      {liveScore != null ? (
+        <HealthScore score={liveScore.score} size="sm" />
+      ) : (
+        <div className="flex size-[80px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
+          <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
+            --
+          </span>
+        </div>
+      )}
+      <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
+        Health Score
+      </p>
+      {liveScore?.delta90 != null && (
+        <p className="mt-0.5 font-[family-name:var(--font-body)] text-[10px] text-white/60">
+          90-day {liveScore.delta90 >= 0 ? "+" : ""}
+          {liveScore.delta90}
+        </p>
+      )}
     </div>
   );
 }
@@ -394,8 +404,9 @@ function DashboardNoPlan() {
 
   return (
     <div className="space-y-6">
-      <PrePlanKPIStrip data={prePlanData} snapshotNetWorth={latestNetWorth} />
-      <MotivationStrip />
+      <TrackingLoop reportAvailable={reportAvailable} />
+
+      <PrePlanKPIStrip data={prePlanData} snapshotNetWorth={latestNetWorth} showScore={false} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {TRACKING_LINKS.map((item) => (
@@ -414,26 +425,6 @@ function DashboardNoPlan() {
       </div>
 
       <NetWorthHistoryChart data={series} showToggles />
-
-      <div className="flex flex-col gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="font-[family-name:var(--font-display)] text-base font-semibold text-[var(--text-primary)]">
-            Progress Report
-          </h2>
-          <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
-            {reportAvailable
-              ? "A Progress Report is an educational snapshot of your trajectory. Your Health Score, net worth, and streaks are already here. This is educational information, not financial advice."
-              : "Progress Reports are included on Progress. Your Health Score, net worth, and streaks stay free on Pulse."}
-          </p>
-        </div>
-        <Link
-          href={reportAvailable ? "/onboarding" : "/dashboard/settings?tab=subscription"}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-[family-name:var(--font-display)] text-sm font-semibold text-white transition-colors hover:bg-[#059669]"
-        >
-          {reportAvailable ? "Start fact-find" : "See Progress"}
-          <ArrowRight className="size-4" />
-        </Link>
-      </div>
     </div>
   );
 }

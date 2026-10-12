@@ -62,7 +62,7 @@ export function Hero() {
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          Track your net worth, spending, and goals in one place. Charlie, your
+          Log spending each week and see your Health Score move. Charlie, your
           AI money guide, explains the picture — educational information, not
           advice. Built for Canadian rules.
         </p>
@@ -79,7 +79,7 @@ export function Hero() {
             <WaitlistForm source="hero" variant="hero" />
           )}
           <p className="mt-4 font-display text-sm font-semibold text-white/90">
-            See the whole picture.
+            Your Health Score, updated by what you log.
           </p>
           <a
             href="#how-it-works"

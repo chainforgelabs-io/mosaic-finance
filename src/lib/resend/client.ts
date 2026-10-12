@@ -136,7 +136,7 @@ export async function sendTrialStartedEmail(userEmail: string) {
       bodyHtml: mosaicCard(
         "What is included",
         `<p style="margin:0;">You have ${TRIAL_COPY.days} of Progress — fact-find, Progress Report, Charlie, and statement parsing included. No credit card yet. Tracking, budgets, and the Health Score stay free after the trial on Pulse.</p>
-         ${mosaicButton(`${APP_URL}/onboarding`, "Start your fact-find")}`,
+         ${mosaicButton(`${APP_URL}/dashboard`, "Start tracking")}`,
       ),
     }),
   });

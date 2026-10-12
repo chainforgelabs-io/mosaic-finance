@@ -26,5 +26,10 @@ export async function GET(request: NextRequest) {
   }
 
   const progress = await getOnboardingProgress();
-  return NextResponse.json({ redirectTo: progress.redirectPath });
+  return NextResponse.json({
+    redirectTo: progress.redirectPath,
+    resumePath: progress.resumePath,
+    reportEntryPath: progress.reportEntryPath,
+    reportStarted: progress.reportStarted,
+  });
 }

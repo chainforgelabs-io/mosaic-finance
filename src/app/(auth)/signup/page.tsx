@@ -51,7 +51,7 @@ export default function SignUpPage() {
 
     if (!authData.session) {
       setServerError(
-        "Check your email to confirm your account. After confirming, sign in to continue onboarding.",
+        "Check your email to confirm your account. After confirming, sign in to start tracking.",
       );
       return;
     }
