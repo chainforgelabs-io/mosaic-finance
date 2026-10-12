@@ -1,5 +1,9 @@
 # Mosaic Finance — Growth & Revenue Plan
 
+> **Archived 11 October 2026.** Superseded by [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/hormozi-playbook.md](docs/hormozi-playbook.md). Keep this file for history. Do not treat it as current.
+>
+> Stale facts: trial is **7 days** (not 14); Mastery is hidden (`MASTERY_PUBLIC = false`); new accounts land on `/dashboard`, not onboarding.
+
 *Last updated: September 2026*
 
 ## 1. The One-Line Strategy
