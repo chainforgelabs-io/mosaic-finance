@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Award, Lock, MapPin, Sparkles } from "lucide-react";
+import { Award, Lock, MapPin, ShieldCheck } from "lucide-react";
+import { GUARANTEE_NAME, GUARANTEE_SHORT } from "@/lib/config/offer";
 
 const PILLARS = [
   {
@@ -15,9 +16,9 @@ const PILLARS = [
     desc: "Charlie explains your trajectory and options so you can learn. This is educational information, not financial advice — speak with a licensed advisor before implementing changes.",
   },
   {
-    icon: Sparkles,
-    title: "Instant Progress Reports",
-    desc: "See where you stand today, your current trajectory, and educational options — delivered the moment you finish onboarding.",
+    icon: ShieldCheck,
+    title: GUARANTEE_NAME,
+    desc: GUARANTEE_SHORT,
   },
   {
     icon: Lock,
@@ -102,8 +103,9 @@ export function TrustSection() {
           className="mt-14 max-w-2xl rounded-xl border border-warm-200 bg-white px-6 py-5 font-display text-lg font-semibold leading-snug text-text-primary sm:text-xl"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Mosaic helps you track and learn — so you show up prepared when you
-          speak with a licensed advisor.
+          Mosaic helps you track and learn every week — so you always know
+          where you stand, and you show up prepared when you speak with a
+          licensed advisor.
         </p>
       </div>
     </section>

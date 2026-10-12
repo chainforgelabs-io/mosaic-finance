@@ -6,11 +6,11 @@ import { Briefcase, Home, LineChart } from "lucide-react";
 const CARDS = [
   {
     icon: Briefcase,
-    text: "New job, raise, or career change? Update your Progress Report in minutes.",
+    text: "New job, raise, or career change? Update your numbers and your Score picks it up the same week.",
   },
   {
     icon: Home,
-    text: "Buying a home or starting a family? Update your numbers and see how your snapshot changes.",
+    text: "Buying a home or starting a family? Log the change, snapshot your net worth, and see the new picture.",
   },
   {
     icon: LineChart,
@@ -67,16 +67,16 @@ export function AlwaysAvailableSection() {
           className="mb-4 font-display text-[28px] font-bold leading-tight text-white sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Life changes. Your Progress Report should too.
+          Life changes. Your Score keeps up.
         </h2>
         <p
           data-animate
           className="mb-14 max-w-2xl font-body text-[17px] leading-relaxed text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          This isn&apos;t a one-time document. It&apos;s a tracking platform that
-          knows your full financial picture and is there every time something
-          changes.
+          This isn&apos;t a one-time document. It&apos;s a weekly habit with a
+          dashboard that knows your full picture, and a Progress Report you can
+          refresh monthly when you want the why.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

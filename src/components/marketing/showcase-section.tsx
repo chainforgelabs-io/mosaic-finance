@@ -5,22 +5,22 @@ import Image from "next/image";
 
 const SHOWCASES = [
   {
-    label: "Tell Charlie about your financial picture",
-    image: encodeURI("/assets/Onboarding - Factfind.svg"),
-    alt: "Fact-find onboarding screen",
+    label: "See your Financial Health Score move with what you log — free, forever",
+    image: encodeURI("/assets/Dashboard - Main Dashboard.svg"),
+    alt: "Main dashboard with Financial Health Score",
   },
   {
-    label: "Get a Progress Report in under 30 minutes",
+    label: "When you want the why, a five-minute conversation with Charlie",
+    image: encodeURI("/assets/Onboarding - Factfind.svg"),
+    alt: "Fact-find conversation screen",
+  },
+  {
+    label: "A Progress Report that explains the picture in plain Canadian terms",
     image: encodeURI("/assets/Financial Plan Report - Executive Summary.svg"),
     alt: "Progress Report executive summary",
   },
   {
-    label: "Track your progress, update anytime",
-    image: encodeURI("/assets/Dashboard - Main Dashboard.svg"),
-    alt: "Main dashboard",
-  },
-  {
-    label: "Download your complete Progress Report",
+    label: "Download it, update it, and refresh it monthly as life changes",
     image: encodeURI("/assets/Dashboard - Plan Page.svg"),
     alt: "Plan page with download option",
   },
@@ -74,7 +74,7 @@ export function ShowcaseSection() {
           className="mb-14 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px] lg:mb-16"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          A net worth dashboard. A Progress Report that grows with you.
+          Your Score, your week, your whole picture.
         </h2>
 
         <div className="space-y-16 lg:space-y-20">

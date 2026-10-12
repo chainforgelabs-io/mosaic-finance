@@ -18,6 +18,7 @@ import {
 } from "@/lib/config/launch-surface";
 import { PROVINCES } from "@/lib/constants/provinces";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/config/profile-mappings";
+import { GUARANTEE_SHORT } from "@/lib/config/offer";
 import type { NotificationPreferences } from "@/types";
 import {
   User,
@@ -584,9 +585,7 @@ function SubscriptionTabInner() {
             Consistency Guarantee
           </p>
           <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
-            Log spending weekly and complete your monthly net-worth snapshot for 90
-            days. If your Financial Health Score hasn&apos;t improved, we refund
-            your first payment.
+            {GUARANTEE_SHORT}
           </p>
           <p className="mt-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
             {guarantee.weeksLogged}/13 weeks logged · {guarantee.snapshots}/3

@@ -68,12 +68,12 @@ Exit: [qa/full-test-run.md](./qa/full-test-run.md) sign-off criteria are all tru
 
 ### Right now (owner / staging)
 
-- [ ] Apply migrations `027_tiers_pulse_progress_mastery.sql` and `028_entitlements_score_budgets_nurture.sql` (staging only; a human applies production).
-- [ ] Create Stripe test prices (CAD) and set env vars from `.env.example`: Progress $17 / $170, founding $8 / $80, Mastery $44 / $350, Academy $26 / $260.
-- [ ] Leave `NEXT_PUBLIC_LAUNCH_MODE=waitlist` until Phase 2. Set `FOUNDING_CAP=200`. Leave `FOUNDING_DEADLINE` empty until launch day.
-- [ ] Confirm Vercel crons include `/api/cron/trial-lifecycle` and `/api/cron/nurture`, and `CRON_SECRET` is set.
-- [ ] Point the Stripe test webhook at `/api/stripe/webhook` (`customer.subscription.created/updated/deleted`, `checkout.session.completed`).
-- [ ] Verify Resend domain (SPF/DKIM) so test and nurture mail land in inbox.
+- [x] Apply migrations `027_tiers_pulse_progress_mastery.sql` and `028_entitlements_score_budgets_nurture.sql` (a human applies production). 2026-10-12 · owner
+- [x] Create Stripe prices (CAD) and set env vars from `.env.example`: Progress $17 / $170, founding $8 / $80, Mastery $44 / $350, Academy $26 / $260. Owner chose live-mode prices and keys in Vercel Production. 2026-10-12 · owner
+- [x] `NEXT_PUBLIC_LAUNCH_MODE` unset/waitlist. `FOUNDING_CAP=200` set. `FOUNDING_DEADLINE` empty until launch day. 2026-10-12 · owner
+- [x] Vercel crons include `/api/cron/trial-lifecycle` and `/api/cron/nurture`; `CRON_SECRET` is set. 2026-10-12 · owner
+- [ ] Confirm the Stripe **live** webhook at Developers → Webhooks: URL `/api/stripe/webhook`, events `customer.subscription.created/updated/deleted`, `checkout.session.completed`. (Opening the URL in a browser returns 405 by design.)
+- [x] Verify Resend domain (SPF/DKIM). `mosaicfinance.ai` verified. Stop sending QA mail to `@mosaic-qa.test`; use real `+tag` inboxes or Resend test addresses. 2026-10-12 · owner
 - [ ] Complete [qa/full-test-run.md](./qa/full-test-run.md) on staging. Note: auth now lands on `/dashboard` (not `/onboarding`). Trial is 7 days (not 14). Mastery is hidden on the public site. Update expected results where the checklist still says the old numbers.
 
 ### Parallel launch blockers (legal)
@@ -94,10 +94,12 @@ First build step after Phase 0. One branch per PR. Items tagged **Decision neede
 
 Make the Grand Slam Offer visible. Details in [hormozi-playbook.md](./hormozi-playbook.md#our-grand-slam-offer).
 
-- [ ] Hero, pricing, and [TrackingLoop](../src/components/app/TrackingLoop.tsx): Consistency Guarantee is the headline, not grey supporting text. Condition: weekly log + monthly snapshot for 90 days, Score-based. Never returns or dollars saved.
-- [ ] Name the bonuses from the archived plan: Canadian Money Mechanics Toolkit (calculators), Life-Event Playbooks, founding badge + locked $8. Tax pack and Club stay Mastery-only and stay off the public site.
-- [ ] Restructure below-hero marketing to the Score loop (Outcome B). Files: [src/components/marketing/](../src/components/marketing/), page `<title>` in [src/app/layout.tsx](../src/app/layout.tsx). How It Works starts with "Log this week," not "Tell Charlie."
-- [ ] Annual-first on pricing: default `billing` to `"annual"` in [pricing-section.tsx](../src/components/marketing/pricing-section.tsx). $170 is the 30-day payback vehicle.
+- [x] Hero, pricing, and [TrackingLoop](../src/components/app/TrackingLoop.tsx): Consistency Guarantee is the headline, not grey supporting text. Condition: weekly log + monthly snapshot for 90 days, Score-based. Never returns or dollars saved. 2026-10-12 · PR #13
+- [x] Name the bonuses from the archived plan: Canadian Money Mechanics Toolkit (calculators), Life-Event Playbooks, founding badge + locked $8. Tax pack and Club stay Mastery-only and stay off the public site. 2026-10-12 · PR #13
+- [x] Restructure below-hero marketing to the Score loop (Outcome B). Files: [src/components/marketing/](../src/components/marketing/), page `<title>` in [src/app/layout.tsx](../src/app/layout.tsx). How It Works starts with "Log this week," not "Tell Charlie." 2026-10-12 · PR #13
+- [x] Annual-first on pricing: default `billing` to `"annual"` in [pricing-section.tsx](../src/components/marketing/pricing-section.tsx). $170 is the 30-day payback vehicle. 2026-10-12 · PR #13
+
+Canonical offer copy now lives in [src/lib/config/offer.ts](../src/lib/config/offer.ts) with a compliance guard in `tests/unit/offer-copy.test.ts`.
 
 ### 1B — Score loop (`agent/score-from-tracked-data`)
 
@@ -228,6 +230,9 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) still describes signup → onboarding → fact-find. Regex already allows `/dashboard`.
 - Savings / emergency / debt score components ignore tracked spending until Phase 1B.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
+- `TIER_PROMISE.progress` reads "Know exactly what to do next." (shared by pricing and settings). Borderline advice framing; owner to confirm replacement wording before an agent edits it.
+- Guarantee refund scope: public copy and settings say "we refund your first payment." For annual that is the full $170 / $80; for monthly it is one month. **Decision needed** if the owner wants full-period refund on monthly.
+- Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
 - Uncommitted local work (lookup guides, plan schema) is not part of this roadmap.
 
 ---
@@ -237,3 +242,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | Date | Change |
 |---|---|
 | 2026-10-11 | Created. Folded [BUSINESS_PLAN.md](../BUSINESS_PLAN.md) and [BUSINESS_TODO.md](../BUSINESS_TODO.md). Phase 1b checklist moved to [qa/full-test-run.md](./qa/full-test-run.md). Stage: 0→1, pre-Stage I money model. |
+| 2026-10-12 | Phase 0 owner items confirmed: migrations 027/028 applied, live Stripe prices + env set, crons registered, Resend domain verified. Webhook endpoint still to confirm in Stripe. Phase 1A shipped (PR #13). |

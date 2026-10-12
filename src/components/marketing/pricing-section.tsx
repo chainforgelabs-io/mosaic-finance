@@ -3,15 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  FOUNDING_PRICING,
   formatTierPrice,
   TIER_CTA,
   TIER_FEATURES,
   TIER_LABELS,
+  TIER_PRICING,
   TIER_PROMISE,
   type BillingInterval,
 } from "@/lib/config/pricing";
 import { isLaunchLive } from "@/lib/config/launch";
 import { MASTERY_PUBLIC, PUBLIC_TIERS, TRIAL_COPY } from "@/lib/config/launch-surface";
+import { GUARANTEE_NAME, GUARANTEE_SHORT, REFUND_WINDOW_COPY } from "@/lib/config/offer";
 import type { Tier } from "@/types";
 
 const ALL_TIERS: {
@@ -31,9 +34,19 @@ function priceLabel(tierId: Tier, interval: BillingInterval, founding: boolean):
   return formatTierPrice(tierId, interval, { founding: founding && tierId === "progress" });
 }
 
+function dollars(label: string): number {
+  return Number(label.replace(/[^0-9.]/g, ""));
+}
+
+/** Annual saving vs 12 monthly payments, shown on the billing toggle. */
+function annualSaving(founding: boolean): number {
+  const { monthly, annual } = founding ? FOUNDING_PRICING : TIER_PRICING.progress;
+  return Math.max(0, dollars(monthly) * 12 - dollars(annual));
+}
+
 export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } = {}) {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const [billing, setBilling] = useState<BillingInterval>("monthly");
+  const [billing, setBilling] = useState<BillingInterval>("annual");
   const [founding, setFounding] = useState({ open: false, remaining: 0, cap: 200 });
 
   useEffect(() => {
@@ -99,15 +112,35 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
         </h2>
         <p
           data-animate
-          className="mb-8 font-body text-base text-text-secondary"
+          className="mb-6 font-body text-base text-text-secondary"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          {TRIAL_COPY.hyphen} reverse trial of Progress, no card. First payment refundable for 30 days.
-          Consistency Guarantee on 90 days of weekly logs + monthly snapshots.
-          {founding.open
-            ? ` ${founding.remaining} founding Progress spots left at $8/mo.`
-            : ""}
+          Tracking, budgets, net worth, and your Financial Health Score are free on Pulse, forever.
+          Progress adds Charlie and the Progress Report after a {TRIAL_COPY.hyphen} reverse trial, no card.
         </p>
+
+        <div
+          data-animate
+          className="mb-8 flex flex-col gap-3 rounded-xl border border-emerald/40 bg-emerald/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          <div>
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.08em] text-emerald">
+              {GUARANTEE_NAME}
+            </p>
+            <p className="mt-1 font-display text-[15px] font-semibold leading-snug text-text-primary">
+              {GUARANTEE_SHORT}
+            </p>
+            <p className="mt-1 font-body text-[13px] text-text-secondary">
+              {REFUND_WINDOW_COPY}
+            </p>
+          </div>
+          {founding.open && (
+            <p className="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-center font-display text-xs font-semibold text-white">
+              {founding.remaining} of {founding.cap} founding spots left
+            </p>
+          )}
+        </div>
 
         <div
           data-animate
@@ -118,6 +151,17 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           <div className="inline-flex rounded-full border border-warm-200 bg-white p-1">
             <button
               type="button"
+              onClick={() => setBilling("annual")}
+              className={`rounded-full px-4 py-1.5 font-display text-xs font-semibold transition-colors ${
+                billing === "annual"
+                  ? "bg-slate-950 text-white"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              {`Annual · save $${annualSaving(founding.open)}`}
+            </button>
+            <button
+              type="button"
               onClick={() => setBilling("monthly")}
               className={`rounded-full px-4 py-1.5 font-display text-xs font-semibold transition-colors ${
                 billing === "monthly"
@@ -126,17 +170,6 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
               }`}
             >
               Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setBilling("annual")}
-              className={`rounded-full px-4 py-1.5 font-display text-xs font-semibold transition-colors ${
-                billing === "annual"
-                  ? "bg-slate-950 text-white"
-                  : "text-text-secondary hover:text-text-primary"
-              }`}
-            >
-              Annual
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
 import { isLaunchLive } from "@/lib/config/launch";
 import { TRIAL_COPY } from "@/lib/config/launch-surface";
+import { GUARANTEE_NAME, GUARANTEE_SHORT, OFFER_NAME, OUTCOME_HEADLINE } from "@/lib/config/offer";
 import Link from "next/link";
 
 export function Hero() {
@@ -28,7 +29,7 @@ export function Hero() {
   return (
     <section
       id="waitlist"
-      className="relative flex min-h-screen scroll-mt-20 items-center justify-center bg-slate-950 px-6 pt-20 sm:pt-0"
+      className="relative flex min-h-screen scroll-mt-20 items-center justify-center bg-slate-950 px-6 pb-16 pt-28 sm:pb-20 sm:pt-32"
       style={{
         backgroundImage:
           "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
@@ -42,29 +43,30 @@ export function Hero() {
         >
           {isLaunchLive()
             ? `Start free — ${TRIAL_COPY.days} of Progress included`
-            : "Launching Soon"}
+            : "Launching Soon · Founding spots open at launch"}
         </p>
         <p
           data-animate
           className="mb-6 font-body text-[13px] font-medium uppercase tracking-[0.08em] text-emerald"
         >
-          Track, Learn, Level Up Your Money
+          {OFFER_NAME}
         </p>
 
         <h1
           data-animate
           className="mb-6 font-display text-[32px] font-extrabold leading-[1.1] tracking-[-0.03em] text-white sm:text-[44px] lg:text-[56px]"
         >
-          The financial operating system for Canadians.
+          {OUTCOME_HEADLINE}
         </h1>
 
         <p
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          Log spending each week and see your Health Score move. Charlie, your
-          AI money guide, explains the picture — educational information, not
-          advice. Built for Canadian rules.
+          Log spending once a week. Snapshot net worth once a month. Your
+          Financial Health Score shows whether you are moving forward. Charlie,
+          your AI money guide, explains the picture in plain Canadian terms —
+          educational information, not advice.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
@@ -78,9 +80,14 @@ export function Hero() {
           ) : (
             <WaitlistForm source="hero" variant="hero" />
           )}
-          <p className="mt-4 font-display text-sm font-semibold text-white/90">
-            Your Health Score, updated by what you log.
-          </p>
+          <div className="mt-5 rounded-xl border border-emerald/30 bg-emerald/10 px-5 py-4 text-left">
+            <p className="font-display text-xs font-semibold uppercase tracking-[0.08em] text-emerald">
+              {GUARANTEE_NAME}
+            </p>
+            <p className="mt-1 font-display text-sm font-semibold leading-snug text-white sm:text-[15px]">
+              {GUARANTEE_SHORT}
+            </p>
+          </div>
           <a
             href="#how-it-works"
             className="mt-4 inline-block font-display text-sm font-semibold text-white/80 underline-offset-4 transition-colors hover:text-white hover:underline"
@@ -90,7 +97,7 @@ export function Hero() {
         </div>
 
         <p data-animate className="mt-6 font-body text-[13px] text-text-muted">
-          No credit card required · Educational, not advice · Privacy-first
+          Free to track, forever · No credit card · Educational, not advice · Canadian data residency
         </p>
       </div>
     </section>
