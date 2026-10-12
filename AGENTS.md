@@ -3,6 +3,16 @@
 
 Read this before every task. If a task conflicts with this file, stop and ask.
 
+## Roadmap
+
+Read [docs/ROADMAP.md](docs/ROADMAP.md) before every task. Confirm the current phase and do not skip ahead.
+
+When the task is offer, pricing, funnel, or marketing copy, also read [docs/hormozi-playbook.md](docs/hormozi-playbook.md).
+
+When a task completes a roadmap item, mark it `[x]` on that line with `YYYY-MM-DD · PR #n`. Put out-of-scope findings in the roadmap **Backlog** and in the PR under **Found but not fixed.**
+
+The full launch test checklist lives at [docs/qa/full-test-run.md](docs/qa/full-test-run.md).
+
 ## What this is
 
 Mosaic Finance (mosaicfinance.ai) is a Canadian personal-finance **tracking and education** app. It is not an advice product. Users track spending, budgets, net worth, holdings, and goals for free. Paid tiers add Charlie (the AI money guide), the Progress Report (the codebase may call it a "plan"), and statement/receipt parsing.
