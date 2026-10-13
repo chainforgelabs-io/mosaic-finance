@@ -2,7 +2,7 @@
 
 *How we structure the offer, the lead strategy, and the money model.*
 *Source: $100M Offers, $100M Leads, $100M Money Models (local `ah/` PDFs — do not commit).*
-*Living companion to [ROADMAP.md](./ROADMAP.md). Last updated: 11 October 2026.*
+*Living companion to [ROADMAP.md](./ROADMAP.md). Last updated: 13 October 2026.*
 
 Frameworks below are restated in our words with chapter references. Do not paste long quotations from the books into the product, emails, or PRs.
 
@@ -158,7 +158,7 @@ If we do not want to deliver a thing (bank sync, insurance review, moving money)
 | Mastery (anchor, hidden) | Club, quarterly check-ins, priority, tax pack; Academy on annual | $44 / $350 |
 | Academy standalone (later) | Courses in the same Club | $26 / $260 |
 
-**Guarantee wording (canonical):** "Log your spending weekly and complete your monthly net-worth snapshot for 90 days. If your Financial Health Score has not improved, full refund." Plus 30-day no-questions refund on the first payment.
+**Guarantee wording (canonical, shipped in [src/lib/config/offer.ts](../src/lib/config/offer.ts)):** "Log weekly and snapshot monthly for 90 days. If your Financial Health Score hasn't improved, we refund your first payment." Plus 30-day no-questions refund on the first payment. Scope of "first payment" on monthly vs annual is a backlog decision.
 
 **Why this is a Grand Slam when presented correctly**
 
@@ -167,7 +167,7 @@ If we do not want to deliver a thing (bank sync, insurance review, moving money)
 - Scarcity and urgency are real (200 seats, 14-day deadline).
 - We never promise investment returns or a dollar amount saved.
 
-**Current presentation gap:** the Guarantee is supporting copy; the hero still leads with category language; How It Works still leads with Charlie. Phase 1A in the roadmap is the fix.
+**Presentation (shipped, Phase 1A):** homepage leads with `OUTCOME_HEADLINE` ("Is your money moving the right way?"), names **The 90-Day Canadian Money Reset**, puts the Consistency Guarantee on the hero, How It Works starts with "Log this week," pricing defaults annual. Remaining loop work is Phase 1B (Score from tracked data), not more homepage copy.
 
 ---
 
@@ -198,10 +198,10 @@ Owner of the daily number: the founder, until Phase 3 has a content rhythm.
 |---|---|
 | Pulse as decoy and as cancel destination | Built (entitlements) |
 | 7-day reverse trial | Built |
-| Consistency Guarantee (action-based) | Endpoint + settings card; not the public headline |
-| Founding $8 / $80, cap 200 | Built ([src/lib/founding.ts](../src/lib/founding.ts)) |
-| Annual $170 | Built; pricing UI still defaults monthly |
-| Progress / Mastery / Academy Stripe paths | Built; Mastery hidden |
+| Consistency Guarantee (action-based) | Endpoint + settings + public headline ([src/lib/config/offer.ts](../src/lib/config/offer.ts), PR #13 / #14) |
+| Founding $8 / $80, cap 200 | Built ([src/lib/founding.ts](../src/lib/founding.ts)); live Stripe prices in Vercel Production |
+| Annual $170 | Built; pricing UI defaults annual |
+| Progress / Mastery / Academy Stripe paths | Live price IDs in Vercel Production; Mastery hidden on the site |
 | Referral | Not built |
 | Cancel downsell (keep them on a cheaper continuity) | **Decision needed** (billing) |
 | Upsell at report delivery / keypad fatigue | Not built |

@@ -1,6 +1,6 @@
 # Mosaic Finance — Living Roadmap
 
-*Canonical. Last stage assessment: 11 October 2026.*
+*Canonical. Last stage assessment: 13 October 2026.*
 *Companion: [hormozi-playbook.md](./hormozi-playbook.md) (offer, leads, money model).*
 *Full test checklist: [qa/full-test-run.md](./qa/full-test-run.md).*
 
@@ -39,32 +39,31 @@ flowchart LR
 
 ---
 
-## Stage assessment — 11 October 2026
+## Stage assessment — 13 October 2026
 
-The owner is verifying that the app runs correctly. No paying users. Marketing is waitlist-only.
+Ops for a live charge is in place. The Grand Slam Offer is on the homepage. Still waitlist, no paying users. The remaining Phase 0 gate is the full test run (plus legal). Next build is Phase 1B.
 
 | Lens | Stage | Evidence |
 |---|---|---|
-| Hormozi Scaling Roadmap | **Stage 0 (Improvise) graduating to Stage 1 (Monetize)** | Product exists and can be given away (Pulse + 7-day trial). Nobody has paid yet. Graduate Stage 0 when people use the free loop and come back. Graduate Stage 1 at the first paid Progress subscriber. |
-| Money Model | **Pre-Stage I** | Attraction offer (Guarantee + reverse trial + founding) is designed, not running. No reliable 30-day payback because there is no acquisition spend and no paid cohort. |
-| Product | Built, not proven | Tiers, Stripe, Score history, Guarantee endpoint, founding counter, crons, and nurture exist. New accounts land on the tracking dashboard (`39f4037`). |
-| Launch surface | Waitlist | `NEXT_PUBLIC_LAUNCH_MODE` defaults to waitlist ([src/lib/config/launch.ts](../src/lib/config/launch.ts)). Hero still reads "Launching Soon" when not live. `MASTERY_PUBLIC = false`. Trial is **7 days** ([src/lib/config/launch-surface.ts](../src/lib/config/launch-surface.ts)). |
+| Hormozi Scaling Roadmap | **Stage 0 (Improvise) graduating to Stage 1 (Monetize)** | Pulse + 7-day trial exist. Nobody has paid yet. Graduate Stage 0 when people use the free loop and come back. Graduate Stage 1 at the first paid Progress subscriber. |
+| Money Model | **Pre-Stage I** | Attraction offer is designed **and presented** (homepage, PR #13 / #14). Not running against a paid cohort. No 30-day payback number yet. |
+| Product | Built, not proven | Tiers, live Stripe prices in Vercel Production, Score history, Guarantee, founding counter, crons, nurture, Resend domain verified. New accounts land on the tracking dashboard (`39f4037`). |
+| Offer surface | Shipped (1A) | Canonical copy in [src/lib/config/offer.ts](../src/lib/config/offer.ts). Hero is `OUTCOME_HEADLINE` + Guarantee. How It Works starts with "Log this week." Pricing defaults annual. |
+| Launch surface | Waitlist | `NEXT_PUBLIC_LAUNCH_MODE` defaults to waitlist ([src/lib/config/launch.ts](../src/lib/config/launch.ts)). Hero badge still "Launching Soon · 200 founding spots" when not live. `MASTERY_PUBLIC = false`. Trial is **7 days**. |
 
 **Gaps vs the playbook (code, not ideas):**
 
-- No PostHog events in `src/` (only `@vercel/analytics`). Env keys exist in `.env.example`.
-- No referral code.
-- Consistency Guarantee is grey text in [src/components/marketing/pricing-section.tsx](../src/components/marketing/pricing-section.tsx), not the headline.
-- Score savings / emergency / debt still come from the fact-find profile ([src/lib/health-score/record.ts](../src/lib/health-score/record.ts)), not from tracked data.
-- No weekly "you haven't logged" cron. Existing crons: nurture, education, trial-lifecycle, picks.
-- Marketing below the hero still sells the Progress Report (showcase, How It Works, trust, page `<title>`).
+- No PostHog events in `src/` (only `@vercel/analytics`). Env keys exist in `.env.example`. Phase 1C.
+- No referral code. Phase 1F / 5.
+- Score savings / emergency / debt still come from the fact-find profile ([src/lib/health-score/record.ts](../src/lib/health-score/record.ts)), not from tracked data. Phase 1B.
+- No weekly "you haven't logged" cron. Existing crons: nurture, education, trial-lifecycle, picks. Phase 1D.
 - September docs ([BUSINESS_PLAN.md](../BUSINESS_PLAN.md), [BUSINESS_TODO.md](../BUSINESS_TODO.md)) are archived. Stale facts in those files: 14-day trial, Mastery shown on marketing, signup → onboarding as the default land.
 
 ---
 
-## Phase 0 — Verify it runs (now)
+## Phase 0 — Verify it runs
 
-Exit: [qa/full-test-run.md](./qa/full-test-run.md) sign-off criteria are all true. Nothing in Phase 2 happens until then.
+Owner ops (migrations, live Stripe, crons, webhook, Resend) are done. Exit: [qa/full-test-run.md](./qa/full-test-run.md) sign-off criteria are all true. Nothing in Phase 2 happens until then. Phase 1A already shipped in parallel; remaining Phase 1 is 1B–1E.
 
 ### Right now (owner / staging)
 
@@ -72,7 +71,7 @@ Exit: [qa/full-test-run.md](./qa/full-test-run.md) sign-off criteria are all tru
 - [x] Create Stripe prices (CAD) and set env vars from `.env.example`: Progress $17 / $170, founding $8 / $80, Mastery $44 / $350, Academy $26 / $260. Owner chose live-mode prices and keys in Vercel Production. 2026-10-12 · owner
 - [x] `NEXT_PUBLIC_LAUNCH_MODE` unset/waitlist. `FOUNDING_CAP=200` set. `FOUNDING_DEADLINE` empty until launch day. 2026-10-12 · owner
 - [x] Vercel crons include `/api/cron/trial-lifecycle` and `/api/cron/nurture`; `CRON_SECRET` is set. 2026-10-12 · owner
-- [ ] Confirm the Stripe **live** webhook at Developers → Webhooks: URL `/api/stripe/webhook`, events `customer.subscription.created/updated/deleted`, `checkout.session.completed`. (Opening the URL in a browser returns 405 by design.)
+- [x] Stripe **live** webhook: URL `/api/stripe/webhook`, events `customer.subscription.created/updated/deleted`, `checkout.session.completed`. (A GET in the browser returns 405 by design.) 2026-10-13 · owner
 - [x] Verify Resend domain (SPF/DKIM). `mosaicfinance.ai` verified. Stop sending QA mail to `@mosaic-qa.test`; use real `+tag` inboxes or Resend test addresses. 2026-10-12 · owner
 - [ ] Complete [qa/full-test-run.md](./qa/full-test-run.md) on staging. Note: auth now lands on `/dashboard` (not `/onboarding`). Trial is 7 days (not 14). Mastery is hidden on the public site. Update expected results where the checklist still says the old numbers.
 
@@ -88,7 +87,7 @@ Exit: [qa/full-test-run.md](./qa/full-test-run.md) sign-off criteria are all tru
 
 ## Phase 1 — Implement the playbook upgrades
 
-First build step after Phase 0. One branch per PR. Items tagged **Decision needed** wait for the owner. Compliance: every copy change listed in the PR.
+1A shipped (PR #13, hero tighten PR #14). Remaining: 1B–1E, then 1F after owner decisions. One branch per PR. Items tagged **Decision needed** wait for the owner. Compliance: every copy change listed in the PR.
 
 ### 1A — Offer surface (`agent/offer-guarantee-headline`)
 
@@ -133,7 +132,7 @@ IDs and counts only. No amounts, names, emails, or free-text.
 - [ ] Founding counter louder on pricing (remaining of 200). Logic already in [src/lib/founding.ts](../src/lib/founding.ts).
 - [ ] Referral scaffold ("give a month, get a month," reward on the referred user's **paid** conversion). Do not launch the loop until ~100 paying users (Phase 5). Schema + API only in this phase if it stays dark.
 
-Suggested order: 1A → 1B → 1C → 1D → 1E. 1F after owner decisions.
+Suggested order now: 1B → 1C → 1D → 1E. 1F after owner decisions.
 
 ---
 
@@ -242,4 +241,5 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | Date | Change |
 |---|---|
 | 2026-10-11 | Created. Folded [BUSINESS_PLAN.md](../BUSINESS_PLAN.md) and [BUSINESS_TODO.md](../BUSINESS_TODO.md). Phase 1b checklist moved to [qa/full-test-run.md](./qa/full-test-run.md). Stage: 0→1, pre-Stage I money model. |
-| 2026-10-12 | Phase 0 owner items confirmed: migrations 027/028 applied, live Stripe prices + env set, crons registered, Resend domain verified. Webhook endpoint still to confirm in Stripe. Phase 1A shipped (PR #13). |
+| 2026-10-12 | Phase 0 owner items: migrations 027/028, live Stripe prices + env, crons, Resend domain. Phase 1A shipped (PR #13). Hero shortened to the outcome question (PR #14). |
+| 2026-10-13 | Owner confirmed Stripe live webhook. Phase 0 remaining: full test run + legal. Next build: 1B. |
