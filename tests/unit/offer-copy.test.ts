@@ -41,7 +41,7 @@ const ALL_COPY = [
 describe("offer copy compliance", () => {
   it("names the offer and the outcome without advice language", () => {
     expect(OFFER_NAME).toBe("The 90-Day Canadian Money Reset");
-    expect(OUTCOME_HEADLINE).toMatch(/every week/i);
+    expect(OUTCOME_HEADLINE).toBe("Is your money moving the right way?");
   });
 
   it("conditions the Guarantee on logging, snapshots, 90 days, and the Score only", () => {
