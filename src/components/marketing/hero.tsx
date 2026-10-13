@@ -43,7 +43,7 @@ export function Hero() {
         >
           {isLaunchLive()
             ? `Start free — ${TRIAL_COPY.days} of Progress included`
-            : "Launching Soon · Founding spots open at launch"}
+            : "Launching Soon · 200 founding spots"}
         </p>
         <p
           data-animate
@@ -63,10 +63,8 @@ export function Hero() {
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          Log spending once a week. Snapshot net worth once a month. Your
-          Financial Health Score shows whether you are moving forward. Charlie,
-          your AI money guide, explains the picture in plain Canadian terms —
-          educational information, not advice.
+          Log weekly. Snapshot monthly. Your Financial Health Score shows the
+          direction — educational, not advice.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
@@ -97,7 +95,7 @@ export function Hero() {
         </div>
 
         <p data-animate className="mt-6 font-body text-[13px] text-text-muted">
-          Free to track, forever · No credit card · Educational, not advice · Canadian data residency
+          Free to track · No card · Canadian data residency
         </p>
       </div>
     </section>

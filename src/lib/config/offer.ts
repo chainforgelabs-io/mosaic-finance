@@ -12,8 +12,7 @@ import { FOUNDING_PRICING } from "@/lib/config/pricing";
 
 export const OFFER_NAME = "The 90-Day Canadian Money Reset";
 
-export const OUTCOME_HEADLINE =
-  "Know every week whether your money is moving the right direction.";
+export const OUTCOME_HEADLINE = "Is your money moving the right way?";
 
 export const GUARANTEE_NAME = "Consistency Guarantee";
 

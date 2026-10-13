@@ -28,16 +28,16 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mosaicfinance.ai";
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
-  title: "Mosaic Finance — Know every week whether your money is moving the right direction",
+  title: "Mosaic Finance — Your money, in one weekly score",
   description:
-    "Log spending weekly, snapshot net worth monthly, and watch your Financial Health Score move. Free tracking for Canadians, with Charlie, your AI money guide, and educational Progress Reports on Progress. Educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+    "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Free tracking for Canadians. Educational information, not financial advice.",
   alternates: {
     canonical: appUrl,
   },
   openGraph: {
-    title: "Mosaic Finance — Know every week whether your money is moving the right direction",
+    title: "Mosaic Finance — Your money, in one weekly score",
     description:
-      "Log weekly, snapshot monthly, and see your Financial Health Score move. Free tracking for Canadians. Charlie is your AI money guide. Educational information, not financial advice.",
+      "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Educational information, not financial advice.",
     url: appUrl,
     siteName: "Mosaic Finance",
     locale: "en_CA",
@@ -51,9 +51,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Mosaic Finance — Know every week whether your money is moving the right direction",
+    title: "Mosaic Finance — Your money, in one weekly score",
     description:
-      "Log weekly, snapshot monthly, and see your Financial Health Score move. Free tracking for Canadians. Charlie is your AI money guide. Educational information, not financial advice.",
+      "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Educational information, not financial advice.",
     images: ["/logos/MosaicEmblemLogo.png"],
   },
   manifest: "/manifest.webmanifest",
