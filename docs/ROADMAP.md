@@ -83,9 +83,9 @@ Owner checklist with status, Stripe steps, and CIPO results: [legal/launch-legal
 - [ ] Business entity and business bank account tied to Stripe. **owner** — steps in checklist §1.
 - [ ] Real PIPEDA / Quebec Law 25 privacy policy and ToS on `/privacy` and `/terms`. **counsel** — brief ready; agents do not write this copy. A later PR swaps page bodies.
 - [ ] **Decision needed (data deletion):** `/privacy` and `/terms` promise self-serve account deletion and data export; both settings buttons are stubs and the schema does not cascade. Owner answers checklist §2.3, then `agent/account-deletion-export`.
-- [x] Remove "portfolio demo" language from [README.md](../README.md) and any public surface before charging. Guarded by `tests/unit/brand-compliance.test.ts`. 2026-10-13 · PR agent/legal-launch-checklist
-- [x] CIPO search for "Mosaic Finance" and "The Money Mosaic". No live mark for either, or for "Mosaic Academy". Closest live risk: MOSAIC INVESTMENT MANAGEMENT (2252103, class 36). Precedent: THE WEALTH MOSAIC refused after BMO opposition (2007). Filing is an owner decision; details in checklist §4. 2026-10-13 · PR agent/legal-launch-checklist
-- [x] Confirm "Mosaic Academy" (never "University"). Repo clean; guarded by `tests/unit/brand-compliance.test.ts`. Owner still to check Skool and off-repo marketing. 2026-10-13 · PR agent/legal-launch-checklist
+- [x] Remove "portfolio demo" language from [README.md](../README.md) and any public surface before charging. Guarded by `tests/unit/brand-compliance.test.ts`. 2026-10-13 · 530a5db
+- [x] CIPO search for "Mosaic Finance" and "The Money Mosaic". No live mark for either, or for "Mosaic Academy". Closest live risk: MOSAIC INVESTMENT MANAGEMENT (2252103, class 36). Precedent: THE WEALTH MOSAIC refused after BMO opposition (2007). Filing is an owner decision; details in checklist §4. 2026-10-13 · 530a5db
+- [x] Confirm "Mosaic Academy" (never "University"). Repo clean; guarded by `tests/unit/brand-compliance.test.ts`. Owner still to check Skool and off-repo marketing. 2026-10-13 · 530a5db
 
 ---
 
