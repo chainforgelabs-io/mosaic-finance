@@ -4,6 +4,7 @@ import {
   entriesFromSuggestions,
   fillAcrossMonths,
   indexPlan,
+  scheduledMonthAmounts,
   ledgerFromRows,
   monthsOfYear,
   planFromHistory,
@@ -54,6 +55,17 @@ describe("plan grid math", () => {
     const index = indexPlan(entries);
     expect(rowTotal(index, "income", "paycheque", monthsOfYear(2026))).toBe(10000);
     expect(plannedCategories(entries, "expense")).toEqual(["housing", "groceries"]);
+  });
+
+  it("counts biweekly payments per month from the last payment date", () => {
+    const slots = scheduledMonthAmounts(863.47, "biweekly", "2026-01-02", 2026);
+    const january = slots.find((slot) => slot.month === "2026-01-01");
+    const february = slots.find((slot) => slot.month === "2026-02-01");
+    const july = slots.find((slot) => slot.month === "2026-07-01");
+    expect(january).toEqual({ month: "2026-01-01", count: 3, amount: 2590.41 });
+    expect(february).toEqual({ month: "2026-02-01", count: 2, amount: 1726.94 });
+    expect(july).toEqual({ month: "2026-07-01", count: 3, amount: 2590.41 });
+    expect(slots.reduce((sum, slot) => sum + slot.count, 0)).toBe(26);
   });
 
   it("fills a value across the rest of the year", () => {

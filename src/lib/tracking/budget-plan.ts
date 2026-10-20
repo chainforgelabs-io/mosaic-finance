@@ -1,9 +1,11 @@
 import type { BudgetPlanEntry } from "@/types/tracking";
 import { categoryKind, categorySlug, type CategoryKind } from "@/lib/tracking/categories";
 import {
+  advanceRecurringDate,
   isNeedCategory,
   monthlyPlanAmount,
   perOccurrenceAmount,
+  retreatRecurringDate,
   roundMoney,
   transactionKind,
   type AmountBasis,
@@ -104,6 +106,57 @@ export function fillAcrossMonths(
   return months
     .filter((month) => month >= start)
     .map((month) => ({ kind, category, month, amount: roundMoney(amount) }));
+}
+
+/**
+ * Month totals for one repeating payment.
+ * Counts how many payment dates fall in each month of `year`, using `anchorDate`
+ * as a real payment date (the last one the person knows). A biweekly mortgage
+ * lands 2 times in some months and 3 in others.
+ */
+export function scheduledMonthAmounts(
+  perPayment: number,
+  cadence: RecurringCadence,
+  anchorDate: string,
+  year: number,
+): { month: string; amount: number; count: number }[] {
+  const months = monthsOfYear(year);
+  const empty = months.map((month) => ({ month, amount: 0, count: 0 }));
+  if (!Number.isFinite(perPayment) || perPayment <= 0) return empty;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchorDate)) return empty;
+
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  let cursor = anchorDate;
+
+  for (let i = 0; i < 500 && cursor >= start; i++) {
+    const prev = retreatRecurringDate(cursor, cadence);
+    if (prev >= cursor) return empty;
+    cursor = prev;
+  }
+  if (cursor < start) {
+    for (let i = 0; i < 500 && cursor < start; i++) {
+      const next = advanceRecurringDate(cursor, cadence);
+      if (next <= cursor) return empty;
+      cursor = next;
+    }
+  }
+
+  const counts = new Map<string, number>();
+  for (let i = 0; i < 500 && cursor <= end; i++) {
+    if (cursor >= start && cursor.slice(0, 4) === String(year)) {
+      const month = `${cursor.slice(0, 7)}-01`;
+      counts.set(month, (counts.get(month) ?? 0) + 1);
+    }
+    const next = advanceRecurringDate(cursor, cadence);
+    if (next <= cursor) break;
+    cursor = next;
+  }
+
+  return months.map((month) => {
+    const count = counts.get(month) ?? 0;
+    return { month, count, amount: roundMoney(count * perPayment) };
+  });
 }
 
 /**

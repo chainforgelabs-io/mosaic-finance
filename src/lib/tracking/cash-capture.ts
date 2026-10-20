@@ -167,6 +167,16 @@ export function advanceRecurringDate(isoDate: string, cadence: RecurringCadence)
   return addMonthsClamped(isoDate, 1);
 }
 
+/** Step one period backward. Month-end dates clamp the same way as advancing. */
+export function retreatRecurringDate(isoDate: string, cadence: RecurringCadence): string {
+  if (cadence === "weekly") return addDays(isoDate, -7);
+  if (cadence === "biweekly") return addDays(isoDate, -14);
+  if (cadence === "semimonthly") return addDays(isoDate, -15);
+  if (cadence === "semiannual") return addMonthsClamped(isoDate, -6);
+  if (cadence === "yearly") return addMonthsClamped(isoDate, -12);
+  return addMonthsClamped(isoDate, -1);
+}
+
 /** The amount that leaves or enters the bank on each date. */
 export function perOccurrenceAmount(amount: number, cadence: RecurringCadence, basis: AmountBasis): number {
   if (!Number.isFinite(amount) || amount <= 0) return 0;

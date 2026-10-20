@@ -24,6 +24,7 @@ import {
   type PlanKind,
   type PlanSuggestion,
 } from "@/lib/tracking/budget-plan";
+import { isSpreadsheetFile, readPlanFile } from "@/lib/tracking/plan-spreadsheet";
 import { addMonths, startOfMonth, todayIso } from "@/lib/tracking/dates";
 import { formatMoney } from "@/lib/tracking/format";
 import {
@@ -61,6 +62,7 @@ export default function BudgetPlanPage() {
   const [anchor, setAnchor] = useState<CashAnchor | null>(null);
   const [ledgerSaving, setLedgerSaving] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const months = useMemo(() => monthsOfYear(year), [year]);
 
@@ -125,6 +127,12 @@ export default function BudgetPlanPage() {
     void persist(filled);
   }
 
+  function handleApplySchedule(kind: PlanKind, category: string, amounts: { month: string; amount: number }[]) {
+    const next = amounts.map((slot) => ({ kind, category, month: slot.month, amount: slot.amount }));
+    upsertLocal(next);
+    void persist(next);
+  }
+
   function handleRemoveRow(kind: PlanKind, category: string) {
     setEntries((prev) => prev.filter((entry) => !(entry.kind === kind && entry.category === category)));
     void persist([], [{ kind, category }]);
@@ -145,45 +153,92 @@ export default function BudgetPlanPage() {
     return saved.slug;
   }
 
-  async function buildFromStatements(files: FileList | null) {
+  async function buildFromDocuments(files: FileList | null) {
     if (!files || files.length === 0) return;
+    const list = Array.from(files);
+    const spreadsheets = list.filter((file) => isSpreadsheetFile(file));
+    const statements = list.filter((file) => !isSpreadsheetFile(file));
     setWorking(true);
     setSetupError(null);
+    setBanner(null);
+    const notes: string[] = [];
     try {
-      const lines: ParsedSpendingItem[] = [];
-      const failures: string[] = [];
-      let denied: string | null = null;
-      for (const file of Array.from(files)) {
-        const fd = new FormData();
-        fd.append("files", file);
-        const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
-        const json = await res.json().catch(() => ({}));
-        if (res.status === 402) {
-          denied = typeof json.error === "string" ? json.error : "Statement parsing is a paid feature.";
-          break;
+      let imported = 0;
+      for (const file of spreadsheets) {
+        try {
+          const parsed = await readPlanFile(file, year);
+          if (parsed.entries.length === 0) {
+            notes.push(
+              `${file.name} did not have income, expenses, or savings we could read. Use a name column and month columns (Jan–Dec), or columns for name, kind, and amount.`,
+            );
+            continue;
+          }
+          for (const category of parsed.categories) {
+            const saved = await saveCategory(category);
+            if (saved) {
+              setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
+            }
+          }
+          const ok = await savePlan(parsed.entries);
+          if (!ok) {
+            notes.push(`Could not save the rows from ${file.name}.`);
+            continue;
+          }
+          upsertLocal(parsed.entries);
+          imported += parsed.categories.length;
+          setHasAnyPlan(true);
+        } catch (error) {
+          const code = error instanceof Error ? error.message : "";
+          if (code === "xls" || code === "not-xlsx") {
+            notes.push(`${file.name}: save it as .xlsx or .csv, then upload it again.`);
+          } else {
+            notes.push(`Could not read ${file.name}.`);
+          }
         }
-        if (!res.ok) {
-          failures.push(file.name);
-          continue;
-        }
-        for (const line of (json.transactions ?? []) as ParsedSpendingItem[]) lines.push(line);
       }
-      if (denied) {
-        setSetupError(`${denied} You can still build your plan from what you have logged, or start from a template.`);
-        return;
-      }
-      if (lines.length === 0) {
-        setSetupError(
-          failures.length > 0 ? `Could not read ${failures.join(", ")}.` : "Could not read those files.",
+      if (imported > 0) {
+        notes.unshift(
+          imported === 1
+            ? "Added 1 row from the spreadsheet. You can edit any month."
+            : `Added ${imported} rows from the spreadsheet. You can edit any month.`,
         );
-        return;
+        if (statements.length === 0) setSetupOpen(false);
       }
-      const rows = planFromStatementLines(lines, today);
-      if (rows.length === 0) {
-        setSetupError("Those statements did not have dated lines we could average.");
-        return;
+
+      if (statements.length > 0) {
+        const lines: ParsedSpendingItem[] = [];
+        const failures: string[] = [];
+        let denied = false;
+        for (const file of statements) {
+          const fd = new FormData();
+          fd.append("files", file);
+          const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
+          const json = await res.json().catch(() => ({}));
+          if (res.status === 402) {
+            denied = true;
+            break;
+          }
+          if (!res.ok) {
+            failures.push(file.name);
+            continue;
+          }
+          for (const line of (json.transactions ?? []) as ParsedSpendingItem[]) lines.push(line);
+        }
+        if (denied) {
+          notes.push(
+            "Bank and card statements are read on Progress. A CSV or Excel file of your plan can be uploaded on any plan.",
+          );
+        } else if (lines.length === 0) {
+          notes.push(failures.length > 0 ? `Could not read ${failures.join(", ")}.` : "Could not read those files.");
+        } else {
+          const rows = planFromStatementLines(lines, today);
+          if (rows.length === 0) notes.push("Those statements did not have dated lines we could average.");
+          else setSuggestions(rows.map((row) => ({ ...row, included: true })));
+        }
       }
-      setSuggestions(rows.map((row) => ({ ...row, included: true })));
+
+      const message = notes.filter(Boolean).join(" ");
+      if (message) setBanner(message);
     } catch {
       setSetupError("Upload failed. Try again.");
     } finally {
@@ -368,6 +423,7 @@ export default function BudgetPlanPage() {
       </div>
 
       {saveError && <p className="font-body text-sm text-[var(--error)]">{saveError}</p>}
+      {banner && <p className="font-body text-sm text-[var(--text-secondary)]">{banner}</p>}
 
       {setupOpen && !hasAnyPlan && !suggestions && (
         <LedgerSetup
@@ -387,14 +443,14 @@ export default function BudgetPlanPage() {
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
             {hasAnyPlan
               ? "Start from real numbers so the first month is not a guess. Every amount can be changed after."
-              : "Upload statements, use what you have already logged, or start from common categories."}
+              : "Upload a spreadsheet or statements, use what you have already logged, or start from common categories."}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <SetupCard
               icon={<Upload className="size-5" />}
-              title="From your statements"
-              body="Upload the last few months of bank and card statements. We average each category per month."
-              action={working && source === "statements" ? "Reading…" : "Upload statements"}
+              title="From your documents"
+              body="Upload a CSV or Excel plan, or bank and card statements. A spreadsheet fills the plan on any plan. Reading statements is on Progress."
+              action={working && source === "statements" ? "Reading…" : "Upload documents"}
               busy={working && source === "statements"}
               onClick={() => {
                 setSource("statements");
@@ -427,10 +483,10 @@ export default function BudgetPlanPage() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,.heic,.heif,.heics,application/pdf,.pdf"
+            accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,image/*,.heic,.heif,.heics,application/pdf,.pdf"
             multiple
             className="hidden"
-            onChange={(event) => void buildFromStatements(event.target.files)}
+            onChange={(event) => void buildFromDocuments(event.target.files)}
           />
           {setupError && <p className="mt-3 font-body text-sm text-[var(--error)]">{setupError}</p>}
           {hasAnyPlan && (
@@ -484,6 +540,7 @@ export default function BudgetPlanPage() {
             onRemoveRow={handleRemoveRow}
             onAddRow={handleAddRow}
             onCreateCategory={handleCreateCategory}
+            onApplySchedule={handleApplySchedule}
           />
         )
       )}
@@ -495,8 +552,8 @@ export default function BudgetPlanPage() {
       )}
 
       <p className="font-body text-xs text-[var(--text-muted)]">
-        Tip: type an amount, then use the arrow in the cell to fill the rest of the year. Tracking, budgets, and
-        this plan are always free.
+        Tip: click a category to fill the year from one payment, how often it happens, and the last payment date.
+        You can still edit any month. Tracking, budgets, and this plan are always free.
       </p>
 
       <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />
@@ -530,7 +587,7 @@ function SetupCard({
         type="button"
         disabled={busy}
         onClick={onClick}
-        className="mt-3 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[var(--slate-950)] px-3 py-2 font-display text-sm font-semibold text-white disabled:opacity-60"
+        className="mt-3 inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[var(--slate-950)] px-3 py-2 font-display text-sm font-semibold text-white disabled:opacity-60"
       >
         {busy && <Loader2 className="size-4 animate-spin" />}
         {action}

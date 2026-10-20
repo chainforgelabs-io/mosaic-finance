@@ -57,7 +57,7 @@ export function CashGuideSheet({
             <button
               type="button"
               onClick={() => setStep((value) => value - 1)}
-              className="flex-1 rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
+              className="flex-1 cursor-pointer rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
             >
               Back
             </button>
@@ -65,7 +65,7 @@ export function CashGuideSheet({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
+              className="flex-1 cursor-pointer rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
             >
               Close
             </button>
@@ -74,7 +74,7 @@ export function CashGuideSheet({
             <button
               type="button"
               onClick={onSetup ?? onClose}
-              className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white"
+              className="flex-1 cursor-pointer rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white"
             >
               {onSetup ? "Set up my plan" : "Got it"}
             </button>
@@ -82,7 +82,7 @@ export function CashGuideSheet({
             <button
               type="button"
               onClick={() => setStep((value) => value + 1)}
-              className="flex-1 rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white"
+              className="flex-1 cursor-pointer rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white"
             >
               Next
             </button>
