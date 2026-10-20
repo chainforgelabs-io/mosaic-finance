@@ -28,6 +28,7 @@ const checkSchema = z.object({
     )
     .max(20)
     .optional(),
+  owed_balance: z.number().finite().min(0).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -54,11 +55,19 @@ export async function POST(req: NextRequest) {
   const today = todayIso();
   const { data: txns, error: txnError } = await supabase
     .from("transactions")
-    .select("txn_date, amount, direction")
+    .select("txn_date, amount, direction, line_role, instrument, description")
     .eq("user_id", user.id)
     .gt("txn_date", anchor.anchor_date)
     .lte("txn_date", today);
   if (txnError) return NextResponse.json({ error: "Failed to compare balances" }, { status: 500 });
+
+  if (parsed.data.owed_balance != null) {
+    const { error: owedError } = await supabase
+      .from("cash_anchors")
+      .update({ owed_balance: parsed.data.owed_balance, owed_as_of: today })
+      .eq("user_id", user.id);
+    if (owedError) return NextResponse.json({ error: "Failed to save what you owe" }, { status: 500 });
+  }
 
   const expected = expectedBalance(
     Number(anchor.starting_balance),
@@ -125,6 +134,7 @@ export async function POST(req: NextRequest) {
     actual_balance: parsed.data.actual_balance,
     expected_balance: expected,
     gap_amount: gap,
+    ...(parsed.data.owed_balance != null ? { owed_balance: parsed.data.owed_balance } : {}),
   });
   if (checkError) return NextResponse.json({ error: "Failed to save balance check" }, { status: 500 });
 

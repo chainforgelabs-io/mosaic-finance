@@ -410,7 +410,7 @@ function LedgerLine({
       <div className="hidden grid-cols-[96px_90px_minmax(120px,1fr)_110px_minmax(120px,1.4fr)_120px_40px] items-center gap-2 md:grid">
         <span className="font-body text-sm tabular-nums text-[var(--text-secondary)]">{formatDate(txn.txn_date)}</span>
         <span className={cn("w-fit rounded-full px-2 py-0.5 font-display text-[11px] font-semibold", KIND_PILL[row.kind])}>
-          {KIND_LABEL[row.kind]}
+          {txn.line_role === "card_payment" ? "Card payment" : KIND_LABEL[row.kind]}
         </span>
         <span className="truncate font-body text-sm text-[var(--text-primary)]">{labelFor(catalog, txn.category)}</span>
         <span
@@ -423,6 +423,9 @@ function LedgerLine({
         </span>
         <span className="truncate font-body text-sm text-[var(--text-secondary)]">
           {details}
+          {txn.instrument === "credit" && txn.line_role !== "card_payment" && (
+            <span className="ml-1 text-[var(--text-muted)]">· on a card</span>
+          )}
           {txn.source === "screenshot" && <span className="ml-1 text-[var(--text-muted)]">· statement</span>}
           {txn.category_confirmed === false && <span className="ml-1 text-amber-700">· inbox</span>}
         </span>
@@ -441,13 +444,14 @@ function LedgerLine({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("rounded-full px-2 py-0.5 font-display text-[11px] font-semibold", KIND_PILL[row.kind])}>
-              {KIND_LABEL[row.kind]}
+              {txn.line_role === "card_payment" ? "Card payment" : KIND_LABEL[row.kind]}
             </span>
             <span className="truncate font-body text-sm text-[var(--text-primary)]">{labelFor(catalog, txn.category)}</span>
           </div>
           <p className="mt-0.5 truncate font-body text-[11px] text-[var(--text-muted)]">
             {formatDate(txn.txn_date)}
             {details ? ` · ${details}` : ""}
+            {txn.instrument === "credit" && txn.line_role !== "card_payment" ? " · on a card" : ""}
           </p>
         </div>
         <div className="text-right">

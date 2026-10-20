@@ -62,6 +62,10 @@ export interface RecurringItem {
 export interface CashAnchor {
   starting_balance: number;
   anchor_date: string;
+  /** One figure for credit cards and lines of credit. Null until the user enters it. */
+  owed_balance?: number | null;
+  /** Date that owed figure was last entered. */
+  owed_as_of?: string | null;
 }
 
 export interface SpendingPicture {
@@ -81,6 +85,8 @@ export interface CaptureInput {
   direction: CashDirection;
   /** Set to "savings" when money is being set aside rather than spent. */
   lineRole?: StatementLineRole;
+  /** "credit" when the purchase is on a card. "debit" when it leaves the bank. */
+  instrument?: StatementInstrument | null;
   categoryConfirmed: boolean;
   txnDate: string;
   note?: string;

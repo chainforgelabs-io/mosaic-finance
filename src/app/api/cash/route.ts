@@ -7,6 +7,7 @@ import { todayIso } from "@/lib/tracking/dates";
 const anchorSchema = z.object({
   starting_balance: z.number().finite(),
   anchor_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  owed_balance: z.number().finite().min(0).optional(),
 });
 
 export async function GET() {
@@ -16,12 +17,28 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [{ data: anchor }, { data: lastCheck }, { data: baseline }] = await Promise.all([
-    supabase
-      .from("cash_anchors")
-      .select("starting_balance, anchor_date")
-      .eq("user_id", user.id)
-      .maybeSingle(),
+  const anchorSelect = await supabase
+    .from("cash_anchors")
+    .select("starting_balance, anchor_date, owed_balance, owed_as_of")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const anchorResult =
+    anchorSelect.error && /owed_balance|owed_as_of/i.test(anchorSelect.error.message)
+      ? await supabase
+          .from("cash_anchors")
+          .select("starting_balance, anchor_date")
+          .eq("user_id", user.id)
+          .maybeSingle()
+      : anchorSelect;
+  if (anchorResult.error) return NextResponse.json({ error: "Failed to load cash balance" }, { status: 500 });
+  const anchor = anchorResult.data as {
+    starting_balance: number;
+    anchor_date: string;
+    owed_balance?: number | null;
+    owed_as_of?: string | null;
+  } | null;
+
+  const [{ data: lastCheck }, { data: baseline }] = await Promise.all([
     supabase
       .from("balance_checks")
       .select("check_date")
@@ -63,7 +80,7 @@ export async function GET() {
   const today = todayIso();
   const { data: txns, error } = await supabase
     .from("transactions")
-    .select("txn_date, amount, direction, line_role, instrument")
+    .select("txn_date, amount, direction, line_role, instrument, description")
     .eq("user_id", user.id)
     .gt("txn_date", anchor.anchor_date)
     .lte("txn_date", today);
@@ -74,6 +91,8 @@ export async function GET() {
     anchor: {
       starting_balance: Number(anchor.starting_balance),
       anchor_date: anchor.anchor_date,
+      owed_balance: anchor.owed_balance == null ? null : Number(anchor.owed_balance),
+      owed_as_of: anchor.owed_as_of ?? null,
     },
     expected_balance: expectedBalance(
       Number(anchor.starting_balance),
@@ -98,14 +117,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { error } = await supabase.from("cash_anchors").upsert(
-    {
-      user_id: user.id,
-      starting_balance: parsed.data.starting_balance,
-      anchor_date: parsed.data.anchor_date,
-    },
-    { onConflict: "user_id" },
-  );
+  const row: {
+    user_id: string;
+    starting_balance: number;
+    anchor_date: string;
+    owed_balance?: number;
+    owed_as_of?: string;
+  } = {
+    user_id: user.id,
+    starting_balance: parsed.data.starting_balance,
+    anchor_date: parsed.data.anchor_date,
+  };
+  if (parsed.data.owed_balance != null) {
+    row.owed_balance = parsed.data.owed_balance;
+    row.owed_as_of = parsed.data.anchor_date;
+  }
+
+  const { error } = await supabase.from("cash_anchors").upsert(row, { onConflict: "user_id" });
 
   if (error) return NextResponse.json({ error: "Failed to save starting balance" }, { status: 500 });
   return NextResponse.json({ ok: true });

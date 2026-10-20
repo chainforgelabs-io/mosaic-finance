@@ -16,6 +16,7 @@ import {
 import { SpendingCategoryChart } from "@/components/charts/SpendingCategoryChart";
 import { WeeklySpendChart } from "@/components/charts/WeeklySpendChart";
 import { BalanceCheckSheet } from "@/components/tracking/BalanceCheckSheet";
+import { CashGuideSheet } from "@/components/tracking/CashGuideSheet";
 import { CashKeypad } from "@/components/tracking/CashKeypad";
 import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
 import { CategoryPicker, EditSpendSheet } from "@/components/tracking/EditSpendSheet";
@@ -50,6 +51,7 @@ import {
   countsTowardSpend,
   isSavings,
   latestDate,
+  linePlaceLabel,
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
@@ -81,6 +83,7 @@ import type {
 const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
+const GUIDE_KEY = "mosaic-cash-guide-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 
 function rowsForPicture(rows: ReviewRow[]): ReviewRow[] {
@@ -153,6 +156,7 @@ export default function CashFlowPage() {
   const [undo, setUndo] = useState<{ ids: string[]; label: string } | null>(null);
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(() => uploadJob.rows);
   const [reviewNotice, setReviewNotice] = useState<string | null>(() => uploadJob.notice);
   const [editing, setEditing] = useState<TransactionRow | null>(null);
@@ -260,6 +264,13 @@ export default function CashFlowPage() {
   }, [loadMeta]);
 
   useEffect(() => {
+    if (!cashLoaded) return;
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem(GUIDE_KEY) === "1") return;
+    setShowGuide(true);
+  }, [cashLoaded]);
+
+  useEffect(() => {
     if (!undo) return;
     const timer = window.setTimeout(() => setUndo(null), 5000);
     return () => window.clearTimeout(timer);
@@ -288,6 +299,9 @@ export default function CashFlowPage() {
   const spendTxns = visibleTxns.filter((txn) => countsTowardSpend(txn));
   const incomeTxns = visibleTxns.filter((txn) => !isSavings(txn) && resolvedLineRole(txn) === "income");
   const savingsTxns = visibleTxns.filter((txn) => isSavings(txn));
+  const paymentTxns = visibleTxns.filter(
+    (txn) => resolvedLineRole(txn) === "card_payment" && (showStatementLines || txn.source !== "screenshot"),
+  );
   const listedSpend = showStatementLines ? spendTxns : spendTxns.filter((txn) => txn.source !== "screenshot");
   const listedIncome = showStatementLines ? incomeTxns : incomeTxns.filter((txn) => txn.source !== "screenshot");
   const hiddenStatementLines = spendTxns.length + incomeTxns.length - listedSpend.length - listedIncome.length;
@@ -389,6 +403,7 @@ export default function CashFlowPage() {
           category: line.category,
           direction: input.direction,
           line_role: input.lineRole,
+          instrument: input.instrument ?? null,
           description: input.description ?? null,
           note: input.note ?? null,
           source: input.source ?? "manual",
@@ -736,6 +751,7 @@ export default function CashFlowPage() {
   async function saveSetup(input: {
     startingBalance: number;
     anchorDate: string;
+    owedBalance: number | null;
     paycheque: { name: string; amount: number; cadence: RecurringCadence; nextDate: string } | null;
     bill: {
       name: string;
@@ -753,6 +769,7 @@ export default function CashFlowPage() {
       body: JSON.stringify({
         starting_balance: input.startingBalance,
         anchor_date: input.anchorDate,
+        ...(input.owedBalance != null ? { owed_balance: input.owedBalance } : {}),
       }),
     });
     if (!anchorRes.ok) throw new Error("Could not save starting balance");
@@ -796,12 +813,18 @@ export default function CashFlowPage() {
     actual: number,
     book: "untracked" | "lines" | "none",
     lines?: { amount: number; category: string; direction: CashDirection }[],
+    owed?: number,
   ) {
     const res = await fetch("/api/cash/check", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ actual_balance: actual, book, lines }),
+      body: JSON.stringify({
+        actual_balance: actual,
+        book,
+        lines,
+        ...(owed != null ? { owed_balance: owed } : {}),
+      }),
     });
     if (!res.ok) return false;
     const json = await res.json();
@@ -879,7 +902,16 @@ export default function CashFlowPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
+            <button
+              type="button"
+              onClick={() => setShowGuide(true)}
+              className="font-display text-sm font-semibold text-[var(--emerald-dark)] underline"
+            >
+              How tracking works
+            </button>
+          </div>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             {picture
               ? "Log variable spending for the household. Bills and paycheques can post on their dates."
@@ -914,6 +946,26 @@ export default function CashFlowPage() {
           onUpload={requestUpload}
           onManual={() => setShowSetup(true)}
         />
+      )}
+
+      {cashLoaded && !picture && anchor != null && expectedBalance != null && (
+        <div className="rounded-xl border border-[var(--warm-200)] bg-white p-4">
+          <p className="font-body text-sm text-[var(--text-secondary)]">
+            Bank balance {formatMoneyExact(expectedBalance)}, from what you have logged.
+          </p>
+          <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
+            {anchor.owed_balance != null
+              ? `Cards and lines of credit ${formatMoneyExact(anchor.owed_balance)}${anchor.owed_as_of ? `, as of ${anchor.owed_as_of}` : ""}.`
+              : "Cards and lines of credit: not entered yet."}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowBalance(true)}
+            className="mt-3 font-display text-sm font-semibold text-[var(--emerald-dark)]"
+          >
+            Balance check
+          </button>
+        </div>
       )}
 
       {picture && (
@@ -971,6 +1023,16 @@ export default function CashFlowPage() {
             {vsRecentMonths.toFixed(0)}% compared with the average of recent months ({formatMoney(priorMonthAverage)})
           </p>
         )}
+        {expectedBalance != null && (
+          <p className="mt-3 font-body text-sm text-white/80">
+            Bank balance {formatMoneyExact(expectedBalance)}, from what you have logged.
+          </p>
+        )}
+        <p className="mt-1 font-body text-sm text-white/70">
+          {anchor?.owed_balance != null
+            ? `Cards and lines of credit ${formatMoneyExact(anchor.owed_balance)}${anchor.owed_as_of ? `, as of ${anchor.owed_as_of}` : ""}.`
+            : "Cards and lines of credit: not entered yet."}
+        </p>
         <button
           type="button"
           onClick={() => {
@@ -1189,7 +1251,7 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : byCategory.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 ? (
+      ) : byCategory.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 && paymentTxns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">
             {picture ? "Nothing new this period" : "Nothing logged yet"}
@@ -1236,6 +1298,11 @@ export default function CashFlowPage() {
                       </p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2">
                         <p className="font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                        {linePlaceLabel(t) && (
+                          <span className="rounded-full bg-[var(--warm-100)] px-2 py-0.5 font-display text-[11px] font-semibold text-[var(--text-secondary)]">
+                            {linePlaceLabel(t)}
+                          </span>
+                        )}
                         {t.category_confirmed === false && (
                           <span className="rounded-full bg-[var(--warm-100)] px-2 py-0.5 font-display text-[11px] font-semibold text-[var(--text-secondary)]">
                             Inbox
@@ -1314,6 +1381,39 @@ export default function CashFlowPage() {
               </ul>
             </div>
           )}
+          {paymentTxns.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+              <div className="px-4 py-3">
+                <p className="font-display text-sm font-semibold text-[var(--text-primary)]">Card payments</p>
+                <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">
+                  Left the bank. Not counted as spending.
+                </p>
+              </div>
+              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
+                {paymentTxns.map((t) => (
+                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                        {t.description || "Card payment"}
+                      </p>
+                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                    </div>
+                    <span className="font-body text-sm font-semibold tabular-nums">
+                      {formatMoneyExact(Number(t.amount))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete card payment"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {savingsTxns.length > 0 && (
             <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
               <div className="flex items-center justify-between px-4 py-3">
@@ -1380,6 +1480,24 @@ export default function CashFlowPage() {
         />
       </div>
       </div>
+
+      {showGuide && (
+        <CashGuideSheet
+          onClose={() => {
+            localStorage.setItem(GUIDE_KEY, "1");
+            setShowGuide(false);
+          }}
+          onSetup={
+            anchor == null
+              ? () => {
+                  localStorage.setItem(GUIDE_KEY, "1");
+                  setShowGuide(false);
+                  setShowSetup(true);
+                }
+              : undefined
+          }
+        />
+      )}
 
       {showHowTo && (
         <HowToModal
@@ -1462,6 +1580,8 @@ export default function CashFlowPage() {
       {showBalance && expectedBalance != null && (
         <BalanceCheckSheet
           expected={expectedBalance}
+          owedBalance={anchor?.owed_balance ?? null}
+          owedAsOf={anchor?.owed_as_of ?? null}
           onClose={() => setShowBalance(false)}
           onBook={bookBalance}
         />

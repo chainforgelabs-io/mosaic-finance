@@ -19,6 +19,7 @@ export function CashSetupSheet({
   onSave: (input: {
     startingBalance: number;
     anchorDate: string;
+    owedBalance: number | null;
     paycheque: {
       name: string;
       amount: number;
@@ -36,6 +37,7 @@ export function CashSetupSheet({
   }) => Promise<void>;
 }) {
   const [balance, setBalance] = useState("");
+  const [owed, setOwed] = useState("");
   const [anchorDate, setAnchorDate] = useState(todayIso());
   const [payName, setPayName] = useState("Paycheque");
   const [payAmount, setPayAmount] = useState("");
@@ -57,12 +59,19 @@ export function CashSetupSheet({
     }
     const pay = Number(payAmount);
     const bill = Number(billAmount);
+    const owedTrimmed = owed.trim();
+    const owedBalance = owedTrimmed === "" ? null : Number(owedTrimmed);
+    if (owedBalance != null && (!Number.isFinite(owedBalance) || owedBalance < 0)) {
+      setError("Enter what you owe as a number, or leave it blank.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await onSave({
         startingBalance,
         anchorDate,
+        owedBalance,
         paycheque:
           payName.trim() && Number.isFinite(pay) && pay > 0
             ? { name: payName.trim(), amount: pay, cadence: payCadence, nextDate: payDate }
@@ -90,7 +99,7 @@ export function CashSetupSheet({
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <h2 className="font-display text-lg font-semibold">Start with your cash</h2>
         <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-          One ledger for household spending. Enter the balance at the end of this day, then your paycheque and one fixed bill if you want. You can log variable spending right after.
+          Enter the bank balance at the end of this day. Pay that lands here increases it. Purchases from this account reduce it. Purchases on a card count as spending and do not, until you pay the card.
         </p>
         <label className="mt-4 block font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Starting balance
@@ -103,6 +112,22 @@ export function CashSetupSheet({
             className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-display text-lg tabular-nums"
           />
         </label>
+        <label className="mt-3 block font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Owed on cards and lines of credit
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={owed}
+            onChange={(event) => setOwed(event.target.value)}
+            placeholder="Optional"
+            className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+          />
+        </label>
+        <p className="mt-1 font-body text-[11px] text-[var(--text-muted)]">
+          One total, if you want it. Update it when you check your bank balance.
+        </p>
         <label className="mt-3 block font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Balance date
           <input

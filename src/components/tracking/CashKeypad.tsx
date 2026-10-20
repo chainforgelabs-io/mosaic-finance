@@ -27,12 +27,25 @@ const MODE_LABELS: Record<CaptureMode, string> = {
   save: "Save",
 };
 
+/** Where an outflow happened. Pay the card leaves the bank and is not spending. */
+type SpendPlace = "bank" | "card" | "pay";
+
+const PLACE_LABELS: Record<SpendPlace, string> = {
+  bank: "From the bank",
+  card: "On a card",
+  pay: "Pay the card",
+};
+
 function directionFor(mode: CaptureMode): CashDirection {
   return mode === "in" ? "in" : "out";
 }
 
-function lineRoleFor(mode: CaptureMode): CaptureInput["lineRole"] {
-  return mode === "save" ? "savings" : undefined;
+function captureFields(mode: CaptureMode, place: SpendPlace): Pick<CaptureInput, "direction" | "lineRole" | "instrument"> {
+  if (mode === "save") return { direction: "out", lineRole: "savings", instrument: "debit" };
+  if (mode === "in") return { direction: "in", instrument: "debit" };
+  if (place === "pay") return { direction: "out", lineRole: "card_payment", instrument: "debit" };
+  if (place === "card") return { direction: "out", lineRole: "purchase", instrument: "credit" };
+  return { direction: "out", lineRole: "purchase", instrument: "debit" };
 }
 
 /** The full list behind More, by what is being logged. */
@@ -63,7 +76,10 @@ export function CashKeypad({
 }) {
   const [digits, setDigits] = useState("");
   const [mode, setMode] = useState<CaptureMode>("out");
+  const [place, setPlace] = useState<SpendPlace>("bank");
+  const fields = captureFields(mode, place);
   const direction = directionFor(mode);
+  const payingCard = mode === "out" && place === "pay";
   const [moreOpen, setMoreOpen] = useState(false);
   const [detailsCategory, setDetailsCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -106,8 +122,7 @@ export function CashKeypad({
     void save({
       amount,
       category,
-      direction,
-      lineRole: lineRoleFor(mode),
+      ...fields,
       categoryConfirmed: true,
       txnDate: todayIso(),
       source,
@@ -135,6 +150,53 @@ export function CashKeypad({
         ))}
       </div>
 
+      {mode === "out" && (
+        <div className="mb-3 flex rounded-full border border-[var(--warm-200)] bg-white p-1">
+          {(Object.keys(PLACE_LABELS) as SpendPlace[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                setPlace(option);
+                setMoreOpen(false);
+              }}
+              className={cn(
+                "flex-1 rounded-full px-2 py-2 font-display text-xs font-semibold sm:text-sm",
+                place === option ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+              )}
+            >
+              {PLACE_LABELS[option]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {payingCard ? (
+        <div className="mb-3">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() =>
+              void save({
+                amount,
+                category: "debt_payments",
+                ...fields,
+                categoryConfirmed: true,
+                txnDate: todayIso(),
+                description: "Card payment",
+                source: "manual",
+              })
+            }
+            className="w-full rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Record this payment
+          </button>
+          <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
+            This leaves the bank. It is not counted as spending.
+          </p>
+        </div>
+      ) : (
+      <>
       <div className="mb-3 flex flex-wrap gap-2">
         {predicted.map((category) => (
           <CategoryChip
@@ -159,8 +221,7 @@ export function CashKeypad({
             void save({
               amount,
               category: mode === "save" ? "other_savings" : mode === "in" ? "other_income" : "other",
-              direction,
-              lineRole: lineRoleFor(mode),
+              ...fields,
               categoryConfirmed: false,
               txnDate: todayIso(),
               source: "manual",
@@ -174,10 +235,14 @@ export function CashKeypad({
       <p className="mb-3 font-body text-[11px] text-[var(--text-muted)]">
         {mode === "save"
           ? "Tap the account the money went to. Savings leave the bank but never count as spending."
-          : "Tap a category to save. Hold one to add a note, merchant, date, split, or repeat."}
+          : mode === "out" && place === "card"
+            ? "This counts as spending. It does not leave the bank until you pay the card. Hold a category for a note or date."
+            : "Tap a category to save. This changes the bank balance. Hold a category for a note, merchant, date, split, or repeat."}
       </p>
+      </>
+      )}
 
-      {moreOpen && (
+      {moreOpen && !payingCard && (
         <MoreCategories
           mode={mode}
           extras={extras}
@@ -187,7 +252,7 @@ export function CashKeypad({
         />
       )}
 
-      {mode === "out" && catchUpDays != null && catchUpDays >= 3 && (
+      {mode === "out" && !payingCard && catchUpDays != null && catchUpDays >= 3 && (
         <div className="mb-3 rounded-lg border border-[var(--warm-200)] bg-white px-3 py-3">
           <p className="font-body text-sm text-[var(--text-secondary)]">
             It has been {catchUpDays} days since the last entry. Type one amount for those days, or log what you remember.
@@ -214,6 +279,7 @@ export function CashKeypad({
           category={detailsCategory}
           amount={amount}
           mode={mode}
+          place={place}
           extras={extras}
           onClose={() => setDetailsCategory(null)}
           onSave={(input) => save(input)}
@@ -344,6 +410,7 @@ function DetailsSheet({
   category,
   amount,
   mode,
+  place,
   extras,
   onClose,
   onSave,
@@ -351,10 +418,12 @@ function DetailsSheet({
   category: string;
   amount: number;
   mode: CaptureMode;
+  place: SpendPlace;
   extras: string[];
   onClose: () => void;
   onSave: (input: CaptureInput) => void;
 }) {
+  const fields = captureFields(mode, place);
   const direction = directionFor(mode);
   const [chosen, setChosen] = useState(category);
   const [note, setNote] = useState("");
@@ -384,8 +453,7 @@ function DetailsSheet({
     onSave({
       amount,
       category: chosen,
-      direction,
-      lineRole: lineRoleFor(mode),
+      ...fields,
       categoryConfirmed: true,
       txnDate: date,
       note: note.trim() || undefined,

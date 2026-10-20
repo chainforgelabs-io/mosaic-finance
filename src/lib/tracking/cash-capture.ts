@@ -63,6 +63,18 @@ export function transactionKind(txn: {
   return isOutflow(txn.direction) ? "expense" : "income";
 }
 
+/** Short label for where a line happened. Null when it is ordinary bank activity. */
+export function linePlaceLabel(txn: {
+  line_role?: string | null;
+  instrument?: string | null;
+  description?: string | null;
+}): string | null {
+  const role = resolvedLineRole(txn);
+  if (role === "card_payment") return "Card payment";
+  if (txn.instrument === "credit" && role !== "transfer") return "On a card";
+  return null;
+}
+
 /** How a line moves the bank balance. Card purchases do not. Card payments do. */
 export function cashEffect(txn: CashTxn): number {
   const amount = Number(txn.amount);

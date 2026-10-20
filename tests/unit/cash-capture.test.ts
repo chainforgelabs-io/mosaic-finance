@@ -10,6 +10,7 @@ import {
   gapBooking,
   isSavings,
   leftToSpend,
+  linePlaceLabel,
   occurrencesInRange,
   predictCategories,
   predictSavingsCategories,
@@ -52,6 +53,39 @@ describe("expected balance", () => {
 
   it("ignores transactions on or before the anchor date", () => {
     expect(expectedBalance(500, "2026-10-01", txns, "2026-10-04")).toBe(593.6);
+  });
+
+  it("keeps a card purchase off the bank balance and lets a card payment reduce it", () => {
+    const card = {
+      txn_date: "2026-10-02",
+      amount: 40,
+      direction: "out",
+      line_role: "purchase",
+      instrument: "credit",
+    };
+    const payment = {
+      txn_date: "2026-10-03",
+      amount: 40,
+      direction: "out",
+      line_role: "card_payment",
+      instrument: "debit",
+      description: "Card payment",
+    };
+    const bank = {
+      txn_date: "2026-10-04",
+      amount: 12,
+      direction: "out",
+      line_role: "purchase",
+      instrument: "debit",
+    };
+    expect(countsTowardSpend(card)).toBe(true);
+    expect(cashEffect(card)).toBe(0);
+    expect(countsTowardSpend(payment)).toBe(false);
+    expect(cashEffect(payment)).toBe(-40);
+    expect(linePlaceLabel(card)).toBe("On a card");
+    expect(linePlaceLabel(payment)).toBe("Card payment");
+    expect(linePlaceLabel(bank)).toBeNull();
+    expect(expectedBalance(1000, "2026-10-01", [card, payment, bank], "2026-10-04")).toBe(948);
   });
 
   it("books a shortfall as untracked spending and a surplus as money in", () => {

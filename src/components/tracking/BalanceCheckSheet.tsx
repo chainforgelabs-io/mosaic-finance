@@ -9,15 +9,20 @@ import type { CashDirection } from "@/types/tracking";
 
 export function BalanceCheckSheet({
   expected,
+  owedBalance,
+  owedAsOf,
   onClose,
   onBook,
 }: {
   expected: number;
+  owedBalance: number | null;
+  owedAsOf: string | null;
   onClose: () => void;
   onBook: (
     actual: number,
     book: "untracked" | "lines" | "none",
     lines?: { amount: number; category: string; direction: CashDirection }[],
+    owed?: number,
   ) => Promise<boolean>;
 }) {
   const [digits, setDigits] = useState("");
@@ -27,8 +32,16 @@ export function BalanceCheckSheet({
   const [lineDigits, setLineDigits] = useState("");
   const [lineCategory, setLineCategory] = useState("other");
   const [lines, setLines] = useState<{ amount: number; category: string }[]>([]);
+  const [owed, setOwed] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  function readOwed(): number | undefined {
+    if (owed.trim() === "") return undefined;
+    const value = Number(owed);
+    if (!Number.isFinite(value) || value < 0) return Number.NaN;
+    return value;
+  }
 
   const actual = (negative ? -1 : 1) * amountFromDigits(digits);
   const gap = balanceGap(actual, expected);
@@ -40,9 +53,14 @@ export function BalanceCheckSheet({
     mode: "untracked" | "lines" | "none",
     bookedLines?: { amount: number; category: string; direction: CashDirection }[],
   ) {
+    const nextOwed = readOwed();
+    if (Number.isNaN(nextOwed)) {
+      setError("Enter what you owe as a number, or leave it blank.");
+      return;
+    }
     setSaving(true);
     setError(null);
-    const ok = await onBook(actual, mode, bookedLines);
+    const ok = await onBook(actual, mode, bookedLines, nextOwed);
     setSaving(false);
     if (!ok) setError("Could not save that balance check.");
   }
@@ -65,6 +83,24 @@ export function BalanceCheckSheet({
         </div>
         <p className="mb-4 font-body text-sm text-[var(--text-secondary)]">
           Enter the balance in your bank. Expected from what you have logged: {formatMoneyExact(expected)}.
+        </p>
+        <label className="mb-4 block font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Owed on cards and lines of credit
+          <input
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={owed}
+            onChange={(event) => setOwed(event.target.value)}
+            placeholder="Leave blank to keep the current figure"
+            className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm normal-case tracking-normal"
+          />
+        </label>
+        <p className="-mt-3 mb-4 font-body text-[11px] text-[var(--text-muted)]">
+          {owedBalance != null
+            ? `Currently ${formatMoneyExact(owedBalance)}${owedAsOf ? `, as of ${owedAsOf}` : ""}. This does not change the bank balance.`
+            : "Optional. One total for every card and line of credit. This does not change the bank balance."}
         </p>
         {!compared ? (
           <>
