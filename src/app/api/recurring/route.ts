@@ -7,7 +7,8 @@ import { advanceRecurringDate, type RecurringCadence } from "@/lib/tracking/cash
 
 const slug = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const cadence = z.enum(["weekly", "biweekly", "monthly"]);
+const cadence = z.enum(["weekly", "biweekly", "semimonthly", "monthly", "semiannual", "yearly"]);
+const lineRole = z.enum(["purchase", "income", "savings"]);
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -16,6 +17,7 @@ const createSchema = z.object({
   direction: z.enum(["in", "out"]).default("out"),
   cadence,
   next_date: iso,
+  line_role: lineRole.optional(),
 });
 
 const patchSchema = z.object({
@@ -44,7 +46,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("recurring_items")
-    .select("id, name, amount, category, direction, cadence, next_date, active")
+    .select("id, name, amount, category, direction, cadence, next_date, active, line_role")
     .eq("user_id", user.id)
     .eq("active", true)
     .order("next_date", { ascending: true });
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from("recurring_items")
     .insert({ user_id: user.id, ...parsed.data })
-    .select("id, name, amount, category, direction, cadence, next_date, active")
+    .select("id, name, amount, category, direction, cadence, next_date, active, line_role")
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Failed to save schedule" }, { status: 500 });
@@ -86,7 +88,7 @@ export async function PATCH(req: NextRequest) {
   const { id, action, ...fields } = parsed.data;
   const { data: item, error: loadError } = await supabase
     .from("recurring_items")
-    .select("id, name, amount, category, direction, cadence, next_date")
+    .select("id, name, amount, category, direction, cadence, next_date, line_role")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -107,7 +109,12 @@ export async function PATCH(req: NextRequest) {
         direction: item.direction,
         // The column default is "purchase"; money in must be tagged as income
         // or it is counted as spending by every left-to-spend calculation.
-        line_role: item.direction === "in" ? "income" : "purchase",
+        line_role:
+          item.line_role === "savings" || item.line_role === "income" || item.line_role === "purchase"
+            ? item.line_role
+            : item.direction === "in"
+              ? "income"
+              : "purchase",
         source: "scheduled",
         category_confirmed: true,
         recurring_item_id: item.id,

@@ -2,7 +2,29 @@ import { addDays } from "@/lib/tracking/dates";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 
 export type CashDirection = "in" | "out";
-export type RecurringCadence = "weekly" | "biweekly" | "monthly";
+export type RecurringCadence = "weekly" | "biweekly" | "semimonthly" | "monthly" | "semiannual" | "yearly";
+
+/** How many times a cadence happens in a year. Twice a month is 24, every 2 weeks is 26. */
+export const CADENCE_PER_YEAR: Record<RecurringCadence, number> = {
+  weekly: 52,
+  biweekly: 26,
+  semimonthly: 24,
+  monthly: 12,
+  semiannual: 2,
+  yearly: 1,
+};
+
+export const CADENCE_LABELS: Record<RecurringCadence, string> = {
+  weekly: "Weekly",
+  biweekly: "Every 2 weeks",
+  semimonthly: "Twice a month",
+  monthly: "Monthly",
+  semiannual: "Every 6 months",
+  yearly: "Yearly",
+};
+
+/** "each" is the amount per payment. "year" is the full-year total, paid on the cadence. */
+export type AmountBasis = "each" | "year";
 
 export interface CashTxn {
   txn_date: string;
@@ -128,14 +150,35 @@ export function outflowTotal(txns: CashTxn[]): number {
   );
 }
 
-export function advanceRecurringDate(isoDate: string, cadence: RecurringCadence): string {
-  if (cadence === "weekly") return addDays(isoDate, 7);
-  if (cadence === "biweekly") return addDays(isoDate, 14);
+function addMonthsClamped(isoDate: string, months: number): string {
   const [year, month, day] = isoDate.split("-").map(Number);
-  const target = new Date(Date.UTC(year, month - 1 + 1, 1));
+  const target = new Date(Date.UTC(year, month - 1 + months, 1));
   const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
   const clamped = Math.min(day, last);
   return new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), clamped)).toISOString().slice(0, 10);
+}
+
+export function advanceRecurringDate(isoDate: string, cadence: RecurringCadence): string {
+  if (cadence === "weekly") return addDays(isoDate, 7);
+  if (cadence === "biweekly") return addDays(isoDate, 14);
+  if (cadence === "semimonthly") return addDays(isoDate, 15);
+  if (cadence === "semiannual") return addMonthsClamped(isoDate, 6);
+  if (cadence === "yearly") return addMonthsClamped(isoDate, 12);
+  return addMonthsClamped(isoDate, 1);
+}
+
+/** The amount that leaves or enters the bank on each date. */
+export function perOccurrenceAmount(amount: number, cadence: RecurringCadence, basis: AmountBasis): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  if (basis === "year") return roundMoney(amount / CADENCE_PER_YEAR[cadence]);
+  return roundMoney(amount);
+}
+
+/** The monthly plan cell for a row. A yearly total is spread over 12 months. */
+export function monthlyPlanAmount(amount: number, cadence: RecurringCadence, basis: AmountBasis): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  if (basis === "year") return roundMoney(amount / 12);
+  return roundMoney((amount * CADENCE_PER_YEAR[cadence]) / 12);
 }
 
 export function occurrencesInRange(

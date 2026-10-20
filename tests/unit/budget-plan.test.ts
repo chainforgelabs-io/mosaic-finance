@@ -4,6 +4,7 @@ import {
   entriesFromSuggestions,
   fillAcrossMonths,
   indexPlan,
+  ledgerFromRows,
   monthsOfYear,
   planFromHistory,
   planFromStatementLines,
@@ -162,5 +163,41 @@ describe("category catalog", () => {
   it("labels honour the catalog", () => {
     expect(labelFor(catalog, "dining")).toBe("Eating out");
     expect(labelFor(catalog, "groceries")).toBe("Groceries");
+  });
+});
+
+describe("ledger rows", () => {
+  it("fills every month and keeps the per-pay amount for a yearly salary", () => {
+    const built = ledgerFromRows(
+      [
+        {
+          kind: "income",
+          name: "Salary",
+          amount: 150000,
+          cadence: "biweekly",
+          basis: "year",
+          nextDate: "2026-10-23",
+        },
+        {
+          kind: "expense",
+          name: "Rent",
+          amount: 2000,
+          cadence: "monthly",
+          basis: "each",
+          nextDate: "2026-11-01",
+        },
+      ],
+      2026,
+    );
+    expect(built.schedules[0]).toMatchObject({
+      amount: 5769.23,
+      cadence: "biweekly",
+      direction: "in",
+      line_role: "income",
+      category: "salary",
+    });
+    expect(built.entries.filter((entry) => entry.category === "salary")).toHaveLength(12);
+    expect(built.entries.find((entry) => entry.category === "salary")?.amount).toBe(12500);
+    expect(built.schedules[1]).toMatchObject({ amount: 2000, direction: "out", line_role: "purchase" });
   });
 });

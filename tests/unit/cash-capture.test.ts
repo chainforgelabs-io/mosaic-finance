@@ -11,6 +11,8 @@ import {
   isSavings,
   leftToSpend,
   linePlaceLabel,
+  monthlyPlanAmount,
+  perOccurrenceAmount,
   occurrencesInRange,
   predictCategories,
   predictSavingsCategories,
@@ -34,6 +36,9 @@ describe("scheduled dates", () => {
     expect(advanceRecurringDate("2026-10-05", "biweekly")).toBe("2026-10-19");
     expect(advanceRecurringDate("2026-01-15", "monthly")).toBe("2026-02-15");
     expect(advanceRecurringDate("2026-01-31", "monthly")).toBe("2026-02-28");
+    expect(advanceRecurringDate("2026-01-01", "semimonthly")).toBe("2026-01-16");
+    expect(advanceRecurringDate("2026-01-15", "semiannual")).toBe("2026-07-15");
+    expect(advanceRecurringDate("2024-02-29", "yearly")).toBe("2025-02-28");
   });
 
   it("lists only occurrences inside the period", () => {
@@ -93,6 +98,17 @@ describe("expected balance", () => {
     expect(gapBooking(450, 493)).toEqual({ direction: "out", amount: 43 });
     expect(gapBooking(510, 493)).toEqual({ direction: "in", amount: 17 });
     expect(gapBooking(493, 493)).toBeNull();
+  });
+});
+
+describe("pay frequency", () => {
+  it("turns a weekly amount and a yearly salary into a monthly plan and a per-pay amount", () => {
+    expect(monthlyPlanAmount(1000, "weekly", "each")).toBe(4333.33);
+    expect(perOccurrenceAmount(1000, "weekly", "each")).toBe(1000);
+    expect(monthlyPlanAmount(150000, "biweekly", "year")).toBe(12500);
+    expect(perOccurrenceAmount(150000, "biweekly", "year")).toBe(5769.23);
+    expect(monthlyPlanAmount(1200, "semiannual", "each")).toBe(200);
+    expect(perOccurrenceAmount(1200, "yearly", "year")).toBe(1200);
   });
 });
 

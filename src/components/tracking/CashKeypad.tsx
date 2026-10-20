@@ -12,14 +12,16 @@ import {
 } from "@/lib/tracking/categories";
 import {
   amountFromDigits,
+  CADENCE_LABELS,
   predictCategories,
   predictSavingsCategories,
   splitLines,
   type CashDirection,
+  type RecurringCadence,
 } from "@/lib/tracking/cash-capture";
 import { todayIso } from "@/lib/tracking/dates";
 import { cn } from "@/lib/utils";
-import type { CaptureInput, CaptureMode, RecurringCadence, TransactionRow } from "@/types/tracking";
+import type { CaptureInput, CaptureMode, TransactionRow } from "@/types/tracking";
 
 const MODE_LABELS: Record<CaptureMode, string> = {
   out: "Out",
@@ -54,12 +56,6 @@ function optionsFor(mode: CaptureMode, extras: string[]): string[] {
   if (mode === "in") return [...INCOME_CATEGORIES, "income"];
   return [...new Set([...KEYPAD_CATEGORIES, ...SPENDING_CATEGORIES, ...extras, "untracked"])];
 }
-
-const CADENCE_LABELS: Record<RecurringCadence, string> = {
-  weekly: "Weekly",
-  biweekly: "Every 2 weeks",
-  monthly: "Monthly",
-};
 
 export function CashKeypad({
   history,

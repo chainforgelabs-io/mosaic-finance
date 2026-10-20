@@ -8,8 +8,8 @@ const STEPS = [
     body: "Enter the balance in the account your pay lands in, as of today. Pay increases that balance. Purchases from that account reduce it.",
   },
   {
-    title: "Add a paycheque if it repeats",
-    body: "You can add your paycheque so it shows up on its dates. You can also skip that and log pay when it arrives.",
+    title: "List income, expenses, and savings",
+    body: "The plan is one row for each source. Enter the amount each time, or a full-year figure and how often it is paid. Weekly, every 2 weeks, twice a month, monthly, every 6 months, and yearly are all available.",
   },
   {
     title: "Say whether a purchase left the bank",
@@ -76,7 +76,7 @@ export function CashGuideSheet({
               onClick={onSetup ?? onClose}
               className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white"
             >
-              {onSetup ? "Enter my balance" : "Got it"}
+              {onSetup ? "Set up my plan" : "Got it"}
             </button>
           ) : (
             <button

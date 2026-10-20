@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 import { KEYPAD_CATEGORIES, categoryLabel } from "@/lib/tracking/categories";
+import { CADENCE_LABELS, type RecurringCadence } from "@/lib/tracking/cash-capture";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import { todayIso } from "@/lib/tracking/dates";
-import type { CashDirection, RecurringCadence, RecurringItem } from "@/types/tracking";
-
-const CADENCE_LABELS: Record<RecurringCadence, string> = {
-  weekly: "Weekly",
-  biweekly: "Every 2 weeks",
-  monthly: "Monthly",
-};
+import type { CashDirection, RecurringItem } from "@/types/tracking";
 
 export function RecurringPanel({
   items,

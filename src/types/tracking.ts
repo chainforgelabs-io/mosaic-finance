@@ -7,7 +7,7 @@ import type {
 export type TransactionSource = "manual" | "screenshot" | "scheduled" | "balance_check" | "catchup";
 
 export type CashDirection = "in" | "out";
-export type RecurringCadence = "weekly" | "biweekly" | "monthly";
+export type RecurringCadence = "weekly" | "biweekly" | "semimonthly" | "monthly" | "semiannual" | "yearly";
 export type StatementInstrument = "credit" | "debit";
 export type StatementLineRole =
   | "purchase"

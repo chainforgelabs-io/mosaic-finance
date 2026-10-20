@@ -5,10 +5,12 @@ export function StatementStart({
   parsing,
   onUpload,
   onManual,
+  manualLabel = "Enter a balance instead",
 }: {
   parsing: boolean;
   onUpload: () => void;
   onManual: () => void;
+  manualLabel?: string;
 }) {
   return (
     <div className="rounded-xl border border-[var(--warm-200)] bg-white p-5 sm:p-6">
@@ -33,7 +35,7 @@ export function StatementStart({
         onClick={onManual}
         className="mt-2 w-full py-2 font-display text-sm font-semibold text-[var(--text-muted)]"
       >
-        Enter a balance instead
+        {manualLabel}
       </button>
       <p className="mt-3 border-t border-[var(--warm-100)] pt-3 text-center font-body text-xs text-[var(--text-muted)]">
         Prefer to plan first?{" "}

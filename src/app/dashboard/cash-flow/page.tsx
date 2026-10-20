@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -133,6 +134,7 @@ interface ReviewRow extends ParsedSpendingItem {
 }
 
 export default function CashFlowPage() {
+  const router = useRouter();
   const monthlyExpenses = usePlanStore((s) => s.prePlanData?.monthlyExpenses ?? null);
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(todayIso()));
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
@@ -748,19 +750,14 @@ export default function CashFlowPage() {
     await reload();
   }
 
+  function openPlan() {
+    router.push("/dashboard/cash-flow/plan");
+  }
+
   async function saveSetup(input: {
     startingBalance: number;
     anchorDate: string;
     owedBalance: number | null;
-    paycheque: { name: string; amount: number; cadence: RecurringCadence; nextDate: string } | null;
-    bill: {
-      name: string;
-      amount: number;
-      category: string;
-      cadence: RecurringCadence;
-      nextDate: string;
-      direction: CashDirection;
-    } | null;
   }) {
     const anchorRes = await fetch("/api/cash", {
       method: "POST",
@@ -773,38 +770,6 @@ export default function CashFlowPage() {
       }),
     });
     if (!anchorRes.ok) throw new Error("Could not save starting balance");
-    const schedules = [
-      input.paycheque
-        ? {
-            name: input.paycheque.name,
-            amount: input.paycheque.amount,
-            category: "paycheque",
-            direction: "in" as const,
-            cadence: input.paycheque.cadence,
-            next_date: input.paycheque.nextDate,
-          }
-        : null,
-      input.bill
-        ? {
-            name: input.bill.name,
-            amount: input.bill.amount,
-            category: input.bill.category,
-            direction: input.bill.direction,
-            cadence: input.bill.cadence,
-            next_date: input.bill.nextDate,
-          }
-        : null,
-    ].filter((item) => item != null);
-    await Promise.all(
-      schedules.map((item) =>
-        fetch("/api/recurring", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(item),
-        }),
-      ),
-    );
     setShowSetup(false);
     await reload();
   }
@@ -944,7 +909,11 @@ export default function CashFlowPage() {
         <StatementStart
           parsing={parsing}
           onUpload={requestUpload}
-          onManual={() => setShowSetup(true)}
+          manualLabel={hasAnyPlan === true ? "Enter a balance instead" : "Set up income, expenses, and savings"}
+          onManual={() => {
+            if (hasAnyPlan === true) setShowSetup(true);
+            else openPlan();
+          }}
         />
       )}
 
@@ -1036,8 +1005,10 @@ export default function CashFlowPage() {
         <button
           type="button"
           onClick={() => {
-            if (anchor == null || expectedBalance == null) setShowSetup(true);
-            else setShowBalance(true);
+            if (anchor == null || expectedBalance == null) {
+              if (hasAnyPlan === true) setShowSetup(true);
+              else openPlan();
+            } else setShowBalance(true);
           }}
           className="mt-4 rounded-lg bg-white/10 px-3 py-2 font-display text-sm font-semibold text-white"
         >
@@ -1492,7 +1463,8 @@ export default function CashFlowPage() {
               ? () => {
                   localStorage.setItem(GUIDE_KEY, "1");
                   setShowGuide(false);
-                  setShowSetup(true);
+                  if (hasAnyPlan === true) setShowSetup(true);
+                  else openPlan();
                 }
               : undefined
           }

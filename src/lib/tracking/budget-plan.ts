@@ -1,11 +1,14 @@
 import type { BudgetPlanEntry } from "@/types/tracking";
-import type { CategoryKind } from "@/lib/tracking/categories";
-import { categoryKind } from "@/lib/tracking/categories";
+import { categoryKind, categorySlug, type CategoryKind } from "@/lib/tracking/categories";
 import {
   isNeedCategory,
+  monthlyPlanAmount,
+  perOccurrenceAmount,
   roundMoney,
   transactionKind,
+  type AmountBasis,
   type CashTxn,
+  type RecurringCadence,
 } from "@/lib/tracking/cash-capture";
 import { cardPaymentIsCovered, type StatementLine } from "@/lib/tracking/statement-baseline";
 import { monthKey, startOfMonth } from "@/lib/tracking/dates";
@@ -238,6 +241,82 @@ export function planFromHistory(
     })
     .filter((row) => row.monthly > 0)
     .sort((a, b) => PLAN_KINDS.indexOf(a.kind) - PLAN_KINDS.indexOf(b.kind) || b.monthly - a.monthly);
+}
+
+export interface LedgerPlanRow {
+  kind: PlanKind;
+  name: string;
+  amount: number;
+  cadence: RecurringCadence;
+  basis: AmountBasis;
+  nextDate: string;
+}
+
+export interface LedgerSchedule {
+  name: string;
+  amount: number;
+  category: string;
+  direction: "in" | "out";
+  cadence: RecurringCadence;
+  next_date: string;
+  line_role: "income" | "purchase" | "savings";
+}
+
+function uniqueSlug(label: string, used: Set<string>): string | null {
+  const base = categorySlug(label);
+  if (!base) return null;
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  for (let n = 2; n < 20; n++) {
+    const suffix = `_${n}`;
+    const next = `${base.slice(0, 40 - suffix.length)}${suffix}`;
+    if (!used.has(next)) {
+      used.add(next);
+      return next;
+    }
+  }
+  return null;
+}
+
+/**
+ * Turn named rows into a full-year plan and one repeating payment each.
+ * A yearly salary paid every 2 weeks becomes the monthly plan amount and the per-pay deposit.
+ */
+export function ledgerFromRows(
+  rows: LedgerPlanRow[],
+  year: number,
+): { entries: BudgetPlanEntry[]; categories: { slug: string; label: string; kind: PlanKind }[]; schedules: LedgerSchedule[] } {
+  const used = new Set<string>();
+  const entries: BudgetPlanEntry[] = [];
+  const categories: { slug: string; label: string; kind: PlanKind }[] = [];
+  const schedules: LedgerSchedule[] = [];
+  const months = monthsOfYear(year);
+
+  for (const row of rows) {
+    const name = row.name.trim();
+    if (!name || !(row.amount > 0)) continue;
+    const slug = uniqueSlug(name, used);
+    const monthly = monthlyPlanAmount(row.amount, row.cadence, row.basis);
+    const each = perOccurrenceAmount(row.amount, row.cadence, row.basis);
+    if (!slug || monthly <= 0 || each <= 0) continue;
+    categories.push({ slug, label: name, kind: row.kind });
+    for (const month of months) {
+      entries.push({ kind: row.kind, category: slug, month, amount: monthly });
+    }
+    schedules.push({
+      name,
+      amount: each,
+      category: slug,
+      direction: row.kind === "income" ? "in" : "out",
+      cadence: row.cadence,
+      next_date: row.nextDate,
+      line_role: row.kind === "income" ? "income" : row.kind === "savings" ? "savings" : "purchase",
+    });
+  }
+
+  return { entries, categories, schedules };
 }
 
 /** Expand suggestions into one entry per month of the year. */

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, FileText, History, LayoutList, Loader2, Upload } from "lucide-react";
 import { BudgetPlanGrid } from "@/components/tracking/BudgetPlanGrid";
+import { LedgerSetup, type LedgerSetupInput } from "@/components/tracking/LedgerSetup";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   CATEGORY_KIND_LABELS,
@@ -13,6 +14,7 @@ import {
 import {
   entriesFromSuggestions,
   fillAcrossMonths,
+  ledgerFromRows,
   monthsOfYear,
   planFromHistory,
   planFromStatementLines,
@@ -32,7 +34,7 @@ import {
   savePlan,
 } from "@/lib/tracking/plan-client";
 import { cn } from "@/lib/utils";
-import type { BudgetPlanEntry, ParsedSpendingItem, TransactionRow } from "@/types/tracking";
+import type { BudgetPlanEntry, CashAnchor, ParsedSpendingItem, TransactionRow } from "@/types/tracking";
 
 type SetupSource = "statements" | "history" | "preset";
 
@@ -56,12 +58,23 @@ export default function BudgetPlanPage() {
   const [suggestions, setSuggestions] = useState<SuggestionRow[] | null>(null);
   const [applying, setApplying] = useState(false);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
+  const [anchor, setAnchor] = useState<CashAnchor | null>(null);
+  const [ledgerSaving, setLedgerSaving] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const months = useMemo(() => monthsOfYear(year), [year]);
 
   const load = useCallback(async (targetYear: number) => {
     setLoading(true);
-    const [plan, rawCatalog] = await Promise.all([fetchPlan(targetYear), fetchCatalog()]);
+    const [plan, rawCatalog, cashRes] = await Promise.all([
+      fetchPlan(targetYear),
+      fetchCatalog(),
+      fetch("/api/cash", { credentials: "include" }),
+    ]);
+    if (cashRes.ok) {
+      const cash = await cashRes.json();
+      setAnchor((cash.anchor as CashAnchor | null) ?? null);
+    }
     const merged = await migrateLocalCategories(rawCatalog);
     setEntries(plan.entries);
     setHasAnyPlan(plan.hasAnyPlan);
@@ -201,6 +214,73 @@ export default function BudgetPlanPage() {
     }
   }
 
+  async function saveLedger(input: LedgerSetupInput) {
+    setLedgerSaving(true);
+    setLedgerError(null);
+    try {
+      if (input.startingBalance != null) {
+        const res = await fetch("/api/cash", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            starting_balance: input.startingBalance,
+            anchor_date: input.anchorDate,
+            ...(input.owedBalance != null ? { owed_balance: input.owedBalance } : {}),
+          }),
+        });
+        if (!res.ok) {
+          setLedgerError("Could not save the bank balance.");
+          return;
+        }
+        setAnchor({
+          starting_balance: input.startingBalance,
+          anchor_date: input.anchorDate,
+          owed_balance: input.owedBalance,
+          owed_as_of: input.owedBalance != null ? input.anchorDate : anchor?.owed_as_of ?? null,
+        });
+      }
+
+      const built = ledgerFromRows(input.rows, year);
+      if (built.entries.length === 0) {
+        setLedgerError("Add at least one named amount.");
+        return;
+      }
+      for (const category of built.categories) {
+        const saved = await saveCategory({ slug: category.slug, label: category.label, kind: category.kind });
+        if (saved) {
+          setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
+        }
+      }
+      const ok = await savePlan(built.entries);
+      if (!ok) {
+        setLedgerError("Could not save the plan.");
+        return;
+      }
+      upsertLocal(built.entries);
+      setHasAnyPlan(true);
+
+      const schedules = await Promise.all(
+        built.schedules.map((item) =>
+          fetch("/api/recurring", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(item),
+          }),
+        ),
+      );
+      setSetupOpen(false);
+      if (schedules.some((res) => !res.ok)) {
+        setSaveError(
+          "The monthly plan is saved. A repeating date could not be saved. Twice a month, every 6 months, and yearly need the latest database update.",
+        );
+      }
+    } finally {
+      setLedgerSaving(false);
+    }
+  }
+
   async function applyPreset() {
     setApplying(true);
     const next = entriesFromSuggestions(presetSuggestions(), year);
@@ -289,13 +369,25 @@ export default function BudgetPlanPage() {
 
       {saveError && <p className="font-body text-sm text-[var(--error)]">{saveError}</p>}
 
+      {setupOpen && !hasAnyPlan && !suggestions && (
+        <LedgerSetup
+          key={anchor ? `${anchor.anchor_date}-${anchor.starting_balance}` : "no-anchor"}
+          anchor={anchor}
+          saving={ledgerSaving}
+          error={ledgerError}
+          onSave={saveLedger}
+        />
+      )}
+
       {setupOpen && !suggestions && (
         <section className="rounded-xl border border-[var(--warm-200)] bg-white p-5 sm:p-6">
           <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
-            {hasAnyPlan ? `Prefill ${year}` : "Set up your plan"}
+            {hasAnyPlan ? `Prefill ${year}` : "Or start another way"}
           </h2>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-            Start from real numbers so the first month is not a guess. Every amount can be changed after.
+            {hasAnyPlan
+              ? "Start from real numbers so the first month is not a guess. Every amount can be changed after."
+              : "Upload statements, use what you have already logged, or start from common categories."}
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <SetupCard
