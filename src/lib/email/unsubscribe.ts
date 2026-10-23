@@ -5,7 +5,7 @@ import {
 } from "@/lib/config/profile-mappings";
 import type { NotificationPreferences } from "@/types";
 
-export type EmailList = "market" | "education" | "all";
+export type EmailList = "market" | "education" | "reminders" | "all";
 
 interface UnsubscribePayload {
   email: string;
@@ -58,7 +58,12 @@ export function verifyUnsubscribeToken(token: string): UnsubscribePayload | null
       Buffer.from(encoded, "base64url").toString("utf8"),
     ) as UnsubscribePayload;
     if (parsed.v !== 1 || !parsed.email || !parsed.list) return null;
-    if (parsed.list !== "market" && parsed.list !== "education" && parsed.list !== "all") {
+    if (
+      parsed.list !== "market" &&
+      parsed.list !== "education" &&
+      parsed.list !== "reminders" &&
+      parsed.list !== "all"
+    ) {
       return null;
     }
     return { ...parsed, email: normalizeEmail(parsed.email) };
@@ -91,10 +96,13 @@ function prefsAfterUnsubscribe(
     merged.weekly_market = false;
   } else if (list === "education") {
     merged.education_emails = false;
+  } else if (list === "reminders") {
+    merged.net_worth_reminder = false;
   } else {
     merged.weekly_market = false;
     merged.education_emails = false;
     merged.quarterly_replan = false;
+    merged.net_worth_reminder = false;
   }
   return merged;
 }

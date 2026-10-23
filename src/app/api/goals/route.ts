@@ -20,7 +20,8 @@ const createSchema = z.object({
 });
 
 const patchSchema = createSchema.partial().extend({
-  id: z.string().uuid(),
+  id: z.string().uuid().optional(),
+  reviewAll: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -74,9 +75,23 @@ export async function POST(req: NextRequest) {
     priority: g.priority ?? "medium",
     status: g.status ?? "active",
     source: g.source ?? "manual",
+    reviewed_at: g.source === "fact_find" ? null : new Date().toISOString(),
   }));
 
-  const { data, error } = await supabase.from("goals").insert(rows).select();
+  const inserted = await supabase.from("goals").insert(rows).select();
+  const { data, error } =
+    inserted.error && /reviewed_at/i.test(inserted.error.message)
+      ? await supabase
+          .from("goals")
+          .insert(
+            rows.map((row) => {
+              const copy: Record<string, unknown> = { ...row };
+              delete copy.reviewed_at;
+              return copy;
+            }),
+          )
+          .select()
+      : inserted;
   if (error) return NextResponse.json({ error: "Failed to save goals" }, { status: 500 });
 
   const priorIds = (prior ?? []).map((row) => row.id);
@@ -99,7 +114,21 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  if (parsed.data.reviewAll) {
+    const stamp = new Date().toISOString();
+    const { error: reviewError } = await supabase
+      .from("goals")
+      .update({ reviewed_at: stamp })
+      .eq("user_id", user.id);
+    if (reviewError && !/reviewed_at/i.test(reviewError.message)) {
+      return NextResponse.json({ error: "Could not mark goals reviewed" }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const { id, ...updates } = parsed.data;
+  delete (updates as { reviewAll?: boolean }).reviewAll;
+  if (!id) return NextResponse.json({ error: "Missing goal id" }, { status: 400 });
   if (updates.amount_unknown === true) {
     updates.target_amount = null;
   }
@@ -108,9 +137,10 @@ export async function PATCH(req: NextRequest) {
   } else if (updates.target_date) {
     updates.target_age = null;
   }
+  const stamped = { ...updates, reviewed_at: new Date().toISOString() };
   const { data, error } = await supabase
     .from("goals")
-    .update(updates)
+    .update(stamped)
     .eq("id", id)
     .eq("user_id", user.id)
     .select()

@@ -21,6 +21,7 @@ export interface NotificationPreferences {
   weekly_market: boolean;
   education_emails: boolean;
   quarterly_replan: boolean;
+  net_worth_reminder: boolean;
 }
 
 export interface UserProfile {
@@ -39,6 +40,7 @@ export interface UserProfile {
   academyAccess?: boolean;
   subscriptionInterval?: "monthly" | "annual";
   notificationPreferences?: NotificationPreferences;
+  netWorthReminderDay?: number;
 }
 
 export interface FinancialCardData {

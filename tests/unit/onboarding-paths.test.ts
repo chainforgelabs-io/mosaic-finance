@@ -16,18 +16,39 @@ const fresh: OnboardingFlags = {
 };
 
 describe("authLandingPath", () => {
-  it("sends a new account to the tracking dashboard", () => {
-    expect(authLandingPath(fresh)).toBe("/dashboard");
+  it("sends a new entitled account into discovery", () => {
+    expect(authLandingPath({ ...fresh, reportEntitled: true })).toBe("/onboarding");
   });
 
-  it("keeps someone mid fact-find on the dashboard until they choose the report", () => {
+  it("resumes the unfinished discovery step", () => {
+    expect(
+      authLandingPath({
+        ...fresh,
+        profileComplete: true,
+        reportEntitled: true,
+      }),
+    ).toBe("/onboarding/fact-find");
     expect(
       authLandingPath({
         ...fresh,
         profileComplete: true,
         factFindComplete: true,
+        reportEntitled: true,
       }),
-    ).toBe("/dashboard");
+    ).toBe("/onboarding/goals");
+  });
+
+  it("sends an account with a report or holdings to the dashboard", () => {
+    expect(authLandingPath({ ...fresh, planExists: true, reportEntitled: true })).toBe(
+      "/dashboard",
+    );
+    expect(authLandingPath({ ...fresh, holdingsExist: true, reportEntitled: true })).toBe(
+      "/dashboard",
+    );
+  });
+
+  it("sends a Pulse account without a trial to the dashboard", () => {
+    expect(authLandingPath({ ...fresh, reportEntitled: false })).toBe("/dashboard");
   });
 
   it("sends an admin who already has holdings to the approval queue", () => {
@@ -37,7 +58,9 @@ describe("authLandingPath", () => {
   });
 
   it("does not send a new admin into the queue", () => {
-    expect(authLandingPath({ ...fresh, isAdmin: true })).toBe("/dashboard");
+    expect(authLandingPath({ ...fresh, isAdmin: true, reportEntitled: true })).toBe(
+      "/onboarding",
+    );
   });
 });
 

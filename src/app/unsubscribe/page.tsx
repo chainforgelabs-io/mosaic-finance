@@ -33,7 +33,9 @@ export default async function UnsubscribePage({
             ? "You are unsubscribed from Mosaic emails"
             : payload.list === "market"
               ? "You are unsubscribed from the weekly market brief"
-              : "You are unsubscribed from education notes";
+              : payload.list === "reminders"
+                ? "You are unsubscribed from net worth reminder emails"
+                : "You are unsubscribed from education notes";
         body =
           payload.list === "all"
             ? "We will not send further marketing or education emails to this address. Product emails about a report you requested will still include an unsubscribe link."

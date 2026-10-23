@@ -875,7 +875,7 @@ export default function HoldingsPage() {
     // Allow Set-Cookie headers from the API response to propagate before
     // navigating, preventing a refresh-token-rotation race in middleware.
     await new Promise((r) => setTimeout(r, 150));
-    window.location.href = "/dashboard";
+    window.location.href = "/dashboard?welcome=1";
   };
 
   const handleContinue = async () => {

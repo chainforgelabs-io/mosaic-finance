@@ -588,7 +588,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData, planStatus, plan } = usePlanStore();
+  const { rawPlanData, planStatus, plan, user, setUser } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -611,6 +611,7 @@ export default function AssetsPage() {
   const [debtSaving, setDebtSaving] = useState(false);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
   const [snapshottedThisMonth, setSnapshottedThisMonth] = useState(true);
+  const [reminderDay, setReminderDay] = useState(user?.netWorthReminderDay ?? 1);
 
   const loadData = useCallback(async (force = false) => {
     const now = Date.now();
@@ -646,6 +647,12 @@ export default function AssetsPage() {
         setSnapshottedThisMonth(rows.some((s) => monthKey(s.snapshot_date) === monthKey(todayIso())));
       })
       .catch(() => {});
+    void fetch("/api/setup/status", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (typeof data?.reminderDay === "number") setReminderDay(data.reminderDay);
+      })
+      .catch(() => undefined);
   }, [loadData]);
 
   async function handleSaveAsset(formData: AssetFormData) {
@@ -835,7 +842,32 @@ export default function AssetsPage() {
     <div>
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Net Worth</h1>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 font-body text-xs text-[var(--text-secondary)]">
+            Remind me on
+            <select
+              value={reminderDay}
+              onChange={(event) => {
+                const day = Number(event.target.value);
+                setReminderDay(day);
+                void fetch("/api/user/profile", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ netWorthReminderDay: day }),
+                }).then((res) => {
+                  if (res.ok && user) setUser({ ...user, netWorthReminderDay: day });
+                });
+              }}
+              className="cursor-pointer rounded-lg border border-[var(--warm-200)] bg-white px-2 py-1.5 font-body text-sm text-[var(--text-primary)]"
+            >
+              {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+                <option key={day} value={day}>
+                  the {day}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={() => setCheckInOpen(true)}
@@ -952,7 +984,21 @@ export default function AssetsPage() {
           </div>
         </div>
 
-        {!snapshottedThisMonth && (
+        {snapshots.length === 0 && (
+          <div className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-body text-sm text-[var(--text-secondary)]">
+              These came from your conversation with Charlie. Check them and save your first snapshot.
+            </p>
+            <button
+              type="button"
+              onClick={() => setCheckInOpen(true)}
+              className="cursor-pointer rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white"
+            >
+              Monthly check-in
+            </button>
+          </div>
+        )}
+        {!snapshottedThisMonth && snapshots.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 font-body text-sm text-amber-800">
             No snapshot this month. Update values and save a check-in to see which buckets moved.
           </div>

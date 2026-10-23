@@ -76,13 +76,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return;
       }
 
-      const { data: profile } = await supabase
+      const profileSelect =
+        "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences, role, trial_ends_at, is_founding_member, academy_access, subscription_interval";
+      const withReminder = await supabase
         .from("user_profiles")
-        .select(
-          "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences, role, trial_ends_at, is_founding_member, academy_access, subscription_interval",
-        )
+        .select(`${profileSelect}, net_worth_reminder_day`)
         .eq("id", authUser.id)
         .single();
+      const { data: profile } =
+        withReminder.error && /net_worth_reminder_day/i.test(withReminder.error.message)
+          ? await supabase
+              .from("user_profiles")
+              .select(profileSelect)
+              .eq("id", authUser.id)
+              .single()
+          : withReminder;
 
       if (profile) {
         const rawProvince = profile.province ?? "";
@@ -117,6 +125,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ...DEFAULT_NOTIFICATION_PREFERENCES,
             ...rawNotifs,
           },
+          netWorthReminderDay:
+            "net_worth_reminder_day" in profile &&
+            typeof profile.net_worth_reminder_day === "number"
+              ? profile.net_worth_reminder_day
+              : undefined,
         });
       } else {
         setUser({

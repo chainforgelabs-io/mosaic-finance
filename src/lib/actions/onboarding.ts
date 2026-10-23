@@ -8,6 +8,7 @@ import {
   reportEntryPath,
   reportStarted,
 } from "@/lib/onboarding/paths";
+import { resolveEntitlements } from "@/lib/entitlements";
 import { financialProfileSchema } from "@/lib/schemas/onboarding";
 import type { FactFindAccount, FactFindHolding } from "@/stores/onboarding";
 
@@ -137,7 +138,7 @@ export type OnboardingProgress = {
   riskProfileComplete: boolean;
   holdingsExist: boolean;
   planExists: boolean;
-  /** Post-auth landing. Tracking comes before the Progress Report. */
+  /** Post-auth landing. Discovery first when Charlie is available and no report exists. */
   redirectPath: string;
   /** Next step when someone opens the profile screen they already finished. */
   resumePath: string;
@@ -148,7 +149,7 @@ export type OnboardingProgress = {
 
 /**
  * Queries the DB for how far a Progress Report has gotten.
- * Sign-in lands on the tracking dashboard either way.
+ * Sign-in resumes discovery until holdings or a report exist.
  */
 export async function getOnboardingProgress(): Promise<OnboardingProgress> {
   const supabase = await createClient();
@@ -174,7 +175,7 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     await Promise.all([
       supabase
         .from("user_profiles")
-        .select("age, employment_type, role")
+        .select("age, employment_type, role, subscription_tier, trial_ends_at")
         .eq("id", user.id)
         .single(),
       supabase
@@ -214,6 +215,10 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
     holdingsExist: !!holdingsRes.data,
     planExists: !!planRes.data,
     isAdmin: profileRes.data?.role === "admin",
+    reportEntitled: resolveEntitlements({
+      subscription_tier: profileRes.data?.subscription_tier,
+      trial_ends_at: profileRes.data?.trial_ends_at,
+    }).canUseCharlie,
   };
 
   return {

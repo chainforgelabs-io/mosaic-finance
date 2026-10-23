@@ -15,6 +15,7 @@ const NotificationsSchema = z.object({
   weekly_market: z.boolean().optional(),
   education_emails: z.boolean().optional(),
   quarterly_replan: z.boolean().optional(),
+  net_worth_reminder: z.boolean().optional(),
 });
 
 const PatchBodySchema = z.object({
@@ -23,6 +24,7 @@ const PatchBodySchema = z.object({
   employmentType: z.string().optional(),
   familyStructure: z.string().optional(),
   notifications: NotificationsSchema.optional(),
+  netWorthReminderDay: z.number().int().min(1).max(28).optional(),
 });
 
 function mapProvinceToDb(display: string): string | null {
@@ -121,6 +123,10 @@ export async function PATCH(req: NextRequest) {
           { status: 400 },
         );
       }
+    }
+
+    if (body.netWorthReminderDay !== undefined) {
+      update.net_worth_reminder_day = body.netWorthReminderDay;
     }
 
     if (body.notifications !== undefined) {

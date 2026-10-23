@@ -24,6 +24,9 @@ import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import { TrackingLoop } from "@/components/app/TrackingLoop";
+import { AppTourSheet } from "@/components/app/AppTourSheet";
+import { SetupChecklist } from "@/components/app/SetupChecklist";
+import type { SetupStatus } from "@/lib/onboarding/setup-status";
 import {
   FileText,
   ArrowRight,
@@ -775,6 +778,56 @@ function DashboardDelivered() {
   );
 }
 
+function tourStorageKey(userId: string): string {
+  return `mosaic-tour-seen:${userId}`;
+}
+
+function DashboardSetup() {
+  const userId = usePlanStore((s) => s.user?.id);
+  const [showTour, setShowTour] = useState(false);
+  const [status, setStatus] = useState<SetupStatus | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    const timer = window.setTimeout(() => {
+      const welcome = new URLSearchParams(window.location.search).get("welcome") === "1";
+      const unseen = !localStorage.getItem(tourStorageKey(userId));
+      if (welcome || unseen) setShowTour(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [userId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/setup/status", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.planSet === "boolean") {
+          setStatus(data as SetupStatus);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function closeTour() {
+    if (userId) localStorage.setItem(tourStorageKey(userId), "1");
+    setShowTour(false);
+    if (new URLSearchParams(window.location.search).get("welcome") === "1") {
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }
+
+  return (
+    <>
+      {status ? <SetupChecklist status={status} /> : null}
+      {showTour ? <AppTourSheet onClose={closeTour} /> : null}
+    </>
+  );
+}
+
 export default function DashboardPage() {
   const { planStatus, plan, isLoading } = usePlanStore();
 
@@ -800,6 +853,7 @@ export default function DashboardPage() {
           Dashboard
         </h1>
       </div>
+      <DashboardSetup />
 
       {planStatus === "none" && <DashboardNoPlan />}
       {planStatus === "generating" && !plan && <DashboardGenerating />}

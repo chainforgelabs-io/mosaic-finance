@@ -81,6 +81,31 @@ export default function GoalsPage() {
         </button>
       </div>
 
+      {!loading &&
+        goals.some((g) => g.source === "fact_find" && !g.reviewed_at) && (
+          <div className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-body text-sm text-[var(--text-secondary)]">
+              These goals came from your conversation with Charlie. Check the amounts and dates, then
+              confirm.
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/goals", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ reviewAll: true }),
+                });
+                await load();
+              }}
+              className="cursor-pointer rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white"
+            >
+              Looks right
+            </button>
+          </div>
+        )}
+
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (

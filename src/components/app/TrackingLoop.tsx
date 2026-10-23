@@ -13,6 +13,8 @@ import {
   GUARANTEE_WEEKS_REQUIRED,
 } from "@/lib/health-score/guarantee";
 import type { GamificationSummary } from "@/types/tracking";
+import type { SetupStatus } from "@/lib/onboarding/setup-status";
+import { reminderDayLabel } from "@/lib/tracking/net-worth-reminder";
 
 interface TrackingLoopProps {
   reportAvailable: boolean;
@@ -35,6 +37,7 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
   const [weekSpend, setWeekSpend] = useState<number | null>(null);
   const [guarantee, setGuarantee] = useState<GuaranteeStatus | null>(null);
   const [entry, setEntry] = useState<ReportEntry>({ path: "/onboarding", started: false });
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +79,15 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
           weeksLogged: Number(data.weeksLogged ?? 0),
           snapshots: Number(data.snapshots ?? 0),
         });
+      })
+      .catch(() => undefined);
+
+    void fetch("/api/setup/status", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.planSet === "boolean") {
+          setSetup(data as SetupStatus);
+        }
       })
       .catch(() => undefined);
 
@@ -161,7 +173,13 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
               icon={Landmark}
               label="Net worth snapshot"
               value={summary == null ? "--" : snapshotted ? "Saved" : "Due"}
-              detail={snapshotted ? `Saved for ${monthLabel}` : `Due in ${monthLabel}`}
+              detail={
+                snapshotted
+                  ? `Saved for ${monthLabel}`
+                  : setup?.reminderDue
+                    ? `Due since the ${reminderDayLabel(setup.reminderDay)}`
+                    : `Due in ${monthLabel}`
+              }
               active={snapshotted}
             />
           </div>

@@ -5,15 +5,20 @@ export interface OnboardingFlags {
   holdingsExist: boolean;
   planExists: boolean;
   isAdmin?: boolean;
+  /** Progress, Mastery, or an active trial. Pulse without a trial stays on the dashboard. */
+  reportEntitled?: boolean;
 }
 
 /**
- * Where a signed-in person lands. Tracking is available before a Progress Report,
- * so auth no longer drops new accounts into the fact-find.
+ * Where a signed-in person lands. Discovery (profile + Charlie) comes first when
+ * the Progress Report has not been started and Charlie is available.
  */
 export function authLandingPath(flags: OnboardingFlags): string {
   if (flags.isAdmin && (flags.planExists || flags.holdingsExist)) {
     return "/admin/approval-queue";
+  }
+  if (!flags.planExists && !flags.holdingsExist && flags.reportEntitled !== false) {
+    return onboardingResumePath(flags);
   }
   return "/dashboard";
 }

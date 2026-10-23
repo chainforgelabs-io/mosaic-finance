@@ -9,6 +9,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   weekly_market: true,
   education_emails: true,
   quarterly_replan: false,
+  net_worth_reminder: true,
 };
 
 export const PROVINCE_CODE_TO_NAME: Record<string, string> = {

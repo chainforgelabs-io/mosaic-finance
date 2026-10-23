@@ -55,6 +55,10 @@
     {
       "path": "/api/cron/education",
       "schedule": "0 13 * * 3"
+    },
+    {
+      "path": "/api/cron/net-worth-reminder",
+      "schedule": "0 14 * * *"
     }
   ]
 }

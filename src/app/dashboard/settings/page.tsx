@@ -210,6 +210,16 @@ function ProfileTab() {
           "Save Changes"
         )}
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (user?.id) localStorage.removeItem(`mosaic-tour-seen:${user.id}`);
+          window.location.href = "/dashboard?welcome=1";
+        }}
+        className="mt-4 block font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--emerald-dark)] underline"
+      >
+        Replay the tour
+      </button>
     </div>
   );
 }
@@ -844,6 +854,8 @@ function NotificationsTab() {
   const [weeklyMarket, setWeeklyMarket] = useState(defaults.weekly_market);
   const [educationEmails, setEducationEmails] = useState(defaults.education_emails);
   const [quarterlyRePlan, setQuarterlyRePlan] = useState(defaults.quarterly_replan);
+  const [netWorthReminder, setNetWorthReminder] = useState(defaults.net_worth_reminder);
+  const [reminderDay, setReminderDay] = useState(user?.netWorthReminderDay ?? 1);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifError, setNotifError] = useState<string | null>(null);
   const [notifSaved, setNotifSaved] = useState(false);
@@ -856,6 +868,8 @@ function NotificationsTab() {
     setWeeklyMarket(p.weekly_market);
     setEducationEmails(p.education_emails);
     setQuarterlyRePlan(p.quarterly_replan);
+    setNetWorthReminder(p.net_worth_reminder ?? true);
+    setReminderDay(user.netWorthReminderDay ?? 1);
   }, [user?.id]);
 
   const persist = useCallback(
@@ -877,6 +891,7 @@ function NotificationsTab() {
           setWeeklyMarket(p.weekly_market);
           setEducationEmails(p.education_emails);
           setQuarterlyRePlan(p.quarterly_replan);
+          setNetWorthReminder(p.net_worth_reminder ?? true);
           setNotifError(
             typeof data.error === "string"
               ? data.error
@@ -906,6 +921,7 @@ function NotificationsTab() {
           weekly_market: weeklyMarket,
           education_emails: educationEmails,
           quarterly_replan: quarterlyRePlan,
+          net_worth_reminder: netWorthReminder,
         };
         setPlanReady(next.plan_ready);
         void persist(next);
@@ -922,6 +938,7 @@ function NotificationsTab() {
           weekly_market: !weeklyMarket,
           education_emails: educationEmails,
           quarterly_replan: quarterlyRePlan,
+          net_worth_reminder: netWorthReminder,
         };
         setWeeklyMarket(next.weekly_market);
         void persist(next);
@@ -938,8 +955,26 @@ function NotificationsTab() {
           weekly_market: weeklyMarket,
           education_emails: !educationEmails,
           quarterly_replan: quarterlyRePlan,
+          net_worth_reminder: netWorthReminder,
         };
         setEducationEmails(next.education_emails);
+        void persist(next);
+      },
+    },
+    {
+      label: "Monthly net worth check",
+      description:
+        "Email on the day you choose, if a snapshot has not been saved that month. No amounts in the message.",
+      enabled: netWorthReminder,
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: planReady,
+          weekly_market: weeklyMarket,
+          education_emails: educationEmails,
+          quarterly_replan: quarterlyRePlan,
+          net_worth_reminder: !netWorthReminder,
+        };
+        setNetWorthReminder(next.net_worth_reminder);
         void persist(next);
       },
     },
@@ -956,6 +991,7 @@ function NotificationsTab() {
                 weekly_market: weeklyMarket,
                 education_emails: educationEmails,
                 quarterly_replan: !quarterlyRePlan,
+                net_worth_reminder: netWorthReminder,
               };
               setQuarterlyRePlan(next.quarterly_replan);
               void persist(next);
@@ -1001,6 +1037,40 @@ function NotificationsTab() {
           />
         </div>
       ))}
+      <div className="flex items-center justify-between py-4">
+        <div className="flex-1 mr-4">
+          <p className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
+            Reminder day
+          </p>
+          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mt-0.5">
+            The in-app and email reminder starts on this day of each month.
+          </p>
+        </div>
+        <select
+          value={reminderDay}
+          disabled={notifSaving || !user}
+          onChange={(event) => {
+            const day = Number(event.target.value);
+            setReminderDay(day);
+            if (!user) return;
+            void fetch("/api/user/profile", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ netWorthReminderDay: day }),
+            }).then((res) => {
+              if (res.ok) setUser({ ...user, netWorthReminderDay: day });
+            });
+          }}
+          className="cursor-pointer rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-sm"
+        >
+          {Array.from({ length: 28 }, (_, i) => i + 1).map((day) => (
+            <option key={day} value={day}>
+              {day}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

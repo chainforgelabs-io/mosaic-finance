@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -29,6 +29,11 @@ import { isTrialActive } from "@/lib/entitlements";
 import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
+import {
+  nextSetupItem,
+  setupItemHref,
+  type SetupStatus,
+} from "@/lib/onboarding/setup-status";
 
 type AppUserRole = "user" | "admin" | null | undefined;
 
@@ -103,6 +108,22 @@ export function AppSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/setup/status", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.planSet === "boolean") {
+          setSetup(data as SetupStatus);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const showReviewQueue = isReviewerRole(role);
   const reviewQueueActive = pathname.startsWith("/admin");
   const track = trackItems();
@@ -128,6 +149,10 @@ export function AppSidebar({
     const isDisabled =
       item.requiresPlan && planStatus !== "delivered" && planStatus !== "pending_review";
     const mobile = opts?.mobile;
+    const next = setup ? nextSetupItem(setup) : null;
+    const showDot =
+      (next != null && item.href === setupItemHref(next)) ||
+      (setup?.reminderDue === true && item.href === "/dashboard/assets");
 
     if (isDisabled) {
       return (
@@ -160,7 +185,15 @@ export function AppSidebar({
             : "text-[var(--text-muted)] hover:bg-white/5 hover:text-white",
         )}
       >
-        <item.icon className="size-[18px]" />
+        <span className="relative">
+          <item.icon className="size-[18px]" />
+          {showDot && (
+            <span
+              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-[var(--emerald)]"
+              aria-hidden
+            />
+          )}
+        </span>
         <span className="font-display text-sm font-medium md:max-lg:hidden max-md:text-[10px]">
           {item.label}
         </span>
