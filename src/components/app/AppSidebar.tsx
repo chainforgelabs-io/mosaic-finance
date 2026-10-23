@@ -53,13 +53,14 @@ interface NavItem {
   icon: typeof LayoutDashboard;
   requiresPlan?: boolean;
   match?: "exact" | "prefix" | "walkthrough";
+  tour?: string;
 }
 
 function trackItems(): NavItem[] {
   return [
-    { label: "Cash Flow", href: "/dashboard/cash-flow", icon: Banknote },
-    { label: "Net Worth", href: "/dashboard/assets", icon: Wallet },
-    { label: "Goals", href: "/dashboard/goals", icon: Target },
+    { label: "Cash Flow", href: "/dashboard/cash-flow", icon: Banknote, tour: "nav-cash-flow" },
+    { label: "Net Worth", href: "/dashboard/assets", icon: Wallet, tour: "nav-net-worth" },
+    { label: "Goals", href: "/dashboard/goals", icon: Target, tour: "nav-goals" },
   ];
 }
 
@@ -73,7 +74,7 @@ function learnItems(planId?: string): NavItem[] {
       requiresPlan: true,
       match: "walkthrough",
     },
-    { label: "Charlie", href: "/dashboard/meeting", icon: Video },
+    { label: "Charlie", href: "/dashboard/meeting", icon: Video, tour: "nav-charlie" },
   ];
   const masteryLearn: NavItem[] = [
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },
@@ -135,7 +136,7 @@ export function AppSidebar({
   const moreActive = moreItems.some((item) => itemActive(pathname, item)) || reviewQueueActive;
 
   const mobilePrimary: NavItem[] = [
-    { label: "Home", href: "/dashboard", icon: LayoutDashboard, match: "exact" },
+    { label: "Home", href: "/dashboard", icon: LayoutDashboard, match: "exact", tour: "nav-dashboard" },
     ...track,
   ];
 
@@ -176,6 +177,7 @@ export function AppSidebar({
       <Link
         key={item.label}
         href={item.href}
+        data-tour={item.tour}
         onClick={() => setMoreOpen(false)}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
@@ -216,7 +218,7 @@ export function AppSidebar({
 
       {/* Desktop / tablet grouped nav */}
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 max-md:hidden">
-        {renderLink({ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, match: "exact" })}
+        {renderLink({ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, match: "exact", tour: "nav-dashboard" })}
         <p className="mt-3 px-3 font-display text-[10px] font-semibold uppercase tracking-wider text-white/30 md:max-lg:hidden">
           Track
         </p>

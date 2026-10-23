@@ -63,7 +63,7 @@ export default function GoalsPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
+          <h1 data-tour="page-goals" className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
             Track the outcomes continued use of Mosaic should help you hit.
           </p>

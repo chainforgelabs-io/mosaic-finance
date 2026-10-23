@@ -24,7 +24,6 @@ import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import { TrackingLoop } from "@/components/app/TrackingLoop";
-import { AppTourSheet } from "@/components/app/AppTourSheet";
 import { SetupChecklist } from "@/components/app/SetupChecklist";
 import type { SetupStatus } from "@/lib/onboarding/setup-status";
 import {
@@ -778,24 +777,8 @@ function DashboardDelivered() {
   );
 }
 
-function tourStorageKey(userId: string): string {
-  return `mosaic-tour-seen:${userId}`;
-}
-
 function DashboardSetup() {
-  const userId = usePlanStore((s) => s.user?.id);
-  const [showTour, setShowTour] = useState(false);
   const [status, setStatus] = useState<SetupStatus | null>(null);
-
-  useEffect(() => {
-    if (!userId) return;
-    const timer = window.setTimeout(() => {
-      const welcome = new URLSearchParams(window.location.search).get("welcome") === "1";
-      const unseen = !localStorage.getItem(tourStorageKey(userId));
-      if (welcome || unseen) setShowTour(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [userId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -812,20 +795,7 @@ function DashboardSetup() {
     };
   }, []);
 
-  function closeTour() {
-    if (userId) localStorage.setItem(tourStorageKey(userId), "1");
-    setShowTour(false);
-    if (new URLSearchParams(window.location.search).get("welcome") === "1") {
-      window.history.replaceState({}, "", "/dashboard");
-    }
-  }
-
-  return (
-    <>
-      {status ? <SetupChecklist status={status} /> : null}
-      {showTour ? <AppTourSheet onClose={closeTour} /> : null}
-    </>
-  );
+  return status ? <SetupChecklist status={status} /> : null;
 }
 
 export default function DashboardPage() {
@@ -849,7 +819,7 @@ export default function DashboardPage() {
       <PendingReviewBanner />
       <PlanStaleBanner />
       <div className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
+        <h1 data-tour="page-dashboard" className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">
           Dashboard
         </h1>
       </div>

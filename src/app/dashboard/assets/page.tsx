@@ -870,6 +870,7 @@ export default function AssetsPage() {
           </label>
           <button
             type="button"
+            data-tour="page-net-worth"
             onClick={() => setCheckInOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald-dark)] transition-colors"
           >

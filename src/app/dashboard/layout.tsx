@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app/AppSidebar";
+import { AppTour } from "@/components/app/AppTour";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
 import { createClient } from "@/lib/supabase/client";
@@ -296,6 +297,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         planId={plan?.id}
         role={user?.role}
       />
+      <AppTour userId={user?.id} />
       <main className="md:pl-14 lg:pl-60 flex min-h-screen flex-col pb-20 md:pb-0">
         <div className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
           {children}

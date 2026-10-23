@@ -213,7 +213,7 @@ function ProfileTab() {
       <button
         type="button"
         onClick={() => {
-          if (user?.id) localStorage.removeItem(`mosaic-tour-seen:${user.id}`);
+          if (user?.id) localStorage.setItem(`mosaic-tour-step:${user.id}`, "0");
           window.location.href = "/dashboard?welcome=1";
         }}
         className="mt-4 block font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--emerald-dark)] underline"

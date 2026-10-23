@@ -65,7 +65,7 @@ export async function insertUserProfileAfterSignUp(formData: {
     );
   }
 
-  return { redirectTo: "/dashboard" };
+  return { redirectTo: "/onboarding" };
 }
 
 export async function signInWithGoogle(): Promise<AuthResult> {

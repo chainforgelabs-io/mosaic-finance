@@ -240,7 +240,7 @@ export default function MeetingPage() {
                 <Video className="size-7 text-[var(--emerald)]" />
               </div>
             </div>
-            <h1 className="font-display text-[28px] font-bold text-[var(--text-primary)]">
+            <h1 data-tour="page-charlie" className="font-display text-[28px] font-bold text-[var(--text-primary)]">
               Chat with Charlie
             </h1>
             <p className="mt-2 font-body text-[15px] text-[var(--text-secondary)]">

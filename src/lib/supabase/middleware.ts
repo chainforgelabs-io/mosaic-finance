@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     if (profile?.role === 'admin') {
       url.pathname = '/admin/approval-queue';
     } else {
-      url.pathname = '/dashboard';
+      url.pathname = '/onboarding';
     }
     return NextResponse.redirect(url);
   }

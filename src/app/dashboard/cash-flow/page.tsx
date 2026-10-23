@@ -877,7 +877,7 @@ export default function CashFlowPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
+            <h1 data-tour="page-cash-flow" className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
             <button
               type="button"
               onClick={() => setShowGuide(true)}
