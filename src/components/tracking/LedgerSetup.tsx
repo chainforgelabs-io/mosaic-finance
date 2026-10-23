@@ -24,8 +24,9 @@ const KIND_TITLE: Record<PlanKind, string> = {
 };
 
 const KIND_HINT: Record<PlanKind, string> = {
-  income: "Paycheque, side work, benefits. Add one row for each source.",
-  expense: "Rent, groceries, insurance, subscriptions. Add one row for each.",
+  income:
+    "What lands in the account. On a pay stub, use the deposit, not the salary before deductions. If the full amount is deposited and tax is paid later, enter that deposit here and add a row for the tax you pay.",
+  expense: "Rent, groceries, insurance, subscriptions, tax payments. Add one row for each.",
   savings: "TFSA, RRSP, emergency fund, extra debt payments.",
 };
 
@@ -157,7 +158,7 @@ export function LedgerSetup({
     <section className="rounded-xl border border-[var(--warm-200)] bg-white p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">Set up your plan</h2>
       <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-        List each income source, expense, and savings row. Say how often it happens. A yearly salary can be entered as the full year, with how often you are paid.
+        List each income source, expense, and savings row. Say how often it happens. A yearly amount can be the full year of deposits, with how often you are paid.
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
