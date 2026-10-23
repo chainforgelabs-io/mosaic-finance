@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightToLine, Pencil, Plus, X } from "lucide-react";
 import {
   CATEGORY_KIND_LABELS,
@@ -64,6 +64,8 @@ export interface BudgetPlanGridProps {
   catalog: UserCategory[];
   /** Month shown on small screens. */
   focusMonth: string;
+  /** Scroll that month into view on the desktop grid. */
+  pinFocus?: boolean;
   onFocusMonth: (month: string) => void;
   onSetAmount: (kind: PlanKind, category: string, month: string, amount: number) => void;
   onFillRight: (kind: PlanKind, category: string, month: string, amount: number) => void;
@@ -96,7 +98,8 @@ function MonthText({ children, className }: { children: React.ReactNode; classNa
 }
 
 export function BudgetPlanGrid(props: BudgetPlanGridProps) {
-  const { year, months, entries, catalog, focusMonth, onFocusMonth, onApplySchedule, schedules } = props;
+  const { year, months, entries, catalog, focusMonth, pinFocus, onFocusMonth, onApplySchedule, schedules } = props;
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const index = useMemo(() => indexPlan(entries), [entries]);
   const monthTotals = useMemo(
     () => months.map((month) => planTotals(entries, month)),
@@ -105,6 +108,13 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
   const yearTotals = useMemo(() => planTotals(entries), [entries]);
   const focusIndex = Math.max(0, months.indexOf(focusMonth));
   const [schedule, setSchedule] = useState<{ kind: PlanKind; category: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (!pinFocus) return;
+    const node = scrollerRef.current;
+    if (!node) return;
+    node.scrollLeft = focusIndex * MONTH_COL;
+  }, [pinFocus, focusIndex]);
 
   function openSchedule(kind: PlanKind, category: string) {
     setSchedule({ kind, category, label: labelFor(catalog, category) });
@@ -153,7 +163,7 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
         ))}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-[var(--warm-200)] bg-white lg:block">
+      <div ref={scrollerRef} className="hidden overflow-x-auto rounded-xl border border-[var(--warm-200)] bg-white lg:block">
         <table
           className="border-separate border-spacing-0 [&_td]:border-b [&_td]:border-[var(--warm-100)] [&_th]:border-b [&_th]:border-[var(--warm-100)]"
           style={{ width: PLAN_WIDTH, tableLayout: "fixed" }}

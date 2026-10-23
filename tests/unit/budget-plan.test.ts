@@ -84,6 +84,17 @@ describe("plan grid math", () => {
     expect(effectiveBudget(index, defaults, "dining", "2026-02-15")).toBe(200);
     expect(effectiveBudget(index, defaults, "travel", "2026-02-15")).toBeNull();
   });
+
+  it("treats a blank plan cell as unset and uses the standing limit", () => {
+    const index = indexPlan([
+      ...entries,
+      { kind: "expense", category: "dining", month: "2026-02-01", amount: 0 },
+      { kind: "expense", category: "housing", month: "2026-02-01", amount: 0 },
+    ]);
+    const defaults = { dining: 200, housing: 0 };
+    expect(effectiveBudget(index, defaults, "dining", "2026-02-15")).toBe(200);
+    expect(effectiveBudget(index, defaults, "housing", "2026-02-15")).toBeNull();
+  });
 });
 
 describe("plan from statements", () => {

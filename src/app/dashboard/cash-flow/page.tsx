@@ -178,12 +178,21 @@ export default function CashFlowPage() {
   const thisWeek = startOfWeekMonday(todayIso());
   const planIndex = useMemo(() => indexPlan(planEntries), [planEntries]);
   const plannedExpenses = useMemo(() => planTotals(planEntries, monthStart).expense, [planEntries, monthStart]);
-  const monthlyBudgetTotal =
-    plannedExpenses > 0
-      ? plannedExpenses
-      : Object.values(budgets).length > 0
-        ? Object.values(budgets).reduce((sum, amount) => sum + amount, 0)
-        : null;
+  const monthlyBudgetTotal = useMemo(() => {
+    const categories = new Set<string>([
+      ...Object.keys(budgets),
+      ...planEntries.filter((entry) => entry.kind === "expense").map((entry) => entry.category),
+    ]);
+    let sum = 0;
+    let any = false;
+    for (const category of categories) {
+      const limit = effectiveBudget(planIndex, budgets, category, monthStart);
+      if (limit == null || limit <= 0) continue;
+      sum += limit;
+      any = true;
+    }
+    return any ? sum : null;
+  }, [budgets, planEntries, planIndex, monthStart]);
   const budgetWeekly = monthlyBudgetTotal != null ? (monthlyBudgetTotal * 12) / 52 : null;
   const weeklyBaseline =
     budgetWeekly ?? (monthlyExpenses != null ? (monthlyExpenses * 12) / 52 : null);
@@ -1144,19 +1153,28 @@ export default function CashFlowPage() {
             <div className="flex items-center gap-3">
               {plannedExpenses > 0 && (
                 <Link
-                  href="/dashboard/cash-flow/plan"
+                  href={`/dashboard/cash-flow/plan?month=${monthStart}`}
                   className="font-display text-xs font-semibold text-[var(--text-secondary)] underline"
                 >
                   From your plan
                 </Link>
               )}
-              <button
-                type="button"
-                onClick={() => setShowBudgets(true)}
-                className="font-display text-xs font-semibold text-[var(--emerald)]"
-              >
-                Set budgets
-              </button>
+              {hasAnyPlan ? (
+                <Link
+                  href={`/dashboard/cash-flow/plan?month=${monthStart}`}
+                  className="font-display text-xs font-semibold text-[var(--emerald)]"
+                >
+                  Set budgets
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowBudgets(true)}
+                  className="cursor-pointer font-display text-xs font-semibold text-[var(--emerald)]"
+                >
+                  Set budgets
+                </button>
+              )}
             </div>
           </div>
           {budgetCategories.map((cat) => {

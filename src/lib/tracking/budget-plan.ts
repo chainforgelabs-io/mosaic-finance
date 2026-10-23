@@ -204,7 +204,8 @@ export function nextDateFromAnchor(anchorDate: string, cadence: RecurringCadence
 
 /**
  * The budget that applies to an expense category in a month.
- * A plan entry wins; otherwise the standing monthly limit from category_budgets.
+ * A plan amount above zero wins. A blank plan cell is stored as zero and is not a budget,
+ * so the standing monthly limit applies. A zero standing limit is also unset.
  */
 export function effectiveBudget(
   index: Map<string, number>,
@@ -213,9 +214,10 @@ export function effectiveBudget(
   month: string,
 ): number | null {
   const planned = planAmount(index, "expense", category, month);
-  if (planned != null) return planned;
+  if (planned != null && planned > 0) return planned;
   const fallback = defaults[category];
-  return fallback == null ? null : Number(fallback);
+  if (fallback == null || !(Number(fallback) > 0)) return null;
+  return Number(fallback);
 }
 
 export interface PlanSuggestion {

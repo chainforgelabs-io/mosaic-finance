@@ -48,6 +48,7 @@ export default function BudgetPlanPage() {
   const today = todayIso();
   const [year, setYear] = useState(() => Number(today.slice(0, 4)));
   const [focusMonth, setFocusMonth] = useState(() => startOfMonth(today));
+  const [pinMonth, setPinMonth] = useState(false);
   const [entries, setEntries] = useState<BudgetPlanEntry[]>([]);
   const [catalog, setCatalog] = useState<UserCategory[]>([]);
   const [hasAnyPlan, setHasAnyPlan] = useState(false);
@@ -91,6 +92,17 @@ export default function BudgetPlanPage() {
   useEffect(() => {
     void load(year);
   }, [load, year]);
+
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("month");
+    if (!raw || !/^\d{4}-\d{2}(-\d{2})?$/.test(raw)) return;
+    const month = startOfMonth(raw);
+    const nextYear = Number(month.slice(0, 4));
+    if (!Number.isFinite(nextYear)) return;
+    setYear(nextYear);
+    setFocusMonth(month);
+    setPinMonth(true);
+  }, []);
 
   useEffect(() => {
     if (!months.includes(focusMonth)) {
@@ -577,6 +589,7 @@ export default function BudgetPlanPage() {
             entries={entries}
             catalog={catalog}
             focusMonth={focusMonth}
+            pinFocus={pinMonth}
             onFocusMonth={setFocusMonth}
             onSetAmount={handleSetAmount}
             onFillRight={handleFillRight}
