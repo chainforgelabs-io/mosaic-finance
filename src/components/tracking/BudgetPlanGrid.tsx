@@ -11,19 +11,22 @@ import {
 } from "@/lib/tracking/categories";
 import {
   indexPlan,
+  monthAmountsFromRow,
+  needsAnchorDate,
   planAmount,
   plannedCategories,
   planTotals,
   rowTotal,
-  scheduledMonthAmounts,
   PLAN_KINDS,
   type PlanKind,
 } from "@/lib/tracking/budget-plan";
-import { CADENCE_LABELS, type RecurringCadence } from "@/lib/tracking/cash-capture";
+import { CADENCE_LABELS, type AmountBasis, type RecurringCadence } from "@/lib/tracking/cash-capture";
 import { todayIso } from "@/lib/tracking/dates";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
-import type { BudgetPlanEntry } from "@/types/tracking";
+import type { BudgetPlanEntry, BudgetPlanSchedule } from "@/types/tracking";
+
+type HowOften = RecurringCadence | "variable";
 
 /** One table, fixed tracks, so every section shares the same vertical lines. */
 const NAME_COL = 280;
@@ -67,8 +70,14 @@ export interface BudgetPlanGridProps {
   onRemoveRow: (kind: PlanKind, category: string) => void;
   onAddRow: (kind: PlanKind, category: string) => void;
   onCreateCategory: (kind: PlanKind, label: string) => Promise<string | null>;
+  schedules: BudgetPlanSchedule[];
   /** Fill every month from one payment amount, a cadence, and a last payment date. */
-  onApplySchedule: (kind: PlanKind, category: string, amounts: { month: string; amount: number }[]) => void;
+  onApplySchedule: (
+    kind: PlanKind,
+    category: string,
+    amounts: { month: string; amount: number }[],
+    schedule: BudgetPlanSchedule,
+  ) => void;
   onRename: (kind: PlanKind, category: string, label: string) => void;
 }
 
@@ -87,7 +96,7 @@ function MonthText({ children, className }: { children: React.ReactNode; classNa
 }
 
 export function BudgetPlanGrid(props: BudgetPlanGridProps) {
-  const { year, months, entries, catalog, focusMonth, onFocusMonth, onApplySchedule } = props;
+  const { year, months, entries, catalog, focusMonth, onFocusMonth, onApplySchedule, schedules } = props;
   const index = useMemo(() => indexPlan(entries), [entries]);
   const monthTotals = useMemo(
     () => months.map((month) => planTotals(entries, month)),
@@ -186,9 +195,14 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
         <PaymentScheduleSheet
           label={schedule.label}
           year={year}
+          saved={schedules.find((row) => row.kind === schedule.kind && row.category === schedule.category)}
           onClose={() => setSchedule(null)}
-          onApply={(amounts) => {
-            onApplySchedule(schedule.kind, schedule.category, amounts);
+          onApply={(amounts, next) => {
+            onApplySchedule(schedule.kind, schedule.category, amounts, {
+              kind: schedule.kind,
+              category: schedule.category,
+              ...next,
+            });
             setSchedule(null);
           }}
         />
@@ -276,6 +290,7 @@ function PlanSection({
   focusIndex,
   monthTotals,
   yearTotal,
+  year,
   months,
   entries,
   catalog,
@@ -287,6 +302,7 @@ function PlanSection({
   onCreateCategory,
   onOpenSchedule,
   onRename,
+  schedules,
 }: BudgetPlanGridProps & {
   kind: PlanKind;
   index: Map<string, number>;
@@ -429,6 +445,11 @@ function PlanSection({
         </tr>
         {rows.map((category) => {
           const name = labelFor(catalog, category);
+          const saved = schedules.find((row) => row.kind === kind && row.category === category);
+          const slots = saved
+            ? monthAmountsFromRow(saved.amount, saved.cadence, saved.basis, saved.anchor_date, year)
+            : [];
+          const slotByMonth = new Map(slots.map((slot) => [slot.month, slot]));
           return (
             <tr key={category} className="group border-b border-[var(--warm-100)]">
               <th className={cn(STICKY, "px-2 py-0.5 text-left font-normal")}>
@@ -439,17 +460,24 @@ function PlanSection({
                   onRename={(label) => onRename(kind, category, label)}
                 />
               </th>
-              {months.map((month) => (
+              {months.map((month) => {
+                const value = planAmount(index, kind, category, month);
+                const slot = slotByMonth.get(month);
+                const hits =
+                  slot && slot.count > 1 && Math.abs(slot.amount - (value ?? 0)) < 0.02 ? slot.count : 0;
+                return (
                 <td key={month} className="relative z-0 py-0.5 align-middle">
                   <PlanCell
-                    value={planAmount(index, kind, category, month)}
+                    value={value}
                     onCommit={(amount) => onSetAmount(kind, category, month, amount)}
                     onFillRight={(amount) => onFillRight(kind, category, month, amount)}
                     canFill={month !== months[months.length - 1]}
                     label={`${shortMonth(month)} for ${name}`}
+                    hits={hits}
                   />
                 </td>
-              ))}
+                );
+              })}
               <td className="align-middle">
                 <MonthText className="font-semibold text-[var(--text-primary)]">
                   {formatMoney(rowTotal(index, kind, category, months))}
@@ -490,6 +518,14 @@ function PlanSection({
       <div className="divide-y divide-[var(--warm-100)]">
         {rows.map((category) => {
           const month = months[focusIndex];
+          const saved = schedules.find((row) => row.kind === kind && row.category === category);
+          const slot = saved
+            ? monthAmountsFromRow(saved.amount, saved.cadence, saved.basis, saved.anchor_date, year).find(
+                (item) => item.month === month,
+              )
+            : undefined;
+          const value = planAmount(index, kind, category, month);
+          const hits = slot && slot.count > 1 && Math.abs(slot.amount - (value ?? 0)) < 0.02 ? slot.count : 0;
           return (
             <div key={category} className="flex items-center gap-2 px-3 py-2">
               <div className="min-w-0 flex-1">
@@ -504,11 +540,12 @@ function PlanSection({
                 </p>
               </div>
               <PlanCell
-                value={planAmount(index, kind, category, month)}
+                value={value}
                 onCommit={(amount) => onSetAmount(kind, category, month, amount)}
                 onFillRight={(amount) => onFillRight(kind, category, month, amount)}
                 canFill={month !== months[months.length - 1]}
                 label={`${shortMonth(month)} for ${labelFor(catalog, category)}`}
+                hits={hits}
                 wide
               />
             </div>
@@ -635,6 +672,7 @@ function PlanCell({
   canFill,
   wide,
   label,
+  hits,
 }: {
   value: number | null;
   onCommit: (amount: number) => void;
@@ -642,6 +680,7 @@ function PlanCell({
   canFill: boolean;
   wide?: boolean;
   label: string;
+  hits?: number;
 }) {
   const display = formatCell(value ?? 0);
   const [draft, setDraft] = useState(display);
@@ -721,6 +760,11 @@ function PlanCell({
           <ArrowRightToLine className="size-3" />
         </button>
       )}
+      {hits != null && hits > 1 && (
+        <span className="pointer-events-none absolute bottom-0 right-5 font-body text-[10px] leading-none text-[var(--text-muted)]">
+          {hits}×
+        </span>
+      )}
     </div>
   );
 }
@@ -728,21 +772,29 @@ function PlanCell({
 function PaymentScheduleSheet({
   label,
   year,
+  saved,
   onClose,
   onApply,
 }: {
   label: string;
   year: number;
+  saved?: BudgetPlanSchedule;
   onClose: () => void;
-  onApply: (amounts: { month: string; amount: number }[]) => void;
+  onApply: (
+    amounts: { month: string; amount: number }[],
+    schedule: Omit<BudgetPlanSchedule, "kind" | "category">,
+  ) => void;
 }) {
-  const [amount, setAmount] = useState("");
-  const [cadence, setCadence] = useState<RecurringCadence>("biweekly");
-  const [lastPaid, setLastPaid] = useState(todayIso());
+  const [amount, setAmount] = useState(saved ? String(saved.amount) : "");
+  const [basis, setBasis] = useState<AmountBasis>(saved?.basis ?? "each");
+  const [cadence, setCadence] = useState<HowOften>(saved ? saved.cadence ?? "variable" : "biweekly");
+  const [lastPaid, setLastPaid] = useState(saved?.anchor_date ?? todayIso());
   const parsed = parseAmount(amount);
+  const resolved = cadence === "variable" ? null : cadence;
+  const askDate = needsAnchorDate(resolved);
   const preview =
-    parsed != null && parsed > 0 && /^\d{4}-\d{2}-\d{2}$/.test(lastPaid)
-      ? scheduledMonthAmounts(parsed, cadence, lastPaid, year)
+    parsed != null && parsed > 0 && (!askDate || /^\d{4}-\d{2}-\d{2}$/.test(lastPaid))
+      ? monthAmountsFromRow(parsed, resolved, basis, lastPaid, year)
       : null;
 
   return (
@@ -756,12 +808,12 @@ function PaymentScheduleSheet({
           {label}
         </h2>
         <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-          Enter one payment, how often it happens, and the date of the last payment. Each month is filled with the
-          payments that fall in it. A payment every 2 weeks lands twice in some months and three times in others.
+          Enter one payment and how often it happens. A payment every 2 weeks lands twice in some months and three
+          times in others. Groceries and other envelopes can stay the same amount each month.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="font-body text-xs font-medium text-[var(--text-muted)]">Amount each time</span>
+            <span className="font-body text-xs font-medium text-[var(--text-muted)]">Amount</span>
             <input
               type="text"
               inputMode="decimal"
@@ -772,12 +824,24 @@ function PaymentScheduleSheet({
             />
           </label>
           <label className="block">
+            <span className="font-body text-xs font-medium text-[var(--text-muted)]">This figure is</span>
+            <select
+              value={basis}
+              onChange={(event) => setBasis(event.target.value as AmountBasis)}
+              className="mt-1 w-full cursor-pointer rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-sm"
+            >
+              <option value="each">Each time</option>
+              <option value="year">Per year</option>
+            </select>
+          </label>
+          <label className="block">
             <span className="font-body text-xs font-medium text-[var(--text-muted)]">How often</span>
             <select
               value={cadence}
-              onChange={(event) => setCadence(event.target.value as RecurringCadence)}
+              onChange={(event) => setCadence(event.target.value as HowOften)}
               className="mt-1 w-full cursor-pointer rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-sm"
             >
+              <option value="variable">Same amount each month</option>
               {CADENCES.map((option) => (
                 <option key={option} value={option}>
                   {CADENCE_LABELS[option]}
@@ -785,15 +849,17 @@ function PaymentScheduleSheet({
               ))}
             </select>
           </label>
-          <label className="block sm:col-span-2">
-            <span className="font-body text-xs font-medium text-[var(--text-muted)]">Last payment date</span>
-            <input
-              type="date"
-              value={lastPaid}
-              onChange={(event) => setLastPaid(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-            />
-          </label>
+          {askDate && (
+            <label className="block">
+              <span className="font-body text-xs font-medium text-[var(--text-muted)]">Last payment date</span>
+              <input
+                type="date"
+                value={lastPaid}
+                onChange={(event) => setLastPaid(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+              />
+            </label>
+          )}
         </div>
         {preview && (
           <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -823,7 +889,19 @@ function PaymentScheduleSheet({
           <button
             type="button"
             disabled={!preview}
-            onClick={() => preview && onApply(preview.map((slot) => ({ month: slot.month, amount: slot.amount })))}
+            onClick={() =>
+              preview &&
+              parsed != null &&
+              onApply(
+                preview.map((slot) => ({ month: slot.month, amount: slot.amount })),
+                {
+                  amount: parsed,
+                  basis,
+                  cadence: resolved,
+                  anchor_date: askDate ? lastPaid : null,
+                },
+              )
+            }
             className="flex-1 cursor-pointer rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
           >
             Fill the year

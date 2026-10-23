@@ -1,6 +1,6 @@
 "use client";
 
-import type { BudgetPlanEntry } from "@/types/tracking";
+import type { BudgetPlanEntry, BudgetPlanSchedule } from "@/types/tracking";
 import {
   categoryKind,
   categoryLabel,
@@ -106,25 +106,33 @@ export async function migrateLocalCategories(catalog: UserCategory[]): Promise<U
   return [...catalog, ...((json.categories ?? []) as UserCategory[])];
 }
 
-export async function fetchPlan(year: number): Promise<{ entries: BudgetPlanEntry[]; hasAnyPlan: boolean }> {
+export async function fetchPlan(year: number): Promise<{
+  entries: BudgetPlanEntry[];
+  hasAnyPlan: boolean;
+  schedules: BudgetPlanSchedule[];
+}> {
   const res = await fetch(`/api/budget-plan?year=${year}`, { credentials: "include" });
-  if (!res.ok) return { entries: [], hasAnyPlan: false };
+  if (!res.ok) return { entries: [], hasAnyPlan: false, schedules: [] };
   const json = await res.json();
   return {
     entries: (json.entries ?? []) as BudgetPlanEntry[],
     hasAnyPlan: Boolean(json.hasAnyPlan),
+    schedules: (json.schedules ?? []) as BudgetPlanSchedule[],
   };
 }
 
 export async function savePlan(
   entries: BudgetPlanEntry[],
   remove?: Array<{ kind: CategoryKind; category: string; month?: string }>,
-): Promise<boolean> {
+  schedules?: BudgetPlanSchedule[],
+): Promise<{ ok: boolean; schedulesSaved: boolean }> {
   const res = await fetch("/api/budget-plan", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ entries, remove }),
+    body: JSON.stringify({ entries, remove, schedules }),
   });
-  return res.ok;
+  if (!res.ok) return { ok: false, schedulesSaved: false };
+  const json = await res.json().catch(() => ({}));
+  return { ok: true, schedulesSaved: json.schedulesSaved !== false };
 }

@@ -29,6 +29,17 @@ export interface BudgetPlanEntry {
   amount: number;
 }
 
+/** The inputs that fill a plan row. Null cadence is a flat monthly envelope. */
+export interface BudgetPlanSchedule {
+  kind: "income" | "expense" | "savings";
+  category: string;
+  amount: number;
+  basis: "each" | "year";
+  cadence: RecurringCadence | null;
+  /** Last payment date. Null for a monthly envelope or a once-a-month payment. */
+  anchor_date: string | null;
+}
+
 export interface TransactionRow {
   id: string;
   user_id: string;

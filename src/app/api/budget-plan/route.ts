@@ -13,6 +13,17 @@ const entrySchema = z.object({
   amount: z.number().min(0).max(100_000_000),
 });
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const scheduleSchema = z.object({
+  kind: z.enum(["income", "expense", "savings"]),
+  category: z.string().regex(SLUG),
+  amount: z.number().min(0).max(100_000_000),
+  basis: z.enum(["each", "year"]),
+  cadence: z.enum(["weekly", "biweekly", "semimonthly", "monthly", "semiannual", "yearly"]).nullable(),
+  anchor_date: z.string().regex(ISO_DATE).nullable(),
+});
+
 const putSchema = z.object({
   entries: z.array(entrySchema).max(2000),
   /** Rows to remove, for example when a category is taken out of the plan. */
@@ -27,7 +38,12 @@ const putSchema = z.object({
     )
     .max(200)
     .optional(),
+  schedules: z.array(scheduleSchema).max(200).optional(),
 });
+
+function missingScheduleTable(message: string): boolean {
+  return /budget_plan_schedules|does not exist|schema cache/i.test(message);
+}
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -58,9 +74,29 @@ export async function GET(req: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id);
 
+  const scheduleSelect = await supabase
+    .from("budget_plan_schedules")
+    .select("kind, category, amount, basis, cadence, anchor_date")
+    .eq("user_id", user.id);
+  const schedules =
+    scheduleSelect.error && missingScheduleTable(scheduleSelect.error.message)
+      ? []
+      : scheduleSelect.error
+        ? null
+        : (scheduleSelect.data ?? []).map((row) => ({
+            kind: row.kind,
+            category: row.category,
+            amount: Number(row.amount),
+            basis: row.basis,
+            cadence: row.cadence,
+            anchor_date: row.anchor_date,
+          }));
+  if (schedules == null) return NextResponse.json({ error: "Failed to load plan" }, { status: 500 });
+
   return NextResponse.json({
     entries: (data ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
     hasAnyPlan: (count ?? 0) > 0,
+    schedules,
   });
 }
 
@@ -86,6 +122,17 @@ export async function PUT(req: NextRequest) {
     if (target.month) remove = remove.eq("month", target.month);
     const { error } = await remove;
     if (error) return NextResponse.json({ error: "Failed to update plan" }, { status: 500 });
+    if (!target.month) {
+      const dropped = await supabase
+        .from("budget_plan_schedules")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("kind", target.kind)
+        .eq("category", target.category);
+      if (dropped.error && !missingScheduleTable(dropped.error.message)) {
+        return NextResponse.json({ error: "Failed to update plan" }, { status: 500 });
+      }
+    }
   }
 
   if (parsed.data.entries.length > 0) {
@@ -102,8 +149,28 @@ export async function PUT(req: NextRequest) {
     if (error) return NextResponse.json({ error: "Failed to save plan" }, { status: 500 });
   }
 
+  let schedulesSaved = true;
+  if ((parsed.data.schedules ?? []).length > 0) {
+    const rows = parsed.data.schedules!.map((schedule) => ({
+      user_id: user.id,
+      kind: schedule.kind,
+      category: schedule.category,
+      amount: schedule.amount,
+      basis: schedule.basis,
+      cadence: schedule.cadence,
+      anchor_date: schedule.anchor_date,
+    }));
+    const { error } = await supabase.from("budget_plan_schedules").upsert(rows, {
+      onConflict: "user_id,kind,category",
+    });
+    if (error) {
+      if (missingScheduleTable(error.message)) schedulesSaved = false;
+      else return NextResponse.json({ error: "Failed to save plan schedule" }, { status: 500 });
+    }
+  }
+
   const unlocks = await awardForEvent(supabase, user.id, { budgetJustSet: true });
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);
 
-  return NextResponse.json({ ok: true, gamification });
+  return NextResponse.json({ ok: true, gamification, schedulesSaved });
 }

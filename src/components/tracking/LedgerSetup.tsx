@@ -4,12 +4,15 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   CADENCE_LABELS,
-  monthlyPlanAmount,
-  perOccurrenceAmount,
   type AmountBasis,
   type RecurringCadence,
 } from "@/lib/tracking/cash-capture";
-import { PLAN_KINDS, type PlanKind } from "@/lib/tracking/budget-plan";
+import {
+  monthAmountsFromRow,
+  needsAnchorDate,
+  PLAN_KINDS,
+  type PlanKind,
+} from "@/lib/tracking/budget-plan";
 import { todayIso } from "@/lib/tracking/dates";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import type { CashAnchor } from "@/types/tracking";
@@ -26,13 +29,15 @@ const KIND_HINT: Record<PlanKind, string> = {
   savings: "TFSA, RRSP, emergency fund, extra debt payments.",
 };
 
+export type HowOften = RecurringCadence | "variable";
+
 export interface LedgerSetupRow {
   kind: PlanKind;
   name: string;
   amount: number;
-  cadence: RecurringCadence;
+  cadence: RecurringCadence | null;
   basis: AmountBasis;
-  nextDate: string;
+  nextDate: string | null;
 }
 
 export interface LedgerSetupInput {
@@ -46,7 +51,7 @@ interface DraftRow {
   key: string;
   name: string;
   amount: string;
-  cadence: RecurringCadence;
+  cadence: HowOften;
   basis: AmountBasis;
   nextDate: string;
 }
@@ -63,11 +68,13 @@ function blankRow(kind: PlanKind): DraftRow {
 }
 
 export function LedgerSetup({
+  year,
   anchor,
   saving,
   error,
   onSave,
 }: {
+  year: number;
   anchor: CashAnchor | null;
   saving: boolean;
   error: string | null;
@@ -118,13 +125,18 @@ export function LedgerSetup({
           setFormError(`Each ${KIND_TITLE[kind].toLowerCase()} row needs a name and an amount.`);
           return;
         }
+        const cadence = row.cadence === "variable" ? null : row.cadence;
+        if (needsAnchorDate(cadence) && !/^\d{4}-\d{2}-\d{2}$/.test(row.nextDate)) {
+          setFormError("A repeating payment needs the last payment date.");
+          return;
+        }
         parsed.push({
           kind,
           name: row.name.trim(),
           amount,
-          cadence: row.cadence,
+          cadence: row.cadence === "variable" ? null : row.cadence,
           basis: row.basis,
-          nextDate: row.nextDate,
+          nextDate: needsAnchorDate(row.cadence === "variable" ? null : row.cadence) ? row.nextDate : null,
         });
       }
     }
@@ -195,6 +207,7 @@ export function LedgerSetup({
             {rows[kind].map((row) => (
               <RowEditor
                 key={row.key}
+                year={year}
                 row={row}
                 onChange={(patch) => update(kind, row.key, patch)}
                 onRemove={() =>
@@ -230,19 +243,29 @@ export function LedgerSetup({
   );
 }
 
+function shortMonth(month: string): string {
+  return new Date(`${month}T00:00:00`).toLocaleDateString("en-CA", { month: "long" });
+}
+
 function RowEditor({
+  year,
   row,
   onChange,
   onRemove,
 }: {
+  year: number;
   row: DraftRow;
   onChange: (patch: Partial<DraftRow>) => void;
   onRemove: () => void;
 }) {
   const amount = Number(row.amount);
-  const showPreview = row.name.trim() && Number.isFinite(amount) && amount > 0;
-  const monthly = showPreview ? monthlyPlanAmount(amount, row.cadence, row.basis) : 0;
-  const each = showPreview ? perOccurrenceAmount(amount, row.cadence, row.basis) : 0;
+  const cadence = row.cadence === "variable" ? null : row.cadence;
+  const askDate = needsAnchorDate(cadence);
+  const showPreview = row.name.trim() && Number.isFinite(amount) && amount > 0 && (!askDate || /^\d{4}-\d{2}-\d{2}$/.test(row.nextDate));
+  const slots = showPreview ? monthAmountsFromRow(amount, cadence, row.basis, row.nextDate, year) : [];
+  const two = slots.find((slot) => slot.count === 2);
+  const three = slots.find((slot) => slot.count === 3);
+  const monthly = slots[0]?.amount ?? 0;
 
   return (
     <div className="rounded-lg border border-[var(--warm-200)] p-3">
@@ -277,29 +300,41 @@ function RowEditor({
           <option value="year">Per year</option>
         </select>
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2">
+      <div className={askDate ? "mt-2 grid grid-cols-2 gap-2" : "mt-2"}>
         <select
           value={row.cadence}
-          onChange={(event) => onChange({ cadence: event.target.value as RecurringCadence })}
-          className="rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
+          onChange={(event) => onChange({ cadence: event.target.value as HowOften })}
+          className="w-full rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
         >
-          {(Object.keys(CADENCE_LABELS) as RecurringCadence[]).map((cadence) => (
-            <option key={cadence} value={cadence}>
-              {CADENCE_LABELS[cadence]}
+          <option value="variable">Same amount each month</option>
+          {(Object.keys(CADENCE_LABELS) as RecurringCadence[]).map((option) => (
+            <option key={option} value={option}>
+              {CADENCE_LABELS[option]}
             </option>
           ))}
         </select>
-        <input
-          type="date"
-          value={row.nextDate}
-          onChange={(event) => onChange({ nextDate: event.target.value })}
-          aria-label="Next date"
-          className="rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
-        />
+        {askDate && (
+          <input
+            type="date"
+            value={row.nextDate}
+            onChange={(event) => onChange({ nextDate: event.target.value })}
+            aria-label="Last payment date"
+            className="rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
+          />
+        )}
       </div>
-      {showPreview && (
+      {askDate && (
+        <p className="mt-1 font-body text-[11px] text-[var(--text-muted)]">Last payment date</p>
+      )}
+      {showPreview && two && three && (
         <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
-          About {formatMoneyExact(monthly)} a month. {formatMoneyExact(each)} each time.
+          {shortMonth(three.month)} has 3 payments ({formatMoneyExact(three.amount)}). {shortMonth(two.month)} has 2 (
+          {formatMoneyExact(two.amount)}).
+        </p>
+      )}
+      {showPreview && !(two && three) && (
+        <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
+          About {formatMoneyExact(monthly)} a month.
         </p>
       )}
     </div>

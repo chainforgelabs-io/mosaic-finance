@@ -24,6 +24,7 @@ import {
   type PlanKind,
   type PlanSuggestion,
 } from "@/lib/tracking/budget-plan";
+import type { BudgetPlanEntry, BudgetPlanSchedule, CashAnchor, ParsedSpendingItem, TransactionRow } from "@/types/tracking";
 import { isSpreadsheetFile, readPlanFile } from "@/lib/tracking/plan-spreadsheet";
 import { addMonths, startOfMonth, todayIso } from "@/lib/tracking/dates";
 import { formatMoney } from "@/lib/tracking/format";
@@ -36,7 +37,6 @@ import {
   savePlan,
 } from "@/lib/tracking/plan-client";
 import { cn } from "@/lib/utils";
-import type { BudgetPlanEntry, CashAnchor, ParsedSpendingItem, TransactionRow } from "@/types/tracking";
 
 type SetupSource = "statements" | "history" | "preset";
 
@@ -64,6 +64,7 @@ export default function BudgetPlanPage() {
   const [ledgerSaving, setLedgerSaving] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [schedules, setSchedules] = useState<BudgetPlanSchedule[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const months = useMemo(() => monthsOfYear(year), [year]);
 
@@ -81,6 +82,7 @@ export default function BudgetPlanPage() {
     const merged = await migrateLocalCategories(rawCatalog);
     setEntries(plan.entries);
     setHasAnyPlan(plan.hasAnyPlan);
+    setSchedules(plan.schedules);
     setCatalog(merged);
     setSetupOpen(!plan.hasAnyPlan);
     setLoading(false);
@@ -105,15 +107,32 @@ export default function BudgetPlanPage() {
     });
   }
 
-  async function persist(next: BudgetPlanEntry[], remove?: Array<{ kind: PlanKind; category: string }>) {
+  async function persist(
+    next: BudgetPlanEntry[],
+    remove?: Array<{ kind: PlanKind; category: string }>,
+    nextSchedules?: BudgetPlanSchedule[],
+  ) {
     setSaveError(null);
-    const ok = await savePlan(next, remove);
-    if (!ok) {
+    const result = await savePlan(next, remove, nextSchedules);
+    if (!result.ok) {
       setSaveError("Could not save that change. Check your connection and try again.");
       await load(year);
       return;
     }
     if (next.length > 0) setHasAnyPlan(true);
+    if (nextSchedules && nextSchedules.length > 0 && !result.schedulesSaved) {
+      setSaveError(
+        "The monthly plan is saved. The payment schedule could not be saved. That needs the latest database update.",
+      );
+    }
+  }
+
+  function upsertSchedules(next: BudgetPlanSchedule[]) {
+    setSchedules((prev) => {
+      const map = new Map(prev.map((row) => [`${row.kind}|${row.category}`, row]));
+      for (const row of next) map.set(`${row.kind}|${row.category}`, row);
+      return [...map.values()];
+    });
   }
 
   function handleSetAmount(kind: PlanKind, category: string, month: string, amount: number) {
@@ -128,14 +147,21 @@ export default function BudgetPlanPage() {
     void persist(filled);
   }
 
-  function handleApplySchedule(kind: PlanKind, category: string, amounts: { month: string; amount: number }[]) {
+  function handleApplySchedule(
+    kind: PlanKind,
+    category: string,
+    amounts: { month: string; amount: number }[],
+    schedule: BudgetPlanSchedule,
+  ) {
     const next = amounts.map((slot) => ({ kind, category, month: slot.month, amount: slot.amount }));
     upsertLocal(next);
-    void persist(next);
+    upsertSchedules([schedule]);
+    void persist(next, undefined, [schedule]);
   }
 
   function handleRemoveRow(kind: PlanKind, category: string) {
     setEntries((prev) => prev.filter((entry) => !(entry.kind === kind && entry.category === category)));
+    setSchedules((prev) => prev.filter((row) => !(row.kind === kind && row.category === category)));
     void persist([], [{ kind, category }]);
   }
 
@@ -189,8 +215,8 @@ export default function BudgetPlanPage() {
               setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
             }
           }
-          const ok = await savePlan(parsed.entries);
-          if (!ok) {
+          const result = await savePlan(parsed.entries);
+          if (!result.ok) {
             notes.push(`Could not save the rows from ${file.name}.`);
             continue;
           }
@@ -306,7 +332,7 @@ export default function BudgetPlanPage() {
         });
       }
 
-      const built = ledgerFromRows(input.rows, year);
+      const built = ledgerFromRows(input.rows, year, today);
       if (built.entries.length === 0) {
         setLedgerError("Add at least one named amount.");
         return;
@@ -317,13 +343,19 @@ export default function BudgetPlanPage() {
           setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
         }
       }
-      const ok = await savePlan(built.entries);
-      if (!ok) {
+      const result = await savePlan(built.entries, undefined, built.planSchedules);
+      if (!result.ok) {
         setLedgerError("Could not save the plan.");
         return;
       }
       upsertLocal(built.entries);
+      upsertSchedules(built.planSchedules);
       setHasAnyPlan(true);
+      if (!result.schedulesSaved) {
+        setSaveError(
+          "The monthly plan is saved. The payment schedule could not be saved. That needs the latest database update.",
+        );
+      }
 
       const schedules = await Promise.all(
         built.schedules.map((item) =>
@@ -438,6 +470,7 @@ export default function BudgetPlanPage() {
       {setupOpen && !hasAnyPlan && !suggestions && (
         <LedgerSetup
           key={anchor ? `${anchor.anchor_date}-${anchor.starting_balance}` : "no-anchor"}
+          year={year}
           anchor={anchor}
           saving={ledgerSaving}
           error={ledgerError}
@@ -552,6 +585,7 @@ export default function BudgetPlanPage() {
             onCreateCategory={handleCreateCategory}
             onApplySchedule={handleApplySchedule}
             onRename={handleRename}
+            schedules={schedules}
           />
         )
       )}

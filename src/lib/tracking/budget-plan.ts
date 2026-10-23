@@ -1,9 +1,8 @@
-import type { BudgetPlanEntry } from "@/types/tracking";
+import type { BudgetPlanEntry, BudgetPlanSchedule } from "@/types/tracking";
 import { categoryKind, categorySlug, type CategoryKind } from "@/lib/tracking/categories";
 import {
   advanceRecurringDate,
   isNeedCategory,
-  monthlyPlanAmount,
   perOccurrenceAmount,
   retreatRecurringDate,
   roundMoney,
@@ -159,6 +158,50 @@ export function scheduledMonthAmounts(
   });
 }
 
+/** Weekly through yearly, except monthly, need a last payment date to place the hits. */
+export function needsAnchorDate(cadence: RecurringCadence | null): boolean {
+  return cadence != null && cadence !== "monthly";
+}
+
+/**
+ * Twelve month totals for one row.
+ * A variable or monthly envelope is the same amount every month. Other cadences
+ * count how many payments land in each month from the last payment date.
+ */
+export function monthAmountsFromRow(
+  amount: number,
+  cadence: RecurringCadence | null,
+  basis: AmountBasis,
+  anchorDate: string | null,
+  year: number,
+): { month: string; amount: number; count: number }[] {
+  const months = monthsOfYear(year);
+  const empty = months.map((month) => ({ month, amount: 0, count: 0 }));
+  if (!Number.isFinite(amount) || amount <= 0) return empty;
+
+  if (cadence == null || cadence === "monthly") {
+    const monthly = basis === "year" ? roundMoney(amount / 12) : roundMoney(amount);
+    return months.map((month) => ({ month, amount: monthly, count: 1 }));
+  }
+
+  const each = perOccurrenceAmount(amount, cadence, basis);
+  if (each <= 0) return empty;
+  return scheduledMonthAmounts(each, cadence, anchorDate ?? "", year);
+}
+
+/** Walk from a last payment to the next date on or after today. */
+export function nextDateFromAnchor(anchorDate: string, cadence: RecurringCadence, today: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(anchorDate)) return today;
+  let cursor = anchorDate;
+  if (cursor >= today) return cursor;
+  for (let i = 0; i < 500 && cursor < today; i++) {
+    const next = advanceRecurringDate(cursor, cadence);
+    if (next <= cursor) return today;
+    cursor = next;
+  }
+  return cursor;
+}
+
 /**
  * The budget that applies to an expense category in a month.
  * A plan entry wins; otherwise the standing monthly limit from category_budgets.
@@ -300,9 +343,10 @@ export interface LedgerPlanRow {
   kind: PlanKind;
   name: string;
   amount: number;
-  cadence: RecurringCadence;
+  /** Null cadence is a flat monthly envelope. */
+  cadence: RecurringCadence | null;
   basis: AmountBasis;
-  nextDate: string;
+  nextDate: string | null;
 }
 
 export interface LedgerSchedule {
@@ -334,42 +378,65 @@ function uniqueSlug(label: string, used: Set<string>): string | null {
 }
 
 /**
- * Turn named rows into a full-year plan and one repeating payment each.
- * A yearly salary paid every 2 weeks becomes the monthly plan amount and the per-pay deposit.
+ * Turn named rows into a full-year plan, the saved row inputs, and one repeating
+ * payment for each scheduled cadence. A biweekly mortgage is 2× in some months and 3× in others.
  */
 export function ledgerFromRows(
   rows: LedgerPlanRow[],
   year: number,
-): { entries: BudgetPlanEntry[]; categories: { slug: string; label: string; kind: PlanKind }[]; schedules: LedgerSchedule[] } {
+  today: string = `${year}-01-01`,
+): {
+  entries: BudgetPlanEntry[];
+  categories: { slug: string; label: string; kind: PlanKind }[];
+  schedules: LedgerSchedule[];
+  planSchedules: BudgetPlanSchedule[];
+} {
   const used = new Set<string>();
   const entries: BudgetPlanEntry[] = [];
   const categories: { slug: string; label: string; kind: PlanKind }[] = [];
   const schedules: LedgerSchedule[] = [];
-  const months = monthsOfYear(year);
+  const planSchedules: BudgetPlanSchedule[] = [];
 
   for (const row of rows) {
     const name = row.name.trim();
     if (!name || !(row.amount > 0)) continue;
     const slug = uniqueSlug(name, used);
-    const monthly = monthlyPlanAmount(row.amount, row.cadence, row.basis);
-    const each = perOccurrenceAmount(row.amount, row.cadence, row.basis);
-    if (!slug || monthly <= 0 || each <= 0) continue;
+    if (!slug) continue;
+    if (needsAnchorDate(row.cadence) && !row.nextDate) continue;
+    const slots = monthAmountsFromRow(row.amount, row.cadence, row.basis, row.nextDate, year);
+    if (slots.every((slot) => slot.amount <= 0)) continue;
     categories.push({ slug, label: name, kind: row.kind });
-    for (const month of months) {
-      entries.push({ kind: row.kind, category: slug, month, amount: monthly });
+    for (const slot of slots) {
+      entries.push({ kind: row.kind, category: slug, month: slot.month, amount: slot.amount });
     }
-    schedules.push({
-      name,
-      amount: each,
+    planSchedules.push({
+      kind: row.kind,
       category: slug,
-      direction: row.kind === "income" ? "in" : "out",
+      amount: row.amount,
+      basis: row.basis,
       cadence: row.cadence,
-      next_date: row.nextDate,
-      line_role: row.kind === "income" ? "income" : row.kind === "savings" ? "savings" : "purchase",
+      anchor_date: needsAnchorDate(row.cadence) ? row.nextDate : null,
     });
+    if (row.cadence) {
+      const each = perOccurrenceAmount(row.amount, row.cadence, row.basis);
+      if (each <= 0) continue;
+      const next =
+        row.nextDate && /^\d{4}-\d{2}-\d{2}$/.test(row.nextDate)
+          ? nextDateFromAnchor(row.nextDate, row.cadence, today)
+          : today;
+      schedules.push({
+        name,
+        amount: each,
+        category: slug,
+        direction: row.kind === "income" ? "in" : "out",
+        cadence: row.cadence,
+        next_date: next,
+        line_role: row.kind === "income" ? "income" : row.kind === "savings" ? "savings" : "purchase",
+      });
+    }
   }
 
-  return { entries, categories, schedules };
+  return { entries, categories, schedules, planSchedules };
 }
 
 /** Expand suggestions into one entry per month of the year. */
