@@ -31,6 +31,7 @@ import {
   fetchCatalog,
   fetchPlan,
   migrateLocalCategories,
+  patchCategory,
   saveCategory,
   savePlan,
 } from "@/lib/tracking/plan-client";
@@ -136,6 +137,15 @@ export default function BudgetPlanPage() {
   function handleRemoveRow(kind: PlanKind, category: string) {
     setEntries((prev) => prev.filter((entry) => !(entry.kind === kind && entry.category === category)));
     void persist([], [{ kind, category }]);
+  }
+
+  async function handleRename(kind: PlanKind, category: string, label: string) {
+    const saved = await patchCategory(category, { label, kind });
+    if (!saved) {
+      setSaveError("Could not rename that. Check your connection and try again.");
+      return;
+    }
+    setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
   }
 
   function handleAddRow(kind: PlanKind, category: string) {
@@ -541,6 +551,7 @@ export default function BudgetPlanPage() {
             onAddRow={handleAddRow}
             onCreateCategory={handleCreateCategory}
             onApplySchedule={handleApplySchedule}
+            onRename={handleRename}
           />
         )
       )}
@@ -553,7 +564,8 @@ export default function BudgetPlanPage() {
 
       <p className="font-body text-xs text-[var(--text-muted)]">
         Tip: click a category to fill the year from one payment, how often it happens, and the last payment date.
-        You can still edit any month. Tracking, budgets, and this plan are always free.
+        Use the pencil to rename a row and the × to remove it. You can still edit any month. Tracking, budgets,
+        and this plan are always free.
       </p>
 
       <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />

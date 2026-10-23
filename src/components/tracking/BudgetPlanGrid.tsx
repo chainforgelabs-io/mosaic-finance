@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowRightToLine, Plus, X } from "lucide-react";
+import { ArrowRightToLine, Pencil, Plus, X } from "lucide-react";
 import {
   CATEGORY_KIND_LABELS,
   categorySlug,
@@ -25,8 +25,15 @@ import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import type { BudgetPlanEntry } from "@/types/tracking";
 
-/** Fixed tracks so Income, Expenses, Savings, and To be allocated share one scroll. */
-const PLAN_COLUMNS = "240px repeat(12, 108px) 112px";
+/** One table, fixed tracks, so every section shares the same vertical lines. */
+const NAME_COL = 280;
+const MONTH_COL = 108;
+const TOTAL_COL = 112;
+const PLAN_WIDTH = NAME_COL + 12 * MONTH_COL + TOTAL_COL;
+/** Room for the fill arrow, shared by headers and amounts so the digits share one right edge. */
+const MONTH_PAD = "pr-5";
+const STICKY =
+  "sticky left-0 z-20 bg-white shadow-[4px_0_8px_-4px_rgba(28,25,23,0.28)]";
 const CADENCES = Object.keys(CADENCE_LABELS) as RecurringCadence[];
 
 const KIND_STYLES: Record<PlanKind, { header: string; accent: string }> = {
@@ -62,13 +69,20 @@ export interface BudgetPlanGridProps {
   onCreateCategory: (kind: PlanKind, label: string) => Promise<string | null>;
   /** Fill every month from one payment amount, a cadence, and a last payment date. */
   onApplySchedule: (kind: PlanKind, category: string, amounts: { month: string; amount: number }[]) => void;
+  onRename: (kind: PlanKind, category: string, label: string) => void;
 }
 
-function GridRow({ children, className }: { children: React.ReactNode; className?: string }) {
+function MonthText({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("grid items-center", className)} style={{ gridTemplateColumns: PLAN_COLUMNS }}>
+    <span
+      className={cn(
+        "block w-full overflow-hidden text-ellipsis whitespace-nowrap text-right font-display text-xs tabular-nums",
+        MONTH_PAD,
+        className,
+      )}
+    >
       {children}
-    </div>
+    </span>
   );
 }
 
@@ -131,29 +145,41 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-[var(--warm-200)] bg-white lg:block">
-        <div className="min-w-[1648px]">
-          <AllocationRow
-            months={months}
-            monthTotals={monthTotals}
-            yearTotal={yearTotals.toBeAllocated}
-            focusIndex={focusIndex}
-            year={year}
-            layout="desktop"
-          />
-          {PLAN_KINDS.map((kind) => (
-            <PlanSection
-              key={kind}
-              kind={kind}
-              index={index}
-              focusIndex={focusIndex}
+        <table
+          className="border-separate border-spacing-0 [&_td]:border-b [&_td]:border-[var(--warm-100)] [&_th]:border-b [&_th]:border-[var(--warm-100)]"
+          style={{ width: PLAN_WIDTH, tableLayout: "fixed" }}
+        >
+          <colgroup>
+            <col style={{ width: NAME_COL }} />
+            {months.map((month) => (
+              <col key={month} style={{ width: MONTH_COL }} />
+            ))}
+            <col style={{ width: TOTAL_COL }} />
+          </colgroup>
+          <tbody>
+            <AllocationRow
+              months={months}
               monthTotals={monthTotals}
-              yearTotal={yearTotals[kind]}
+              yearTotal={yearTotals.toBeAllocated}
+              focusIndex={focusIndex}
+              year={year}
               layout="desktop"
-              onOpenSchedule={openSchedule}
-              {...props}
             />
-          ))}
-        </div>
+            {PLAN_KINDS.map((kind) => (
+              <PlanSection
+                key={kind}
+                kind={kind}
+                index={index}
+                focusIndex={focusIndex}
+                monthTotals={monthTotals}
+                yearTotal={yearTotals[kind]}
+                layout="desktop"
+                onOpenSchedule={openSchedule}
+                {...props}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {schedule && (
@@ -200,33 +226,31 @@ function AllocationRow({
     );
   }
   return (
-    <GridRow className="border-b border-[var(--warm-200)] py-3">
-      <div className="px-3 text-left">
+    <tr className="border-b border-[var(--warm-200)]">
+      <th className={cn(STICKY, "px-3 py-3 text-left align-middle")}>
         <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">To be allocated</h2>
-        <p className="mt-0.5 font-body text-[11px] leading-snug text-[var(--text-muted)]">
+        <p className="mt-0.5 font-body text-[11px] font-normal leading-snug text-[var(--text-muted)]">
           Income minus planned expenses and savings
         </p>
-      </div>
+      </th>
       {months.map((month, i) => (
-        <span
-          key={month}
-          className={cn(
-            "overflow-hidden text-ellipsis whitespace-nowrap px-1 text-right font-display text-xs font-semibold tabular-nums",
-            monthTotals[i].toBeAllocated < 0 ? "text-red-700" : "text-[var(--emerald-dark)]",
-          )}
-        >
-          {formatMoney(monthTotals[i].toBeAllocated)}
-        </span>
+        <td key={month} className="align-middle">
+          <MonthText
+            className={cn(
+              "font-semibold",
+              monthTotals[i].toBeAllocated < 0 ? "text-red-700" : "text-[var(--emerald-dark)]",
+            )}
+          >
+            {formatMoney(monthTotals[i].toBeAllocated)}
+          </MonthText>
+        </td>
       ))}
-      <span
-        className={cn(
-          "overflow-hidden text-ellipsis whitespace-nowrap px-2 text-right font-display text-xs font-bold tabular-nums",
-          yearTotal < 0 ? "text-red-700" : "text-[var(--emerald-dark)]",
-        )}
-      >
-        {formatMoney(yearTotal)}
-      </span>
-    </GridRow>
+      <td className="align-middle">
+        <MonthText className={cn("font-bold", yearTotal < 0 ? "text-red-700" : "text-[var(--emerald-dark)]")}>
+          {formatMoney(yearTotal)}
+        </MonthText>
+      </td>
+    </tr>
   );
 }
 
@@ -262,6 +286,7 @@ function PlanSection({
   onAddRow,
   onCreateCategory,
   onOpenSchedule,
+  onRename,
 }: BudgetPlanGridProps & {
   kind: PlanKind;
   index: Map<string, number>;
@@ -270,6 +295,7 @@ function PlanSection({
   yearTotal: number;
   layout: "mobile" | "desktop";
   onOpenSchedule: (kind: PlanKind, category: string) => void;
+  onRename: (kind: PlanKind, category: string, label: string) => void;
 }) {
   const styles = KIND_STYLES[kind];
   const rows = plannedCategories(entries, kind);
@@ -298,7 +324,7 @@ function PlanSection({
   }
 
   const addRow = (
-    <div className="border-t border-[var(--warm-100)] px-3 py-2">
+    <div>
       {adding ? (
         <div className="flex flex-wrap items-center gap-2">
           {options.length > 0 && (
@@ -370,73 +396,87 @@ function PlanSection({
 
   if (layout === "desktop") {
     return (
-      <section className="border-t border-[var(--warm-200)]">
-        <div className={cn("flex items-center justify-between px-3 py-2", styles.header)}>
-          <h2 className="font-display text-sm font-semibold">{CATEGORY_KIND_LABELS[kind]}</h2>
-          <span className="font-display text-xs font-semibold tabular-nums">{formatMoney(yearTotal)} / yr</span>
-        </div>
-        <GridRow className="border-b border-[var(--warm-200)] py-1">
-          <span className="px-3 text-left font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-            Category
-          </span>
-          {months.map((month) => (
-            <span
-              key={month}
-              className="px-1 text-right font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]"
-            >
-              {shortMonth(month)}
-            </span>
-          ))}
-          <span className="px-2 text-right font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-            Total
-          </span>
-        </GridRow>
-        {rows.map((category) => (
-          <GridRow key={category} className="group border-b border-[var(--warm-100)] py-0.5">
-            <RowLabel
-              label={labelFor(catalog, category)}
-              onOpen={() => onOpenSchedule(kind, category)}
-              onRemove={() => onRemoveRow(kind, category)}
-            />
-            {months.map((month) => (
-              <PlanCell
-                key={month}
-                value={planAmount(index, kind, category, month)}
-                onCommit={(amount) => onSetAmount(kind, category, month, amount)}
-                onFillRight={(amount) => onFillRight(kind, category, month, amount)}
-                canFill={month !== months[months.length - 1]}
-                label={`${shortMonth(month)} for ${labelFor(catalog, category)}`}
-              />
-            ))}
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap px-2 text-right font-display text-xs font-semibold tabular-nums text-[var(--text-primary)]">
-              {formatMoney(rowTotal(index, kind, category, months))}
-            </span>
-          </GridRow>
-        ))}
-        <GridRow className="py-1">
-          <span className="px-3 text-left font-display text-xs font-bold">Total</span>
-          {monthTotals.map((totals, i) => (
-            <span
-              key={months[i]}
-              className={cn(
-                "overflow-hidden text-ellipsis whitespace-nowrap px-1 text-right font-display text-xs font-bold tabular-nums",
-                styles.accent,
-              )}
-            >
-              {formatMoney(totals[kind])}
-            </span>
-          ))}
-          <span
+      <>
+        <tr>
+          <th className={cn(STICKY, styles.header, "px-3 py-2 text-left font-display text-sm font-semibold")}>
+            {CATEGORY_KIND_LABELS[kind]}
+          </th>
+          <th className={styles.header} colSpan={12} />
+          <th className={cn(styles.header, "py-2 text-right font-display text-xs font-semibold")}>
+            <MonthText>{formatMoney(yearTotal)} / yr</MonthText>
+          </th>
+        </tr>
+        <tr className="border-b border-[var(--warm-200)]">
+          <th
             className={cn(
-              "overflow-hidden text-ellipsis whitespace-nowrap px-2 text-right font-display text-xs font-bold tabular-nums",
-              styles.accent,
+              STICKY,
+              "px-3 py-1 text-left font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]",
             )}
           >
-            {formatMoney(yearTotal)}
-          </span>
-        </GridRow>
-        {addRow}
-      </section>
+            Category
+          </th>
+          {months.map((month) => (
+            <th
+              key={month}
+              className="py-1 font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]"
+            >
+              <MonthText>{shortMonth(month)}</MonthText>
+            </th>
+          ))}
+          <th className="py-1 font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <MonthText>Total</MonthText>
+          </th>
+        </tr>
+        {rows.map((category) => {
+          const name = labelFor(catalog, category);
+          return (
+            <tr key={category} className="group border-b border-[var(--warm-100)]">
+              <th className={cn(STICKY, "px-2 py-0.5 text-left font-normal")}>
+                <RowLabel
+                  label={name}
+                  onOpen={() => onOpenSchedule(kind, category)}
+                  onRemove={() => onRemoveRow(kind, category)}
+                  onRename={(label) => onRename(kind, category, label)}
+                />
+              </th>
+              {months.map((month) => (
+                <td key={month} className="relative z-0 py-0.5 align-middle">
+                  <PlanCell
+                    value={planAmount(index, kind, category, month)}
+                    onCommit={(amount) => onSetAmount(kind, category, month, amount)}
+                    onFillRight={(amount) => onFillRight(kind, category, month, amount)}
+                    canFill={month !== months[months.length - 1]}
+                    label={`${shortMonth(month)} for ${name}`}
+                  />
+                </td>
+              ))}
+              <td className="align-middle">
+                <MonthText className="font-semibold text-[var(--text-primary)]">
+                  {formatMoney(rowTotal(index, kind, category, months))}
+                </MonthText>
+              </td>
+            </tr>
+          );
+        })}
+        <tr>
+          <th className={cn(STICKY, "px-3 py-1 text-left font-display text-xs font-bold")}>Total</th>
+          {monthTotals.map((totals, i) => (
+            <td key={months[i]} className="py-1 align-middle">
+              <MonthText className={cn("font-bold", styles.accent)}>{formatMoney(totals[kind])}</MonthText>
+            </td>
+          ))}
+          <td className="align-middle">
+            <MonthText className={cn("font-bold", styles.accent)}>{formatMoney(yearTotal)}</MonthText>
+          </td>
+        </tr>
+        <tr>
+          <td colSpan={14} className="border-b border-[var(--warm-100)] p-0">
+            <div className={cn(STICKY, "px-3 py-2")} style={{ width: adding ? 560 : NAME_COL }}>
+              {addRow}
+            </div>
+          </td>
+        </tr>
+      </>
     );
   }
 
@@ -451,15 +491,14 @@ function PlanSection({
         {rows.map((category) => {
           const month = months[focusIndex];
           return (
-            <div key={category} className="flex items-center gap-2 px-4 py-2">
+            <div key={category} className="flex items-center gap-2 px-3 py-2">
               <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={() => onOpenSchedule(kind, category)}
-                  className="cursor-pointer truncate text-left font-body text-sm text-[var(--text-primary)]"
-                >
-                  {labelFor(catalog, category)}
-                </button>
+                <RowLabel
+                  label={labelFor(catalog, category)}
+                  onOpen={() => onOpenSchedule(kind, category)}
+                  onRemove={() => onRemoveRow(kind, category)}
+                  onRename={(label) => onRename(kind, category, label)}
+                />
                 <p className="font-body text-[11px] text-[var(--text-muted)]">
                   {formatMoney(rowTotal(index, kind, category, months))} / yr
                 </p>
@@ -472,14 +511,6 @@ function PlanSection({
                 label={`${shortMonth(month)} for ${labelFor(catalog, category)}`}
                 wide
               />
-              <button
-                type="button"
-                onClick={() => onRemoveRow(kind, category)}
-                aria-label={`Remove ${labelFor(catalog, category)} from the plan`}
-                className="cursor-pointer rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-              >
-                <X className="size-4" />
-              </button>
             </div>
           );
         })}
@@ -491,27 +522,99 @@ function PlanSection({
         </div>
       </div>
 
-      {addRow}
+      <div className="border-t border-[var(--warm-100)] px-3 py-2">{addRow}</div>
     </section>
   );
 }
 
-function RowLabel({ label, onOpen, onRemove }: { label: string; onOpen: () => void; onRemove: () => void }) {
+function RowLabel({
+  label,
+  onOpen,
+  onRemove,
+  onRename,
+}: {
+  label: string;
+  onOpen: () => void;
+  onRemove: () => void;
+  onRename: (label: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(label);
+  const [seen, setSeen] = useState(label);
+  const skipCommit = useRef(false);
+  if (seen !== label) {
+    setSeen(label);
+    if (!editing) setDraft(label);
+  }
+
+  function commit() {
+    const next = draft.trim();
+    if (!next || next.length > 60 || next === label) {
+      setDraft(label);
+      setEditing(false);
+      return;
+    }
+    onRename(next);
+    setEditing(false);
+  }
+
   return (
-    <div className="flex min-w-0 items-center gap-1 px-3">
+    <div className="flex min-w-0 items-center gap-0.5">
+      {editing ? (
+        <input
+          autoFocus
+          type="text"
+          value={draft}
+          aria-label={`Name for ${label}`}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => {
+            if (skipCommit.current) {
+              skipCommit.current = false;
+              setDraft(label);
+              setEditing(false);
+              return;
+            }
+            commit();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+            if (event.key === "Escape") {
+              skipCommit.current = true;
+              setDraft(label);
+              setEditing(false);
+            }
+          }}
+          className="min-w-0 flex-1 rounded border border-[var(--warm-200)] bg-white px-1.5 py-0.5 font-body text-sm text-[var(--text-primary)]"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={onOpen}
+          title={label}
+          className="min-w-0 flex-1 cursor-pointer truncate text-left font-body text-sm leading-snug text-[var(--text-primary)]"
+        >
+          {label}
+        </button>
+      )}
       <button
         type="button"
-        onClick={onOpen}
-        title={label}
-        className="line-clamp-2 cursor-pointer text-left font-body text-sm leading-snug text-[var(--text-primary)]"
+        aria-label={`Rename ${label}`}
+        title="Rename"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => {
+          setDraft(label);
+          setEditing(true);
+        }}
+        className="shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
       >
-        {label}
+        <Pencil className="size-3.5" />
       </button>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label} from the plan`}
-        className="shrink-0 cursor-pointer rounded p-0.5 text-[var(--text-muted)] opacity-0 transition-opacity hover:bg-[var(--warm-100)] group-hover:opacity-100 focus:opacity-100"
+        title="Remove from the plan"
+        className="shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
       >
         <X className="size-3.5" />
       </button>
@@ -562,7 +665,7 @@ function PlanCell({
   }
 
   return (
-    <div className={cn("group/cell flex items-center", wide ? "w-36" : "min-w-0")}>
+    <div className={cn("relative", wide ? "w-36" : "w-full")}>
       <input
         type="text"
         inputMode="decimal"
@@ -593,8 +696,8 @@ function PlanCell({
           }
         }}
         className={cn(
-          "min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 py-1 text-right font-body text-xs tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 hover:border-[var(--warm-200)] focus:border-[var(--emerald)] focus:bg-white focus:outline-none",
-          wide && "border-[var(--warm-200)] bg-white text-sm",
+          "w-full rounded-md border border-transparent bg-transparent py-1 text-right font-body text-xs tabular-nums text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 hover:border-[var(--warm-200)] focus:border-[var(--emerald)] focus:bg-white focus:outline-none",
+          wide ? "border-[var(--warm-200)] bg-white pl-2 pr-5 text-sm" : MONTH_PAD,
         )}
         aria-label={label}
       />
@@ -611,8 +714,8 @@ function PlanCell({
             onFillRight(parsed);
           }}
           className={cn(
-            "shrink-0 cursor-pointer rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]",
-            wide ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within/cell:opacity-100",
+            "absolute right-0 top-1/2 -translate-y-1/2 cursor-pointer rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]",
+            wide ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
           )}
         >
           <ArrowRightToLine className="size-3" />
