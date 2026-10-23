@@ -23,7 +23,6 @@ import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
-import { usePlanStore } from "@/stores/plan-store";
 import { saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import {
@@ -859,23 +858,9 @@ export default function HoldingsPage() {
     0,
   );
 
-  const triggerPlanGenerationAndGoToDashboard = async () => {
+  const goToGoals = () => {
     completeStep("holdings");
-    try {
-      const res = await fetch("/api/plan/generate", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (res.ok) {
-        usePlanStore.getState().setPlanStatus("generating");
-      }
-    } catch {
-      // Fire-and-forget; dashboard will refetch / poll
-    }
-    // Allow Set-Cookie headers from the API response to propagate before
-    // navigating, preventing a refresh-token-rotation race in middleware.
-    await new Promise((r) => setTimeout(r, 150));
-    window.location.href = "/dashboard?welcome=1";
+    router.push("/onboarding/goals");
   };
 
   const handleContinue = async () => {
@@ -883,7 +868,7 @@ export default function HoldingsPage() {
     setServerError(null);
 
     if (accounts.length === 0) {
-      await triggerPlanGenerationAndGoToDashboard();
+      goToGoals();
       return;
     }
 
@@ -905,7 +890,7 @@ export default function HoldingsPage() {
       setServerError(result.error);
       setIsSubmitting(false);
     } else {
-      await triggerPlanGenerationAndGoToDashboard();
+      goToGoals();
     }
   };
 
@@ -1034,7 +1019,7 @@ export default function HoldingsPage() {
           <div className="mx-auto flex max-w-[800px] flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
             <button
               type="button"
-              onClick={() => router.push("/onboarding/fact-find")}
+              onClick={() => router.push("/onboarding/risk-profile")}
               className="flex items-center gap-2 rounded-lg border border-[var(--warm-200)] px-5 py-2.5 font-display text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--warm-100)]"
             >
               <ArrowLeft className="size-4" />

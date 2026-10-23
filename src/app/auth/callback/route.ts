@@ -30,7 +30,8 @@ export async function GET(request: Request) {
           await supabase.from("user_profiles").insert({
             id: user.id,
             alias:
-              user.user_metadata?.full_name?.split(" ")[0] ??
+              (typeof user.user_metadata?.alias === "string" && user.user_metadata.alias) ||
+              user.user_metadata?.full_name?.split(" ")[0] ||
               `user_${user.id.slice(0, 6)}`,
             subscription_tier: "pulse",
             trial_ends_at: trialEndsAtIso(),

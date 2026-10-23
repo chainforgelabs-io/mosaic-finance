@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus, Target, Trash2 } from "lucide-react";
 import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { useOnboardingStore } from "@/stores/onboarding";
+import { usePlanStore } from "@/stores/plan-store";
 import {
   GOAL_PRIORITIES,
   GOAL_TYPE_LABELS,
@@ -45,7 +45,6 @@ function emptyGoal(): DraftGoal {
 }
 
 export default function OnboardingGoalsPage() {
-  const router = useRouter();
   const { completedSteps, setCurrentStep, completeStep } = useOnboardingStore();
   const [goals, setGoals] = useState<DraftGoal[]>([emptyGoal()]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +53,8 @@ export default function OnboardingGoalsPage() {
   useEffect(() => {
     completeStep("profile");
     completeStep("fact-find");
+    completeStep("risk-profile");
+    completeStep("holdings");
     setCurrentStep("goals");
   }, [completeStep, setCurrentStep]);
 
@@ -106,8 +107,24 @@ export default function OnboardingGoalsPage() {
         }),
       });
     }
+    await finishAndOpenDashboard();
+  }
+
+  async function finishAndOpenDashboard() {
     completeStep("goals");
-    router.push("/onboarding/risk-profile");
+    try {
+      const res = await fetch("/api/plan/generate", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        usePlanStore.getState().setPlanStatus("generating");
+      }
+    } catch {
+      // The dashboard refetches if this request does not land.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    window.location.href = "/dashboard?welcome=1";
   }
 
   return (
@@ -308,8 +325,7 @@ export default function OnboardingGoalsPage() {
             <button
               type="button"
               onClick={() => {
-                completeStep("goals");
-                router.push("/onboarding/risk-profile");
+                void finishAndOpenDashboard();
               }}
               className="flex-1 rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
             >

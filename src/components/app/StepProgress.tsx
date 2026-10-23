@@ -16,9 +16,9 @@ export type OnboardingStep =
 const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "profile", label: "Profile" },
   { key: "fact-find", label: "Consultation" },
-  { key: "goals", label: "Goals" },
   { key: "risk-profile", label: "Risk Profile" },
   { key: "holdings", label: "Holdings" },
+  { key: "goals", label: "Goals" },
   { key: "generating", label: "Generating" },
   { key: "review", label: "Review" },
   { key: "complete", label: "Complete" },

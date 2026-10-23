@@ -17,17 +17,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const explicit = request.nextUrl.searchParams.get("redirectTo");
-  if (
-    explicit &&
-    SAFE_REDIRECT_PREFIXES.some((p) => explicit.startsWith(p))
-  ) {
-    return NextResponse.json({ redirectTo: explicit });
-  }
-
   const progress = await getOnboardingProgress();
+  const explicit = request.nextUrl.searchParams.get("redirectTo");
+  const onboardingOpen = progress.redirectPath.startsWith("/onboarding");
+  const explicitAllowed =
+    !!explicit &&
+    !onboardingOpen &&
+    SAFE_REDIRECT_PREFIXES.some((prefix) => explicit.startsWith(prefix));
+
   return NextResponse.json({
-    redirectTo: progress.redirectPath,
+    redirectTo: explicitAllowed ? explicit : progress.redirectPath,
     resumePath: progress.resumePath,
     reportEntryPath: progress.reportEntryPath,
     reportStarted: progress.reportStarted,

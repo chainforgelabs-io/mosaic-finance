@@ -20,7 +20,7 @@ describe("authLandingPath", () => {
     expect(authLandingPath({ ...fresh, reportEntitled: true })).toBe("/onboarding");
   });
 
-  it("resumes the unfinished discovery step", () => {
+  it("resumes the unfinished signup step", () => {
     expect(
       authLandingPath({
         ...fresh,
@@ -35,20 +35,32 @@ describe("authLandingPath", () => {
         factFindComplete: true,
         reportEntitled: true,
       }),
+    ).toBe("/onboarding/risk-profile");
+    expect(
+      authLandingPath({
+        ...fresh,
+        factFindComplete: true,
+        riskProfileComplete: true,
+        holdingsExist: true,
+        reportEntitled: true,
+      }),
     ).toBe("/onboarding/goals");
   });
 
-  it("sends an account with a report or holdings to the dashboard", () => {
+  it("sends an account with a report to the dashboard", () => {
     expect(authLandingPath({ ...fresh, planExists: true, reportEntitled: true })).toBe(
-      "/dashboard",
-    );
-    expect(authLandingPath({ ...fresh, holdingsExist: true, reportEntitled: true })).toBe(
       "/dashboard",
     );
   });
 
-  it("sends a Pulse account without a trial to the dashboard", () => {
-    expect(authLandingPath({ ...fresh, reportEntitled: false })).toBe("/dashboard");
+  it("keeps a brand-new account on demographics even without a trial row yet", () => {
+    expect(authLandingPath({ ...fresh, reportEntitled: false })).toBe("/onboarding");
+  });
+
+  it("sends a finished Pulse account without a trial to the dashboard", () => {
+    expect(
+      authLandingPath({ ...fresh, profileComplete: true, reportEntitled: false }),
+    ).toBe("/dashboard");
   });
 
   it("sends an admin who already has holdings to the approval queue", () => {
@@ -79,7 +91,7 @@ describe("onboardingResumePath", () => {
         profileComplete: true,
         factFindComplete: true,
       }),
-    ).toBe("/onboarding/goals");
+    ).toBe("/onboarding/risk-profile");
     expect(
       onboardingResumePath({
         ...fresh,
@@ -88,11 +100,20 @@ describe("onboardingResumePath", () => {
         riskProfileComplete: true,
       }),
     ).toBe("/onboarding/holdings");
+    expect(
+      onboardingResumePath({
+        ...fresh,
+        riskProfileComplete: true,
+        holdingsExist: true,
+      }),
+    ).toBe("/onboarding/goals");
   });
 
-  it("leaves onboarding once holdings or a report exist", () => {
-    expect(onboardingResumePath({ ...fresh, holdingsExist: true })).toBe("/dashboard");
+  it("leaves onboarding once a report exists", () => {
     expect(onboardingResumePath({ ...fresh, planExists: true })).toBe("/dashboard");
+    expect(onboardingResumePath({ ...fresh, holdingsExist: true, planExists: true })).toBe(
+      "/dashboard",
+    );
   });
 });
 
@@ -108,7 +129,7 @@ describe("reportEntryPath", () => {
     );
     expect(
       reportEntryPath({ ...fresh, holdingsExist: true, riskProfileComplete: true }),
-    ).toBe("/onboarding/holdings");
+    ).toBe("/onboarding/goals");
     expect(reportStarted({ ...fresh, profileComplete: true })).toBe(true);
   });
 });

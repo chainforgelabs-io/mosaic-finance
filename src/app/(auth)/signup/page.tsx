@@ -37,6 +37,7 @@ export default function SignUpPage() {
       email: data.email,
       password: data.password,
       options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback`,
         data: {
           alias: data.alias,
           province: data.province,
@@ -62,9 +63,9 @@ export default function SignUpPage() {
     });
     if (result?.error) {
       setServerError(result.error);
-    } else if (result?.redirectTo) {
-      window.location.href = result.redirectTo;
+      return;
     }
+    window.location.href = "/onboarding";
   }
 
   async function handleGoogleSignIn() {
