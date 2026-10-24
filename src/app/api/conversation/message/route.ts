@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { claudeStream } from '@/lib/claude/client';
+import { claudeErrorMessage, claudeStream } from '@/lib/claude/client';
 import { FACT_FIND_SYSTEM_PROMPT } from '@/lib/claude/prompts/fact-find';
 import { RISK_PROFILE_SYSTEM_PROMPT } from '@/lib/claude/prompts/risk-profile';
 import { ANNUAL_REVIEW_SYSTEM_PROMPT } from '@/lib/claude/prompts/annual-review';
@@ -346,12 +346,14 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      try {
-        const response = claudeStream(
-          claudeMessages,
-          systemPrompt,
-          { cacheSystem: true },
-        );
+      async function readModel(cacheSystem: boolean, omitThinking: boolean) {
+        fullResponse = '';
+        flushedUpTo = 0;
+        const response = claudeStream(claudeMessages, systemPrompt, {
+          cacheSystem,
+          omitThinking,
+          maxTokens: omitThinking ? 16000 : undefined,
+        });
 
         response.on('text', (text) => {
           fullResponse += text;
@@ -369,7 +371,6 @@ export async function POST(req: NextRequest) {
               flushedUpTo = visibleEnd;
             }
           } else {
-            // No tag to buffer — stream everything
             const chunk = fullResponse.slice(flushedUpTo);
             if (chunk) {
               streamedText = true;
@@ -383,7 +384,23 @@ export async function POST(req: NextRequest) {
           }
         });
 
-        const final = await response.finalMessage();
+        return response.finalMessage();
+      }
+
+      try {
+        let final;
+        try {
+          final = await readModel(true, false);
+        } catch (error) {
+          if (streamedText) throw error;
+          captureAPIError(error, {
+            route: 'conversation/message',
+            userId: user.id,
+            sessionId,
+            retry: 'plain',
+          });
+          final = await readModel(false, true);
+        }
         await recordUsageEvent({
           userId: user.id,
           kind: 'message',
@@ -512,7 +529,7 @@ export async function POST(req: NextRequest) {
             encoder.encode(
               `data: ${JSON.stringify({
                 type: 'error',
-                message: 'Something went wrong. Please try again.',
+                message: claudeErrorMessage(error),
               })}\n\n`,
             ),
           );

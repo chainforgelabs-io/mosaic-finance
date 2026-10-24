@@ -23,6 +23,8 @@ interface ClaudeChatOptions {
   /** Per-request timeout in ms — overrides the default 120s SDK timeout. */
   timeout?: number;
   cacheSystem?: boolean;
+  /** Second attempt after the model rejects thinking or prompt-cache settings. */
+  omitThinking?: boolean;
   onUsage?: (usage: ClaudeUsage) => void | Promise<void>;
 }
 
@@ -30,8 +32,14 @@ const DEFAULT_SONNET =
   process.env.CLAUDE_MODEL_SONNET ?? "claude-sonnet-5";
 const DEFAULT_OPUS = process.env.CLAUDE_MODEL_OPUS ?? DEFAULT_SONNET;
 
+/** Sonnet 5.5 rejects thinking.type disabled. Leave thinking off the request. */
+function isSonnet55(modelId: string): boolean {
+  return /sonnet-5\.5|sonnet-5-5/.test(modelId);
+}
+
 /** Sonnet 5 rejects non-default temperature and thinks unless thinking is disabled. */
 function isSonnet5(modelId: string): boolean {
+  if (isSonnet55(modelId)) return false;
   return modelId === "claude-sonnet-5" || modelId.startsWith("claude-sonnet-5-");
 }
 
@@ -47,7 +55,11 @@ const BASE_DELAY_MS = 1000;
 function samplingParams(
   modelId: string,
   temperature: number | undefined,
+  omitThinking = false,
 ): { temperature?: number; thinking?: { type: "disabled" } } {
+  if (omitThinking || isSonnet55(modelId)) {
+    return {};
+  }
   if (isSonnet5(modelId)) {
     return { thinking: { type: "disabled" } };
   }
@@ -162,7 +174,7 @@ export async function claudeChat(
         {
           model: modelId,
           max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-          ...samplingParams(modelId, options?.temperature),
+          ...samplingParams(modelId, options?.temperature, options?.omitThinking),
           system: cachedSystem(systemPrompt, cacheSystem),
           messages: cachedMessages(messages, cacheSystem),
         },
@@ -251,7 +263,7 @@ export function claudeStream(
   return anthropic.messages.stream({
     model: modelId,
     max_tokens: options?.maxTokens ?? DEFAULT_MAX_TOKENS,
-    ...samplingParams(modelId, options?.temperature),
+    ...samplingParams(modelId, options?.temperature, options?.omitThinking),
     system: cachedSystem(systemPrompt, cacheSystem),
     messages: cachedMessages(messages, cacheSystem),
   });
@@ -259,6 +271,14 @@ export function claudeStream(
 
 export function claudeSamplingParams(modelId: string) {
   return samplingParams(modelId, undefined);
+}
+
+export function claudeErrorMessage(error: unknown): string {
+  if (error instanceof Anthropic.APIError) {
+    const detail = error.message.replace(/\s+/g, " ").trim();
+    if (detail) return detail.slice(0, 180);
+  }
+  return "Charlie could not reply. Please try again.";
 }
 
 export { anthropic, MODEL_IDS };
