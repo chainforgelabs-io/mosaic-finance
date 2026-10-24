@@ -12,6 +12,7 @@ import {
   type UserCategory,
 } from "@/lib/tracking/categories";
 import {
+  entriesFromSchedules,
   entriesFromSuggestions,
   fillAcrossMonths,
   ledgerFromRows,
@@ -184,6 +185,22 @@ export default function BudgetPlanPage() {
       return;
     }
     setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
+  }
+
+  async function carryPayments(targetYear: number) {
+    if (schedules.length === 0) {
+      setSaveError("Save a payment first. Carry forward uses those dates.");
+      return;
+    }
+    const next = entriesFromSchedules(schedules, targetYear);
+    if (next.length === 0) {
+      setSaveError("Those payments did not land in that year.");
+      return;
+    }
+    upsertLocal(next);
+    await persist(next);
+    setYear(targetYear);
+    setBanner(`Filled ${targetYear} from the saved payment dates.`);
   }
 
   function handleAddRow(kind: PlanKind, category: string) {
@@ -382,7 +399,7 @@ export default function BudgetPlanPage() {
       setSetupOpen(false);
       if (schedules.some((res) => !res.ok)) {
         setSaveError(
-          "The monthly plan is saved. A repeating date could not be saved. Twice a month, every 6 months, and yearly need the latest database update.",
+          "The monthly plan is saved. A repeating date could not be saved. Quarterly and every 4 months need the latest database update.",
         );
       }
     } finally {
@@ -428,6 +445,9 @@ export default function BudgetPlanPage() {
   }
 
   const currentYear = Number(today.slice(0, 4));
+  const yearHasPayments = entries.some((entry) => entry.month.startsWith(`${year}-`) && entry.amount > 0);
+  const carryTarget = yearHasPayments ? year + 1 : year;
+  const canCarry = schedules.length > 0 && carryTarget <= currentYear + 1;
 
   return (
     <div className="w-full space-y-6">
@@ -459,6 +479,15 @@ export default function BudgetPlanPage() {
               <ChevronRight className="size-5" />
             </button>
           </div>
+          {canCarry && !setupOpen && (
+            <button
+              type="button"
+              onClick={() => void carryPayments(carryTarget)}
+              className="rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
+            >
+              Carry payments into {carryTarget}
+            </button>
+          )}
           {hasAnyPlan && !setupOpen && (
             <button
               type="button"
@@ -605,7 +634,10 @@ export default function BudgetPlanPage() {
 
       {!loading && entries.length === 0 && hasAnyPlan && !setupOpen && (
         <p className="font-body text-sm text-[var(--text-muted)]">
-          Nothing planned for {year} yet. Add a row above, or use Prefill to copy averages in.
+          Nothing planned for {year} yet.{" "}
+          {schedules.length > 0
+            ? `Use Carry payments into ${year} to place the saved dates.`
+            : "Add a row above, or use Prefill to copy averages in."}
         </p>
       )}
 

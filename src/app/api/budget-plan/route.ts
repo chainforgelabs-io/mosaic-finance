@@ -20,7 +20,9 @@ const scheduleSchema = z.object({
   category: z.string().regex(SLUG),
   amount: z.number().min(0).max(100_000_000),
   basis: z.enum(["each", "year"]),
-  cadence: z.enum(["weekly", "biweekly", "semimonthly", "monthly", "semiannual", "yearly"]).nullable(),
+  cadence: z
+    .enum(["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "every4months", "semiannual", "yearly"])
+    .nullable(),
   anchor_date: z.string().regex(ISO_DATE).nullable(),
 });
 

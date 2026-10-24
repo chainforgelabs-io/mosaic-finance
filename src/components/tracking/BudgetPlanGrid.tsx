@@ -207,7 +207,9 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
           year={year}
           saved={schedules.find((row) => row.kind === schedule.kind && row.category === schedule.category)}
           onClose={() => setSchedule(null)}
-          onApply={(amounts, next) => {
+          onApply={(amounts, next, name) => {
+            const trimmed = name.trim();
+            if (trimmed && trimmed !== schedule.label) onRename(schedule.kind, schedule.category, trimmed);
             onApplySchedule(schedule.kind, schedule.category, amounts, {
               kind: schedule.kind,
               category: schedule.category,
@@ -240,7 +242,9 @@ function AllocationRow({
   if (layout === "mobile") {
     return (
       <div className="rounded-xl border border-[var(--warm-200)] bg-white p-4">
-        <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">To be allocated</h2>
+        <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">
+          {balanceWord(focus?.toBeAllocated ?? 0)}
+        </h2>
         <p className="mt-0.5 font-body text-xs text-[var(--text-muted)]">Income minus planned expenses and savings</p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Stat label={shortMonth(months[focusIndex])} value={focus?.toBeAllocated ?? 0} signed />
@@ -252,7 +256,7 @@ function AllocationRow({
   return (
     <tr className="border-b border-[var(--warm-200)]">
       <th className={cn(STICKY, "px-3 py-3 text-left align-middle")}>
-        <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">To be allocated</h2>
+        <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">{balanceWord(yearTotal)}</h2>
         <p className="mt-0.5 font-body text-[11px] font-normal leading-snug text-[var(--text-muted)]">
           Income minus planned expenses and savings
         </p>
@@ -276,6 +280,10 @@ function AllocationRow({
       </td>
     </tr>
   );
+}
+
+function balanceWord(value: number): "Surplus" | "Deficit" {
+  return value < 0 ? "Deficit" : "Surplus";
 }
 
 function Stat({ label, value, signed }: { label: string; value: number; signed?: boolean }) {
@@ -311,7 +319,6 @@ function PlanSection({
   onAddRow,
   onCreateCategory,
   onOpenSchedule,
-  onRename,
   schedules,
 }: BudgetPlanGridProps & {
   kind: PlanKind;
@@ -321,7 +328,6 @@ function PlanSection({
   yearTotal: number;
   layout: "mobile" | "desktop";
   onOpenSchedule: (kind: PlanKind, category: string) => void;
-  onRename: (kind: PlanKind, category: string, label: string) => void;
 }) {
   const styles = KIND_STYLES[kind];
   const rows = plannedCategories(entries, kind);
@@ -467,7 +473,6 @@ function PlanSection({
                   label={name}
                   onOpen={() => onOpenSchedule(kind, category)}
                   onRemove={() => onRemoveRow(kind, category)}
-                  onRename={(label) => onRename(kind, category, label)}
                 />
               </th>
               {months.map((month) => {
@@ -543,7 +548,6 @@ function PlanSection({
                   label={labelFor(catalog, category)}
                   onOpen={() => onOpenSchedule(kind, category)}
                   onRemove={() => onRemoveRow(kind, category)}
-                  onRename={(label) => onRename(kind, category, label)}
                 />
                 <p className="font-body text-[11px] text-[var(--text-muted)]">
                   {formatMoney(rowTotal(index, kind, category, months))} / yr
@@ -578,80 +582,26 @@ function RowLabel({
   label,
   onOpen,
   onRemove,
-  onRename,
 }: {
   label: string;
   onOpen: () => void;
   onRemove: () => void;
-  onRename: (label: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(label);
-  const [seen, setSeen] = useState(label);
-  const skipCommit = useRef(false);
-  if (seen !== label) {
-    setSeen(label);
-    if (!editing) setDraft(label);
-  }
-
-  function commit() {
-    const next = draft.trim();
-    if (!next || next.length > 60 || next === label) {
-      setDraft(label);
-      setEditing(false);
-      return;
-    }
-    onRename(next);
-    setEditing(false);
-  }
-
   return (
     <div className="flex min-w-0 items-center gap-0.5">
-      {editing ? (
-        <input
-          autoFocus
-          type="text"
-          value={draft}
-          aria-label={`Name for ${label}`}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => {
-            if (skipCommit.current) {
-              skipCommit.current = false;
-              setDraft(label);
-              setEditing(false);
-              return;
-            }
-            commit();
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-            if (event.key === "Escape") {
-              skipCommit.current = true;
-              setDraft(label);
-              setEditing(false);
-            }
-          }}
-          className="min-w-0 flex-1 rounded border border-[var(--warm-200)] bg-white px-1.5 py-0.5 font-body text-sm text-[var(--text-primary)]"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={onOpen}
-          title={label}
-          className="min-w-0 flex-1 cursor-pointer truncate text-left font-body text-sm leading-snug text-[var(--text-primary)]"
-        >
-          {label}
-        </button>
-      )}
       <button
         type="button"
-        aria-label={`Rename ${label}`}
-        title="Rename"
-        onMouseDown={(event) => event.preventDefault()}
-        onClick={() => {
-          setDraft(label);
-          setEditing(true);
-        }}
+        onClick={onOpen}
+        title={label}
+        className="min-w-0 flex-1 cursor-pointer truncate text-left font-body text-sm leading-snug text-[var(--text-primary)]"
+      >
+        {label}
+      </button>
+      <button
+        type="button"
+        aria-label={`Edit ${label}`}
+        title="Edit payment"
+        onClick={onOpen}
         className="shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
       >
         <Pencil className="size-3.5" />
@@ -749,6 +699,7 @@ function PlanCell({
           wide ? "border-[var(--warm-200)] bg-white pl-2 pr-5 text-sm" : MONTH_PAD,
         )}
         aria-label={label}
+        title={hits != null && hits > 1 ? `${hits} payments this month` : undefined}
       />
       {canFill && (
         <button
@@ -770,11 +721,6 @@ function PlanCell({
           <ArrowRightToLine className="size-3" />
         </button>
       )}
-      {hits != null && hits > 1 && (
-        <span className="pointer-events-none absolute bottom-0 right-5 font-body text-[10px] leading-none text-[var(--text-muted)]">
-          {hits}×
-        </span>
-      )}
     </div>
   );
 }
@@ -793,8 +739,10 @@ function PaymentScheduleSheet({
   onApply: (
     amounts: { month: string; amount: number }[],
     schedule: Omit<BudgetPlanSchedule, "kind" | "category">,
+    name: string,
   ) => void;
 }) {
+  const [name, setName] = useState(label);
   const [amount, setAmount] = useState(saved ? String(saved.amount) : "");
   const [basis, setBasis] = useState<AmountBasis>(saved?.basis ?? "each");
   const [cadence, setCadence] = useState<HowOften>(saved ? saved.cadence ?? "variable" : "biweekly");
@@ -822,6 +770,15 @@ function PaymentScheduleSheet({
           times in others. Groceries and other envelopes can stay the same amount each month.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="block sm:col-span-2">
+            <span className="font-body text-xs font-medium text-[var(--text-muted)]">Name</span>
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+            />
+          </label>
           <label className="block">
             <span className="font-body text-xs font-medium text-[var(--text-muted)]">Amount</span>
             <input
@@ -898,10 +855,11 @@ function PaymentScheduleSheet({
           </button>
           <button
             type="button"
-            disabled={!preview}
+            disabled={!preview || !name.trim()}
             onClick={() =>
               preview &&
               parsed != null &&
+              name.trim() &&
               onApply(
                 preview.map((slot) => ({ month: slot.month, amount: slot.amount })),
                 {
@@ -910,6 +868,7 @@ function PaymentScheduleSheet({
                   cadence: resolved,
                   anchor_date: askDate ? lastPaid : null,
                 },
+                name.trim(),
               )
             }
             className="flex-1 cursor-pointer rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"

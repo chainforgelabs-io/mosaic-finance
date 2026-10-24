@@ -7,7 +7,16 @@ import { advanceRecurringDate, type RecurringCadence } from "@/lib/tracking/cash
 
 const slug = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/);
 const iso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const cadence = z.enum(["weekly", "biweekly", "semimonthly", "monthly", "semiannual", "yearly"]);
+const cadence = z.enum([
+  "weekly",
+  "biweekly",
+  "semimonthly",
+  "monthly",
+  "quarterly",
+  "every4months",
+  "semiannual",
+  "yearly",
+]);
 const lineRole = z.enum(["purchase", "income", "savings"]);
 
 const createSchema = z.object({

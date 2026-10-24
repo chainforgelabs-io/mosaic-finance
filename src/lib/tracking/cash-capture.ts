@@ -2,7 +2,15 @@ import { addDays } from "@/lib/tracking/dates";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 
 export type CashDirection = "in" | "out";
-export type RecurringCadence = "weekly" | "biweekly" | "semimonthly" | "monthly" | "semiannual" | "yearly";
+export type RecurringCadence =
+  | "weekly"
+  | "biweekly"
+  | "semimonthly"
+  | "monthly"
+  | "quarterly"
+  | "every4months"
+  | "semiannual"
+  | "yearly";
 
 /** How many times a cadence happens in a year. Twice a month is 24, every 2 weeks is 26. */
 export const CADENCE_PER_YEAR: Record<RecurringCadence, number> = {
@@ -10,6 +18,8 @@ export const CADENCE_PER_YEAR: Record<RecurringCadence, number> = {
   biweekly: 26,
   semimonthly: 24,
   monthly: 12,
+  quarterly: 4,
+  every4months: 3,
   semiannual: 2,
   yearly: 1,
 };
@@ -19,6 +29,8 @@ export const CADENCE_LABELS: Record<RecurringCadence, string> = {
   biweekly: "Every 2 weeks",
   semimonthly: "Twice a month",
   monthly: "Monthly",
+  quarterly: "Quarterly",
+  every4months: "Every 4 months",
   semiannual: "Every 6 months",
   yearly: "Yearly",
 };
@@ -162,6 +174,8 @@ export function advanceRecurringDate(isoDate: string, cadence: RecurringCadence)
   if (cadence === "weekly") return addDays(isoDate, 7);
   if (cadence === "biweekly") return addDays(isoDate, 14);
   if (cadence === "semimonthly") return addDays(isoDate, 15);
+  if (cadence === "quarterly") return addMonthsClamped(isoDate, 3);
+  if (cadence === "every4months") return addMonthsClamped(isoDate, 4);
   if (cadence === "semiannual") return addMonthsClamped(isoDate, 6);
   if (cadence === "yearly") return addMonthsClamped(isoDate, 12);
   return addMonthsClamped(isoDate, 1);
@@ -172,6 +186,8 @@ export function retreatRecurringDate(isoDate: string, cadence: RecurringCadence)
   if (cadence === "weekly") return addDays(isoDate, -7);
   if (cadence === "biweekly") return addDays(isoDate, -14);
   if (cadence === "semimonthly") return addDays(isoDate, -15);
+  if (cadence === "quarterly") return addMonthsClamped(isoDate, -3);
+  if (cadence === "every4months") return addMonthsClamped(isoDate, -4);
   if (cadence === "semiannual") return addMonthsClamped(isoDate, -6);
   if (cadence === "yearly") return addMonthsClamped(isoDate, -12);
   return addMonthsClamped(isoDate, -1);

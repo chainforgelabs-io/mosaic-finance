@@ -37,6 +37,8 @@ describe("scheduled dates", () => {
     expect(advanceRecurringDate("2026-01-15", "monthly")).toBe("2026-02-15");
     expect(advanceRecurringDate("2026-01-31", "monthly")).toBe("2026-02-28");
     expect(advanceRecurringDate("2026-01-01", "semimonthly")).toBe("2026-01-16");
+    expect(advanceRecurringDate("2026-01-15", "quarterly")).toBe("2026-04-15");
+    expect(advanceRecurringDate("2026-01-31", "every4months")).toBe("2026-05-31");
     expect(advanceRecurringDate("2026-01-15", "semiannual")).toBe("2026-07-15");
     expect(advanceRecurringDate("2024-02-29", "yearly")).toBe("2025-02-28");
   });

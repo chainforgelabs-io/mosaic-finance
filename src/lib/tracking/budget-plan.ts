@@ -13,6 +13,7 @@ import {
 } from "@/lib/tracking/cash-capture";
 import { cardPaymentIsCovered, type StatementLine } from "@/lib/tracking/statement-baseline";
 import { monthKey, startOfMonth } from "@/lib/tracking/dates";
+import { formatMoneyExact } from "@/lib/tracking/format";
 
 export type PlanKind = CategoryKind;
 
@@ -158,15 +159,16 @@ export function scheduledMonthAmounts(
   });
 }
 
-/** Weekly through yearly, except monthly, need a last payment date to place the hits. */
+/** Every repeating cadence needs a last payment date. A flat envelope (null cadence) does not. */
 export function needsAnchorDate(cadence: RecurringCadence | null): boolean {
-  return cadence != null && cadence !== "monthly";
+  return cadence != null;
 }
 
 /**
  * Twelve month totals for one row.
- * A variable or monthly envelope is the same amount every month. Other cadences
- * count how many payments land in each month from the last payment date.
+ * A variable envelope, or a monthly row saved before dates were stored, is the same
+ * amount every month. Other cadences, including monthly with a date, count how many
+ * payments land in each month from the last payment date.
  */
 export function monthAmountsFromRow(
   amount: number,
@@ -179,7 +181,7 @@ export function monthAmountsFromRow(
   const empty = months.map((month) => ({ month, amount: 0, count: 0 }));
   if (!Number.isFinite(amount) || amount <= 0) return empty;
 
-  if (cadence == null || cadence === "monthly") {
+  if (cadence == null || (cadence === "monthly" && !anchorDate)) {
     const monthly = basis === "year" ? roundMoney(amount / 12) : roundMoney(amount);
     return months.map((month) => ({ month, amount: monthly, count: 1 }));
   }
@@ -187,6 +189,60 @@ export function monthAmountsFromRow(
   const each = perOccurrenceAmount(amount, cadence, basis);
   if (each <= 0) return empty;
   return scheduledMonthAmounts(each, cadence, anchorDate ?? "", year);
+}
+
+function longMonth(month: string): string {
+  return new Date(`${month.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-CA", {
+    month: "long",
+    timeZone: "UTC",
+  });
+}
+
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
+/**
+ * One sentence for the setup preview.
+ * A payment that misses January names the months it lands in, instead of reading January as the monthly amount.
+ */
+export function paymentPreviewNote(
+  slots: { month: string; amount: number; count: number }[],
+): string | null {
+  const paid = slots.filter((slot) => slot.count > 0 && slot.amount > 0);
+  if (paid.length === 0) return null;
+  const three = paid.find((slot) => slot.count === 3);
+  const two = paid.find((slot) => slot.count === 2);
+  if (three && two) {
+    return `${longMonth(three.month)} has 3 payments (${formatMoneyExact(three.amount)}). ${longMonth(two.month)} has 2 (${formatMoneyExact(two.amount)}).`;
+  }
+  if (paid.length < slots.length) {
+    const amount = paid[0].amount;
+    const same = paid.every((slot) => slot.amount === amount);
+    if (paid.length === 1 && same) {
+      return `${longMonth(paid[0].month)} has 1 payment (${formatMoneyExact(amount)}).`;
+    }
+    if (same) {
+      return `Payments land in ${joinNames(paid.map((slot) => longMonth(slot.month)))} (${formatMoneyExact(amount)} each).`;
+    }
+    return `${paid.map((slot) => `${longMonth(slot.month)} ${formatMoneyExact(slot.amount)}`).join(". ")}.`;
+  }
+  return `About ${formatMoneyExact(paid[0].amount)} a month.`;
+}
+
+/** Fill one calendar year from saved payment schedules, using each row's own dates. */
+export function entriesFromSchedules(schedules: BudgetPlanSchedule[], year: number): BudgetPlanEntry[] {
+  const entries: BudgetPlanEntry[] = [];
+  for (const row of schedules) {
+    if (!(row.amount > 0)) continue;
+    const slots = monthAmountsFromRow(row.amount, row.cadence, row.basis, row.anchor_date, year);
+    for (const slot of slots) {
+      entries.push({ kind: row.kind, category: row.category, month: slot.month, amount: slot.amount });
+    }
+  }
+  return entries;
 }
 
 /** Walk from a last payment to the next date on or after today. */

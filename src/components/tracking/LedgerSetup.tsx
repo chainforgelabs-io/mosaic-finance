@@ -10,11 +10,11 @@ import {
 import {
   monthAmountsFromRow,
   needsAnchorDate,
+  paymentPreviewNote,
   PLAN_KINDS,
   type PlanKind,
 } from "@/lib/tracking/budget-plan";
 import { todayIso } from "@/lib/tracking/dates";
-import { formatMoneyExact } from "@/lib/tracking/format";
 import type { CashAnchor } from "@/types/tracking";
 
 const KIND_TITLE: Record<PlanKind, string> = {
@@ -244,10 +244,6 @@ export function LedgerSetup({
   );
 }
 
-function shortMonth(month: string): string {
-  return new Date(`${month}T00:00:00`).toLocaleDateString("en-CA", { month: "long" });
-}
-
 function RowEditor({
   year,
   row,
@@ -264,9 +260,7 @@ function RowEditor({
   const askDate = needsAnchorDate(cadence);
   const showPreview = row.name.trim() && Number.isFinite(amount) && amount > 0 && (!askDate || /^\d{4}-\d{2}-\d{2}$/.test(row.nextDate));
   const slots = showPreview ? monthAmountsFromRow(amount, cadence, row.basis, row.nextDate, year) : [];
-  const two = slots.find((slot) => slot.count === 2);
-  const three = slots.find((slot) => slot.count === 3);
-  const monthly = slots[0]?.amount ?? 0;
+  const preview = showPreview ? paymentPreviewNote(slots) : null;
 
   return (
     <div className="rounded-lg border border-[var(--warm-200)] p-3">
@@ -315,29 +309,19 @@ function RowEditor({
           ))}
         </select>
         {askDate && (
-          <input
-            type="date"
-            value={row.nextDate}
-            onChange={(event) => onChange({ nextDate: event.target.value })}
-            aria-label="Last payment date"
-            className="rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
-          />
+          <div>
+            <input
+              type="date"
+              value={row.nextDate}
+              onChange={(event) => onChange({ nextDate: event.target.value })}
+              aria-label="Last payment date"
+              className="w-full rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
+            />
+            <p className="mt-1 font-body text-[11px] text-[var(--text-muted)]">Last payment date</p>
+          </div>
         )}
       </div>
-      {askDate && (
-        <p className="mt-1 font-body text-[11px] text-[var(--text-muted)]">Last payment date</p>
-      )}
-      {showPreview && two && three && (
-        <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
-          {shortMonth(three.month)} has 3 payments ({formatMoneyExact(three.amount)}). {shortMonth(two.month)} has 2 (
-          {formatMoneyExact(two.amount)}).
-        </p>
-      )}
-      {showPreview && !(two && three) && (
-        <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
-          About {formatMoneyExact(monthly)} a month.
-        </p>
-      )}
+      {preview && <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">{preview}</p>}
     </div>
   );
 }

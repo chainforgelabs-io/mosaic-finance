@@ -78,7 +78,16 @@ export function CharlieChatHeader({
 }
 
 export const charlieInputClass =
-  "min-w-0 flex-1 resize-none rounded-2xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-base leading-snug text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50";
+  "min-w-0 flex-1 resize-none overflow-y-hidden rounded-2xl border border-[var(--warm-200)] bg-white px-4 py-2.5 font-body text-base leading-snug text-[var(--text-primary)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20 disabled:opacity-50";
+
+/** Grow a one-line reply field. Overflow stays hidden until the text reaches the cap. */
+export function fitCharlieInput(textarea: HTMLTextAreaElement, max = 120) {
+  textarea.style.overflowY = "hidden";
+  textarea.style.height = "auto";
+  const full = textarea.scrollHeight;
+  textarea.style.height = `${Math.min(full, max)}px`;
+  textarea.style.overflowY = full > max ? "auto" : "hidden";
+}
 
 export const charlieSendClass =
   "flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--emerald)] text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-30";

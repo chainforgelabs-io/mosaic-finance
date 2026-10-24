@@ -338,6 +338,8 @@ function cadenceFrom(value: string): RecurringCadence | null {
   if (!text) return null;
   if (/bi-?\s*weekly|every\s*2\s*weeks|every\s*two\s*weeks/.test(text)) return "biweekly";
   if (/semi-?\s*monthly|twice a month/.test(text)) return "semimonthly";
+  if (/every\s*4\s*months|every\s*four\s*months/.test(text)) return "every4months";
+  if (/quarterly|every\s*3\s*months|every\s*three\s*months/.test(text)) return "quarterly";
   if (/semi-?\s*annual|every\s*6\s*months|twice a year/.test(text)) return "semiannual";
   if (/weekly|every week/.test(text)) return "weekly";
   if (/yearly|annual/.test(text)) return "yearly";

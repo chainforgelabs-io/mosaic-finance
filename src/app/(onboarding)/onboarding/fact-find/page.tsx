@@ -11,6 +11,7 @@ import {
   CharlieChatSurface,
   ConversationBubble,
   charlieInputClass,
+  fitCharlieInput,
   charlieSendClass,
 } from "@/components/app/ConversationBubble";
 import { ConversationErrorBoundary } from "@/components/app/ConversationErrorBoundary";
@@ -669,6 +670,7 @@ function FactFindConversation() {
     if (!trimmed || isStreaming) return;
     setInputValue("");
     if (textareaRef.current) {
+      textareaRef.current.style.overflowY = "hidden";
       textareaRef.current.style.height = "auto";
     }
     sendMessage(trimmed);
@@ -683,9 +685,7 @@ function FactFindConversation() {
 
   const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    fitCharlieInput(e.target, 120);
   };
 
   const handleConfirm = async () => {

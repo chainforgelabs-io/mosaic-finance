@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   effectiveBudget,
+  entriesFromSchedules,
   entriesFromSuggestions,
   fillAcrossMonths,
   indexPlan,
   ledgerFromRows,
   monthAmountsFromRow,
+  paymentPreviewNote,
   monthsOfYear,
   scheduledMonthAmounts,
   planFromHistory,
@@ -223,11 +225,49 @@ describe("ledger rows", () => {
     expect(slots.every((slot) => slot.amount === 1400 && slot.count === 1)).toBe(true);
   });
 
-  it("ignores the date for a monthly payment", () => {
+  it("places one monthly payment in every month from the last payment date", () => {
     const fromJan = monthAmountsFromRow(2000, "monthly", "each", "2026-01-31", 2026);
     const fromNov = monthAmountsFromRow(2000, "monthly", "each", "2026-11-01", 2026);
     expect(fromJan.map((slot) => slot.amount)).toEqual(fromNov.map((slot) => slot.amount));
     expect(fromJan.every((slot) => slot.amount === 2000 && slot.count === 1)).toBe(true);
+  });
+
+  it("lands a quarterly payment four times, on the same day", () => {
+    const slots = monthAmountsFromRow(120, "quarterly", "each", "2026-01-15", 2026);
+    const filled = slots.filter((slot) => slot.amount > 0);
+    expect(filled.map((slot) => slot.month)).toEqual(["2026-01-01", "2026-04-01", "2026-07-01", "2026-10-01"]);
+    expect(filled.every((slot) => slot.amount === 120 && slot.count === 1)).toBe(true);
+  });
+
+  it("lands a payment every 4 months", () => {
+    const slots = monthAmountsFromRow(80, "every4months", "each", "2026-01-15", 2026);
+    const filled = slots.filter((slot) => slot.amount > 0);
+    expect(filled.map((slot) => slot.month)).toEqual(["2026-01-01", "2026-05-01", "2026-09-01"]);
+  });
+
+  it("names the month a yearly payment lands instead of reading January", () => {
+    const slots = monthAmountsFromRow(45.58, "yearly", "each", "2026-10-23", 2026);
+    expect(paymentPreviewNote(slots)).toBe("October has 1 payment ($45.58).");
+  });
+
+  it("fills the next year from the saved dates, not by copying one year's cells", () => {
+    const next = entriesFromSchedules(
+      [
+        {
+          kind: "expense",
+          category: "insurance",
+          amount: 45.58,
+          basis: "each",
+          cadence: "yearly",
+          anchor_date: "2026-10-23",
+        },
+      ],
+      2027,
+    );
+    const filled = next.filter((entry) => entry.amount > 0);
+    expect(filled).toEqual([
+      { kind: "expense", category: "insurance", month: "2027-10-01", amount: 45.58 },
+    ]);
   });
 
   it("puts a yearly payment in one month", () => {
@@ -271,6 +311,6 @@ describe("ledger rows", () => {
     expect(new Set(salary.map((entry) => entry.amount)).size).toBeGreaterThan(1);
     expect(salary.some((entry) => entry.amount === 11538.46 || entry.amount === 17307.69)).toBe(true);
     expect(built.schedules[1]).toMatchObject({ amount: 2000, direction: "out", line_role: "purchase" });
-    expect(built.planSchedules[1].anchor_date).toBeNull();
+    expect(built.planSchedules[1].anchor_date).toBe("2026-11-01");
   });
 });

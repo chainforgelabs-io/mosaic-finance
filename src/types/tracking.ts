@@ -7,7 +7,15 @@ import type {
 export type TransactionSource = "manual" | "screenshot" | "scheduled" | "balance_check" | "catchup";
 
 export type CashDirection = "in" | "out";
-export type RecurringCadence = "weekly" | "biweekly" | "semimonthly" | "monthly" | "semiannual" | "yearly";
+export type RecurringCadence =
+  | "weekly"
+  | "biweekly"
+  | "semimonthly"
+  | "monthly"
+  | "quarterly"
+  | "every4months"
+  | "semiannual"
+  | "yearly";
 export type StatementInstrument = "credit" | "debit";
 export type StatementLineRole =
   | "purchase"
@@ -36,7 +44,7 @@ export interface BudgetPlanSchedule {
   amount: number;
   basis: "each" | "year";
   cadence: RecurringCadence | null;
-  /** Last payment date. Null for a monthly envelope or a once-a-month payment. */
+  /** Last payment date. Null only for a flat monthly envelope (no cadence). */
   anchor_date: string | null;
 }
 

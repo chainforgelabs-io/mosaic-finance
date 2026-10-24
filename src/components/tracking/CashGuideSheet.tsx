@@ -9,7 +9,7 @@ const STEPS = [
   },
   {
     title: "List income, expenses, and savings",
-    body: "The plan is one row for each source. Enter the amount each time, or a full-year figure and how often it is paid. Weekly, every 2 weeks, twice a month, monthly, every 6 months, and yearly are all available.",
+    body: "The plan is one row for each source. Enter the amount each time, or a full-year figure and how often it is paid. Weekly, every 2 weeks, twice a month, monthly, quarterly, every 4 months, every 6 months, and yearly are all available.",
   },
   {
     title: "Say whether a purchase left the bank",

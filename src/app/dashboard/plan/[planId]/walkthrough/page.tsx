@@ -11,6 +11,7 @@ import {
   TypingIndicator,
   charlieInputClass,
   charlieSendClass,
+  fitCharlieInput,
 } from "@/components/app/ConversationBubble";
 import { EmptyState } from "@/components/app/EmptyState";
 import {
@@ -342,8 +343,7 @@ function ConversationPanel({
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 96) + "px";
+              fitCharlieInput(e.target, 96);
             }}
             onKeyDown={handleKeyDown}
             placeholder="Ask a follow-up question..."
