@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   const { sessionId, message, sessionType } = parsed.data;
   const sanitizedMessage = message ? sanitizeUserInput(message) : null;
 
-  const entitlements = await loadProfileEntitlements(user.id);
+  const entitlements = await loadProfileEntitlements(user.id, user.email);
   if (!entitlements.canUseCharlie) {
     return Response.json(
       { error: ENTITLEMENT_COPY.charlie, code: 'UPGRADE_REQUIRED', reason: 'charlie' },

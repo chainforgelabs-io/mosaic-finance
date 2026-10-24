@@ -631,7 +631,11 @@ function FactFindConversation() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionType: "fact-find" }),
       });
-      if (!res.ok) throw new Error("Failed to start session");
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        const message = typeof body?.error === "string" ? body.error : "Failed to start session";
+        throw new Error(message);
+      }
 
       const { sessionId: newSessionId } = await res.json();
       setError(null);
@@ -891,10 +895,15 @@ function FactFindConversation() {
                       <div className="mt-4 flex justify-start">
                         <div className="max-w-[80%] rounded-2xl rounded-bl-md border border-[var(--error)]/20 bg-[var(--error)]/5 px-4 py-3">
                           <p className="font-body text-[14px] text-[var(--error)]">
-                            Something went wrong. Please try again.
+                            {conversationError}
                           </p>
                           <button
                             onClick={() => {
+                              setError(null);
+                              if (!sessionId) {
+                                void startConversation();
+                                return;
+                              }
                               const lastUser = [...messages].reverse().find((m) => m.role === "user");
                               if (lastUser?.content) void sendMessage(lastUser.content);
                               else void sendMessage();

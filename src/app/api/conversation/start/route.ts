@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     const { sessionType } = parsed.data;
 
-    const entitlements = await loadProfileEntitlements(user.id);
+    const entitlements = await loadProfileEntitlements(user.id, user.email);
     if (!entitlements.canUseCharlie) {
       return entitlementDenied('charlie', ENTITLEMENT_COPY.charlie);
     }

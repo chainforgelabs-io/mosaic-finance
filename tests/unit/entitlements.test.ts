@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTrialActive, normalizeTier, resolveEntitlements } from "@/lib/entitlements";
+import { isTrialActive, normalizeTier, resolveEntitlements, signupTrialMissing } from "@/lib/entitlements";
 
 describe("normalizeTier", () => {
   it("maps legacy names", () => {
@@ -57,6 +57,30 @@ describe("resolveEntitlements", () => {
     const e = resolveEntitlements({ subscription_tier: "progress" });
     expect(e.reportRegenCap).toBe(1);
     expect(e.charlieSoftCap).toEqual({ kind: "messages", limit: 100 });
+  });
+});
+
+describe("signupTrialMissing", () => {
+  it("is missing until a Pulse account has a trial timestamp", () => {
+    expect(signupTrialMissing(null)).toBe(true);
+    expect(signupTrialMissing({ subscription_tier: "pulse", trial_ends_at: null })).toBe(true);
+  });
+
+  it("does not replace an expired trial or a paid plan", () => {
+    expect(
+      signupTrialMissing({
+        subscription_tier: "pulse",
+        trial_ends_at: new Date(Date.now() - 86_400_000).toISOString(),
+      }),
+    ).toBe(false);
+    expect(signupTrialMissing({ subscription_tier: "progress", trial_ends_at: null })).toBe(false);
+    expect(
+      signupTrialMissing({
+        subscription_tier: "pulse",
+        trial_ends_at: null,
+        stripe_subscription_id: "sub_123",
+      }),
+    ).toBe(false);
   });
 });
 

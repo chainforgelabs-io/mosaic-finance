@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Tier } from "@/types";
 import { createServiceClient } from "@/lib/supabase/service";
-import { TRIAL_COPY } from "@/lib/config/launch-surface";
+import { TRIAL_COPY, trialEndsAtIso } from "@/lib/config/launch-surface";
 
 export type PaidTier = "progress" | "mastery";
 
@@ -176,14 +176,67 @@ export async function recordUsageEvent(event: {
   }
 }
 
-export async function loadProfileEntitlements(userId: string): Promise<Entitlements> {
+/**
+ * A Pulse account with no Stripe subscription and no trial timestamp never
+ * received the signup trial. An expired trial has a timestamp and is left alone.
+ */
+export function signupTrialMissing(
+  profile: {
+    subscription_tier?: string | null;
+    trial_ends_at?: string | null;
+    stripe_subscription_id?: string | null;
+  } | null,
+): boolean {
+  if (!profile) return true;
+  if (profile.stripe_subscription_id) return false;
+  if (normalizeTier(profile.subscription_tier) !== "pulse") return false;
+  return profile.trial_ends_at == null;
+}
+
+export async function loadProfileEntitlements(
+  userId: string,
+  email?: string | null,
+): Promise<Entitlements> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("user_profiles")
     .select(
-      "subscription_tier, trial_ends_at, academy_access, subscription_interval, is_founding_member",
+      "subscription_tier, trial_ends_at, academy_access, subscription_interval, is_founding_member, stripe_subscription_id",
     )
     .eq("id", userId)
     .maybeSingle();
-  return resolveEntitlements(data);
+
+  if (!signupTrialMissing(data)) {
+    return resolveEntitlements(data);
+  }
+
+  const trialEndsAt = trialEndsAtIso();
+  if (!data) {
+    const { error } = await supabase.from("user_profiles").insert({
+      id: userId,
+      alias: email?.split("@")[0] || `user_${userId.slice(0, 6)}`,
+      subscription_tier: "pulse",
+      trial_ends_at: trialEndsAt,
+      email: email ?? null,
+    });
+    if (!error) {
+      return resolveEntitlements({
+        subscription_tier: "pulse",
+        trial_ends_at: trialEndsAt,
+      });
+    }
+    console.error("[entitlements] signup profile insert failed", error);
+    return resolveEntitlements(null);
+  }
+
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ trial_ends_at: trialEndsAt })
+    .eq("id", userId)
+    .is("trial_ends_at", null);
+  if (error) {
+    console.error("[entitlements] signup trial update failed", error);
+    return resolveEntitlements(data);
+  }
+  return resolveEntitlements({ ...data, trial_ends_at: trialEndsAt });
 }

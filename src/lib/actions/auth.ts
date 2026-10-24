@@ -52,7 +52,7 @@ export async function insertUserProfileAfterSignUp(formData: {
     email: user.email ?? null,
   });
 
-  if (profileError) {
+  if (profileError && profileError.code !== "23505") {
     return { error: "Account created but profile setup failed. Please sign in." };
   }
 
