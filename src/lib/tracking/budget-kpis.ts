@@ -8,6 +8,7 @@ import {
   transactionKind,
   type CashTxn,
 } from "@/lib/tracking/cash-capture";
+import { isSpendingCategory, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { endOfMonth, startOfMonth } from "@/lib/tracking/dates";
 
 export type SavingsRateMode = "active" | "passive";
@@ -202,6 +203,64 @@ export function varianceSections(
     });
   }
   return sections;
+}
+
+/** Plan lines that have no spending category yet. */
+export const UNGROUPED_SPEND = "ungrouped";
+
+/**
+ * Expense KPIs by spending category.
+ * Named plan lines roll up through the category chosen on the line.
+ * Logged spending with no matching plan line, including Flex/Misc, stays in the list.
+ */
+export function expenseCategoryVariance(
+  txns: Array<CashTxn & { category: string }>,
+  plan: BudgetPlanEntry[],
+  schedules: Array<{ kind: string; category: string; spend_category?: string | null }>,
+  period: Period,
+): VarianceSection {
+  const groupOf = new Map<string, string>();
+  for (const row of schedules) {
+    if (row.kind !== "expense" || !row.spend_category || !isSpendingCategory(row.spend_category)) continue;
+    groupOf.set(row.category, row.spend_category);
+  }
+
+  const planned = new Map<string, number>();
+  for (const entry of plan) {
+    if (entry.kind !== "expense" || !period.months.includes(startOfMonth(entry.month))) continue;
+    const group = groupOf.get(entry.category) ?? (isSpendingCategory(entry.category) ? entry.category : UNGROUPED_SPEND);
+    planned.set(group, (planned.get(group) ?? 0) + (Number(entry.amount) || 0));
+  }
+
+  const tracked = new Map<string, number>();
+  for (const txn of txns) {
+    if (!inPeriod(txn, period) || transactionKind(txn) !== "expense") continue;
+    const category = txn.category || "other";
+    tracked.set(category, (tracked.get(category) ?? 0) + (Number(txn.amount) || 0));
+  }
+
+  const keys = new Set<string>([...planned.keys(), ...tracked.keys()]);
+  const order = new Map<string, number>(SPENDING_CATEGORIES.map((category, index) => [category, index]));
+  const rows = [...keys]
+    .filter((category) => (planned.get(category) ?? 0) > 0 || (tracked.get(category) ?? 0) > 0)
+    .sort((a, b) => (order.get(a) ?? 100) - (order.get(b) ?? 100) || a.localeCompare(b))
+    .map((category) =>
+      categoryVariance(
+        "expense",
+        category,
+        tracked.get(category) ?? 0,
+        planned.has(category) ? roundMoney(planned.get(category) ?? 0) : null,
+      ),
+    );
+
+  const trackedTotal = rows.reduce((sum, row) => sum + row.tracked, 0);
+  const budgeted = rows.filter((row) => row.budget != null);
+  const budgetTotal = budgeted.length > 0 ? roundMoney(budgeted.reduce((sum, row) => sum + (row.budget ?? 0), 0)) : null;
+  return {
+    kind: "expense",
+    rows,
+    totals: categoryVariance("expense", "total", trackedTotal, budgetTotal),
+  };
 }
 
 export interface MonthPoint {

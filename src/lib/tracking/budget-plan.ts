@@ -425,6 +425,8 @@ export interface LedgerPlanRow {
   cadence: RecurringCadence | null;
   basis: AmountBasis;
   nextDate: string | null;
+  /** Spending category for an expense line. Ignored for income and savings. */
+  spendCategory?: string | null;
 }
 
 export interface LedgerSchedule {
@@ -494,6 +496,7 @@ export function ledgerFromRows(
       basis: row.basis,
       cadence: row.cadence,
       anchor_date: needsAnchorDate(row.cadence) ? row.nextDate : null,
+      spend_category: row.kind === "expense" ? row.spendCategory ?? null : null,
     });
     if (row.cadence) {
       const each = perOccurrenceAmount(row.amount, row.cadence, row.basis);

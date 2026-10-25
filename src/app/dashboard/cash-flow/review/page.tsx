@@ -12,12 +12,14 @@ import {
   type UserCategory,
 } from "@/lib/tracking/categories";
 import {
+  expenseCategoryVariance,
   monthPeriod,
   monthlySeries,
   periodCompletion,
   savingsRate,
   trackedTotals,
   trackingBalance,
+  UNGROUPED_SPEND,
   varianceSections,
   yearPeriod,
   type CategoryVariance,
@@ -29,7 +31,7 @@ import { formatMoney } from "@/lib/tracking/format";
 import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import type { PlanKind } from "@/lib/tracking/budget-plan";
 import { cn } from "@/lib/utils";
-import type { BudgetPlanEntry, TransactionRow } from "@/types/tracking";
+import type { BudgetPlanEntry, BudgetPlanSchedule, TransactionRow } from "@/types/tracking";
 
 const RATE_MODE_KEY = "mosaic-savings-rate-mode";
 
@@ -50,6 +52,7 @@ function loadRateMode(): SavingsRateMode {
 async function loadYear(targetYear: number): Promise<{
   txns: TransactionRow[];
   plan: BudgetPlanEntry[];
+  schedules: BudgetPlanSchedule[];
   budgets: Record<string, number>;
   catalog: UserCategory[];
 }> {
@@ -70,7 +73,7 @@ async function loadYear(targetYear: number): Promise<{
     const json = await budgetRes.json();
     for (const b of json.budgets ?? []) budgets[b.category] = Number(b.monthly_limit);
   }
-  return { txns, plan: planData.entries, budgets, catalog };
+  return { txns, plan: planData.entries, schedules: planData.schedules, budgets, catalog };
 }
 
 function pct(value: number | null, digits = 0): string {
@@ -84,6 +87,7 @@ export default function ReviewPage() {
   const [month, setMonth] = useState<string | "year">(() => startOfMonth(today));
   const [txns, setTxns] = useState<TransactionRow[]>([]);
   const [plan, setPlan] = useState<BudgetPlanEntry[]>([]);
+  const [schedules, setSchedules] = useState<BudgetPlanSchedule[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [catalog, setCatalog] = useState<UserCategory[]>([]);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
@@ -96,6 +100,7 @@ export default function ReviewPage() {
       if (cancelled) return;
       setTxns(data.txns);
       setPlan(data.plan);
+      setSchedules(data.schedules);
       setBudgets(data.budgets);
       setCatalog(data.catalog);
       setRateMode(loadRateMode());
@@ -112,6 +117,10 @@ export default function ReviewPage() {
   const balance = trackingBalance(totals);
   const rate = savingsRate(totals, rateMode);
   const sections = useMemo(() => varianceSections(txns, plan, period, budgets), [txns, plan, period, budgets]);
+  const categorySection = useMemo(
+    () => expenseCategoryVariance(txns, plan, schedules, period),
+    [txns, plan, schedules, period],
+  );
   const series = useMemo(() => monthlySeries(txns, plan, year), [txns, plan, year]);
   const months = useMemo(() => yearPeriod(year).months, [year]);
   const currentYear = Number(today.slice(0, 4));
@@ -243,6 +252,16 @@ export default function ReviewPage() {
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <div className="space-y-4">
+            {categorySection.rows.length > 0 && (
+              <div className="space-y-2">
+                <VarianceTable
+                  section={categorySection}
+                  catalog={catalog}
+                  title="Spending categories"
+                  subtitle="Plan lines grouped by category. Flex/Misc, and anything you log that is not on the plan, still show here."
+                />
+              </div>
+            )}
             {sections.map((section) => (
               <VarianceTable key={section.kind} section={section} catalog={catalog} />
             ))}
@@ -289,14 +308,27 @@ function KpiTile({
   );
 }
 
-function VarianceTable({ section, catalog }: { section: VarianceSection; catalog: UserCategory[] }) {
+function VarianceTable({
+  section,
+  catalog,
+  title,
+  subtitle,
+}: {
+  section: VarianceSection;
+  catalog: UserCategory[];
+  title?: string;
+  subtitle?: string;
+}) {
   const tone = KIND_TONE[section.kind];
   const isIncome = section.kind === "income";
   if (section.rows.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--warm-200)] bg-white">
       <div className={cn("flex items-center justify-between px-4 py-2", tone.header)}>
-        <h2 className="font-display text-sm font-semibold">{CATEGORY_KIND_LABELS[section.kind]}</h2>
+        <div>
+          <h2 className="font-display text-sm font-semibold">{title ?? CATEGORY_KIND_LABELS[section.kind]}</h2>
+          {subtitle && <p className="font-body text-[11px] font-normal">{subtitle}</p>}
+        </div>
         <span className="font-body text-xs">
           {isIncome ? "Tracked · Plan · Above plan" : "Tracked · Budget · Remaining · Excess"}
         </span>
@@ -310,7 +342,13 @@ function VarianceTable({ section, catalog }: { section: VarianceSection; catalog
       </div>
       <ul className="divide-y divide-[var(--warm-100)]">
         {section.rows.map((row) => (
-          <VarianceLine key={row.category} row={row} label={labelFor(catalog, row.category)} tone={tone} isIncome={isIncome} />
+          <VarianceLine
+            key={row.category}
+            row={row}
+            label={row.category === UNGROUPED_SPEND ? "Not grouped" : labelFor(catalog, row.category)}
+            tone={tone}
+            isIncome={isIncome}
+          />
         ))}
       </ul>
       <div className="border-t border-[var(--warm-200)] bg-[var(--warm-50)]">

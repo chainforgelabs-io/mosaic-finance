@@ -15,6 +15,7 @@ import {
   type PlanKind,
 } from "@/lib/tracking/budget-plan";
 import { todayIso } from "@/lib/tracking/dates";
+import { SPENDING_CATEGORIES, SPENDING_CATEGORY_LABELS, type SpendingCategory } from "@/lib/tracking/categories";
 import type { CashAnchor } from "@/types/tracking";
 
 const KIND_TITLE: Record<PlanKind, string> = {
@@ -39,6 +40,7 @@ export interface LedgerSetupRow {
   cadence: RecurringCadence | null;
   basis: AmountBasis;
   nextDate: string | null;
+  spendCategory: SpendingCategory | null;
 }
 
 export interface LedgerSetupInput {
@@ -55,6 +57,7 @@ interface DraftRow {
   cadence: HowOften;
   basis: AmountBasis;
   nextDate: string;
+  spendCategory: SpendingCategory | "";
 }
 
 function blankRow(kind: PlanKind): DraftRow {
@@ -65,6 +68,7 @@ function blankRow(kind: PlanKind): DraftRow {
     cadence: kind === "income" ? "biweekly" : "monthly",
     basis: "each",
     nextDate: todayIso(),
+    spendCategory: "",
   };
 }
 
@@ -131,6 +135,10 @@ export function LedgerSetup({
           setFormError("A repeating payment needs the last payment date.");
           return;
         }
+        if (kind === "expense" && !row.spendCategory) {
+          setFormError("Each expense row needs a category.");
+          return;
+        }
         parsed.push({
           kind,
           name: row.name.trim(),
@@ -138,6 +146,7 @@ export function LedgerSetup({
           cadence: row.cadence === "variable" ? null : row.cadence,
           basis: row.basis,
           nextDate: needsAnchorDate(row.cadence === "variable" ? null : row.cadence) ? row.nextDate : null,
+          spendCategory: kind === "expense" && row.spendCategory ? row.spendCategory : null,
         });
       }
     }
@@ -209,6 +218,7 @@ export function LedgerSetup({
               <RowEditor
                 key={row.key}
                 year={year}
+                kind={kind}
                 row={row}
                 onChange={(patch) => update(kind, row.key, patch)}
                 onRemove={() =>
@@ -246,11 +256,13 @@ export function LedgerSetup({
 
 function RowEditor({
   year,
+  kind,
   row,
   onChange,
   onRemove,
 }: {
   year: number;
+  kind: PlanKind;
   row: DraftRow;
   onChange: (patch: Partial<DraftRow>) => void;
   onRemove: () => void;
@@ -295,6 +307,23 @@ function RowEditor({
           <option value="year">Per year</option>
         </select>
       </div>
+      {kind === "expense" && (
+        <label className="mt-2 block">
+          <span className="font-body text-[11px] text-[var(--text-muted)]">Category</span>
+          <select
+            value={row.spendCategory}
+            onChange={(event) => onChange({ spendCategory: event.target.value as SpendingCategory | "" })}
+            className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
+          >
+            <option value="">Choose a category</option>
+            {SPENDING_CATEGORIES.map((option) => (
+              <option key={option} value={option}>
+                {SPENDING_CATEGORY_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className={askDate ? "mt-2 grid grid-cols-2 gap-2" : "mt-2"}>
         <select
           value={row.cadence}

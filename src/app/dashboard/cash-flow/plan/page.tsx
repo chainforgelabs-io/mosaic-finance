@@ -643,7 +643,7 @@ export default function BudgetPlanPage() {
 
       <p className="font-body text-xs text-[var(--text-muted)]">
         Tip: click a category to fill the year from one payment, how often it happens, and the last payment date.
-        Use the pencil to rename a row and the × to remove it. You can still edit any month. Tracking, budgets,
+        Use the pencil to edit a row and the × to remove it. You can still edit any month. Tracking, budgets,
         and this plan are always free.
       </p>
 

@@ -46,6 +46,8 @@ export interface BudgetPlanSchedule {
   cadence: RecurringCadence | null;
   /** Last payment date. Null only for a flat monthly envelope (no cadence). */
   anchor_date: string | null;
+  /** Spending category for an expense line. Null for income, savings, and lines not yet grouped. */
+  spend_category?: string | null;
 }
 
 export interface TransactionRow {

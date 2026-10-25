@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   categoryVariance,
+  expenseCategoryVariance,
   ledgerHeaderKpis,
   ledgerOpening,
   ledgerRows,
@@ -10,6 +11,7 @@ import {
   savingsRate,
   trackedTotals,
   trackingBalance,
+  UNGROUPED_SPEND,
   varianceSections,
   yearPeriod,
 } from "@/lib/tracking/budget-kpis";
@@ -185,5 +187,33 @@ describe("ledger", () => {
     expect(kpis.daysSinceLastRecord).toBe(8);
     expect(kpis.recordsThisYear).toBe(8);
     expect(kpis.trackingBalanceYtd).toBe(9209 - 3859 - 1000 - 50);
+  });
+});
+
+describe("expense category KPIs", () => {
+  it("rolls named plan lines into a spending category and keeps unplanned spending", () => {
+    const plan: BudgetPlanEntry[] = [
+      { kind: "expense", category: "sgi_auto", month: "2026-03-01", amount: 45 },
+      { kind: "expense", category: "home_insurance", month: "2026-03-01", amount: 80 },
+      { kind: "expense", category: "mystery", month: "2026-03-01", amount: 20 },
+    ];
+    const section = expenseCategoryVariance(
+      [
+        { txn_date: "2026-03-04", amount: 30, direction: "out", line_role: "purchase", category: "insurance" },
+        { txn_date: "2026-03-06", amount: 12, direction: "out", line_role: "purchase", category: "other" },
+      ],
+      plan,
+      [
+        { kind: "expense", category: "sgi_auto", spend_category: "insurance" },
+        { kind: "expense", category: "home_insurance", spend_category: "insurance" },
+      ],
+      monthPeriod("2026-03-01"),
+    );
+    const insurance = section.rows.find((row) => row.category === "insurance");
+    const other = section.rows.find((row) => row.category === "other");
+    const ungrouped = section.rows.find((row) => row.category === UNGROUPED_SPEND);
+    expect(insurance).toMatchObject({ tracked: 30, budget: 125 });
+    expect(other).toMatchObject({ tracked: 12, budget: null });
+    expect(ungrouped).toMatchObject({ tracked: 0, budget: 20 });
   });
 });

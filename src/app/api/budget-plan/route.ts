@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
+import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 
 const SLUG = /^[a-z][a-z0-9_]{0,39}$/;
 const MONTH = /^\d{4}-\d{2}-01$/;
@@ -24,6 +25,7 @@ const scheduleSchema = z.object({
     .enum(["weekly", "biweekly", "semimonthly", "monthly", "quarterly", "every4months", "semiannual", "yearly"])
     .nullable(),
   anchor_date: z.string().regex(ISO_DATE).nullable(),
+  spend_category: z.enum(SPENDING_CATEGORIES).nullable().optional(),
 });
 
 const putSchema = z.object({
@@ -45,6 +47,10 @@ const putSchema = z.object({
 
 function missingScheduleTable(message: string): boolean {
   return /budget_plan_schedules|does not exist|schema cache/i.test(message);
+}
+
+function missingSpendColumn(message: string): boolean {
+  return /spend_category/i.test(message);
 }
 
 export async function GET(req: NextRequest) {
@@ -76,10 +82,17 @@ export async function GET(req: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id);
 
-  const scheduleSelect = await supabase
+  const withGroup = await supabase
     .from("budget_plan_schedules")
-    .select("kind, category, amount, basis, cadence, anchor_date")
+    .select("kind, category, amount, basis, cadence, anchor_date, spend_category")
     .eq("user_id", user.id);
+  const scheduleSelect =
+    withGroup.error && missingSpendColumn(withGroup.error.message)
+      ? await supabase
+          .from("budget_plan_schedules")
+          .select("kind, category, amount, basis, cadence, anchor_date")
+          .eq("user_id", user.id)
+      : withGroup;
   const schedules =
     scheduleSelect.error && missingScheduleTable(scheduleSelect.error.message)
       ? []
@@ -92,6 +105,7 @@ export async function GET(req: NextRequest) {
             basis: row.basis,
             cadence: row.cadence,
             anchor_date: row.anchor_date,
+            spend_category: "spend_category" in row ? row.spend_category : null,
           }));
   if (schedules == null) return NextResponse.json({ error: "Failed to load plan" }, { status: 500 });
 
@@ -161,10 +175,27 @@ export async function PUT(req: NextRequest) {
       basis: schedule.basis,
       cadence: schedule.cadence,
       anchor_date: schedule.anchor_date,
+      spend_category: schedule.kind === "expense" ? schedule.spend_category ?? null : null,
     }));
-    const { error } = await supabase.from("budget_plan_schedules").upsert(rows, {
+    let { error } = await supabase.from("budget_plan_schedules").upsert(rows, {
       onConflict: "user_id,kind,category",
     });
+    if (error && missingSpendColumn(error.message)) {
+      const withoutGroup = rows.map((row) => ({
+        user_id: row.user_id,
+        kind: row.kind,
+        category: row.category,
+        amount: row.amount,
+        basis: row.basis,
+        cadence: row.cadence,
+        anchor_date: row.anchor_date,
+      }));
+      const retry = await supabase.from("budget_plan_schedules").upsert(withoutGroup, {
+        onConflict: "user_id,kind,category",
+      });
+      error = retry.error;
+      schedulesSaved = false;
+    }
     if (error) {
       if (missingScheduleTable(error.message)) schedulesSaved = false;
       else return NextResponse.json({ error: "Failed to save plan schedule" }, { status: 500 });

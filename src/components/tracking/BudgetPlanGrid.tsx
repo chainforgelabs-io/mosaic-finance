@@ -5,8 +5,12 @@ import { ArrowRightToLine, Pencil, Plus, X } from "lucide-react";
 import {
   CATEGORY_KIND_LABELS,
   categorySlug,
+  isSpendingCategory,
   labelFor,
   resolveCategories,
+  SPENDING_CATEGORIES,
+  SPENDING_CATEGORY_LABELS,
+  type SpendingCategory,
   type UserCategory,
 } from "@/lib/tracking/categories";
 import {
@@ -204,6 +208,7 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
       {schedule && (
         <PaymentScheduleSheet
           label={schedule.label}
+          kind={schedule.kind}
           year={year}
           saved={schedules.find((row) => row.kind === schedule.kind && row.category === schedule.category)}
           onClose={() => setSchedule(null)}
@@ -471,6 +476,7 @@ function PlanSection({
               <th className={cn(STICKY, "px-2 py-0.5 text-left font-normal")}>
                 <RowLabel
                   label={name}
+                  detail={kind === "expense" && saved?.spend_category && isSpendingCategory(saved.spend_category) ? SPENDING_CATEGORY_LABELS[saved.spend_category] : undefined}
                   onOpen={() => onOpenSchedule(kind, category)}
                   onRemove={() => onRemoveRow(kind, category)}
                 />
@@ -546,6 +552,7 @@ function PlanSection({
               <div className="min-w-0 flex-1">
                 <RowLabel
                   label={labelFor(catalog, category)}
+                  detail={kind === "expense" && saved?.spend_category && isSpendingCategory(saved.spend_category) ? SPENDING_CATEGORY_LABELS[saved.spend_category] : undefined}
                   onOpen={() => onOpenSchedule(kind, category)}
                   onRemove={() => onRemoveRow(kind, category)}
                 />
@@ -580,10 +587,12 @@ function PlanSection({
 
 function RowLabel({
   label,
+  detail,
   onOpen,
   onRemove,
 }: {
   label: string;
+  detail?: string;
   onOpen: () => void;
   onRemove: () => void;
 }) {
@@ -592,10 +601,11 @@ function RowLabel({
       <button
         type="button"
         onClick={onOpen}
-        title={label}
+        title={detail ? `${label} · ${detail}` : label}
         className="min-w-0 flex-1 cursor-pointer truncate text-left font-body text-sm leading-snug text-[var(--text-primary)]"
       >
-        {label}
+        <span className="block truncate">{label}</span>
+        {detail && <span className="block truncate text-[11px] text-[var(--text-muted)]">{detail}</span>}
       </button>
       <button
         type="button"
@@ -727,12 +737,14 @@ function PlanCell({
 
 function PaymentScheduleSheet({
   label,
+  kind,
   year,
   saved,
   onClose,
   onApply,
 }: {
   label: string;
+  kind: PlanKind;
   year: number;
   saved?: BudgetPlanSchedule;
   onClose: () => void;
@@ -743,6 +755,9 @@ function PaymentScheduleSheet({
   ) => void;
 }) {
   const [name, setName] = useState(label);
+  const [spendCategory, setSpendCategory] = useState<SpendingCategory | "">(
+    saved?.spend_category && isSpendingCategory(saved.spend_category) ? saved.spend_category : "",
+  );
   const [amount, setAmount] = useState(saved ? String(saved.amount) : "");
   const [basis, setBasis] = useState<AmountBasis>(saved?.basis ?? "each");
   const [cadence, setCadence] = useState<HowOften>(saved ? saved.cadence ?? "variable" : "biweekly");
@@ -779,6 +794,23 @@ function PaymentScheduleSheet({
               className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
             />
           </label>
+          {kind === "expense" && (
+            <label className="block sm:col-span-2">
+              <span className="font-body text-xs font-medium text-[var(--text-muted)]">Category</span>
+              <select
+                value={spendCategory}
+                onChange={(event) => setSpendCategory(event.target.value as SpendingCategory | "")}
+                className="mt-1 w-full cursor-pointer rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-sm"
+              >
+                <option value="">Choose a category</option>
+                {SPENDING_CATEGORIES.map((option) => (
+                  <option key={option} value={option}>
+                    {SPENDING_CATEGORY_LABELS[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="font-body text-xs font-medium text-[var(--text-muted)]">Amount</span>
             <input
@@ -855,11 +887,12 @@ function PaymentScheduleSheet({
           </button>
           <button
             type="button"
-            disabled={!preview || !name.trim()}
+            disabled={!preview || !name.trim() || (kind === "expense" && !spendCategory)}
             onClick={() =>
               preview &&
               parsed != null &&
               name.trim() &&
+              (kind !== "expense" || spendCategory) &&
               onApply(
                 preview.map((slot) => ({ month: slot.month, amount: slot.amount })),
                 {
@@ -867,6 +900,7 @@ function PaymentScheduleSheet({
                   basis,
                   cadence: resolved,
                   anchor_date: askDate ? lastPaid : null,
+                  spend_category: kind === "expense" ? spendCategory : null,
                 },
                 name.trim(),
               )
