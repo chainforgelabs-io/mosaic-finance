@@ -38,9 +38,11 @@ import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
+import { planOverview } from "@/lib/tracking/budget-plan";
+import { fetchPlan } from "@/lib/tracking/plan-client";
 import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
 import { classifyLiability, lineSeries, type LiabilityTerm } from "@/lib/net-worth/tracking";
-import type { NetWorthSnapshotRow } from "@/types/tracking";
+import type { BudgetPlanEntry, NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
 
@@ -601,6 +603,7 @@ export default function AssetsPage() {
   const [saving, setSaving] = useState(false);
   const lastHoldingsFetchAt = useRef<number>(0);
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
+  const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
   const [debtName, setDebtName] = useState("");
@@ -647,6 +650,7 @@ export default function AssetsPage() {
         setSnapshottedThisMonth(rows.some((s) => monthKey(s.snapshot_date) === monthKey(todayIso())));
       })
       .catch(() => {});
+    void fetchPlan(Number(todayIso().slice(0, 4))).then((plan) => setPlanEntries(plan.entries));
     void fetch("/api/setup/status", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -1198,7 +1202,7 @@ export default function AssetsPage() {
 
         {/* DEBTS & LIABILITIES */}
           <div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-red-500" />
                 <h2 className="font-[family-name:var(--font-display)] font-semibold text-xl text-[var(--text-primary)]">Debts & Liabilities</h2>
@@ -1206,7 +1210,7 @@ export default function AssetsPage() {
               <button
                 type="button"
                 onClick={() => { setDebtOpen((open) => !open); setDebtError(null); }}
-                className="inline-flex items-center gap-1.5 self-start rounded-full border border-[var(--warm-200)] bg-white px-3 py-1.5 font-display text-xs font-semibold text-[var(--text-primary)]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warm-200)] bg-white px-3 py-1.5 font-display text-xs font-semibold text-[var(--text-primary)]"
               >
                 <Plus className="size-3.5" />
                 Add a liability
@@ -1299,6 +1303,7 @@ export default function AssetsPage() {
                         <TermSelect
                           value={classifyLiability(d.type, d.term)}
                           onChange={(term) => void handleDebtTerm(d.index, term)}
+                          className="mt-1"
                         />
                       </div>
                       <div className="flex items-center gap-3">
@@ -1336,14 +1341,16 @@ export default function AssetsPage() {
                     {manualDebts.map((d) => (
                       <tr key={`${d.type}-${d.index}`} className="border-b border-[var(--warm-50)] last:border-0">
                         <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
-                          {presentGoalName(d.type)}
-                          <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="ml-2 font-body text-xs text-[var(--text-muted)] underline">
-                            Remove
-                          </button>
-                          <TermSelect
-                            value={classifyLiability(d.type, d.term)}
-                            onChange={(term) => void handleDebtTerm(d.index, term)}
-                          />
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span>{presentGoalName(d.type)}</span>
+                            <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
+                              Remove
+                            </button>
+                            <TermSelect
+                              value={classifyLiability(d.type, d.term)}
+                              onChange={(term) => void handleDebtTerm(d.index, term)}
+                            />
+                          </div>
                         </td>
                         <td className="py-2.5 text-right font-[family-name:var(--font-body)] text-sm font-medium tabular-nums text-[var(--text-primary)]">{fmtFull(d.amount)}</td>
                         <td className="py-2.5 text-right">
@@ -1380,11 +1387,12 @@ export default function AssetsPage() {
 
         {/* CASH FLOW */}
         {(profile || diag) && (() => {
-          const annualIncome = profile?.annual_income ?? householdIncome ?? null;
+          const fromPlan = planOverview(planEntries);
+          const annualIncome = fromPlan?.annualIncome ?? profile?.annual_income ?? householdIncome ?? null;
           const monthlyExpenses = profile?.monthly_expenses ?? null;
           const monthlySavings = profile?.monthly_savings ?? null;
-          const cashFlowMonthly = (diag?.cash_flow_monthly as number) ?? null;
-          const savingsRate = (diag?.savings_rate_percent as number) ?? null;
+          const cashFlowMonthly = fromPlan?.monthlyCashFlow ?? (diag?.cash_flow_monthly as number) ?? null;
+          const savingsRate = fromPlan?.savingsRate ?? (diag?.savings_rate_percent as number) ?? null;
           const efMonths = profile?.emergency_fund_months ?? (diag?.emergency_fund_months as number) ?? null;
 
           return (
@@ -1400,9 +1408,11 @@ export default function AssetsPage() {
                   </Link>
                 </div>
                 <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] pl-7">
-                  {diag
-                    ? "Based on your Progress Report"
-                    : "Current figures from your financial profile"}
+                  {fromPlan
+                    ? "From your budget plan"
+                    : diag
+                      ? "Based on your Progress Report"
+                      : "Current figures from your financial profile"}
                 </p>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1508,12 +1518,23 @@ export default function AssetsPage() {
   );
 }
 
-function TermSelect({ value, onChange }: { value: LiabilityTerm; onChange: (term: LiabilityTerm) => void }) {
+function TermSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: LiabilityTerm;
+  onChange: (term: LiabilityTerm) => void;
+  className?: string;
+}) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as LiabilityTerm)}
-      className="mt-1 rounded border border-[var(--warm-200)] bg-white px-1.5 py-0.5 font-body text-[11px] text-[var(--text-secondary)]"
+      className={cn(
+        "rounded border border-[var(--warm-200)] bg-white px-1.5 py-0.5 font-body text-[11px] text-[var(--text-secondary)]",
+        className,
+      )}
       aria-label="Liability term"
     >
       <option value="short">Short-term</option>

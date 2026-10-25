@@ -12,6 +12,7 @@ import {
   scheduledMonthAmounts,
   planFromHistory,
   planFromStatementLines,
+  planOverview,
   planTotals,
   plannedCategories,
   presetSuggestions,
@@ -189,6 +190,24 @@ describe("category catalog", () => {
   it("labels honour the catalog", () => {
     expect(labelFor(catalog, "dining")).toBe("Eating out");
     expect(labelFor(catalog, "groceries")).toBe("Groceries");
+  });
+});
+
+describe("plan overview", () => {
+  it("turns a year of plan rows into the cash-flow cards", () => {
+    const overview = planOverview([
+      { kind: "income", category: "pay", month: "2026-01-01", amount: 10000 },
+      { kind: "income", category: "pay", month: "2026-02-01", amount: 10000 },
+      { kind: "expense", category: "rent", month: "2026-01-01", amount: 2000 },
+      { kind: "expense", category: "rent", month: "2026-02-01", amount: 2000 },
+      { kind: "savings", category: "tfsa", month: "2026-01-01", amount: 500 },
+      { kind: "savings", category: "tfsa", month: "2026-02-01", amount: 500 },
+    ]);
+    expect(overview).toEqual({ annualIncome: 20000, monthlyCashFlow: 1333.33, savingsRate: 5 });
+  });
+
+  it("stays empty when every plan cell is zero", () => {
+    expect(planOverview([{ kind: "income", category: "pay", month: "2026-01-01", amount: 0 }])).toBeNull();
   });
 });
 

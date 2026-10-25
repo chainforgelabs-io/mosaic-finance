@@ -5,7 +5,9 @@ import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { classifyLiability, type LiabilityTerm } from "@/lib/net-worth/tracking";
 import { formatMoneyExact } from "@/lib/tracking/format";
+import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import type { UnlockItem } from "@/components/tracking/UnlockToast";
+import type { NetWorthSnapshotRow } from "@/types/tracking";
 
 const ACCOUNT_LABELS: Record<string, string> = {
   RRSP: "RRSP",
@@ -46,6 +48,8 @@ export function MonthlyCheckIn({
   fixedAssets,
   debts,
   open,
+  month,
+  snapshot,
   onClose,
   onSaved,
 }: {
@@ -53,6 +57,10 @@ export function MonthlyCheckIn({
   fixedAssets: FixedAsset[];
   debts: DebtItem[];
   open: boolean;
+  /** YYYY-MM. Omit to file the current month and update the live balances. */
+  month?: string;
+  /** A snapshot already saved for `month`, used to prefill the amounts. */
+  snapshot?: NetWorthSnapshotRow | null;
   onClose: () => void;
   onSaved: (unlocks: UnlockItem[]) => void;
 }) {
@@ -65,16 +73,59 @@ export function MonthlyCheckIn({
   const [limitVals, setLimitVals] = useState<Record<string, string>>({});
   const [termVals, setTermVals] = useState<Record<string, LiabilityTerm>>({});
 
+  const filingMonth = month ?? monthKey(todayIso());
+  const filingPast = filingMonth !== monthKey(todayIso());
+  const filedSnapshot =
+    snapshot && monthKey(snapshot.snapshot_date) === filingMonth ? snapshot : null;
+
   useEffect(() => {
     if (!open) return;
     setStep(0);
     setError(null);
-    setHoldVals(Object.fromEntries(holdings.map((h) => [h.id, String(h.total_value)])));
-    setAssetVals(Object.fromEntries(fixedAssets.map((a) => [a.id, String(a.estimated_value)])));
-    setDebtVals(Object.fromEntries(debts.map((d, i) => [`${i}`, String(d.amount)])));
-    setLimitVals(Object.fromEntries(debts.map((d, i) => [`${i}`, d.credit_limit != null ? String(d.credit_limit) : ""])));
-    setTermVals(Object.fromEntries(debts.map((d, i) => [`${i}`, classifyLiability(d.type, d.term)])));
-  }, [open, holdings, fixedAssets, debts]);
+    const saved = snapshot && monthKey(snapshot.snapshot_date) === (month ?? monthKey(todayIso())) ? snapshot : null;
+    const savedDebts = saved?.breakdown.debts ?? [];
+    setHoldVals(
+      Object.fromEntries(
+        holdings.map((h) => {
+          const match = saved?.breakdown.investments?.find((item) => item.id === h.id);
+          return [h.id, String(match?.value ?? h.total_value)];
+        }),
+      ),
+    );
+    setAssetVals(
+      Object.fromEntries(
+        fixedAssets.map((a) => {
+          const match = saved?.breakdown.fixed_assets?.find((item) => item.id === a.id);
+          return [a.id, String(match?.value ?? a.estimated_value)];
+        }),
+      ),
+    );
+    setDebtVals(
+      Object.fromEntries(
+        debts.map((d, i) => {
+          const match = savedDebts.length === debts.length ? savedDebts[i] : savedDebts.find((item) => item.type === d.type);
+          return [`${i}`, String(match?.value ?? d.amount)];
+        }),
+      ),
+    );
+    setLimitVals(
+      Object.fromEntries(
+        debts.map((d, i) => {
+          const match = savedDebts.length === debts.length ? savedDebts[i] : savedDebts.find((item) => item.type === d.type);
+          const limit = match?.credit_limit ?? d.credit_limit;
+          return [`${i}`, limit != null ? String(limit) : ""];
+        }),
+      ),
+    );
+    setTermVals(
+      Object.fromEntries(
+        debts.map((d, i) => {
+          const match = savedDebts.length === debts.length ? savedDebts[i] : savedDebts.find((item) => item.type === d.type);
+          return [`${i}`, classifyLiability(d.type, match?.term ?? d.term)];
+        }),
+      ),
+    );
+  }, [open, holdings, fixedAssets, debts, month, snapshot]);
 
   if (!open) return null;
 
@@ -87,30 +138,6 @@ export function MonthlyCheckIn({
     setSaving(true);
     setError(null);
     try {
-      await Promise.all(
-        holdings.map((h) => {
-          const next = Number(holdVals[h.id]);
-          if (!Number.isFinite(next) || next === h.total_value) return Promise.resolve();
-          return fetch("/api/holdings", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ id: h.id, total_value: next }),
-          });
-        }),
-      );
-      await Promise.all(
-        fixedAssets.map((a) => {
-          const next = Number(assetVals[a.id]);
-          if (!Number.isFinite(next) || next === a.estimated_value) return Promise.resolve();
-          return fetch("/api/fixed-assets", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ id: a.id, estimated_value: next }),
-          });
-        }),
-      );
       const nextDebts = debts.map((d, i) => {
         const limitRaw = (limitVals[`${i}`] ?? "").trim();
         const limit = limitRaw === "" ? undefined : Number(limitRaw);
@@ -123,16 +150,66 @@ export function MonthlyCheckIn({
           term: termVals[`${i}`] ?? classifyLiability(d.type, d.term),
         };
       });
-      await fetch("/api/financial-profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ debts: nextDebts }),
-      });
+      if (!filingPast) {
+        await Promise.all(
+          holdings.map((h) => {
+            const next = Number(holdVals[h.id]);
+            if (!Number.isFinite(next) || next === h.total_value) return Promise.resolve();
+            return fetch("/api/holdings", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ id: h.id, total_value: next }),
+            });
+          }),
+        );
+        await Promise.all(
+          fixedAssets.map((a) => {
+            const next = Number(assetVals[a.id]);
+            if (!Number.isFinite(next) || next === a.estimated_value) return Promise.resolve();
+            return fetch("/api/fixed-assets", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ id: a.id, estimated_value: next }),
+            });
+          }),
+        );
+        await fetch("/api/financial-profile", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ debts: nextDebts }),
+        });
+      }
 
       const snapRes = await fetch("/api/net-worth/snapshots", {
         method: "POST",
         credentials: "include",
+        ...(filingPast
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                snapshot_month: filingMonth,
+                investments: holdings.map((h) => ({
+                  id: h.id,
+                  account_type: h.account_type,
+                  value: Number(holdVals[h.id]) || 0,
+                })),
+                fixed_assets: fixedAssets.map((a) => ({
+                  id: a.id,
+                  name: a.name,
+                  value: Number(assetVals[a.id]) || 0,
+                })),
+                debts: nextDebts.map((d) => ({
+                  type: d.type,
+                  value: d.balance,
+                  ...(d.credit_limit != null ? { credit_limit: d.credit_limit } : {}),
+                  ...(d.term ? { term: d.term } : {}),
+                })),
+              }),
+            }
+          : {}),
       });
       const json = await snapRes.json();
       if (!snapRes.ok) throw new Error(json.error ?? "Failed to save snapshot");
@@ -152,7 +229,7 @@ export function MonthlyCheckIn({
           <div>
             <h2 className="font-display text-lg font-semibold">Monthly check-in</h2>
             <p className="font-body text-xs text-[var(--text-muted)]">
-              Step {step + 1} of {STEPS.length} · {STEPS[step]}
+              {formatMonthLabel(`${filingMonth}-01`)} · Step {step + 1} of {STEPS.length} · {STEPS[step]}
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close">
@@ -222,7 +299,11 @@ export function MonthlyCheckIn({
                 <SummaryRow label="Net worth" value={net} emphasis />
               </div>
               <p className="font-body text-xs text-[var(--text-muted)]">
-                This overwrites this month’s snapshot if you already saved one.
+                {filingPast
+                  ? `This saves a reading for ${formatMonthLabel(`${filingMonth}-01`)}. It does not change the balances on your overview.`
+                  : filedSnapshot
+                    ? "This overwrites this month’s snapshot if you already saved one."
+                    : "This saves this month’s snapshot and updates the balances on your overview."}
               </p>
               {error && <p className="font-body text-sm text-[var(--error)]">{error}</p>}
             </div>

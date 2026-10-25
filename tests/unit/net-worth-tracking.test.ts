@@ -8,9 +8,11 @@ import {
   liquidity,
   monthsSinceLastSnapshot,
   netWorthComparison,
+  snapshotDateForMonth,
   snapshotForMonth,
   snapshotGroups,
   snapshotMonths,
+  trackingMonthChoices,
 } from "@/lib/net-worth/tracking";
 import type { NetWorthSnapshotRow, SnapshotBreakdown } from "@/types/tracking";
 
@@ -267,6 +269,25 @@ describe("groupComparison", () => {
 describe("snapshotMonths and monthsSinceLastSnapshot", () => {
   it("lists distinct months newest first", () => {
     expect(snapshotMonths(all)).toEqual(["2026-03", "2026-02", "2025-03"]);
+  });
+
+  it("offers the last 12 months when nothing has been filed", () => {
+    const months = trackingMonthChoices("2026-10-25", []);
+    expect(months[0]).toBe("2026-10");
+    expect(months).toContain("2025-11");
+    expect(months).toHaveLength(12);
+    expect(months.at(-1)).toBe("2025-11");
+  });
+
+  it("keeps an older snapshot month in the menu", () => {
+    const months = trackingMonthChoices("2026-10-25", all);
+    expect(months).toContain("2025-03");
+    expect(months[0]).toBe("2026-10");
+  });
+
+  it("dates a past reading on the last day of that month", () => {
+    expect(snapshotDateForMonth("2026-09", "2026-10-25")).toBe("2026-09-30");
+    expect(snapshotDateForMonth("2026-10", "2026-10-25")).toBe("2026-10-25");
   });
 
   it("counts whole months since the latest snapshot", () => {

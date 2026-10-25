@@ -13,7 +13,7 @@ import {
   monthsSinceLastSnapshot,
   netWorthComparison,
   snapshotGroups,
-  snapshotMonths,
+  trackingMonthChoices,
   type ComparisonRow,
   type GroupComparison,
 } from "@/lib/net-worth/tracking";
@@ -117,11 +117,7 @@ export default function NetWorthTrackingPage() {
   }, []);
 
   const snapshots = useMemo(() => data?.snapshots ?? [], [data]);
-  const months = useMemo(() => {
-    const set = new Set(snapshotMonths(snapshots));
-    set.add(monthKey(today));
-    return [...set].sort().reverse();
-  }, [snapshots, today]);
+  const months = useMemo(() => trackingMonthChoices(today, snapshots), [snapshots, today]);
   const monthIndex = months.indexOf(month);
 
   const comparison = useMemo(() => netWorthComparison(snapshots, month), [snapshots, month]);
@@ -250,7 +246,7 @@ export default function NetWorthTrackingPage() {
         <div className="rounded-xl border border-dashed border-[var(--warm-200)] bg-white p-8 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">No readings yet</p>
           <p className="mx-auto mt-1 max-w-md font-body text-sm text-[var(--text-muted)]">
-            The monthly check-in walks through your accounts, assets, and debts, then saves one snapshot for the month. Each month after that adds a point to the line and a column to the table.
+            The monthly check-in walks through your accounts, assets, and debts, then saves one snapshot for the month you have selected. Pick an earlier month to file a past reading.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button
@@ -351,13 +347,14 @@ export default function NetWorthTrackingPage() {
 
       <MonthlyCheckIn
         open={checkInOpen}
+        month={month}
+        snapshot={snapshots.find((row) => monthKey(row.snapshot_date) === month) ?? null}
         holdings={data.holdings}
         fixedAssets={data.fixedAssets}
         debts={data.debts}
         onClose={() => setCheckInOpen(false)}
         onSaved={async (nextUnlocks) => {
           setUnlocks(nextUnlocks);
-          setMonth(monthKey(today));
           await refresh();
         }}
       />

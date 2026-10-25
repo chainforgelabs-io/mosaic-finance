@@ -55,6 +55,26 @@ export interface PlanTotals {
   toBeAllocated: number;
 }
 
+/**
+ * The net-worth cash-flow cards once a budget plan has real amounts.
+ * Annual income is the year's income rows. Monthly cash flow is income minus
+ * expenses, spread over 12 months. Savings rate is savings divided by income.
+ */
+export function planOverview(entries: BudgetPlanEntry[]): {
+  annualIncome: number;
+  monthlyCashFlow: number;
+  savingsRate: number | null;
+} | null {
+  const totals = planTotals(entries);
+  if (totals.income <= 0 && totals.expense <= 0 && totals.savings <= 0) return null;
+  const savingsRate = totals.income > 0 ? Math.round((totals.savings / totals.income) * 1000) / 10 : null;
+  return {
+    annualIncome: totals.income,
+    monthlyCashFlow: roundMoney((totals.income - totals.expense) / 12),
+    savingsRate,
+  };
+}
+
 /** Totals for one month, or for a whole year when `month` is omitted. */
 export function planTotals(entries: BudgetPlanEntry[], month?: string): PlanTotals {
   const target = month ? startOfMonth(month) : null;

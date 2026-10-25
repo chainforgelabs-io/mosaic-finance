@@ -1,4 +1,4 @@
-import { addMonths, formatMonthLabel, monthKey } from "@/lib/tracking/dates";
+import { addMonths, endOfMonth, formatMonthLabel, monthKey, startOfMonth } from "@/lib/tracking/dates";
 import type { NetWorthSnapshotRow, SnapshotBreakdown, SnapshotBreakdownItem } from "@/types/tracking";
 
 export type LiabilityTerm = "short" | "long";
@@ -178,6 +178,32 @@ function sortByDate<T extends { snapshot_date: string }>(snapshots: T[]): T[] {
 }
 
 /** Snapshot for a month, falling back to the latest one before it. */
+/** How many months back the tracking picker offers before any snapshots exist. */
+export const TRACKING_HISTORY_MONTHS = 12;
+
+/**
+ * Newest first. The last `count` months through `today`, plus any older snapshot
+ * months so a filed reading does not disappear from the menu.
+ */
+export function trackingMonthChoices(
+  today: string,
+  snapshots: Array<{ snapshot_date: string }>,
+  count = TRACKING_HISTORY_MONTHS,
+): string[] {
+  const keys = new Set<string>();
+  const current = startOfMonth(today);
+  for (let i = 0; i < count; i++) keys.add(monthKey(addMonths(current, -i)));
+  for (const month of snapshotMonths(snapshots)) keys.add(month);
+  return [...keys].sort().reverse();
+}
+
+/** Today when the reading is for the current month. The last day of a past month. */
+export function snapshotDateForMonth(month: string, today: string): string {
+  const key = month.slice(0, 7);
+  if (key === monthKey(today)) return today;
+  return endOfMonth(`${key}-01`);
+}
+
 export function snapshotForMonth<T extends { snapshot_date: string }>(snapshots: T[], month: string): T | null {
   const key = month.slice(0, 7);
   const sorted = sortByDate(snapshots);

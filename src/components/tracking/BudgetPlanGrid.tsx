@@ -98,7 +98,7 @@ function MonthText({ children, className }: { children: React.ReactNode; classNa
 }
 
 export function BudgetPlanGrid(props: BudgetPlanGridProps) {
-  const { year, months, entries, catalog, focusMonth, pinFocus, onFocusMonth, onApplySchedule, schedules } = props;
+  const { year, months, entries, catalog, focusMonth, pinFocus, onFocusMonth, onApplySchedule, onRename, schedules } = props;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const index = useMemo(() => indexPlan(entries), [entries]);
   const monthTotals = useMemo(
