@@ -445,9 +445,15 @@ export default function BudgetPlanPage() {
   }
 
   const currentYear = Number(today.slice(0, 4));
+  const latestPlannedYear = entries.reduce((max, entry) => {
+    if (!(entry.amount > 0)) return max;
+    const plannedYear = Number(entry.month.slice(0, 4));
+    return Number.isFinite(plannedYear) ? Math.max(max, plannedYear) : max;
+  }, currentYear);
+  const maxYear = Math.max(currentYear + 1, latestPlannedYear + 1);
   const yearHasPayments = entries.some((entry) => entry.month.startsWith(`${year}-`) && entry.amount > 0);
   const carryTarget = yearHasPayments ? year + 1 : year;
-  const canCarry = schedules.length > 0 && carryTarget <= currentYear + 1;
+  const canCarry = schedules.length > 0 && carryTarget <= maxYear;
 
   return (
     <div className="w-full space-y-6">
@@ -458,7 +464,7 @@ export default function BudgetPlanPage() {
             Set what you expect each month for money in, expenses, and savings. Tracking compares against this.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex items-center rounded-lg border border-[var(--warm-200)] bg-white">
             <button
               type="button"
@@ -472,7 +478,7 @@ export default function BudgetPlanPage() {
             <button
               type="button"
               onClick={() => setYear((y) => y + 1)}
-              disabled={year >= currentYear + 1}
+              disabled={year >= maxYear}
               className="rounded-r-lg p-2 text-[var(--text-secondary)] hover:bg-[var(--warm-100)] disabled:opacity-30"
               aria-label="Next year"
             >
@@ -483,7 +489,7 @@ export default function BudgetPlanPage() {
             <button
               type="button"
               onClick={() => void carryPayments(carryTarget)}
-              className="rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
+              className="shrink-0 whitespace-nowrap rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-display text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--warm-100)]"
             >
               Carry payments into {carryTarget}
             </button>
