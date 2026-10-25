@@ -118,7 +118,7 @@ export function StatementSummary({
           onClick={onReview}
           className="mt-2 w-full py-2 font-display text-sm font-semibold text-[var(--text-secondary)]"
         >
-          Review the lines
+          Review the expenses
         </button>
       </div>
     </div>

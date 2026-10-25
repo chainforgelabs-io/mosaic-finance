@@ -2,6 +2,7 @@ import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { pdfPageChunks } from "@/lib/tracking/pdf-chunks";
 import { countsTowardSpend } from "@/lib/tracking/cash-capture";
+import { PAGE_CUTOFF_NOTE } from "@/lib/tracking/reader-notes";
 import {
   claudeText,
   dedupeSpendingItems,
@@ -35,6 +36,7 @@ describe("parseSpendingPayload", () => {
     const text = "{\"transactions\":[{\"txn_date\":\"2026-09-02\",\"amount\":12.4,\"description\":\"Coffee\",\"suggested_category\":\"dining\"},{\"txn_date\":\"2026-09-03\",\"amount\":40";
     const parsed = parseSpendingPayload(text);
     expect(parsed.truncated).toBe(true);
+    expect(parsed.notes).toBe(PAGE_CUTOFF_NOTE);
     expect(parsed.transactions).toEqual([
       { txn_date: "2026-09-02", amount: 12.4, description: "Coffee", suggested_category: "dining" },
     ]);

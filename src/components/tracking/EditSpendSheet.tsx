@@ -105,15 +105,6 @@ export function CategoryPicker({
           )}
         </div>
       )}
-      {variant === "select" && canAdd && !adding && (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mt-1 font-display text-[11px] font-semibold text-[var(--emerald-dark)]"
-        >
-          Add a category
-        </button>
-      )}
       {adding && (
         <div className="mt-2 flex gap-2">
           <input

@@ -20,7 +20,7 @@ import { BalanceCheckSheet } from "@/components/tracking/BalanceCheckSheet";
 import { CashGuideSheet } from "@/components/tracking/CashGuideSheet";
 import { CashKeypad } from "@/components/tracking/CashKeypad";
 import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
-import { CategoryPicker, EditSpendSheet } from "@/components/tracking/EditSpendSheet";
+import { EditSpendSheet } from "@/components/tracking/EditSpendSheet";
 import { RecurringPanel } from "@/components/tracking/RecurringPanel";
 import { SpendInbox } from "@/components/tracking/SpendInbox";
 import { StatementStart } from "@/components/tracking/StatementStart";
@@ -59,13 +59,17 @@ import {
 import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
 import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
+import { buildImportNotice } from "@/lib/tracking/reader-notes";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
 import {
-  matchUploadDuplicates,
-  mergeUploadPatch,
-  type DuplicateAction,
-  type ExistingSpend,
-} from "@/lib/tracking/spending-parse";
+  getImportSession,
+  rowsForPicture,
+  setImportSession,
+  subscribeImportSession,
+  takePendingUnlocks,
+  type ImportRow,
+} from "@/lib/tracking/import-session";
+import { matchUploadDuplicates, type ExistingSpend } from "@/lib/tracking/spending-parse";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import { usePlanStore } from "@/stores/plan-store";
@@ -87,12 +91,6 @@ const HOWTO_KEY = "mosaic-spending-howto-seen";
 const GUIDE_KEY = "mosaic-cash-guide-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 
-function rowsForPicture(rows: ReviewRow[]): ReviewRow[] {
-  return rows.filter(
-    (row) => row.included && row.amount > 0 && (!row.duplicateOf || row.duplicateAction !== "skip"),
-  );
-}
-
 function loadCustomCategories(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -107,30 +105,6 @@ function rememberCategory(slug: string) {
   if ((SPENDING_CATEGORIES as readonly string[]).includes(slug)) return;
   const next = [...new Set([...loadCustomCategories(), slug])];
   localStorage.setItem(CUSTOM_CATEGORY_KEY, JSON.stringify(next));
-}
-
-type UploadJob = {
-  status: "idle" | "parsing" | "ready" | "error";
-  rows: ReviewRow[] | null;
-  notice: string | null;
-  error: string | null;
-};
-
-let uploadJob: UploadJob = { status: "idle", rows: null, notice: null, error: null };
-const uploadListeners = new Set<() => void>();
-
-function setUploadJob(next: UploadJob) {
-  uploadJob = next;
-  uploadListeners.forEach((listener) => listener());
-}
-
-interface ReviewRow extends ParsedSpendingItem {
-  key: string;
-  included: boolean;
-  categoryConfirmed: boolean;
-  documentId: string | null;
-  duplicateOf: ExistingSpend | null;
-  duplicateAction: DuplicateAction;
 }
 
 export default function CashFlowPage() {
@@ -151,7 +125,6 @@ export default function CashFlowPage() {
   const [showSetup, setShowSetup] = useState(false);
   const [picture, setPicture] = useState<SpendingPicture | null>(null);
   const [statementPreview, setStatementPreview] = useState<ReturnType<typeof buildStatementBaseline>>(null);
-  const [linesOpen, setLinesOpen] = useState(false);
   const [summarySaving, setSummarySaving] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [showStatementLines, setShowStatementLines] = useState(false);
@@ -159,11 +132,11 @@ export default function CashFlowPage() {
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const [reviewRows, setReviewRows] = useState<ReviewRow[] | null>(() => uploadJob.rows);
-  const [reviewNotice, setReviewNotice] = useState<string | null>(() => uploadJob.notice);
+  const [reviewRows, setReviewRows] = useState<ImportRow[] | null>(null);
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<TransactionRow | null>(null);
-  const [parsing, setParsing] = useState(() => uploadJob.status === "parsing");
-  const [parseError, setParseError] = useState<string | null>(() => uploadJob.error);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const [view, setView] = useState<"week" | "month">("month");
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const [budgets, setBudgets] = useState<Record<string, number>>({});
@@ -288,16 +261,25 @@ export default function CashFlowPage() {
   }, [undo]);
 
   useEffect(() => {
+    const unlocks = takePendingUnlocks();
+    if (unlocks.length) setUnlocks(unlocks);
+  }, []);
+
+  useEffect(() => {
     function syncUpload() {
-      setParsing(uploadJob.status === "parsing");
-      setParseError(uploadJob.error);
-      setReviewRows(uploadJob.rows);
-      setReviewNotice(uploadJob.notice);
+      const current = getImportSession();
+      setParsing(current.status === "parsing");
+      setParseError(current.error);
+      setReviewRows(current.rows);
+      setReviewNotice(current.notice);
+      if (current.status === "ready" && current.rows) {
+        setStatementPreview(buildStatementBaseline(rowsForPicture(current.rows), todayIso()));
+      } else if (current.status === "idle" || current.status === "error") {
+        setStatementPreview(null);
+      }
     }
-    uploadListeners.add(syncUpload);
-    return () => {
-      uploadListeners.delete(syncUpload);
-    };
+    syncUpload();
+    return subscribeImportSession(syncUpload);
   }, []);
 
   function addCategory(slug: string) {
@@ -460,7 +442,7 @@ export default function CashFlowPage() {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
-    setUploadJob({ status: "parsing", rows: null, notice: null, error: null });
+    setImportSession({ status: "parsing", rows: null, notice: null, error: null });
     try {
       // One request per file. A combined upload was dropping a whole statement
       // when a later file failed, and the modal still looked complete.
@@ -501,7 +483,7 @@ export default function CashFlowPage() {
         }
       }
       if (parsedRows.length === 0) {
-        setUploadJob({
+        setImportSession({
           status: "error",
           rows: null,
           notice: null,
@@ -536,27 +518,20 @@ export default function CashFlowPage() {
       }
       const rows = matchUploadDuplicates(parsedRows, existing);
       const duplicateCount = rows.filter((row) => row.duplicateOf).length;
-      const notice = [
-        failures.length > 0 ? `Could not read ${failures.join(", ")}. The other files are listed below.` : "",
-        notes.length > 0 ? notes.join(" ") : "",
-        stored === false
-          ? "The file itself was not stored, but the lines below are ready to review."
-          : "",
-        duplicateCheckFailed
-          ? "Could not check these against what you already logged."
-          : duplicateCount > 0
-            ? `${duplicateCount === 1 ? "1 line matches" : `${duplicateCount} lines match`} something already logged. Those stay out unless you merge or add them.`
-            : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-      const preview = buildStatementBaseline(rowsForPicture(rows), todayIso());
-      setStatementPreview(preview);
-      setLinesOpen(preview == null);
+      const notice = buildImportNotice({
+        failures,
+        readerNotes: notes,
+        stored,
+        duplicateCheckFailed,
+        duplicateCount,
+      });
       setSummaryError(null);
-      setUploadJob({ status: "ready", rows, notice: notice || null, error: null });
+      setImportSession({ status: "ready", rows, notice, error: null });
+      if (!buildStatementBaseline(rowsForPicture(rows), todayIso())) {
+        router.push("/dashboard/cash-flow/import");
+      }
     } catch {
-      setUploadJob({
+      setImportSession({
         status: "error",
         rows: null,
         notice: null,
@@ -565,69 +540,6 @@ export default function CashFlowPage() {
     } finally {
       if (fileRef.current) fileRef.current.value = "";
     }
-  }
-
-  async function confirmReview() {
-    if (!reviewRows) return;
-    const chosen = reviewRows.filter((r) => r.included && r.amount > 0);
-    const toSave = chosen.filter((r) => !r.duplicateOf || r.duplicateAction === "add");
-    const toMerge = chosen.filter((r) => r.duplicateOf && r.duplicateAction === "merge");
-    if (toSave.length === 0 && toMerge.length === 0) {
-      setUploadJob({ status: "idle", rows: null, notice: null, error: null });
-      return;
-    }
-    if (toMerge.length > 0) {
-      const merges = await Promise.all(
-        toMerge.map(async (row) => {
-          const existing = row.duplicateOf;
-          if (!existing) return true;
-          const patch = mergeUploadPatch(existing, row);
-          if (Object.keys(patch).length === 0) return true;
-          const res = await fetch("/api/transactions", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ id: existing.id, ...patch }),
-          });
-          return res.ok;
-        }),
-      );
-      if (merges.some((ok) => !ok)) {
-        throw new Error("Could not merge those duplicates.");
-      }
-    }
-    if (toSave.length > 0) {
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          transactions: toSave.map((r) => ({
-            txn_date: r.txn_date ?? todayIso(),
-            amount: r.amount,
-            category: r.suggested_category,
-            description: r.description,
-            note: r.note ?? null,
-            source: "screenshot",
-            document_id: r.documentId,
-            category_confirmed: r.categoryConfirmed,
-            direction: r.line_role === "income" ? "in" : "out",
-            line_role: r.line_role ?? "purchase",
-            instrument: r.instrument ?? "debit",
-          })),
-        }),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? "Could not save those transactions.");
-      }
-      const json = await res.json();
-      if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
-    }
-    setUploadJob({ status: "idle", rows: null, notice: null, error: null });
-    setStatementPreview(null);
-    setLinesOpen(false);
-    await reload();
   }
 
   async function confirmPicture(repeats: RepeatSuggestion[]) {
@@ -673,9 +585,8 @@ export default function CashFlowPage() {
     const statementMonth = startOfMonth(latest);
     setView("month");
     setMonthStart(statementMonth);
-    setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+    setImportSession({ status: "idle", rows: null, notice: null, error: null });
     setStatementPreview(null);
-    setLinesOpen(false);
     await loadMeta(statementMonth);
     await loadWeek(weekStart);
   }
@@ -1500,41 +1411,18 @@ export default function CashFlowPage() {
         />
       )}
 
-      {statementPreview && !linesOpen && (
+      {statementPreview && (
         <StatementSummary
           baseline={statementPreview}
           notice={reviewNotice}
           saving={summarySaving}
           error={summaryError}
           onConfirm={(repeats) => void confirmPicture(repeats)}
-          onReview={() => setLinesOpen(true)}
+          onReview={() => router.push("/dashboard/cash-flow/import")}
           onClose={() => {
             setStatementPreview(null);
-            setLinesOpen(false);
-            setUploadJob({ status: "idle", rows: null, notice: null, error: null });
+            setImportSession({ status: "idle", rows: null, notice: null, error: null });
           }}
-        />
-      )}
-
-      {reviewRows && linesOpen && (
-        <ReviewModal
-          rows={reviewRows}
-          notice={reviewNotice}
-          extras={customCategories}
-          onAddCategory={addCategory}
-          onChange={(rows) => {
-            setUploadJob({ status: "ready", rows, notice: reviewNotice, error: null });
-            setStatementPreview(buildStatementBaseline(rowsForPicture(rows), todayIso()));
-          }}
-          onCancel={() => {
-            if (statementPreview) setLinesOpen(false);
-            else {
-              setLinesOpen(false);
-              setUploadJob({ status: "idle", rows: null, notice: null, error: null });
-            }
-          }}
-          onConfirm={statementPreview ? async () => setLinesOpen(false) : confirmReview}
-          finishLabel={statementPreview ? "Back to the picture" : undefined}
         />
       )}
 
@@ -1624,221 +1512,6 @@ function HowToModal({ onCancel, onContinue }: { onCancel: () => void; onContinue
             className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white"
           >
             Choose files
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReviewModal({
-  rows,
-  notice,
-  extras,
-  onAddCategory,
-  onChange,
-  onCancel,
-  onConfirm,
-  finishLabel,
-}: {
-  rows: ReviewRow[];
-  notice: string | null;
-  extras: string[];
-  onAddCategory: (slug: string) => void;
-  onChange: (rows: ReviewRow[]) => void;
-  onCancel: () => void;
-  onConfirm: () => Promise<void>;
-  finishLabel?: string;
-}) {
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const included = rows.filter((r) => r.included);
-  const chosen = included.filter((r) => r.amount > 0);
-  const adding = chosen.filter((r) => !r.duplicateOf || r.duplicateAction === "add");
-  const merging = chosen.filter((r) => r.duplicateOf && r.duplicateAction === "merge");
-  const skipping = chosen.filter((r) => r.duplicateOf && r.duplicateAction === "skip");
-  const saveLabel = saving
-    ? "Saving…"
-    : [
-        adding.length > 0 ? `Save ${adding.length}` : "",
-        merging.length > 0 ? `merge ${merging.length}` : "",
-        adding.length + merging.length === 0 && skipping.length > 0 ? "Leave duplicates out" : "",
-      ]
-        .filter(Boolean)
-        .join(", ") || "Save";
-
-  function update(key: string, patch: Partial<ReviewRow>) {
-    onChange(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-t-2xl bg-white sm:rounded-xl">
-        <div className="flex items-center justify-between border-b border-[var(--warm-200)] px-5 py-4">
-          <div>
-            <h2 className="font-display text-lg font-semibold">Review transactions</h2>
-            <p className="font-body text-xs text-[var(--text-muted)]">
-              {included.length} of {rows.length} selected. Suggested categories stay marked until you confirm them.
-            </p>
-            {notice && (
-              <ul className="mt-2 list-disc space-y-1 pl-4 font-body text-xs text-amber-800">
-                {notice
-                  .split(/(?<=[.!?])\s+/)
-                  .map((part) => part.trim())
-                  .filter(Boolean)
-                  .map((part) => (
-                    <li key={part}>{part}</li>
-                  ))}
-              </ul>
-            )}
-          </div>
-          <button type="button" onClick={onCancel} aria-label="Close">
-            <X className="size-5 text-[var(--text-muted)]" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {rows.length === 0 ? (
-            <p className="p-6 font-body text-sm text-[var(--text-muted)]">
-              No transactions found. Try a clearer photo, screenshot, or PDF of the list.
-            </p>
-          ) : (
-            <ul className="divide-y divide-[var(--warm-100)]">
-              {rows.map((r) => (
-                <li key={r.key} className={cn("px-4 py-3", !r.included && "opacity-40")}>
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={r.included}
-                      onChange={(e) => update(r.key, { included: e.target.checked })}
-                      className="mt-1"
-                    />
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <input
-                        type="text"
-                        value={r.description}
-                        onChange={(e) => update(r.key, { description: e.target.value })}
-                        className="w-full rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
-                      />
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={r.amount}
-                          onChange={(e) =>
-                            update(r.key, {
-                              amount: Number(e.target.value),
-                              duplicateOf: null,
-                              duplicateAction: "add",
-                            })
-                          }
-                          className="rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm tabular-nums"
-                        />
-                        <input
-                          type="date"
-                          value={r.txn_date ?? ""}
-                          onChange={(e) =>
-                            update(r.key, {
-                              txn_date: e.target.value,
-                              duplicateOf: null,
-                              duplicateAction: "add",
-                            })
-                          }
-                          className="rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
-                        />
-                        <div className="col-span-2 sm:col-span-1">
-                          <CategoryPicker
-                            value={r.suggested_category}
-                            extras={extras}
-                            variant="select"
-                            onAdd={(slug) => {
-                              onAddCategory(slug);
-                              update(r.key, { suggested_category: slug, categoryConfirmed: true });
-                            }}
-                            onChange={(slug) =>
-                              update(r.key, { suggested_category: slug, categoryConfirmed: true })
-                            }
-                          />
-                          {r.categoryConfirmed ? (
-                            <p className="mt-1 font-body text-[11px] text-[var(--emerald-dark)]">Category checked</p>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => update(r.key, { categoryConfirmed: true })}
-                              className="mt-1 font-display text-[11px] font-semibold text-amber-800"
-                            >
-                              Suggested — confirm category
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {r.duplicateOf && (
-                        <div className="rounded-lg bg-amber-50 px-3 py-2">
-                          <p className="font-body text-xs text-amber-950">
-                            Same date and amount as{" "}
-                            {r.duplicateOf.description || categoryLabel(r.duplicateOf.category)} on{" "}
-                            {r.duplicateOf.txn_date} ({formatMoneyExact(r.duplicateOf.amount)}). Adding it would count
-                            this twice.
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {(
-                              [
-                                ["skip", "Delete duplicate"],
-                                ["merge", "Merge"],
-                                ["add", "Add anyway"],
-                              ] as const
-                            ).map(([action, label]) => (
-                              <button
-                                key={action}
-                                type="button"
-                                onClick={() => update(r.key, { duplicateAction: action, included: true })}
-                                className={cn(
-                                  "rounded-full px-2.5 py-1 font-display text-[11px] font-semibold",
-                                  r.duplicateAction === action
-                                    ? "bg-[var(--slate-950)] text-white"
-                                    : "bg-white text-[var(--text-secondary)]",
-                                )}
-                              >
-                                {label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {saveError && (
-          <p className="px-4 pt-3 font-body text-sm text-[var(--error)]">{saveError}</p>
-        )}
-        <div className="flex gap-2 border-t border-[var(--warm-200)] p-4">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="flex-1 rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
-          >
-            {finishLabel ? "Back" : "Discard"}
-          </button>
-          <button
-            type="button"
-            disabled={saving || (!finishLabel && adding.length + merging.length + skipping.length === 0)}
-            onClick={async () => {
-              setSaving(true);
-              setSaveError(null);
-              try {
-                await onConfirm();
-              } catch (error) {
-                setSaveError(error instanceof Error ? error.message : "Could not save those transactions.");
-              } finally {
-                setSaving(false);
-              }
-            }}
-            className="flex-1 rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {finishLabel ?? saveLabel}
           </button>
         </div>
       </div>

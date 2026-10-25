@@ -1,4 +1,5 @@
 import { isSpendingCategory } from "@/lib/tracking/categories";
+import { PAGE_CUTOFF_NOTE } from "@/lib/tracking/reader-notes";
 import type { ParsedSpendingItem } from "@/types/tracking";
 
 export interface SpendingParsePayload {
@@ -100,7 +101,7 @@ export function parseSpendingPayload(text: string): SpendingParsePayload {
   return {
     transactions,
     confidence: "low",
-    notes: "The reply was cut off, so later lines on these pages may be missing.",
+    notes: PAGE_CUTOFF_NOTE,
     periodYear: null,
     periodMonth: null,
     instrument: null,

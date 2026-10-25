@@ -11,6 +11,7 @@ import {
 } from "@/lib/entitlements";
 import { SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { pdfPageChunks, type PdfChunk } from "@/lib/tracking/pdf-chunks";
+import { PAGE_CUTOFF_NOTE, publishReaderNotes } from "@/lib/tracking/reader-notes";
 import {
   claudeText,
   dedupeSpendingItems,
@@ -66,8 +67,8 @@ RULES:
 - Do NOT invent transactions that are not visible on these pages
 - Include every transaction row on these pages, including the last lines. Do not stop early.
 - Amounts must be positive numbers
-- notes: one short sentence, or an empty string. Do not explain each line.
-- If these pages do not show transaction lines, return an empty transactions array, confidence "low", and explain in notes
+- notes: always an empty string. Do not describe terms pages, summaries, card payments, refunds, currency, or later pages.
+- If these pages do not show transaction lines, return an empty transactions array and confidence "low". Leave notes empty.
 - Prefer CAD. If another currency is shown, convert only if a CAD amount is also visible; otherwise keep the number and note the currency`;
 
 interface ChunkRead {
@@ -227,7 +228,7 @@ async function readPdf(buffer: Buffer, userId: string): Promise<{
 
     for (const read of reads) {
       items.push(...read.items);
-      if (read.notes) notes.push(read.notes);
+      if (read.truncated) notes.push(PAGE_CUTOFF_NOTE);
       confidence = foldConfidence(confidence, read.confidence);
       const period = rememberPeriod(read, periodYear, periodMonth);
       periodYear = period.periodYear;
@@ -344,26 +345,29 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        const read =
-          prepared.kind === "pdf"
-            ? await readPdf(prepared.buffer, user.id)
-            : await readBlock(
-                {
-                  kind: "image",
-                  data: prepared.buffer.toString("base64"),
-                  mediaType: prepared.mediaType,
-                },
-                "Identify whether this is a credit card or a bank statement, then extract every transaction line, including money in and card payments. Use the line amount, not the running balance.",
-                user.id,
-              );
-        const items = prepared.kind === "pdf" ? read.items : dedupeSpendingItems(read.items);
+        let items: ParsedSpendingItem[];
+        let confidence: string | undefined;
+        if (prepared.kind === "pdf") {
+          const read = await readPdf(prepared.buffer, user.id);
+          items = read.items;
+          confidence = read.confidence;
+          notes.push(...read.notes);
+        } else {
+          const read = await readBlock(
+            {
+              kind: "image",
+              data: prepared.buffer.toString("base64"),
+              mediaType: prepared.mediaType,
+            },
+            "Identify whether this is a credit card or a bank statement, then extract every transaction line, including money in and card payments. Use the line amount, not the running balance.",
+            user.id,
+          );
+          items = dedupeSpendingItems(read.items);
+          confidence = read.confidence;
+          if (read.truncated) notes.push(PAGE_CUTOFF_NOTE);
+        }
         allParsed.push(...items);
-        overallConfidence = foldConfidence(
-          overallConfidence,
-          "confidence" in read ? read.confidence : undefined,
-        );
-        const chunkNotes = "notes" in read && Array.isArray(read.notes) ? read.notes : read.notes ? [read.notes] : [];
-        notes.push(...chunkNotes.filter((note): note is string => Boolean(note)));
+        overallConfidence = foldConfidence(overallConfidence, confidence);
 
         if (docRecord) {
           await supabase
@@ -393,7 +397,7 @@ export async function POST(req: NextRequest) {
     }
 
     const transactions = dedupeSpendingItems(allParsed);
-    const joinedNotes = [...new Set(notes.map((note) => note.trim()).filter(Boolean))].join(" ").slice(0, 2000);
+    const joinedNotes = publishReaderNotes(notes);
     if (transactions.length === 0 && notes.some((note) => note.startsWith("Could not read"))) {
       return NextResponse.json(
         {
