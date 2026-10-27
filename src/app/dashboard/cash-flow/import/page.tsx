@@ -3,42 +3,31 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImportExpenses } from "@/components/tracking/ImportExpenses";
-import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
+import { fetchPlan, persistCustomCategory } from "@/lib/tracking/plan-client";
 import { buildStatementBaseline } from "@/lib/tracking/statement-baseline";
 import { rowsForPicture } from "@/lib/tracking/import-session";
 import { todayIso } from "@/lib/tracking/dates";
 import {
+  alignImportRows,
   getImportSession,
   patchImportRows,
+  planCategoryLists,
   saveImportRows,
   setImportSession,
   subscribeImportSession,
   type ImportRow,
+  type PlanCategoryLists,
+  type PlanMenuKind,
 } from "@/lib/tracking/import-session";
 
-const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
-
-function loadCustomCategories(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = JSON.parse(localStorage.getItem(CUSTOM_CATEGORY_KEY) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((item) => typeof item === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function rememberCategory(slug: string) {
-  const known = loadCustomCategories();
-  if (known.includes(slug)) return;
-  localStorage.setItem(CUSTOM_CATEGORY_KEY, JSON.stringify([...known, slug]));
-}
+const EMPTY_ADDED: Record<PlanMenuKind, string[]> = { expense: [], income: [], savings: [] };
 
 export default function ImportExpensesPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [extras, setExtras] = useState<string[]>([]);
+  const [categories, setCategories] = useState<PlanCategoryLists | null>(null);
+  const [added, setAdded] = useState(EMPTY_ADDED);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -58,12 +47,19 @@ export default function ImportExpensesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchCatalog()
-      .then((catalog) => migrateLocalCategories(catalog))
-      .then((catalog) => {
-        if (cancelled) return;
-        setExtras([...new Set([...loadCustomCategories(), ...extraSlugs(catalog)])]);
-      });
+    fetchPlan(Number(todayIso().slice(0, 4))).then((plan) => {
+      if (cancelled) return;
+      const lists = planCategoryLists(plan.schedules);
+      const current = getImportSession();
+      if (current.status === "ready" && current.rows && !current.aligned) {
+        setImportSession({
+          ...current,
+          rows: alignImportRows(current.rows, lists),
+          aligned: true,
+        });
+      }
+      setCategories(lists);
+    });
     return () => {
       cancelled = true;
     };
@@ -77,7 +73,7 @@ export default function ImportExpensesPage() {
     }
   }, [router, rows]);
 
-  if (!rows) return null;
+  if (!rows || !categories || !getImportSession().aligned) return null;
 
   const hasPicture = buildStatementBaseline(rowsForPicture(rows), todayIso()) != null;
 
@@ -85,7 +81,8 @@ export default function ImportExpensesPage() {
     <ImportExpenses
       rows={rows}
       notice={notice}
-      extras={extras}
+      categories={categories}
+      added={added}
       hasPicture={hasPicture}
       saving={saving}
       saveError={saveError}
@@ -93,10 +90,9 @@ export default function ImportExpensesPage() {
         setRows(next);
         patchImportRows(next);
       }}
-      onAddCategory={(slug) => {
-        rememberCategory(slug);
-        setExtras((prev) => [...new Set([...prev, slug])]);
-        void persistCustomCategory(slug);
+      onAddCategory={(slug, kind) => {
+        setAdded((prev) => ({ ...prev, [kind]: [...new Set([...prev[kind], slug])] }));
+        void persistCustomCategory(slug, kind);
       }}
       onSave={() => {
         setSaving(true);

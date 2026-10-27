@@ -1,12 +1,22 @@
+import { transactionKind } from "@/lib/tracking/cash-capture";
 import {
   INCOME_CATEGORIES,
   SAVINGS_CATEGORIES,
   SPENDING_CATEGORIES,
+  isSpendingCategory,
 } from "@/lib/tracking/categories";
 import { todayIso } from "@/lib/tracking/dates";
 import { mergeUploadPatch, type DuplicateAction, type ExistingSpend } from "@/lib/tracking/spending-parse";
 import type { UnlockItem } from "@/components/tracking/UnlockToast";
 import type { ParsedSpendingItem } from "@/types/tracking";
+
+export interface PlanCategoryLists {
+  expense: string[];
+  income: string[];
+  savings: string[];
+}
+
+export type PlanMenuKind = keyof PlanCategoryLists;
 
 export interface ImportRow extends ParsedSpendingItem {
   key: string;
@@ -22,6 +32,8 @@ export type ImportSession = {
   rows: ImportRow[] | null;
   notice: string | null;
   error: string | null;
+  /** True after statement guesses have been matched to the budget plan. */
+  aligned?: boolean;
 };
 
 const EMPTY_SESSION: ImportSession = { status: "idle", rows: null, notice: null, error: null };
@@ -64,28 +76,114 @@ export function rowsForPicture(rows: ImportRow[]): ImportRow[] {
 
 export function confirmCategory(rows: ImportRow[], category: string): ImportRow[] {
   return rows.map((row) =>
-    row.suggested_category === category && !row.categoryConfirmed ? { ...row, categoryConfirmed: true } : row,
+    row.included && row.suggested_category === category && !row.categoryConfirmed
+      ? { ...row, categoryConfirmed: true }
+      : row,
   );
 }
 
-/** "needs" and "all" are reserved. Any other value is a category slug. */
-export function filterImportRows(rows: ImportRow[], filter: string): ImportRow[] {
-  if (filter === "all") return rows;
-  if (filter === "needs") return rows.filter((row) => !row.categoryConfirmed);
-  return rows.filter((row) => row.suggested_category === filter);
+export function confirmImportRow(rows: ImportRow[], key: string): ImportRow[] {
+  return rows.map((row) => (row.key === key && row.suggested_category ? { ...row, categoryConfirmed: true } : row));
 }
 
-const KNOWN_CATEGORIES: readonly string[] = [
-  ...SPENDING_CATEGORIES,
-  ...INCOME_CATEGORIES,
-  ...SAVINGS_CATEGORIES,
-];
+/** "needs" and "all" are reserved. A category filter shows lines still waiting to be confirmed. */
+export function filterImportRows(rows: ImportRow[], filter: string): ImportRow[] {
+  const active = rows.filter((row) => row.included);
+  if (filter === "all") return active;
+  if (filter === "needs") return active.filter((row) => !row.suggested_category);
+  return active.filter((row) => row.suggested_category === filter && !row.categoryConfirmed);
+}
 
-export function importCategoryChips(rows: ImportRow[]): string[] {
-  const present = new Set(rows.map((row) => row.suggested_category));
-  const known = KNOWN_CATEGORIES.filter((slug) => present.has(slug));
-  const rest = [...present].filter((slug) => !KNOWN_CATEGORIES.includes(slug)).sort((a, b) => a.localeCompare(b));
-  return [...known, ...rest];
+function orderSlugs(slugs: string[], known: readonly string[]): string[] {
+  const present = new Set(slugs.filter(Boolean));
+  const head = known.filter((slug) => present.has(slug));
+  const rest = [...present].filter((slug) => !known.includes(slug)).sort((a, b) => a.localeCompare(b));
+  return [...head, ...rest];
+}
+
+/** Categories already on the budget plan, in plan order, plus the catch-all for that kind. */
+export function planCategoryLists(
+  schedules: Array<{ kind: string; category: string; spend_category?: string | null }>,
+): PlanCategoryLists {
+  const expense = new Set<string>();
+  const income = new Set<string>();
+  const savings = new Set<string>();
+  for (const row of schedules) {
+    if (row.kind === "expense") {
+      if (row.spend_category && isSpendingCategory(row.spend_category)) expense.add(row.spend_category);
+      else if (isSpendingCategory(row.category)) expense.add(row.category);
+    } else if (row.kind === "income" && row.category) {
+      income.add(row.category);
+    } else if (row.kind === "savings" && row.category) {
+      savings.add(row.category);
+    }
+  }
+  expense.add("other");
+  income.add("other_income");
+  savings.add("other_savings");
+  return {
+    expense: orderSlugs([...expense], SPENDING_CATEGORIES),
+    income: orderSlugs([...income], INCOME_CATEGORIES),
+    savings: orderSlugs([...savings], SAVINGS_CATEGORIES),
+  };
+}
+
+export function importChipOrder(lists: PlanCategoryLists): string[] {
+  return [...lists.expense, ...lists.income, ...lists.savings];
+}
+
+export function importMenu(kind: PlanMenuKind, lists: PlanCategoryLists, added: string[]): string[] {
+  return orderSlugs([...lists[kind], ...added], importChipOrder(lists));
+}
+
+export function importRowMenuKind(row: ImportRow): PlanMenuKind {
+  const kind = transactionKind(row);
+  if (kind === "income") return "income";
+  if (kind === "savings") return "savings";
+  return "expense";
+}
+
+/** Keep a guess only when it is already a category on the plan. Everything else starts unassigned. */
+export function alignImportRows(rows: ImportRow[], lists: PlanCategoryLists): ImportRow[] {
+  return rows.map((row) => {
+    const savingsGuess =
+      (SAVINGS_CATEGORIES as readonly string[]).includes(row.suggested_category) &&
+      row.line_role !== "income" &&
+      row.line_role !== "card_payment";
+    const next = savingsGuess ? { ...row, line_role: "savings" as const } : row;
+    const allowed = new Set(lists[importRowMenuKind(next)]);
+    if (next.suggested_category && allowed.has(next.suggested_category)) {
+      return { ...next, categoryConfirmed: false };
+    }
+    return { ...next, suggested_category: "", categoryConfirmed: false };
+  });
+}
+
+export function importCategoryChips(rows: ImportRow[], order: string[]): string[] {
+  const present = new Set(
+    rows.filter((row) => row.included && row.suggested_category && !row.categoryConfirmed).map((row) => row.suggested_category),
+  );
+  return orderSlugs([...present], order);
+}
+
+/** Open on the first plan category that still needs confirmation, then the unassigned lines. */
+export function firstImportFilter(rows: ImportRow[], order: string[]): string {
+  const chips = importCategoryChips(rows, order);
+  if (chips.length > 0) return chips[0];
+  if (rows.some((row) => row.included && !row.suggested_category)) return "needs";
+  return "all";
+}
+
+export function pendingImportCount(rows: ImportRow[]): number {
+  return rows.filter((row) => row.included && !row.categoryConfirmed).length;
+}
+
+function savedCategory(row: ImportRow): string {
+  if (row.suggested_category) return row.suggested_category;
+  const kind = importRowMenuKind(row);
+  if (kind === "income") return "other_income";
+  if (kind === "savings") return "other_savings";
+  return "other";
 }
 
 export async function saveImportRows(rows: ImportRow[]): Promise<UnlockItem[]> {
@@ -125,7 +223,7 @@ export async function saveImportRows(rows: ImportRow[]): Promise<UnlockItem[]> {
         transactions: toSave.map((row) => ({
           txn_date: row.txn_date ?? todayIso(),
           amount: row.amount,
-          category: row.suggested_category,
+          category: savedCategory(row),
           description: row.description,
           note: row.note ?? null,
           source: "screenshot",

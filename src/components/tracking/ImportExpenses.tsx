@@ -2,16 +2,23 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { CategoryPicker } from "@/components/tracking/EditSpendSheet";
-import { transactionKind } from "@/lib/tracking/cash-capture";
 import { categoryLabel } from "@/lib/tracking/categories";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import {
   confirmCategory,
+  confirmImportRow,
   filterImportRows,
+  firstImportFilter,
   importCategoryChips,
+  importChipOrder,
+  importMenu,
+  importRowMenuKind,
+  pendingImportCount,
   type ImportRow,
+  type PlanCategoryLists,
+  type PlanMenuKind,
 } from "@/lib/tracking/import-session";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +55,8 @@ function FilterChip({
 export function ImportExpenses({
   rows,
   notice,
-  extras,
+  categories,
+  added,
   hasPicture,
   saving,
   saveError,
@@ -58,25 +66,33 @@ export function ImportExpenses({
 }: {
   rows: ImportRow[];
   notice: string | null;
-  extras: string[];
+  categories: PlanCategoryLists;
+  added: Record<PlanMenuKind, string[]>;
   hasPicture: boolean;
   saving: boolean;
   saveError: string | null;
   onChange: (rows: ImportRow[]) => void;
-  onAddCategory: (slug: string) => void;
+  onAddCategory: (slug: string, kind: PlanMenuKind) => void;
   onSave: () => void;
 }) {
-  const [filter, setFilter] = useState(() => (rows.some((row) => !row.categoryConfirmed) ? "needs" : "all"));
+  const order = importChipOrder(categories);
+  const [filter, setFilter] = useState(() => firstImportFilter(rows, order));
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const visible = filterImportRows(rows, filter);
-  const chips = importCategoryChips(rows);
-  const suggested = rows.filter((row) => !row.categoryConfirmed).length;
+  const chips = importCategoryChips(rows, order);
+  const pending = pendingImportCount(rows);
+  const unassigned = rows.filter((row) => row.included && !row.suggested_category).length;
+  const activeFilter =
+    filter === "needs" || filter === "all" || chips.includes(filter)
+      ? filter
+      : (chips[0] ?? (unassigned > 0 ? "needs" : "all"));
+  const visible = filterImportRows(rows, activeFilter);
   const chosen = rows.filter((row) => row.included && row.amount > 0);
   const canSave =
     chosen.some((row) => !row.duplicateOf || row.duplicateAction === "add" || row.duplicateAction === "merge") ||
     chosen.some((row) => row.duplicateOf && row.duplicateAction === "skip");
-  const viewingCategory = filter !== "needs" && filter !== "all";
-  const categoryStillSuggested = viewingCategory && rows.some((row) => row.suggested_category === filter && !row.categoryConfirmed);
+  const viewingCategory = activeFilter !== "needs" && activeFilter !== "all";
+  const categoryStillSuggested =
+    viewingCategory && rows.some((row) => row.suggested_category === activeFilter && !row.categoryConfirmed);
 
   function update(key: string, patch: Partial<ImportRow>) {
     onChange(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -88,7 +104,7 @@ export function ImportExpenses({
         <div>
           <h1 className="font-display text-2xl font-semibold text-[var(--text-primary)]">Review expenses</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-            {rows.length} {rows.length === 1 ? "expense" : "expenses"}. Suggested categories stay marked until you confirm them.
+            {rows.filter((row) => row.included).length} to review. Confirm the sorted lines first. Needs a look is anything that does not match the plan.
           </p>
         </div>
         {hasPicture && (
@@ -100,14 +116,14 @@ export function ImportExpenses({
       {notice && <p className="mt-3 font-body text-sm text-[var(--text-secondary)]">{notice}</p>}
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-        <FilterChip active={filter === "needs"} onClick={() => setFilter("needs")}>
-          Needs a look{suggested > 0 ? ` (${suggested})` : ""}
+        <FilterChip active={activeFilter === "needs"} onClick={() => setFilter("needs")}>
+          Needs a look{unassigned > 0 ? ` (${unassigned})` : ""}
         </FilterChip>
-        <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>
+        <FilterChip active={activeFilter === "all"} onClick={() => setFilter("all")}>
           All
         </FilterChip>
         {chips.map((slug) => (
-          <FilterChip key={slug} active={filter === slug} onClick={() => setFilter(slug)}>
+          <FilterChip key={slug} active={activeFilter === slug} onClick={() => setFilter(slug)}>
             {categoryLabel(slug)}
           </FilterChip>
         ))}
@@ -115,22 +131,24 @@ export function ImportExpenses({
 
       {visible.length === 0 ? (
         <p className="mt-6 font-body text-sm text-[var(--text-muted)]">
-          {filter === "needs" ? "Every suggested category is checked." : "Nothing in this category."}
+          {activeFilter === "needs" ? "Every line has a category." : "These are confirmed."}
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-[var(--warm-100)] overflow-hidden rounded-xl border border-[var(--warm-200)] bg-white">
           {visible.map((row) => {
             const editing = editingKey === row.key;
-            const kind = transactionKind(row);
+            const menuKind = importRowMenuKind(row);
             return (
-              <li key={row.key} className={cn("px-4 py-3", !row.included && "opacity-40")}>
+              <li key={row.key} className="px-4 py-3">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <input
-                    type="checkbox"
-                    checked={row.included}
-                    onChange={(event) => update(row.key, { included: event.target.checked })}
-                    aria-label={`Include ${row.description}`}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => update(row.key, { included: false })}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                    aria-label={`Delete ${row.description || "line"}`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
                   <span className="w-16 shrink-0 font-body text-xs text-[var(--text-muted)]">
                     {formatShortDate(row.txn_date)}
                   </span>
@@ -144,24 +162,39 @@ export function ImportExpenses({
                     <div className="w-full sm:w-44">
                       <CategoryPicker
                         value={row.suggested_category}
-                        extras={extras}
+                        extras={[]}
+                        choices={importMenu(menuKind, categories, added[menuKind])}
+                        emptyLabel="Choose a category"
                         variant="select"
-                        kind={kind === "neutral" ? "expense" : kind}
+                        kind={menuKind}
+                        canAdd
                         onAdd={(slug) => {
-                          onAddCategory(slug);
+                          onAddCategory(slug, menuKind);
                           update(row.key, { suggested_category: slug, categoryConfirmed: true });
                         }}
-                        onChange={(slug) => update(row.key, { suggested_category: slug, categoryConfirmed: true })}
+                        onChange={(slug) =>
+                          update(row.key, {
+                            suggested_category: slug,
+                            categoryConfirmed: slug !== "",
+                          })
+                        }
                       />
                     </div>
-                    <span
-                      className={cn(
-                        "shrink-0 font-display text-[11px] font-semibold",
-                        row.categoryConfirmed ? "text-[var(--emerald-dark)]" : "text-amber-800",
-                      )}
-                    >
-                      {row.categoryConfirmed ? "Checked" : "Suggested"}
-                    </span>
+                    {row.suggested_category && !row.categoryConfirmed ? (
+                      <button
+                        type="button"
+                        onClick={() => onChange(confirmImportRow(rows, row.key))}
+                        className="shrink-0 font-display text-[11px] font-semibold text-[var(--emerald-dark)]"
+                      >
+                        Confirm
+                      </button>
+                    ) : row.categoryConfirmed ? (
+                      <span className="shrink-0 font-display text-[11px] font-semibold text-[var(--emerald-dark)]">
+                        Confirmed
+                      </span>
+                    ) : (
+                      <span className="shrink-0 font-display text-[11px] font-semibold text-amber-800">Unassigned</span>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -252,9 +285,12 @@ export function ImportExpenses({
         <div className="mx-auto flex w-full max-w-[1080px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div>
             <p className="font-body text-sm text-[var(--text-primary)]">
-              {suggested === 0 ? "Categories checked" : `${suggested} still suggested`}
+              {pending === 0 ? "Categories checked" : `${pending} still to confirm`}
             </p>
-            {!viewingCategory && suggested > 0 && (
+            {activeFilter === "needs" && unassigned > 0 && (
+              <p className="font-body text-xs text-[var(--text-muted)]">Choose a category for each line.</p>
+            )}
+            {activeFilter === "all" && pending > 0 && (
               <p className="font-body text-xs text-[var(--text-muted)]">Pick a category to confirm that group.</p>
             )}
             {saveError && <p className="font-body text-sm text-[var(--error)]">{saveError}</p>}
@@ -263,7 +299,7 @@ export function ImportExpenses({
             <button
               type="button"
               disabled={!categoryStillSuggested}
-              onClick={() => onChange(confirmCategory(rows, filter))}
+              onClick={() => onChange(confirmCategory(rows, activeFilter))}
               className="rounded-lg border border-[var(--warm-200)] px-3 py-2.5 font-display text-sm font-semibold disabled:opacity-50"
             >
               These categories look right

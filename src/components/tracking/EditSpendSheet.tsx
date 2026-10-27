@@ -28,6 +28,9 @@ export function CategoryPicker({
   onAdd,
   variant,
   kind = "expense",
+  choices,
+  emptyLabel,
+  canAdd: canAddProp,
 }: {
   value: string;
   onChange: (slug: string) => void;
@@ -36,12 +39,18 @@ export function CategoryPicker({
   variant: "pills" | "select";
   /** Which list to show. Income and savings lists do not take custom additions yet. */
   kind?: TransactionKind;
+  /** When set, this list replaces the built-in categories. */
+  choices?: string[];
+  /** First option, used when the line has no category yet. */
+  emptyLabel?: string;
+  canAdd?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
-  const options = categoryOptions(extras, value, kind);
-  const canAdd = kind === "expense";
+  const options = choices ?? categoryOptions(extras, value, kind);
+  const canAdd = canAddProp ?? kind === "expense";
+  const selectValue = options.includes(value) || (emptyLabel != null && value === "") ? value : emptyLabel != null ? "" : "other";
 
   function commit() {
     const slug = categorySlug(draft);
@@ -60,7 +69,7 @@ export function CategoryPicker({
     <div>
       {variant === "select" ? (
         <select
-          value={options.includes(value) ? value : "other"}
+          value={selectValue}
           onChange={(e) => {
             if (e.target.value === "__add") {
               setAdding(true);
@@ -70,6 +79,7 @@ export function CategoryPicker({
           }}
           className="w-full rounded border border-[var(--warm-200)] px-2 py-1 font-body text-sm"
         >
+          {emptyLabel && <option value="">{emptyLabel}</option>}
           {options.map((c) => (
             <option key={c} value={c}>
               {categoryLabel(c)}

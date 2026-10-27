@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildImportNotice, PAGE_CUTOFF_NOTE, publishReaderNotes } from "@/lib/tracking/reader-notes";
-import { confirmCategory, filterImportRows, importCategoryChips, type ImportRow } from "@/lib/tracking/import-session";
+import {
+  alignImportRows,
+  confirmCategory,
+  filterImportRows,
+  firstImportFilter,
+  importCategoryChips,
+  planCategoryLists,
+  type ImportRow,
+} from "@/lib/tracking/import-session";
 
 describe("publishReaderNotes", () => {
   it("drops page commentary and keeps a failed file and a cut-off page", () => {
@@ -43,12 +51,48 @@ function row(patch: Partial<ImportRow>): ImportRow {
   };
 }
 
+describe("plan categories for a statement import", () => {
+  const lists = planCategoryLists([
+    { kind: "expense", category: "residence_mortgage", spend_category: "housing" },
+    { kind: "expense", category: "home_insurance", spend_category: "insurance" },
+    { kind: "income", category: "paycheque" },
+    { kind: "savings", category: "tfsa" },
+  ]);
+
+  it("uses the plan categories in plan order and adds the catch-all", () => {
+    expect(lists.expense).toEqual(["housing", "insurance", "other"]);
+    expect(lists.income).toEqual(["paycheque", "other_income"]);
+    expect(lists.savings).toEqual(["tfsa", "other_savings"]);
+  });
+
+  it("keeps a guess that matches the plan and clears every other guess", () => {
+    const aligned = alignImportRows(
+      [
+        row({ key: "home", suggested_category: "housing" }),
+        row({ key: "store", suggested_category: "shopping" }),
+        row({ key: "pay", suggested_category: "paycheque", line_role: "income" }),
+        row({ key: "tfsa", suggested_category: "tfsa", line_role: "transfer" }),
+        row({ key: "rrsp", suggested_category: "rrsp", line_role: "transfer" }),
+      ],
+      lists,
+    );
+    expect(aligned.find((item) => item.key === "home")?.suggested_category).toBe("housing");
+    expect(aligned.find((item) => item.key === "store")?.suggested_category).toBe("");
+    expect(aligned.find((item) => item.key === "pay")?.suggested_category).toBe("paycheque");
+    expect(aligned.find((item) => item.key === "tfsa")?.suggested_category).toBe("tfsa");
+    expect(aligned.find((item) => item.key === "tfsa")?.line_role).toBe("savings");
+    expect(aligned.find((item) => item.key === "rrsp")?.suggested_category).toBe("");
+  });
+});
+
 describe("import review filters", () => {
   const rows = [
     row({ key: "a", suggested_category: "dining" }),
     row({ key: "b", suggested_category: "groceries", categoryConfirmed: true }),
-    row({ key: "c", suggested_category: "paycheque" }),
+    row({ key: "c", suggested_category: "paycheque", line_role: "income" }),
+    row({ key: "d", suggested_category: "" }),
   ];
+  const order = ["housing", "groceries", "dining", "other", "paycheque", "other_income", "tfsa", "other_savings"];
 
   it("confirms one category at a time", () => {
     const next = confirmCategory(rows, "dining");
@@ -56,8 +100,10 @@ describe("import review filters", () => {
     expect(next.find((item) => item.key === "c")?.categoryConfirmed).toBe(false);
   });
 
-  it("filters needs-a-look and lists category chips in catalog order", () => {
-    expect(filterImportRows(rows, "needs").map((item) => item.key)).toEqual(["a", "c"]);
-    expect(importCategoryChips(rows)).toEqual(["groceries", "dining", "paycheque"]);
+  it("opens on the first sorted category and keeps unassigned lines in Needs a look", () => {
+    expect(firstImportFilter(rows, order)).toBe("dining");
+    expect(filterImportRows(rows, "needs").map((item) => item.key)).toEqual(["d"]);
+    expect(filterImportRows(rows, "dining").map((item) => item.key)).toEqual(["a"]);
+    expect(importCategoryChips(rows, order)).toEqual(["dining", "paycheque"]);
   });
 });
