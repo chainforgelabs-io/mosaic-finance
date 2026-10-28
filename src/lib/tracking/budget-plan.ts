@@ -296,6 +296,21 @@ export function effectiveBudget(
   return Number(fallback);
 }
 
+/** How a category bar should read. A zero allocation with spending is over. */
+export function budgetMeter(spent: number, limit: number | null): {
+  allocated: number;
+  width: number;
+  over: boolean;
+  tone: "red" | "amber" | "ok";
+} {
+  const allocated = limit != null && limit > 0 ? limit : 0;
+  const over = spent > allocated;
+  const ratio = allocated > 0 ? spent / allocated : 0;
+  const width = over && allocated === 0 ? 100 : Math.min(100, Math.max(0, ratio * 100));
+  const tone = over ? "red" : ratio >= 0.8 && ratio < 1 ? "amber" : "ok";
+  return { allocated, width, over, tone };
+}
+
 export interface PlanSuggestion {
   kind: PlanKind;
   category: string;

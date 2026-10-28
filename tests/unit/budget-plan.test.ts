@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   effectiveBudget,
+  budgetMeter,
   entriesFromSchedules,
   entriesFromSuggestions,
   fillAcrossMonths,
@@ -97,6 +98,15 @@ describe("plan grid math", () => {
     const defaults = { dining: 200, housing: 0 };
     expect(effectiveBudget(index, defaults, "dining", "2026-02-15")).toBe(200);
     expect(effectiveBudget(index, defaults, "housing", "2026-02-15")).toBeNull();
+  });
+
+  it("shows spent against the budget, and treats a zero allocation as over", () => {
+    expect(budgetMeter(155, 1220)).toMatchObject({ allocated: 1220, over: false, tone: "ok" });
+    expect(budgetMeter(1400, 1220).over).toBe(true);
+    expect(budgetMeter(1400, 1220).width).toBe(100);
+    expect(budgetMeter(755, null)).toMatchObject({ allocated: 0, width: 100, over: true, tone: "red" });
+    expect(budgetMeter(755, 0)).toMatchObject({ allocated: 0, width: 100, over: true, tone: "red" });
+    expect(budgetMeter(0, null).over).toBe(false);
   });
 });
 

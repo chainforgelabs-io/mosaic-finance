@@ -57,7 +57,7 @@ import {
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
 import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
-import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
+import { budgetMeter, effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildImportNotice } from "@/lib/tracking/reader-notes";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
@@ -1147,27 +1147,24 @@ export default function CashFlowPage() {
               .reduce((s, t) => s + Number(t.amount), 0);
             const limit = effectiveBudget(planIndex, budgets, cat, monthStart);
             if (limit == null && spent === 0) return null;
-            const pct = limit ? Math.min(100, (spent / limit) * 100) : 0;
+            const meter = budgetMeter(spent, limit);
             return (
               <div key={cat}>
-                <div className="flex justify-between font-body text-xs text-[var(--text-secondary)]">
+                <div className="flex justify-between gap-3 font-body text-xs text-[var(--text-secondary)]">
                   <span>{categoryLabel(cat)}</span>
-                  <span>
-                    {formatMoney(spent)}
-                    {limit != null ? ` / ${formatMoney(limit)}` : ""}
+                  <span className={cn("tabular-nums", meter.over && "font-semibold text-red-600")}>
+                    {formatMoney(spent)} / {formatMoney(meter.allocated)}
                   </span>
                 </div>
-                {limit != null && (
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-[var(--emerald)]",
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                )}
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      meter.tone === "red" ? "bg-red-500" : meter.tone === "amber" ? "bg-amber-500" : "bg-[var(--emerald)]",
+                    )}
+                    style={{ width: `${meter.width}%` }}
+                  />
+                </div>
               </div>
             );
           })}
