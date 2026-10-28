@@ -314,23 +314,14 @@ export default function CashFlowPage() {
     return [...map.values()].sort((a, b) => (a.txn_date < b.txn_date ? 1 : -1));
   }, [history, transactions, monthTxns]);
 
-  const byCategory = useMemo(() => {
-    const map = new Map<string, TransactionRow[]>();
-    for (const t of listedSpend) {
-      const cat = t.category;
-      const list = map.get(cat) ?? [];
-      list.push(t);
-      map.set(cat, list);
-    }
-    const keys = [...new Set([...SPENDING_CATEGORIES, ...listedSpend.map((t) => t.category)])];
-    return keys
-      .map((cat) => ({
-        category: cat,
-        amount: (map.get(cat) ?? []).reduce((s, t) => s + Number(t.amount), 0),
-        items: map.get(cat) ?? [],
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [listedSpend]);
+  const loggedSpend = useMemo(
+    () =>
+      [...listedSpend].sort((a, b) => {
+        if (a.txn_date === b.txn_date) return a.id < b.id ? 1 : -1;
+        return a.txn_date < b.txn_date ? 1 : -1;
+      }),
+    [listedSpend],
+  );
 
   const categorySlices = useMemo(() => {
     const map = new Map<string, number>();
@@ -1025,7 +1016,6 @@ export default function CashFlowPage() {
 
       <CashKeypad
         history={history}
-        extras={customCategories}
         catchUpDays={quietDays}
         onAddCategory={addCategory}
         onSave={handleCapture}
@@ -1214,7 +1204,7 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : byCategory.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 && paymentTxns.length === 0 ? (
+      ) : listedSpend.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 && paymentTxns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">
             {picture ? "Nothing new this period" : "Nothing logged yet"}
@@ -1236,31 +1226,26 @@ export default function CashFlowPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {byCategory.map((g) => (
-            <div key={g.category} className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="size-2.5 rounded-full"
-                    style={{ backgroundColor: categoryColor(g.category) }}
-                  />
-                  <span className="font-display text-sm font-semibold text-[var(--text-primary)]">
-                    {categoryLabel(g.category)}
-                  </span>
-                </div>
-                <span className="font-display text-sm font-bold tabular-nums">
-                  {formatMoneyExact(g.amount)}
-                </span>
-              </div>
-              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
-                {g.items.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+          {loggedSpend.length > 0 && (
+            <ul className="divide-y divide-[var(--warm-100)] overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+              {loggedSpend.map((t) => {
+                const category = categoryLabel(t.category);
+                const named = (t.description || t.note || "").trim();
+                const title = named || category;
+                const showCategory = named.length > 0 && named.toLowerCase() !== category.toLowerCase();
+                return (
+                  <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <span
+                      className="size-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: categoryColor(t.category) }}
+                    />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
-                        {t.description || t.note || "Spend"}
-                      </p>
+                      <p className="truncate font-body text-sm text-[var(--text-primary)]">{title}</p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2">
-                        <p className="font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                        <p className="font-body text-[11px] text-[var(--text-muted)]">
+                          {t.txn_date}
+                          {showCategory ? ` · ${category}` : ""}
+                        </p>
                         {linePlaceLabel(t) && (
                           <span className="rounded-full bg-[var(--warm-100)] px-2 py-0.5 font-display text-[11px] font-semibold text-[var(--text-secondary)]">
                             {linePlaceLabel(t)}
@@ -1295,10 +1280,10 @@ export default function CashFlowPage() {
                       </button>
                     </div>
                   </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                );
+              })}
+            </ul>
+          )}
           {hiddenStatementLines > 0 && !showStatementLines && (
             <button
               type="button"

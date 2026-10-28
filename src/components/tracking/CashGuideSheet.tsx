@@ -12,12 +12,12 @@ const STEPS = [
     body: "The plan is one row for each source. Enter the amount each time, or a full-year figure and how often it is paid. Weekly, every 2 weeks, twice a month, monthly, quarterly, every 4 months, every 6 months, and yearly are all available.",
   },
   {
-    title: "Say whether a purchase left the bank",
-    body: "When you log a purchase, choose From the bank or On a card. A card purchase counts as spending and does not reduce the bank balance. Uploaded card statements work the same way.",
+    title: "Log what left the bank",
+    body: "Choose Out, enter the amount, and tap a category. That purchase leaves the bank. Hold a category to add a merchant, a date, a split, or a repeat.",
   },
   {
-    title: "Pay the card from the bank",
-    body: "When money leaves the bank to pay a credit card or a line of credit, choose Pay the card. That payment is not counted as spending again. You can also enter one number for what you owe on cards and lines of credit, and update it when you check your bank balance.",
+    title: "Cards stay with the statement",
+    body: "An uploaded statement keeps a card purchase separate from the payment that leaves the bank. When you check your bank balance, you can also enter what you owe on cards and lines of credit.",
   },
 ] as const;
 

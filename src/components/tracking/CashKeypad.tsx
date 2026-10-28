@@ -7,8 +7,10 @@ import {
   KEYPAD_CATEGORIES,
   SAVINGS_CATEGORIES,
   SPENDING_CATEGORIES,
+  categoryColor,
   categoryLabel,
   categorySlug,
+  isSpendingCategory,
 } from "@/lib/tracking/categories";
 import {
   amountFromDigits,
@@ -29,53 +31,38 @@ const MODE_LABELS: Record<CaptureMode, string> = {
   save: "Save",
 };
 
-/** Where an outflow happened. Pay the card leaves the bank and is not spending. */
-type SpendPlace = "bank" | "card" | "pay";
-
-const PLACE_LABELS: Record<SpendPlace, string> = {
-  bank: "From the bank",
-  card: "On a card",
-  pay: "Pay the card",
-};
-
 function directionFor(mode: CaptureMode): CashDirection {
   return mode === "in" ? "in" : "out";
 }
 
-function captureFields(mode: CaptureMode, place: SpendPlace): Pick<CaptureInput, "direction" | "lineRole" | "instrument"> {
+function captureFields(mode: CaptureMode): Pick<CaptureInput, "direction" | "lineRole" | "instrument"> {
   if (mode === "save") return { direction: "out", lineRole: "savings", instrument: "debit" };
   if (mode === "in") return { direction: "in", instrument: "debit" };
-  if (place === "pay") return { direction: "out", lineRole: "card_payment", instrument: "debit" };
-  if (place === "card") return { direction: "out", lineRole: "purchase", instrument: "credit" };
   return { direction: "out", lineRole: "purchase", instrument: "debit" };
 }
 
-/** The full list behind More, by what is being logged. */
-function optionsFor(mode: CaptureMode, extras: string[]): string[] {
+/** Everyday categories behind More. Bill names stay on the due cards. */
+function presetOptions(mode: CaptureMode): string[] {
   if (mode === "save") return [...SAVINGS_CATEGORIES];
-  if (mode === "in") return [...INCOME_CATEGORIES, "income"];
-  return [...new Set([...KEYPAD_CATEGORIES, ...SPENDING_CATEGORIES, ...extras, "untracked"])];
+  if (mode === "in") return [...INCOME_CATEGORIES];
+  return [...SPENDING_CATEGORIES];
 }
 
 export function CashKeypad({
   history,
-  extras,
   catchUpDays,
   onAddCategory,
   onSave,
 }: {
   history: TransactionRow[];
-  extras: string[];
   catchUpDays: number | null;
   onAddCategory: (slug: string) => void;
   onSave: (input: CaptureInput) => Promise<boolean>;
 }) {
   const [digits, setDigits] = useState("");
   const [mode, setMode] = useState<CaptureMode>("out");
-  const [place, setPlace] = useState<SpendPlace>("bank");
-  const fields = captureFields(mode, place);
+  const fields = captureFields(mode);
   const direction = directionFor(mode);
-  const payingCard = mode === "out" && place === "pay";
   const [moreOpen, setMoreOpen] = useState(false);
   const [detailsCategory, setDetailsCategory] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -90,6 +77,15 @@ export function CashKeypad({
         : predictCategories(history, new Date(), amount > 0 ? amount : null, direction),
     [history, amount, direction, mode],
   );
+  const quickCategories = useMemo(() => {
+    if (mode !== "out") return predicted;
+    const spending = predicted.filter((category) => isSpendingCategory(category));
+    for (const category of KEYPAD_CATEGORIES) {
+      if (spending.length >= 4) break;
+      if (!spending.includes(category)) spending.push(category);
+    }
+    return spending.slice(0, 4);
+  }, [mode, predicted]);
 
   async function save(input: CaptureInput) {
     if (savingRef.current || input.amount <= 0) {
@@ -146,55 +142,8 @@ export function CashKeypad({
         ))}
       </div>
 
-      {mode === "out" && (
-        <div className="mb-3 flex rounded-full border border-[var(--warm-200)] bg-white p-1">
-          {(Object.keys(PLACE_LABELS) as SpendPlace[]).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setPlace(option);
-                setMoreOpen(false);
-              }}
-              className={cn(
-                "flex-1 rounded-full px-2 py-2 font-display text-xs font-semibold sm:text-sm",
-                place === option ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
-              )}
-            >
-              {PLACE_LABELS[option]}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {payingCard ? (
-        <div className="mb-3">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() =>
-              void save({
-                amount,
-                category: "debt_payments",
-                ...fields,
-                categoryConfirmed: true,
-                txnDate: todayIso(),
-                description: "Card payment",
-                source: "manual",
-              })
-            }
-            className="w-full rounded-lg bg-[var(--slate-950)] py-2.5 font-display text-sm font-semibold text-white disabled:opacity-50"
-          >
-            Record this payment
-          </button>
-          <p className="mt-2 font-body text-[11px] text-[var(--text-muted)]">
-            This leaves the bank. It is not counted as spending.
-          </p>
-        </div>
-      ) : (
-      <>
       <div className="mb-3 flex flex-wrap gap-2">
-        {predicted.map((category) => (
+        {quickCategories.map((category) => (
           <CategoryChip
             key={category}
             label={categoryLabel(category)}
@@ -210,45 +159,25 @@ export function CashKeypad({
         >
           More
         </button>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() =>
-            void save({
-              amount,
-              category: mode === "save" ? "other_savings" : mode === "in" ? "other_income" : "other",
-              ...fields,
-              categoryConfirmed: false,
-              txnDate: todayIso(),
-              source: "manual",
-            })
-          }
-          className="shrink-0 rounded-full border border-dashed border-[var(--warm-200)] bg-white px-3 py-2 font-display text-sm font-semibold text-[var(--text-secondary)]"
-        >
-          Later
-        </button>
       </div>
       <p className="mb-3 font-body text-[11px] text-[var(--text-muted)]">
         {mode === "save"
           ? "Tap the account the money went to. Savings leave the bank but never count as spending."
-          : mode === "out" && place === "card"
-            ? "This counts as spending. It does not leave the bank until you pay the card. Hold a category for a note or date."
+          : mode === "in"
+            ? "Tap where the money came from. This increases the bank balance. Hold a category for a note or date."
             : "Tap a category to save. This changes the bank balance. Hold a category for a note, merchant, date, split, or repeat."}
       </p>
-      </>
-      )}
 
-      {moreOpen && !payingCard && (
+      {moreOpen && (
         <MoreCategories
           mode={mode}
-          extras={extras}
-          current={predicted}
+          current={quickCategories}
           onAddCategory={onAddCategory}
           onPick={(category) => tapCategory(category)}
         />
       )}
 
-      {mode === "out" && !payingCard && catchUpDays != null && catchUpDays >= 3 && (
+      {mode === "out" && catchUpDays != null && catchUpDays >= 3 && (
         <div className="mb-3 rounded-lg border border-[var(--warm-200)] bg-white px-3 py-3">
           <p className="font-body text-sm text-[var(--text-secondary)]">
             It has been {catchUpDays} days since the last entry. Type one amount for those days, or log what you remember.
@@ -275,8 +204,6 @@ export function CashKeypad({
           category={detailsCategory}
           amount={amount}
           mode={mode}
-          place={place}
-          extras={extras}
           onClose={() => setDetailsCategory(null)}
           onSave={(input) => save(input)}
         />
@@ -337,31 +264,33 @@ function CategoryChip({
 
 function MoreCategories({
   mode,
-  extras,
   current,
   onAddCategory,
   onPick,
 }: {
   mode: CaptureMode;
-  extras: string[];
   current: string[];
   onAddCategory: (slug: string) => void;
   onPick: (category: string) => void;
 }) {
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
-  const options = optionsFor(mode, extras).filter((category) => !current.includes(category));
+  const options = presetOptions(mode).filter((category) => !current.includes(category));
 
   return (
     <div className="mb-3 rounded-xl border border-[var(--warm-200)] bg-white p-3">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="grid grid-cols-2 gap-2">
         {options.map((category) => (
           <button
             key={category}
             type="button"
             onClick={() => onPick(category)}
-            className="rounded-full bg-[var(--warm-100)] px-2.5 py-1 font-display text-xs font-medium text-[var(--text-secondary)]"
+            className="flex items-center gap-2 rounded-xl border border-[var(--warm-200)] bg-white px-3 py-2.5 text-left font-display text-sm font-semibold text-[var(--text-primary)]"
           >
+            <span
+              className="size-2.5 shrink-0 rounded-full"
+              style={{ backgroundColor: categoryColor(category) }}
+            />
             {categoryLabel(category)}
           </button>
         ))}
@@ -406,21 +335,16 @@ function DetailsSheet({
   category,
   amount,
   mode,
-  place,
-  extras,
   onClose,
   onSave,
 }: {
   category: string;
   amount: number;
   mode: CaptureMode;
-  place: SpendPlace;
-  extras: string[];
   onClose: () => void;
   onSave: (input: CaptureInput) => void;
 }) {
-  const fields = captureFields(mode, place);
-  const direction = directionFor(mode);
+  const fields = captureFields(mode);
   const [chosen, setChosen] = useState(category);
   const [note, setNote] = useState("");
   const [merchant, setMerchant] = useState("");
@@ -432,7 +356,7 @@ function DetailsSheet({
   const [repeatName, setRepeatName] = useState("");
   const [cadence, setCadence] = useState<RecurringCadence>("monthly");
   const [formError, setFormError] = useState<string | null>(null);
-  const options = [...new Set([chosen, secondCategory, ...optionsFor(mode, extras)])];
+  const options = [...new Set([chosen, secondCategory, ...presetOptions(mode)])];
 
   function submit() {
     const lines = split
@@ -551,7 +475,7 @@ function DetailsSheet({
             <input
               value={repeatName}
               onChange={(event) => setRepeatName(event.target.value)}
-              placeholder={direction === "in" ? "Paycheque" : "Rent"}
+              placeholder={mode === "in" ? "Paycheque" : "Rent"}
               className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
             />
             <select

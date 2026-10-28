@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { KEYPAD_CATEGORIES, categoryLabel } from "@/lib/tracking/categories";
 import { CADENCE_LABELS, type RecurringCadence } from "@/lib/tracking/cash-capture";
 import { formatMoneyExact } from "@/lib/tracking/format";
@@ -35,7 +36,16 @@ export function RecurringPanel({
   const [adding, setAdding] = useState(false);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [confirmingDue, setConfirmingDue] = useState(false);
+  const scroller = useRef<HTMLDivElement>(null);
   const due = items.filter((item) => item.next_date <= today);
+
+  function scrollDue(direction: -1 | 1) {
+    const node = scroller.current;
+    if (!node) return;
+    const card = node.querySelector<HTMLElement>("[data-due-card]");
+    const distance = (card?.offsetWidth ?? 288) + 12;
+    node.scrollBy({ left: direction * distance, behavior: "smooth" });
+  }
 
   async function confirmDue() {
     const ready = due.flatMap((item) => {
@@ -68,12 +78,23 @@ export function RecurringPanel({
               onClick={() => void confirmDue()}
               className="rounded-lg bg-[var(--emerald)] px-3 py-1.5 font-display text-sm font-semibold text-white disabled:opacity-60"
             >
-              {confirmingDue ? "Confirming…" : "Confirm due"}
+              {confirmingDue ? "Confirming…" : "Confirm all"}
             </button>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+          <div className="flex items-center gap-2">
+            {due.length > 1 && (
+              <button
+                type="button"
+                aria-label="Previous bills"
+                onClick={() => scrollDue(-1)}
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--warm-200)] bg-white text-[var(--text-secondary)]"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+            )}
+            <div ref={scroller} className="flex min-w-0 flex-1 gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
             {due.map((item) => (
-              <div key={item.id} className="w-72 shrink-0 snap-start">
+              <div key={item.id} data-due-card className="w-72 shrink-0 snap-start">
                 <DueCard
                   item={item}
                   amount={amounts[item.id] ?? String(item.amount)}
@@ -84,6 +105,17 @@ export function RecurringPanel({
                 />
               </div>
             ))}
+            </div>
+            {due.length > 1 && (
+              <button
+                type="button"
+                aria-label="Next bills"
+                onClick={() => scrollDue(1)}
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[var(--warm-200)] bg-white text-[var(--text-secondary)]"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
