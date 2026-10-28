@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
 import { CategoryPicker } from "@/components/tracking/EditSpendSheet";
 import { categoryLabel } from "@/lib/tracking/categories";
@@ -16,6 +16,7 @@ import {
   importMenu,
   importRowMenuKind,
   pendingImportCount,
+  requestStatementPicture,
   type ImportRow,
   type PlanCategoryLists,
   type PlanMenuKind,
@@ -75,6 +76,7 @@ export function ImportExpenses({
   onAddCategory: (slug: string, kind: PlanMenuKind) => void;
   onSave: () => void;
 }) {
+  const router = useRouter();
   const order = importChipOrder(categories);
   const [filter, setFilter] = useState(() => firstImportFilter(rows, order));
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -108,9 +110,16 @@ export function ImportExpenses({
           </p>
         </div>
         {hasPicture && (
-          <Link href="/dashboard/cash-flow" className="font-display text-sm font-semibold text-[var(--text-secondary)]">
+          <button
+            type="button"
+            onClick={() => {
+              requestStatementPicture();
+              router.push("/dashboard/cash-flow");
+            }}
+            className="font-display text-sm font-semibold text-[var(--text-secondary)]"
+          >
             Back to the picture
-          </Link>
+          </button>
         )}
       </div>
       {notice && <p className="mt-3 font-body text-sm text-[var(--text-secondary)]">{notice}</p>}

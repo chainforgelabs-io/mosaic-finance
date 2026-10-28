@@ -37,18 +37,74 @@ export type ImportSession = {
 };
 
 const EMPTY_SESSION: ImportSession = { status: "idle", rows: null, notice: null, error: null };
+const IMPORT_STORAGE_KEY = "mosaic-statement-review";
 
 let session: ImportSession = EMPTY_SESSION;
 let pendingUnlocks: UnlockItem[] = [];
+let hydrated = false;
+let pictureRequested = false;
 const listeners = new Set<() => void>();
 
+export function parseStoredImportSession(raw: string): ImportSession | null {
+  try {
+    const parsed = JSON.parse(raw) as ImportSession;
+    if (parsed?.status !== "ready" || !Array.isArray(parsed.rows) || parsed.rows.length === 0) return null;
+    if (!parsed.rows.every((row) => row && typeof row.key === "string" && typeof row.description === "string")) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistImportSession(next: ImportSession) {
+  if (typeof window === "undefined") return;
+  try {
+    if (next.status === "ready" && next.rows && next.rows.length > 0) {
+      sessionStorage.setItem(IMPORT_STORAGE_KEY, JSON.stringify(next));
+      return;
+    }
+    sessionStorage.removeItem(IMPORT_STORAGE_KEY);
+  } catch {
+    // A blocked store leaves the review in this tab only.
+  }
+}
+
+function hydrateImportSession() {
+  if (hydrated || typeof window === "undefined") return;
+  hydrated = true;
+  if (session.status !== "idle") return;
+  try {
+    const raw = sessionStorage.getItem(IMPORT_STORAGE_KEY);
+    if (!raw) return;
+    const stored = parseStoredImportSession(raw);
+    if (stored) session = stored;
+    else sessionStorage.removeItem(IMPORT_STORAGE_KEY);
+  } catch {
+    // Ignore a blocked store.
+  }
+}
+
 export function getImportSession(): ImportSession {
+  hydrateImportSession();
   return session;
 }
 
 export function setImportSession(next: ImportSession) {
+  hydrated = true;
   session = next;
+  persistImportSession(next);
   listeners.forEach((listener) => listener());
+}
+
+/** The cash-flow page opens the picture once after Review expenses sends the user back. */
+export function requestStatementPicture() {
+  pictureRequested = true;
+}
+
+export function takeStatementPictureRequest(): boolean {
+  const requested = pictureRequested;
+  pictureRequested = false;
+  return requested;
 }
 
 export function subscribeImportSession(listener: () => void): () => void {

@@ -6,6 +6,7 @@ import {
   filterImportRows,
   firstImportFilter,
   importCategoryChips,
+  parseStoredImportSession,
   planCategoryLists,
   type ImportRow,
 } from "@/lib/tracking/import-session";
@@ -105,5 +106,20 @@ describe("import review filters", () => {
     expect(filterImportRows(rows, "needs").map((item) => item.key)).toEqual(["d"]);
     expect(filterImportRows(rows, "dining").map((item) => item.key)).toEqual(["a"]);
     expect(importCategoryChips(rows, order)).toEqual(["dining", "paycheque"]);
+  });
+});
+
+describe("parseStoredImportSession", () => {
+  it("keeps a ready review and drops anything else", () => {
+    const raw = JSON.stringify({
+      status: "ready",
+      rows: [{ key: "1", description: "Cafe", included: true }],
+      notice: null,
+      error: null,
+      aligned: true,
+    });
+    expect(parseStoredImportSession(raw)?.rows?.[0]?.description).toBe("Cafe");
+    expect(parseStoredImportSession("not json")).toBeNull();
+    expect(parseStoredImportSession(JSON.stringify({ status: "idle", rows: [] }))).toBeNull();
   });
 });

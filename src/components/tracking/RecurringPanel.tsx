@@ -11,6 +11,7 @@ export function RecurringPanel({
   items,
   today,
   onConfirm,
+  onConfirmDue,
   onSkip,
   onCreate,
   onDelete,
@@ -18,6 +19,7 @@ export function RecurringPanel({
   items: RecurringItem[];
   today: string;
   onConfirm: (id: string, amount: number) => Promise<void>;
+  onConfirmDue?: (entries: { id: string; amount: number }[]) => Promise<void>;
   onSkip: (id: string) => Promise<void>;
   onCreate: (input: {
     name: string;
@@ -31,13 +33,60 @@ export function RecurringPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [confirmingDue, setConfirmingDue] = useState(false);
   const due = items.filter((item) => item.next_date <= today);
+
+  async function confirmDue() {
+    const ready = due.flatMap((item) => {
+      const next = Number(amounts[item.id] ?? item.amount);
+      return Number.isFinite(next) && next >= 0 ? [{ id: item.id, amount: next }] : [];
+    });
+    if (ready.length === 0) return;
+    setConfirmingDue(true);
+    try {
+      if (onConfirmDue) await onConfirmDue(ready);
+      else {
+        for (const item of ready) await onConfirm(item.id, item.amount);
+      }
+    } finally {
+      setConfirmingDue(false);
+    }
+  }
 
   return (
     <section className="space-y-3">
-      {due.map((item) => (
-        <DueCard key={item.id} item={item} onConfirm={onConfirm} onSkip={onSkip} />
-      ))}
+      {due.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+              {due.length === 1 ? "1 due" : `${due.length} due`}
+            </p>
+            <button
+              type="button"
+              disabled={confirmingDue}
+              onClick={() => void confirmDue()}
+              className="rounded-lg bg-[var(--emerald)] px-3 py-1.5 font-display text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {confirmingDue ? "Confirming…" : "Confirm due"}
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
+            {due.map((item) => (
+              <div key={item.id} className="w-72 shrink-0 snap-start">
+                <DueCard
+                  item={item}
+                  amount={amounts[item.id] ?? String(item.amount)}
+                  onAmount={(value) => setAmounts((current) => ({ ...current, [item.id]: value }))}
+                  busy={confirmingDue}
+                  onConfirm={onConfirm}
+                  onSkip={onSkip}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="rounded-xl border border-[var(--warm-200)] bg-white">
         <button
           type="button"
@@ -106,15 +155,21 @@ export function RecurringPanel({
 
 function DueCard({
   item,
+  amount,
+  onAmount,
+  busy: locked,
   onConfirm,
   onSkip,
 }: {
   item: RecurringItem;
+  amount: string;
+  onAmount: (value: string) => void;
+  busy: boolean;
   onConfirm: (id: string, amount: number) => Promise<void>;
   onSkip: (id: string) => Promise<void>;
 }) {
-  const [amount, setAmount] = useState(String(item.amount));
   const [busy, setBusy] = useState(false);
+  const disabled = busy || locked;
 
   async function run(action: "confirm" | "skip") {
     const next = Number(amount);
@@ -139,23 +194,23 @@ function DueCard({
           min="0"
           step="0.01"
           value={amount}
-          onChange={(event) => setAmount(event.target.value)}
+          onChange={(event) => onAmount(event.target.value)}
           className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-display text-base tabular-nums"
         />
       </label>
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          disabled={busy}
-          onClick={() => run("confirm")}
+          disabled={disabled}
+          onClick={() => void run("confirm")}
           className="flex-1 rounded-lg bg-[var(--emerald)] py-2 font-display text-sm font-semibold text-white disabled:opacity-60"
         >
           Confirm
         </button>
         <button
           type="button"
-          disabled={busy}
-          onClick={() => run("skip")}
+          disabled={disabled}
+          onClick={() => void run("skip")}
           className="flex-1 rounded-lg border border-[var(--warm-200)] py-2 font-display text-sm font-semibold text-[var(--text-secondary)] disabled:opacity-60"
         >
           Skip

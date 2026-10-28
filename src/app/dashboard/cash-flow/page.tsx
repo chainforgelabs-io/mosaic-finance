@@ -65,6 +65,7 @@ import {
   getImportSession,
   rowsForPicture,
   setImportSession,
+  takeStatementPictureRequest,
   subscribeImportSession,
   takePendingUnlocks,
   type ImportRow,
@@ -272,7 +273,12 @@ export default function CashFlowPage() {
       setParseError(current.error);
       setReviewRows(current.rows);
       setReviewNotice(current.notice);
-      if (current.status === "ready" && current.rows) {
+      if (
+        takeStatementPictureRequest() &&
+        current.status === "ready" &&
+        current.rows &&
+        buildStatementBaseline(rowsForPicture(current.rows), todayIso())
+      ) {
         setStatementPreview(buildStatementBaseline(rowsForPicture(current.rows), todayIso()));
       } else if (current.status === "idle" || current.status === "error") {
         setStatementPreview(null);
@@ -527,9 +533,9 @@ export default function CashFlowPage() {
       });
       setSummaryError(null);
       setImportSession({ status: "ready", rows, notice, error: null });
-      if (!buildStatementBaseline(rowsForPicture(rows), todayIso())) {
-        router.push("/dashboard/cash-flow/import");
-      }
+      const preview = buildStatementBaseline(rowsForPicture(rows), todayIso());
+      if (preview) setStatementPreview(preview);
+      else router.push("/dashboard/cash-flow/import");
     } catch {
       setImportSession({
         status: "error",
@@ -635,6 +641,23 @@ export default function CashFlowPage() {
     if (!res.ok) return;
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    await reload();
+  }
+
+  async function confirmDueSchedules(entries: { id: string; amount: number }[]) {
+    const unlocks: UnlockItem[] = [];
+    for (const entry of entries) {
+      const res = await fetch("/api/recurring", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id: entry.id, action: "confirm", amount: entry.amount }),
+      });
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json.gamification?.newUnlocks?.length) unlocks.push(...json.gamification.newUnlocks);
+    }
+    if (unlocks.length) setUnlocks(unlocks);
     await reload();
   }
 
@@ -782,6 +805,9 @@ export default function CashFlowPage() {
   const quietDays = lastActivity ? daysBetween(lastActivity, today) : null;
   const balanceDue =
     anchor != null && (lastCheckDate == null || daysBetween(lastCheckDate, today) >= 7);
+  const unsavedPicture = reviewRows?.length
+    ? buildStatementBaseline(rowsForPicture(reviewRows), todayIso())
+    : null;
 
   return (
     <div className="w-full space-y-6">
@@ -812,6 +838,42 @@ export default function CashFlowPage() {
           </div>
         </div>
       </div>
+
+      {reviewRows && reviewRows.length > 0 && !parsing && !statementPreview && (
+        <div className="flex flex-col gap-3 rounded-xl border border-[var(--warm-200)] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-sm font-semibold text-[var(--text-primary)]">Unsaved statement review</h2>
+            <p className="mt-1 font-body text-xs text-[var(--text-secondary)]">
+              These lines stay here until you save them or discard the review.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/cash-flow/import")}
+              className="rounded-lg bg-[var(--slate-950)] px-3 py-2 font-display text-sm font-semibold text-white"
+            >
+              Review expenses
+            </button>
+            {unsavedPicture && (
+              <button
+                type="button"
+                onClick={() => setStatementPreview(unsavedPicture)}
+                className="rounded-lg border border-[var(--warm-200)] px-3 py-2 font-display text-sm font-semibold text-[var(--text-secondary)]"
+              >
+                See the picture
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setImportSession({ status: "idle", rows: null, notice: null, error: null })}
+              className="rounded-lg px-3 py-2 font-display text-sm font-semibold text-[var(--text-muted)]"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {propertyCost && (
         <div className="rounded-lg border border-[var(--warm-200)] bg-white px-4 py-3 font-body text-sm text-[var(--text-secondary)]">
@@ -973,6 +1035,7 @@ export default function CashFlowPage() {
         items={recurring}
         today={today}
         onConfirm={confirmSchedule}
+        onConfirmDue={confirmDueSchedules}
         onSkip={skipSchedule}
         onCreate={createSchedule}
         onDelete={deleteSchedule}
@@ -1419,10 +1482,7 @@ export default function CashFlowPage() {
           error={summaryError}
           onConfirm={(repeats) => void confirmPicture(repeats)}
           onReview={() => router.push("/dashboard/cash-flow/import")}
-          onClose={() => {
-            setStatementPreview(null);
-            setImportSession({ status: "idle", rows: null, notice: null, error: null });
-          }}
+          onClose={() => setStatementPreview(null)}
         />
       )}
 
