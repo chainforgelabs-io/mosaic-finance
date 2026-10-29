@@ -1,15 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Flame,
   Loader2,
   Pencil,
-  PiggyBank,
   Trash2,
   Upload,
   X,
@@ -89,6 +89,8 @@ import type {
 
 const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
+type PeriodList = "income" | "expense" | "payments" | "savings";
+
 const HOWTO_KEY = "mosaic-spending-howto-seen";
 const GUIDE_KEY = "mosaic-cash-guide-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
@@ -130,6 +132,11 @@ export default function CashFlowPage() {
   const [summarySaving, setSummarySaving] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [showStatementLines, setShowStatementLines] = useState(false);
+  const [openLists, setOpenLists] = useState<Partial<Record<PeriodList, boolean>>>({});
+
+  function toggleList(key: PeriodList) {
+    setOpenLists((current) => ({ ...current, [key]: !current[key] }));
+  }
   const [undo, setUndo] = useState<{ ids: string[]; label: string } | null>(null);
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
@@ -1195,8 +1202,53 @@ export default function CashFlowPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {listedIncome.length > 0 && (
+            <LineGroup
+              label="Income"
+              count={listedIncome.length}
+              total={sumAmounts(listedIncome)}
+              open={openLists.income === true}
+              onToggle={() => toggleList("income")}
+            >
+              {listedIncome.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                      {t.description || t.note || categoryLabel(t.category)}
+                    </p>
+                    <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                  </div>
+                  <span className="font-body text-sm font-semibold tabular-nums">
+                    +{formatMoneyExact(Number(t.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(t)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                    aria-label="Edit income"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    aria-label="Delete income"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </LineGroup>
+          )}
           {loggedSpend.length > 0 && (
-            <ul className="divide-y divide-[var(--warm-100)] overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+            <LineGroup
+              label="Expenses"
+              count={loggedSpend.length}
+              total={sumAmounts(loggedSpend)}
+              open={openLists.expense === true}
+              onToggle={() => toggleList("expense")}
+            >
               {loggedSpend.map((t) => {
                 const category = categoryLabel(t.category);
                 const named = (t.description || t.note || "").trim();
@@ -1251,7 +1303,79 @@ export default function CashFlowPage() {
                   </li>
                 );
               })}
-            </ul>
+            </LineGroup>
+          )}
+          {paymentTxns.length > 0 && (
+            <LineGroup
+              label="Card payments"
+              note="Left the bank. Not counted as spending."
+              count={paymentTxns.length}
+              total={sumAmounts(paymentTxns)}
+              open={openLists.payments === true}
+              onToggle={() => toggleList("payments")}
+            >
+              {paymentTxns.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                      {t.description || "Card payment"}
+                    </p>
+                    <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                  </div>
+                  <span className="font-body text-sm font-semibold tabular-nums">
+                    {formatMoneyExact(Number(t.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    aria-label="Delete card payment"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </LineGroup>
+          )}
+          {savingsTxns.length > 0 && (
+            <LineGroup
+              label="Savings"
+              count={savingsTxns.length}
+              total={sumAmounts(savingsTxns)}
+              open={openLists.savings === true}
+              onToggle={() => toggleList("savings")}
+            >
+              {savingsTxns.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                      {categoryLabel(t.category)}
+                      {t.description || t.note ? ` · ${t.description || t.note}` : ""}
+                    </p>
+                    <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                  </div>
+                  <span className="font-body text-sm font-semibold tabular-nums">
+                    {formatMoneyExact(Number(t.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(t)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                    aria-label="Edit savings"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    aria-label="Delete savings"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </LineGroup>
           )}
           {hiddenStatementLines > 0 && !showStatementLines && (
             <button
@@ -1261,120 +1385,6 @@ export default function CashFlowPage() {
             >
               Statement lines are already in the monthly picture. Show them.
             </button>
-          )}
-          {listedIncome.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
-              <div className="px-4 py-3 font-display text-sm font-semibold text-[var(--text-primary)]">Money in</div>
-              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
-                {listedIncome.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
-                        {t.description || t.note || categoryLabel(t.category)}
-                      </p>
-                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
-                    </div>
-                    <span className="font-body text-sm font-semibold tabular-nums">
-                      +{formatMoneyExact(Number(t.amount))}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(t)}
-                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-                      aria-label="Edit income"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                      aria-label="Delete income"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {paymentTxns.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
-              <div className="px-4 py-3">
-                <p className="font-display text-sm font-semibold text-[var(--text-primary)]">Card payments</p>
-                <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">
-                  Left the bank. Not counted as spending.
-                </p>
-              </div>
-              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
-                {paymentTxns.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
-                        {t.description || "Card payment"}
-                      </p>
-                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
-                    </div>
-                    <span className="font-body text-sm font-semibold tabular-nums">
-                      {formatMoneyExact(Number(t.amount))}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                      aria-label="Delete card payment"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {savingsTxns.length > 0 && (
-            <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2 font-display text-sm font-semibold text-[var(--text-primary)]">
-                  <PiggyBank className="size-4 text-sky-700" />
-                  Set aside
-                </div>
-                <span className="font-display text-sm font-bold tabular-nums">
-                  {formatMoneyExact(savingsTxns.reduce((sum, t) => sum + Number(t.amount), 0))}
-                </span>
-              </div>
-              <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">
-                {savingsTxns.map((t) => (
-                  <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-body text-sm text-[var(--text-primary)]">
-                        {categoryLabel(t.category)}
-                        {t.description || t.note ? ` · ${t.description || t.note}` : ""}
-                      </p>
-                      <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
-                    </div>
-                    <span className="font-body text-sm font-semibold tabular-nums">
-                      {formatMoneyExact(Number(t.amount))}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(t)}
-                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-                      aria-label="Edit savings"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(t.id)}
-                      className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                      aria-label="Delete savings"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
         </div>
       )}
@@ -1605,6 +1615,52 @@ function BudgetSheet({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function sumAmounts(rows: TransactionRow[]) {
+  return rows.reduce((sum, txn) => sum + (Number(txn.amount) || 0), 0);
+}
+
+function LineGroup({
+  label,
+  note,
+  count,
+  total,
+  open,
+  onToggle,
+  children,
+}: {
+  label: string;
+  note?: string;
+  count: number;
+  total: number;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--warm-200)] bg-white">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block font-display text-sm font-semibold text-[var(--text-primary)]">{label}</span>
+          {note && <span className="mt-0.5 block font-body text-[11px] text-[var(--text-muted)]">{note}</span>}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="font-body text-xs tabular-nums text-[var(--text-muted)]">{count}</span>
+          <span className="font-display text-sm font-bold tabular-nums text-[var(--text-primary)]">
+            {formatMoneyExact(total)}
+          </span>
+          <ChevronDown className={cn("size-4 text-[var(--text-muted)] transition", open && "rotate-180")} />
+        </span>
+      </button>
+      {open && <ul className="divide-y divide-[var(--warm-100)] border-t border-[var(--warm-100)]">{children}</ul>}
     </div>
   );
 }
