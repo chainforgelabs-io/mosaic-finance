@@ -250,7 +250,14 @@ describe("month budget picture", () => {
   it("keeps extra income calm and marks savings that are short of the plan", () => {
     const picture = monthBudgetPicture(txns, plan, schedules, "2026-10-01");
     expect(picture.income).toMatchObject({ tracked: 5000, allocated: 4000, tone: "ok", width: 100 });
+    expect(picture.income.lines.find((line) => line.category === "paycheque")).toMatchObject({ tracked: 5000, allocated: 4000 });
+    expect(picture.expense.lines.find((line) => line.category === "residence_mortgage")).toMatchObject({
+      tracked: 863,
+      allocated: 1727,
+    });
+    expect(picture.expense.lines.find((line) => line.category === "dining")).toMatchObject({ tracked: 37, allocated: 0 });
     expect(picture.savings).toMatchObject({ tracked: 100, allocated: 500, tone: "amber" });
+    expect(picture.savings.lines[0]).toMatchObject({ category: "tfsa", tracked: 100, allocated: 500 });
     expect(kindMeter("income", 5000, 4000).tone).toBe("ok");
     expect(kindMeter("expense", 37, 0).tone).toBe("red");
   });

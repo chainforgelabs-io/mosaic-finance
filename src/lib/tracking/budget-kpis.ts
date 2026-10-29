@@ -8,7 +8,7 @@ import {
   transactionKind,
   type CashTxn,
 } from "@/lib/tracking/cash-capture";
-import { isSpendingCategory, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
+import { isSpendingCategory, INCOME_CATEGORIES, SAVINGS_CATEGORIES, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
 import { endOfMonth, startOfMonth } from "@/lib/tracking/dates";
 
 export type SavingsRateMode = "active" | "passive";
@@ -265,7 +265,7 @@ export function expenseCategoryVariance(
 
 export type BudgetTone = "red" | "amber" | "ok";
 
-/** Bar for one kind. Spending turns red past the plan. Income never does. Savings turns amber when it is short. */
+/** Bar for one kind. Expenses turn red past the plan. Income stays calm. Savings uses amber when short of the plan; the screen paints that baby blue. */
 export function kindMeter(
   kind: "income" | "expense" | "savings",
   tracked: number,
@@ -302,6 +302,7 @@ export interface MonthBudgetTotal {
   allocated: number;
   width: number;
   tone: BudgetTone;
+  lines: MonthBudgetLine[];
 }
 
 export interface MonthBudgetPicture {
@@ -406,17 +407,58 @@ export function monthBudgetPicture(
     plan.reduce((sum, entry) => (entry.kind === "savings" && startOfMonth(entry.month) === monthKey ? sum + (Number(entry.amount) || 0) : sum), 0),
   );
 
-  const total = (kind: "income" | "expense" | "savings", trackedAmount: number, allocated: number): MonthBudgetTotal => {
+  const total = (
+    kind: "income" | "expense" | "savings",
+    trackedAmount: number,
+    allocated: number,
+    lines: MonthBudgetLine[],
+  ): MonthBudgetTotal => {
     const meter = kindMeter(kind, trackedAmount, allocated);
-    return { tracked: trackedAmount, allocated, ...meter };
+    return { tracked: trackedAmount, allocated, lines, ...meter };
   };
 
   return {
-    income: total("income", tracked.income, incomeAllocated),
-    expense: total("expense", tracked.expense, expenseAllocated),
-    savings: total("savings", tracked.savings, savingsAllocated),
+    income: total("income", tracked.income, incomeAllocated, kindLines("income")),
+    expense: total("expense", tracked.expense, expenseAllocated, kindLines("expense")),
+    savings: total("savings", tracked.savings, savingsAllocated, kindLines("savings")),
     spending,
   };
+
+  function kindLines(kind: "income" | "expense" | "savings"): MonthBudgetLine[] {
+    const map = new Map<string, { tracked: number; allocated: number }>();
+    const touch = (category: string) => {
+      const existing = map.get(category);
+      if (existing) return existing;
+      const created = { tracked: 0, allocated: 0 };
+      map.set(category, created);
+      return created;
+    };
+    for (const entry of plan) {
+      if (entry.kind !== kind || startOfMonth(entry.month) !== monthKey) continue;
+      const amount = Number(entry.amount) || 0;
+      if (amount <= 0) continue;
+      touch(entry.category).allocated += amount;
+    }
+    if (kind === "expense") {
+      for (const [category, limit] of Object.entries(fallbackBudgets)) {
+        const amount = Number(limit);
+        if (!(amount > 0)) continue;
+        const row = touch(category);
+        if (row.allocated > 0) continue;
+        row.allocated = amount;
+      }
+    }
+    for (const txn of txns) {
+      if (!inPeriod(txn, period) || transactionKind(txn) !== kind) continue;
+      touch(txn.category || "other").tracked += Number(txn.amount) || 0;
+    }
+    const sequence = kind === "income" ? INCOME_CATEGORIES : kind === "savings" ? SAVINGS_CATEGORIES : SPENDING_CATEGORIES;
+    const order = new Map<string, number>(sequence.map((category, index) => [category, index]));
+    return [...map.entries()]
+      .map(([category, row]) => ({ category, tracked: roundMoney(row.tracked), allocated: roundMoney(row.allocated) }))
+      .filter((line) => line.tracked > 0 || line.allocated > 0)
+      .sort((a, b) => (order.get(a.category) ?? 100) - (order.get(b.category) ?? 100) || a.category.localeCompare(b.category));
+  }
 }
 
 export interface MonthPoint {

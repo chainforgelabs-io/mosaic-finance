@@ -1,16 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
 import { categoryLabel } from "@/lib/tracking/categories";
-import { monthBudgetPicture, kindMeter, type BudgetTone, type MonthBudgetGroup } from "@/lib/tracking/budget-kpis";
+import {
+  kindMeter,
+  monthBudgetPicture,
+  type BudgetTone,
+  type MonthBudgetLine,
+  type MonthBudgetTotal,
+} from "@/lib/tracking/budget-kpis";
 import { formatMoney } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import type { BudgetPlanEntry, TransactionRow } from "@/types/tracking";
 
 const TONE_BAR: Record<BudgetTone, string> = {
   red: "bg-red-500",
-  amber: "bg-amber-500",
+  amber: "bg-sky-300",
   ok: "bg-[var(--emerald)]",
 };
 
@@ -31,7 +36,7 @@ export function MonthBudget({
     () => monthBudgetPicture(txns, plan, schedules, month, budgets),
     [txns, plan, schedules, month, budgets],
   );
-  const [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<"totals" | "itemized">("totals");
   const visible =
     picture.income.tracked > 0 ||
     picture.income.allocated > 0 ||
@@ -44,75 +49,101 @@ export function MonthBudget({
 
   return (
     <div className="space-y-3">
-      <KindRow label="Money in" tracked={picture.income.tracked} allocated={picture.income.allocated} tone={picture.income.tone} width={picture.income.width} />
-      <KindRow label="Spending" tracked={picture.expense.tracked} allocated={picture.expense.allocated} tone={picture.expense.tone} width={picture.expense.width} />
-      <KindRow label="Set aside" tracked={picture.savings.tracked} allocated={picture.savings.allocated} tone={picture.savings.tone} width={picture.savings.width} />
-      {picture.spending.length > 0 && <div className="h-px bg-[var(--warm-100)]" />}
-      {picture.spending.map((group) => (
-        <GroupRow
-          key={group.category}
-          group={group}
-          open={open === group.category}
-          onToggle={() => setOpen((current) => (current === group.category ? null : group.category))}
-        />
-      ))}
+      <div className="flex justify-end">
+        <div className="inline-flex rounded-full border border-[var(--warm-200)] bg-white p-0.5">
+          <ViewButton active={view === "totals"} onClick={() => setView("totals")}>
+            Totals
+          </ViewButton>
+          <ViewButton active={view === "itemized"} onClick={() => setView("itemized")}>
+            Itemized
+          </ViewButton>
+        </div>
+      </div>
+      {view === "totals" ? (
+        <div className="space-y-3">
+          <KindRow label="Income" row={picture.income} />
+          <KindRow label="Expenses" row={picture.expense} />
+          <KindRow label="Savings" row={picture.savings} />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <ItemizedSection label="Income" kind="income" row={picture.income} />
+          <ItemizedSection label="Expenses" kind="expense" row={picture.expense} />
+          <ItemizedSection label="Savings" kind="savings" row={picture.savings} />
+        </div>
+      )}
     </div>
   );
 }
 
-function KindRow({
-  label,
-  tracked,
-  allocated,
-  tone,
-  width,
+function ViewButton({
+  active,
+  onClick,
+  children,
 }: {
-  label: string;
-  tracked: number;
-  allocated: number;
-  tone: BudgetTone;
-  width: number;
+  active: boolean;
+  onClick: () => void;
+  children: string;
 }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full px-3 py-1 font-display text-xs font-semibold",
+        active ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function KindRow({ label, row }: { label: string; row: MonthBudgetTotal }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
         <span className="font-display text-sm font-semibold text-[var(--text-primary)]">{label}</span>
-        <Score tracked={tracked} allocated={allocated} over={tone === "red"} />
+        <Score tracked={row.tracked} allocated={row.allocated} over={row.tone === "red"} />
       </div>
-      <Bar tone={tone} width={width} />
+      <Bar tone={row.tone} width={row.width} />
     </div>
   );
 }
 
-function GroupRow({ group, open, onToggle }: { group: MonthBudgetGroup; open: boolean; onToggle: () => void }) {
-  const expandable = group.lines.length > 0;
+function ItemizedSection({
+  label,
+  kind,
+  row,
+}: {
+  label: string;
+  kind: "income" | "expense" | "savings";
+  row: MonthBudgetTotal;
+}) {
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        {expandable ? (
-          <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-1 text-left" aria-expanded={open}>
-            <ChevronRight className={cn("size-3.5 shrink-0 text-[var(--text-muted)] transition-transform", open && "rotate-90")} />
-            <span className="truncate font-body text-xs text-[var(--text-secondary)]">{categoryLabel(group.category)}</span>
-          </button>
-        ) : (
-          <span className="truncate font-body text-xs text-[var(--text-secondary)]">{categoryLabel(group.category)}</span>
-        )}
-        <Score tracked={group.tracked} allocated={group.allocated} over={group.over} />
-      </div>
-      <Bar {...kindMeter("expense", group.tracked, group.allocated)} />
-      {open && (
-        <ul className="mt-2 space-y-2 pl-5">
-          {group.lines.map((line) => (
-            <li key={line.category}>
-              <div className="flex items-center justify-between gap-3">
-                <span className="truncate font-body text-[11px] text-[var(--text-muted)]">{categoryLabel(line.category)}</span>
-                <Score tracked={line.tracked} allocated={line.allocated} over={line.tracked > line.allocated} />
-              </div>
-            </li>
+    <section className="space-y-2">
+      <KindRow label={label} row={row} />
+      {row.lines.length > 0 && (
+        <ul className="space-y-2 border-l border-[var(--warm-200)] pl-3">
+          {row.lines.map((line) => (
+            <LineRow key={line.category} kind={kind} line={line} />
           ))}
         </ul>
       )}
-    </div>
+    </section>
+  );
+}
+
+function LineRow({ kind, line }: { kind: "income" | "expense" | "savings"; line: MonthBudgetLine }) {
+  const meter = kindMeter(kind, line.tracked, line.allocated);
+  return (
+    <li>
+      <div className="flex items-center justify-between gap-3">
+        <span className="truncate font-body text-xs text-[var(--text-secondary)]">{categoryLabel(line.category)}</span>
+        <Score tracked={line.tracked} allocated={line.allocated} over={meter.tone === "red"} />
+      </div>
+      <Bar tone={meter.tone} width={meter.width} />
+    </li>
   );
 }
 
