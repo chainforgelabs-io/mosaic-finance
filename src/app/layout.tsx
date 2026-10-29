@@ -1,19 +1,19 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
-import { Plus_Jakarta_Sans, DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const plusJakarta = localFont({
+  src: "../fonts/plus-jakarta-sans-latin.woff2",
   variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "400 800",
   display: "swap",
 });
 
-const dmSans = DM_Sans({
+const dmSans = localFont({
+  src: "../fonts/dm-sans-latin.woff2",
   variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "400 700",
   display: "swap",
 });
 
