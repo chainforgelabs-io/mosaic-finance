@@ -263,6 +263,162 @@ export function expenseCategoryVariance(
   };
 }
 
+export type BudgetTone = "red" | "amber" | "ok";
+
+/** Bar for one kind. Spending turns red past the plan. Income never does. Savings turns amber when it is short. */
+export function kindMeter(
+  kind: "income" | "expense" | "savings",
+  tracked: number,
+  allocated: number,
+): { width: number; tone: BudgetTone } {
+  const hasPlan = allocated > 0;
+  const ratio = hasPlan ? tracked / allocated : 0;
+  const width = !hasPlan && tracked > 0 ? 100 : Math.min(100, Math.max(0, ratio * 100));
+  if (kind === "expense") {
+    return { width, tone: tracked > allocated ? "red" : ratio >= 0.8 && ratio < 1 ? "amber" : "ok" };
+  }
+  if (kind === "savings") {
+    return { width, tone: hasPlan && tracked < allocated ? "amber" : "ok" };
+  }
+  return { width, tone: "ok" };
+}
+
+export interface MonthBudgetLine {
+  category: string;
+  tracked: number;
+  allocated: number;
+}
+
+export interface MonthBudgetGroup {
+  category: string;
+  tracked: number;
+  allocated: number;
+  over: boolean;
+  lines: MonthBudgetLine[];
+}
+
+export interface MonthBudgetTotal {
+  tracked: number;
+  allocated: number;
+  width: number;
+  tone: BudgetTone;
+}
+
+export interface MonthBudgetPicture {
+  income: MonthBudgetTotal;
+  expense: MonthBudgetTotal;
+  savings: MonthBudgetTotal;
+  spending: MonthBudgetGroup[];
+}
+
+/**
+ * One month against the plan.
+ * Expense lines roll up through the spending category on the plan.
+ * A logged category with no allocation stays on its own.
+ */
+export function monthBudgetPicture(
+  txns: Array<CashTxn & { category: string }>,
+  plan: BudgetPlanEntry[],
+  schedules: Array<{ kind: string; category: string; spend_category?: string | null }>,
+  month: string,
+  fallbackBudgets: Record<string, number | undefined> = {},
+): MonthBudgetPicture {
+  const period = monthPeriod(month);
+  const monthKey = period.start;
+  const tracked = trackedTotals(txns, period);
+  const groupOf = new Map<string, string>();
+  for (const row of schedules) {
+    if (row.kind !== "expense" || !row.spend_category || !isSpendingCategory(row.spend_category)) continue;
+    groupOf.set(row.category, row.spend_category);
+  }
+
+  type Bucket = { tracked: number; allocated: number; lines: Map<string, MonthBudgetLine> };
+  const buckets = new Map<string, Bucket>();
+  const bucket = (key: string): Bucket => {
+    const existing = buckets.get(key);
+    if (existing) return existing;
+    const created: Bucket = { tracked: 0, allocated: 0, lines: new Map() };
+    buckets.set(key, created);
+    return created;
+  };
+  const lineOf = (row: Bucket, category: string): MonthBudgetLine => {
+    const existing = row.lines.get(category);
+    if (existing) return existing;
+    const created = { category, tracked: 0, allocated: 0 };
+    row.lines.set(category, created);
+    return created;
+  };
+
+  for (const entry of plan) {
+    if (entry.kind !== "expense" || startOfMonth(entry.month) !== monthKey) continue;
+    const amount = Number(entry.amount) || 0;
+    if (amount <= 0) continue;
+    const group = groupOf.get(entry.category) ?? entry.category;
+    const row = bucket(group);
+    row.allocated += amount;
+    if (entry.category !== group) lineOf(row, entry.category).allocated += amount;
+  }
+
+  for (const [category, limit] of Object.entries(fallbackBudgets)) {
+    const amount = Number(limit);
+    if (!(amount > 0)) continue;
+    const group = groupOf.get(category) ?? category;
+    const row = bucket(group);
+    if (row.allocated > 0) continue;
+    row.allocated = amount;
+  }
+
+  for (const txn of txns) {
+    if (!inPeriod(txn, period) || transactionKind(txn) !== "expense") continue;
+    const amount = Number(txn.amount) || 0;
+    const category = txn.category || "other";
+    const group = groupOf.get(category) ?? category;
+    const row = bucket(group);
+    row.tracked += amount;
+    if (category !== group) lineOf(row, category).tracked += amount;
+  }
+
+  const order = new Map<string, number>(SPENDING_CATEGORIES.map((category, index) => [category, index]));
+  const spending = [...buckets.entries()]
+    .map(([category, row]) => {
+      const allocated = roundMoney(row.allocated);
+      const trackedAmount = roundMoney(row.tracked);
+      const lines = [...row.lines.values()]
+        .map((line) => ({ ...line, tracked: roundMoney(line.tracked), allocated: roundMoney(line.allocated) }))
+        .filter((line) => line.tracked > 0 || line.allocated > 0)
+        .sort((a, b) => b.allocated - a.allocated || a.category.localeCompare(b.category));
+      return {
+        category,
+        tracked: trackedAmount,
+        allocated,
+        over: trackedAmount > allocated,
+        lines,
+      };
+    })
+    .filter((row) => row.tracked > 0 || row.allocated > 0)
+    .sort((a, b) => (order.get(a.category) ?? 100) - (order.get(b.category) ?? 100) || a.category.localeCompare(b.category));
+
+  const expenseAllocated = roundMoney(spending.reduce((sum, row) => sum + row.allocated, 0));
+  const incomeAllocated = roundMoney(
+    plan.reduce((sum, entry) => (entry.kind === "income" && startOfMonth(entry.month) === monthKey ? sum + (Number(entry.amount) || 0) : sum), 0),
+  );
+  const savingsAllocated = roundMoney(
+    plan.reduce((sum, entry) => (entry.kind === "savings" && startOfMonth(entry.month) === monthKey ? sum + (Number(entry.amount) || 0) : sum), 0),
+  );
+
+  const total = (kind: "income" | "expense" | "savings", trackedAmount: number, allocated: number): MonthBudgetTotal => {
+    const meter = kindMeter(kind, trackedAmount, allocated);
+    return { tracked: trackedAmount, allocated, ...meter };
+  };
+
+  return {
+    income: total("income", tracked.income, incomeAllocated),
+    expense: total("expense", tracked.expense, expenseAllocated),
+    savings: total("savings", tracked.savings, savingsAllocated),
+    spending,
+  };
+}
+
 export interface MonthPoint {
   month: string;
   label: string;

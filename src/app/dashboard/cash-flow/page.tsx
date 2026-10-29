@@ -25,6 +25,7 @@ import { RecurringPanel } from "@/components/tracking/RecurringPanel";
 import { SpendInbox } from "@/components/tracking/SpendInbox";
 import { StatementStart } from "@/components/tracking/StatementStart";
 import { StatementSummary } from "@/components/tracking/StatementSummary";
+import { MonthBudget } from "@/components/tracking/MonthBudget";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   SPENDING_CATEGORIES,
@@ -57,7 +58,7 @@ import {
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
 import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
-import { budgetMeter, effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
+import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildImportNotice } from "@/lib/tracking/reader-notes";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
@@ -142,6 +143,9 @@ export default function CashFlowPage() {
   const [monthStart, setMonthStart] = useState(() => startOfMonth(todayIso()));
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
+  const [planSchedules, setPlanSchedules] = useState<
+    Array<{ kind: string; category: string; spend_category?: string | null }>
+  >([]);
   const [hasAnyPlan, setHasAnyPlan] = useState<boolean | null>(null);
   const [showBudgets, setShowBudgets] = useState(false);
   const [monthTxns, setMonthTxns] = useState<TransactionRow[]>([]);
@@ -208,6 +212,7 @@ export default function CashFlowPage() {
     if (planRes.ok) {
       const json = await planRes.json();
       setPlanEntries((json.entries ?? []) as BudgetPlanEntry[]);
+      setPlanSchedules(json.schedules ?? []);
       setHasAnyPlan(Boolean(json.hasAnyPlan));
     }
     if (monthRes.ok) {
@@ -757,19 +762,6 @@ export default function CashFlowPage() {
       ? ((monthTotal - priorMonthAverage) / priorMonthAverage) * 100
       : null;
 
-  const budgetCategories = useMemo(
-    () => [
-      ...new Set([
-        ...SPENDING_CATEGORIES,
-        ...customCategories,
-        ...monthTxns.filter((t) => !isSavings(t)).map((t) => t.category),
-        ...Object.keys(budgets),
-        ...planEntries.filter((entry) => entry.kind === "expense").map((entry) => entry.category),
-      ]),
-    ],
-    [customCategories, monthTxns, budgets, planEntries],
-  );
-
   const propertyCost = visibleTxns.some((t) =>
     /condo|strata|tenant|rental/i.test(
       `${t.description ?? ""} ${t.note ?? ""} ${categoryLabel(t.category)}`,
@@ -1141,33 +1133,13 @@ export default function CashFlowPage() {
               )}
             </div>
           </div>
-          {budgetCategories.map((cat) => {
-            const spent = monthTxns
-              .filter((t) => t.category === cat && countsTowardSpend(t))
-              .reduce((s, t) => s + Number(t.amount), 0);
-            const limit = effectiveBudget(planIndex, budgets, cat, monthStart);
-            if (limit == null && spent === 0) return null;
-            const meter = budgetMeter(spent, limit);
-            return (
-              <div key={cat}>
-                <div className="flex justify-between gap-3 font-body text-xs text-[var(--text-secondary)]">
-                  <span>{categoryLabel(cat)}</span>
-                  <span className={cn("tabular-nums", meter.over && "font-semibold text-red-600")}>
-                    {formatMoney(spent)} / {formatMoney(meter.allocated)}
-                  </span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      meter.tone === "red" ? "bg-red-500" : meter.tone === "amber" ? "bg-amber-500" : "bg-[var(--emerald)]",
-                    )}
-                    style={{ width: `${meter.width}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+          <MonthBudget
+            txns={monthTxns}
+            plan={planEntries}
+            schedules={planSchedules}
+            budgets={budgets}
+            month={monthStart}
+          />
         </div>
       )}
 

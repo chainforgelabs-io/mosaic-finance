@@ -14,6 +14,8 @@ import {
   UNGROUPED_SPEND,
   varianceSections,
   yearPeriod,
+  kindMeter,
+  monthBudgetPicture,
 } from "@/lib/tracking/budget-kpis";
 import type { BudgetPlanEntry } from "@/types/tracking";
 
@@ -215,5 +217,41 @@ describe("expense category KPIs", () => {
     expect(insurance).toMatchObject({ tracked: 30, budget: 125 });
     expect(other).toMatchObject({ tracked: 12, budget: null });
     expect(ungrouped).toMatchObject({ tracked: 0, budget: 20 });
+  });
+});
+
+describe("month budget picture", () => {
+  const plan: BudgetPlanEntry[] = [
+    { kind: "income", category: "paycheque", month: "2026-10-01", amount: 4000 },
+    { kind: "expense", category: "residence_mortgage", month: "2026-10-01", amount: 1727 },
+    { kind: "expense", category: "groceries", month: "2026-10-01", amount: 1400 },
+    { kind: "savings", category: "tfsa", month: "2026-10-01", amount: 500 },
+  ];
+  const schedules = [{ kind: "expense", category: "residence_mortgage", spend_category: "housing" }];
+  const txns = [
+    { txn_date: "2026-10-15", amount: 5000, direction: "in", line_role: "income", category: "paycheque" },
+    { txn_date: "2026-10-01", amount: 863, direction: "out", line_role: "purchase", category: "residence_mortgage" },
+    { txn_date: "2026-10-04", amount: 1960, direction: "out", line_role: "purchase", category: "groceries" },
+    { txn_date: "2026-10-06", amount: 37, direction: "out", line_role: "purchase", category: "dining" },
+    { txn_date: "2026-10-08", amount: 100, direction: "out", line_role: "savings", category: "tfsa" },
+  ];
+
+  it("rolls bills into the spending category and keeps an unallocated spend on its own", () => {
+    const picture = monthBudgetPicture(txns, plan, schedules, "2026-10-01");
+    const housing = picture.spending.find((row) => row.category === "housing");
+    const groceries = picture.spending.find((row) => row.category === "groceries");
+    const dining = picture.spending.find((row) => row.category === "dining");
+    expect(housing).toMatchObject({ tracked: 863, allocated: 1727, over: false });
+    expect(housing?.lines[0]).toMatchObject({ category: "residence_mortgage", tracked: 863, allocated: 1727 });
+    expect(groceries).toMatchObject({ tracked: 1960, allocated: 1400, over: true, lines: [] });
+    expect(dining).toMatchObject({ tracked: 37, allocated: 0, over: true });
+  });
+
+  it("keeps extra income calm and marks savings that are short of the plan", () => {
+    const picture = monthBudgetPicture(txns, plan, schedules, "2026-10-01");
+    expect(picture.income).toMatchObject({ tracked: 5000, allocated: 4000, tone: "ok", width: 100 });
+    expect(picture.savings).toMatchObject({ tracked: 100, allocated: 500, tone: "amber" });
+    expect(kindMeter("income", 5000, 4000).tone).toBe("ok");
+    expect(kindMeter("expense", 37, 0).tone).toBe("red");
   });
 });
