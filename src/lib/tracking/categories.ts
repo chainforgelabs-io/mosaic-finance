@@ -321,7 +321,9 @@ export function categorySlug(label: string): string | null {
 
 export function categoryColor(category: string): string {
   if (isSpendingCategory(category)) return SPENDING_CATEGORY_COLORS[category];
-  return "#64748b";
+  let hash = 0;
+  for (const char of category) hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  return `hsl(${hash % 360} 62% 42%)`;
 }
 
 export function isSpendingCategory(value: string): value is SpendingCategory {
