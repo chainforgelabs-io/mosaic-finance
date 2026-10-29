@@ -5,7 +5,6 @@ import { categoryLabel } from "@/lib/tracking/categories";
 import {
   kindMeter,
   monthBudgetPicture,
-  type BudgetTone,
   type MonthBudgetLine,
   type MonthBudgetTotal,
 } from "@/lib/tracking/budget-kpis";
@@ -13,11 +12,23 @@ import { formatMoney } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import type { BudgetPlanEntry, TransactionRow } from "@/types/tracking";
 
-const TONE_BAR: Record<BudgetTone, string> = {
-  red: "bg-red-500",
-  amber: "bg-sky-300",
-  ok: "bg-[var(--emerald)]",
+type BudgetKind = "income" | "expense" | "savings";
+
+const FILL: Record<BudgetKind, string> = {
+  income: "bg-[var(--emerald)]",
+  expense: "bg-red-500",
+  savings: "bg-sky-300",
 };
+
+const HEADLINE_TRACK: Record<BudgetKind, string> = {
+  income: "bg-emerald-100",
+  expense: "bg-red-100",
+  savings: "bg-sky-100",
+};
+
+function reached(tracked: number, allocated: number) {
+  return tracked >= allocated;
+}
 
 export function MonthBudget({
   txns,
@@ -61,9 +72,9 @@ export function MonthBudget({
       </div>
       {view === "totals" ? (
         <div className="space-y-3">
-          <KindRow label="Income" row={picture.income} />
-          <KindRow label="Expenses" row={picture.expense} />
-          <KindRow label="Savings" row={picture.savings} />
+          <KindRow kind="income" label="Income" row={picture.income} />
+          <KindRow kind="expense" label="Expenses" row={picture.expense} />
+          <KindRow kind="savings" label="Savings" row={picture.savings} />
         </div>
       ) : (
         <div className="space-y-4">
@@ -99,14 +110,14 @@ function ViewButton({
   );
 }
 
-function KindRow({ label, row }: { label: string; row: MonthBudgetTotal }) {
+function KindRow({ kind, label, row }: { kind: BudgetKind; label: string; row: MonthBudgetTotal }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-3">
         <span className="font-display text-sm font-semibold text-[var(--text-primary)]">{label}</span>
         <Score tracked={row.tracked} allocated={row.allocated} over={row.tone === "red"} />
       </div>
-      <Bar tone={row.tone} width={row.width} />
+      <Bar kind={kind} width={row.width} full={reached(row.tracked, row.allocated)} prominent />
     </div>
   );
 }
@@ -117,12 +128,12 @@ function ItemizedSection({
   row,
 }: {
   label: string;
-  kind: "income" | "expense" | "savings";
+  kind: BudgetKind;
   row: MonthBudgetTotal;
 }) {
   return (
     <section className="space-y-2">
-      <KindRow label={label} row={row} />
+      <KindRow kind={kind} label={label} row={row} />
       {row.lines.length > 0 && (
         <ul className="space-y-2 border-l border-[var(--warm-200)] pl-3">
           {row.lines.map((line) => (
@@ -134,7 +145,7 @@ function ItemizedSection({
   );
 }
 
-function LineRow({ kind, line }: { kind: "income" | "expense" | "savings"; line: MonthBudgetLine }) {
+function LineRow({ kind, line }: { kind: BudgetKind; line: MonthBudgetLine }) {
   const meter = kindMeter(kind, line.tracked, line.allocated);
   return (
     <li>
@@ -142,7 +153,7 @@ function LineRow({ kind, line }: { kind: "income" | "expense" | "savings"; line:
         <span className="truncate font-body text-xs text-[var(--text-secondary)]">{categoryLabel(line.category)}</span>
         <Score tracked={line.tracked} allocated={line.allocated} over={meter.tone === "red"} />
       </div>
-      <Bar tone={meter.tone} width={meter.width} />
+      <Bar kind={kind} width={meter.width} full={reached(line.tracked, line.allocated)} />
     </li>
   );
 }
@@ -155,10 +166,25 @@ function Score({ tracked, allocated, over }: { tracked: number; allocated: numbe
   );
 }
 
-function Bar({ tone, width }: { tone: BudgetTone; width: number }) {
+function Bar({
+  kind,
+  width,
+  full,
+  prominent = false,
+}: {
+  kind: BudgetKind;
+  width: number;
+  full: boolean;
+  prominent?: boolean;
+}) {
   return (
-    <div className="mt-1 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
-      <div className={cn("h-full rounded-full", TONE_BAR[tone])} style={{ width: `${width}%` }} />
+    <div
+      className={cn(
+        "mt-1 overflow-hidden rounded-full",
+        prominent ? cn("h-3", HEADLINE_TRACK[kind]) : "h-1.5 bg-[var(--warm-100)]",
+      )}
+    >
+      <div className={cn("h-full rounded-full", FILL[kind], !full && "opacity-50")} style={{ width: `${width}%` }} />
     </div>
   );
 }
