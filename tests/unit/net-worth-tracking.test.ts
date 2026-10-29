@@ -258,6 +258,47 @@ describe("groupComparison", () => {
     expect(bank).toMatchObject({ current: 6500, previous: null, diff: 6500, diffPct: null });
   });
 
+  it("matches one investment account of the same type when the saved ids differ", () => {
+    const october = snap("2026-10-14", {
+      investments: [
+        { id: "old-rrsp", account_type: "RRSP", value: 42200 },
+        { id: "old-tfsa", account_type: "TFSA", value: 28500 },
+      ],
+      fixed_assets: [],
+      debts: [],
+    });
+    const september = snap("2026-09-30", {
+      investments: [
+        { id: "new-rrsp", account_type: "RRSP", value: 40000 },
+        { id: "new-tfsa", account_type: "TFSA", value: 26000 },
+      ],
+      fixed_assets: [],
+      debts: [],
+    });
+    const liquid = groupComparison(october, september).groups.find((group) => group.group === "liquid")!;
+    expect(liquid.items).toHaveLength(2);
+    expect(liquid.items.find((item) => item.label === "RRSP")).toMatchObject({ current: 42200, previous: 40000, diff: 2200 });
+    expect(liquid.items.find((item) => item.label === "TFSA")).toMatchObject({ current: 28500, previous: 26000, diff: 2500 });
+  });
+
+  it("leaves two accounts of the same type unmatched when the ids differ", () => {
+    const current = snap("2026-10-14", {
+      investments: [
+        { id: "a", account_type: "TFSA", value: 10 },
+        { id: "b", account_type: "TFSA", value: 20 },
+      ],
+      fixed_assets: [],
+      debts: [],
+    });
+    const previous = snap("2026-09-30", {
+      investments: [{ id: "c", account_type: "TFSA", value: 15 }],
+      fixed_assets: [],
+      debts: [],
+    });
+    const liquid = groupComparison(current, previous).groups.find((group) => group.group === "liquid")!;
+    expect(liquid.items).toHaveLength(3);
+  });
+
   it("handles a missing previous snapshot", () => {
     const result = groupComparison(march, null);
     expect(result.netWorth).toMatchObject({ current: 286700, previous: null, diff: null, diffPct: null });

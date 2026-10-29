@@ -1493,6 +1493,7 @@ export default function AssetsPage() {
       <HoldingsEditor
         open={holdingsOpen}
         accounts={holdings.map((account) => ({
+          id: account.id,
           accountType: account.account_type,
           holdings: account.holdings.map((holding) => ({
             tickerOrName: holding.ticker || holding.name || "",

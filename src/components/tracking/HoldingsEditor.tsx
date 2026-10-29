@@ -16,6 +16,7 @@ interface IncomingHolding {
 }
 
 interface IncomingAccount {
+  id?: string;
   accountType: string;
   holdings: IncomingHolding[];
 }
@@ -42,7 +43,7 @@ function fromIncoming(accounts: IncomingAccount[]): DraftAccount[] {
     return [{ localId: crypto.randomUUID(), accountType: "TFSA", holdings: [blankHolding()] }];
   }
   return accounts.map((account) => ({
-    localId: crypto.randomUUID(),
+    localId: account.id ?? crypto.randomUUID(),
     accountType: fromDbAccountType(account.accountType),
     holdings:
       account.holdings.length > 0

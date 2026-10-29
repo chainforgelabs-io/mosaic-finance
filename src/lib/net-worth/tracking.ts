@@ -322,10 +322,17 @@ function compareItems(
   previousItems: SnapshotBreakdownItem[],
   valueOf: (item: SnapshotBreakdownItem) => number,
   invert: boolean,
+  matchUniqueAccountType = false,
 ): ComparisonRow[] {
   const rows = new Map<string, ComparisonRow>();
+  const typeOf = new Map<string, string>();
+  const noteType = (key: string, item: SnapshotBreakdownItem) => {
+    const type = item.account_type?.trim();
+    if (type && !typeOf.has(key)) typeOf.set(key, type);
+  };
   currentItems.forEach((item, i) => {
     const key = itemKey(item, i);
+    noteType(key, item);
     const existing = rows.get(key);
     rows.set(key, {
       key,
@@ -339,6 +346,7 @@ function compareItems(
   });
   previousItems.forEach((item, i) => {
     const key = itemKey(item, i);
+    noteType(key, item);
     const existing = rows.get(key);
     if (existing) {
       existing.previous = round((existing.previous ?? 0) + valueOf(item));
@@ -346,6 +354,29 @@ function compareItems(
       rows.set(key, { key, label: itemLabel(item), current: null, previous: round(valueOf(item)), diff: null, diffPct: null, invert });
     }
   });
+  if (matchUniqueAccountType) {
+    const openCurrent = [...rows.entries()].filter(([, row]) => row.current != null && row.previous == null);
+    const openPrevious = [...rows.entries()].filter(([, row]) => row.current == null && row.previous != null);
+    const counts = (entries: Array<[string, ComparisonRow]>) => {
+      const tally = new Map<string, number>();
+      for (const [key] of entries) {
+        const type = typeOf.get(key);
+        if (!type) continue;
+        tally.set(type, (tally.get(type) ?? 0) + 1);
+      }
+      return tally;
+    };
+    const currentCounts = counts(openCurrent);
+    const previousCounts = counts(openPrevious);
+    for (const [type, count] of currentCounts) {
+      if (count !== 1 || previousCounts.get(type) !== 1) continue;
+      const currentEntry = openCurrent.find(([key]) => typeOf.get(key) === type);
+      const previousEntry = openPrevious.find(([key]) => typeOf.get(key) === type);
+      if (!currentEntry || !previousEntry) continue;
+      currentEntry[1].previous = previousEntry[1].previous;
+      rows.delete(previousEntry[0]);
+    }
+  }
   for (const row of rows.values()) {
     const c = change(row.current ?? 0, row.previous ?? 0);
     row.diff = row.current == null && row.previous == null ? null : c.amount;
@@ -356,7 +387,8 @@ function compareItems(
 
 /**
  * Item-level and group-level comparison between two snapshots. Items are matched by holding id,
- * asset id, or debt type. Either snapshot may be null.
+ * asset id, or debt type. A single investment account of the same type still matches when the id changed.
+ * Either snapshot may be null.
  */
 export function groupComparison(
   current: NetWorthSnapshotRow | null,
@@ -381,7 +413,7 @@ export function groupComparison(
     {
       group: "liquid",
       label: NET_WORTH_GROUP_LABELS.liquid,
-      items: compareItems(curB.investments ?? [], prevB.investments ?? [], value, false),
+      items: compareItems(curB.investments ?? [], prevB.investments ?? [], value, false, true),
       total: totalRow("liquid", NET_WORTH_GROUP_LABELS.liquid, false),
     },
     {
