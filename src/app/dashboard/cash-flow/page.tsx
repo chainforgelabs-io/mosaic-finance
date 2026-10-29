@@ -58,6 +58,7 @@ import {
 } from "@/lib/tracking/cash-capture";
 import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
 import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
+import { firstFullMonth } from "@/lib/tracking/budget-kpis";
 import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { buildImportNotice } from "@/lib/tracking/reader-notes";
 import { buildStatementBaseline, type RepeatSuggestion } from "@/lib/tracking/statement-baseline";
@@ -102,6 +103,10 @@ function loadCustomCategories(): string[] {
   } catch {
     return [];
   }
+}
+
+function shortTrackedDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
 }
 
 function rememberCategory(slug: string) {
@@ -775,6 +780,11 @@ export default function CashFlowPage() {
   );
   const currentMonth = startOfMonth(todayIso());
   const today = todayIso();
+  const trackedSince =
+    anchor?.anchor_date ??
+    history.reduce<string | null>((best, txn) => (!best || txn.txn_date < best ? txn.txn_date : best), null);
+  const fullMonthStart = trackedSince ? firstFullMonth(trackedSince) : null;
+  const awaitingFullMonth = Boolean(fullMonthStart && today <= endOfMonth(fullMonthStart));
   const periodStart = view === "month" ? monthStart : range.start;
   const periodEnd = view === "month" ? endOfMonth(monthStart) : range.end;
   const monthlyRoom = monthlyBudgetTotal ?? monthlyExpenses;
@@ -817,6 +827,13 @@ export default function CashFlowPage() {
               ? "Start with a budget plan. Then log spending here."
               : "Log spending for the household. Bills and paycheques can post on their dates."}
           </p>
+          {awaitingFullMonth && trackedSince && fullMonthStart && (
+            <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
+              {trackedSince === fullMonthStart
+                ? `Tracking since ${shortTrackedDate(trackedSince)}. ${formatMonthLabel(fullMonthStart)} is your first full month.`
+                : `Tracking since ${shortTrackedDate(trackedSince)}. Your first full month is ${formatMonthLabel(fullMonthStart)}.`}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--emerald-soft)] px-3 py-1.5">

@@ -15,18 +15,22 @@ import {
   expenseCategoryVariance,
   monthPeriod,
   monthlySeries,
-  periodCompletion,
+  completeMonthBalance,
+  monthCoverage,
   savingsRate,
+  trackedFromDate,
   trackedTotals,
   trackingBalance,
   UNGROUPED_SPEND,
   varianceSections,
   yearPeriod,
+  type PeriodCoverage,
   type CategoryVariance,
   type SavingsRateMode,
   type VarianceSection,
 } from "@/lib/tracking/budget-kpis";
-import { formatMonthLabel, startOfMonth, todayIso } from "@/lib/tracking/dates";
+import { daysBetween } from "@/lib/tracking/cash-capture";
+import { endOfMonth, formatMonthLabel, startOfMonth, todayIso } from "@/lib/tracking/dates";
 import { formatMoney } from "@/lib/tracking/format";
 import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import type { PlanKind } from "@/lib/tracking/budget-plan";
@@ -55,13 +59,15 @@ async function loadYear(targetYear: number): Promise<{
   schedules: BudgetPlanSchedule[];
   budgets: Record<string, number>;
   catalog: UserCategory[];
+  anchorDate: string | null;
 }> {
   const period = yearPeriod(targetYear);
-  const [txnRes, planData, budgetRes, catalog] = await Promise.all([
+  const [txnRes, planData, budgetRes, catalog, cashRes] = await Promise.all([
     fetch(`/api/transactions?start=${period.start}&end=${period.end}`, { credentials: "include" }),
     fetchPlan(targetYear),
     fetch("/api/budgets", { credentials: "include" }),
     fetchCatalog(),
+    fetch("/api/cash", { credentials: "include" }),
   ]);
   let txns: TransactionRow[] = [];
   if (txnRes.ok) {
@@ -73,7 +79,32 @@ async function loadYear(targetYear: number): Promise<{
     const json = await budgetRes.json();
     for (const b of json.budgets ?? []) budgets[b.category] = Number(b.monthly_limit);
   }
-  return { txns, plan: planData.entries, schedules: planData.schedules, budgets, catalog };
+  const cash = cashRes.ok ? await cashRes.json() : null;
+  const anchorDate = (cash?.anchor?.anchor_date as string | undefined) ?? null;
+  return { txns, plan: planData.entries, schedules: planData.schedules, budgets, catalog, anchorDate };
+}
+
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+}
+
+function coverageWord(coverage: PeriodCoverage, future: boolean): string {
+  if (coverage === "complete") return "Complete";
+  if (coverage === "partial") return "Partial";
+  return future ? "Not started" : "Not tracked";
+}
+
+function trackedShare(month: string, trackedFrom: string | null, today: string): number {
+  const coverage = monthCoverage(month, trackedFrom, today);
+  if (coverage === "complete") return 1;
+  if (coverage === "untracked") return 0;
+  const start = startOfMonth(month);
+  const end = endOfMonth(start);
+  const total = daysBetween(start, end) + 1;
+  const from = trackedFrom && trackedFrom > start ? trackedFrom : start;
+  const until = today < end ? today : end;
+  if (from > until) return 0;
+  return (daysBetween(from, until) + 1) / total;
 }
 
 function pct(value: number | null, digits = 0): string {
@@ -90,6 +121,7 @@ export default function ReviewPage() {
   const [schedules, setSchedules] = useState<BudgetPlanSchedule[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [catalog, setCatalog] = useState<UserCategory[]>([]);
+  const [anchorDate, setAnchorDate] = useState<string | null>(null);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const loading = loadedYear !== year;
   const [rateMode, setRateMode] = useState<SavingsRateMode>("active");
@@ -103,6 +135,7 @@ export default function ReviewPage() {
       setSchedules(data.schedules);
       setBudgets(data.budgets);
       setCatalog(data.catalog);
+      setAnchorDate(data.anchorDate);
       setRateMode(loadRateMode());
       setLoadedYear(year);
     });
@@ -112,7 +145,6 @@ export default function ReviewPage() {
   }, [year]);
 
   const period = useMemo(() => (month === "year" ? yearPeriod(year) : monthPeriod(month)), [month, year]);
-  const completion = periodCompletion(period, today);
   const totals = useMemo(() => trackedTotals(txns, period), [txns, period]);
   const balance = trackingBalance(totals);
   const rate = savingsRate(totals, rateMode);
@@ -136,7 +168,20 @@ export default function ReviewPage() {
     localStorage.setItem(RATE_MODE_KEY, mode);
   }
 
+  const trackedFrom = trackedFromDate(anchorDate, txns);
+  const coverage: PeriodCoverage = month === "year" ? "complete" : monthCoverage(month, trackedFrom, today);
+  const fullMonths = useMemo(() => completeMonthBalance(txns, year, trackedFrom, today), [txns, year, trackedFrom, today]);
   const periodLabel = month === "year" ? `${year}` : formatMonthLabel(month);
+  const coverageLabel =
+    month === "year"
+      ? `${fullMonths.months} of 12 months tracked`
+      : coverage === "complete"
+        ? "Complete"
+        : coverage === "partial"
+          ? `Partial from ${shortDate(trackedFrom ?? month)}`
+          : today < month
+            ? "Not started"
+            : "Not tracked";
 
   return (
     <div className="w-full space-y-6">
@@ -178,6 +223,8 @@ export default function ReviewPage() {
             {months.map((m) => (
               <option key={m} value={m}>
                 {new Date(`${m}T00:00:00`).toLocaleDateString("en-CA", { month: "long" })}
+                {" · "}
+                {coverageWord(monthCoverage(m, trackedFrom, today), today < m)}
               </option>
             ))}
           </select>
@@ -200,19 +247,66 @@ export default function ReviewPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiTile
-          label="Period complete"
-          value={pct(completion)}
-          hint={completion >= 1 ? `${periodLabel} is over` : completion <= 0 ? `${periodLabel} has not started` : `of ${periodLabel} has passed`}
+          label={month === "year" ? "Full months" : "Tracked"}
+          value={month === "year" ? `${fullMonths.months} of 12` : coverageLabel}
+          hint={
+            month === "year"
+              ? "A month counts once it was tracked from the first day to the last."
+              : coverage === "complete"
+                ? `${periodLabel} was tracked the whole way through.`
+                : coverage === "partial"
+                  ? "Logged lines count. A full month is what the year total uses."
+                  : coverageLabel === "Not started"
+                    ? `${periodLabel} has not started.`
+                    : "Nothing was tracked for this month."
+          }
         >
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--warm-100)]">
-            <div className="h-full rounded-full bg-[var(--slate-950)]" style={{ width: `${Math.round(completion * 100)}%` }} />
+            <div
+              className="h-full rounded-full bg-[var(--slate-950)]"
+              style={{
+                width: `${Math.round((month === "year" ? fullMonths.months / 12 : trackedShare(month, trackedFrom, today)) * 100)}%`,
+              }}
+            />
           </div>
         </KpiTile>
         <KpiTile
           label="Tracking balance"
-          value={formatMoney(balance)}
-          tone={balance >= 0 ? "good" : "bad"}
-          hint={balance >= 0 ? "income not yet spent or set aside" : "spent or set aside beyond tracked income"}
+          value={
+            month === "year"
+              ? fullMonths.balance == null
+                ? "—"
+                : formatMoney(fullMonths.balance)
+              : coverage === "untracked"
+                ? "—"
+                : formatMoney(balance)
+          }
+          tone={
+            month === "year"
+              ? fullMonths.balance == null
+                ? undefined
+                : fullMonths.balance >= 0
+                  ? "good"
+                  : "bad"
+              : coverage === "complete"
+                ? balance >= 0
+                  ? "good"
+                  : "bad"
+                : undefined
+          }
+          hint={
+            month === "year"
+              ? fullMonths.months === 0
+                ? "No full month tracked yet."
+                : `${fullMonths.months} full month${fullMonths.months === 1 ? "" : "s"}. Partial months are left out.`
+              : coverage === "complete"
+                ? balance >= 0
+                  ? "Income not yet spent or set aside, for this full month."
+                  : "Spent or set aside beyond tracked income, for this full month."
+                : coverage === "partial"
+                  ? "So far this month. It is not a full month yet."
+                  : "Not tracked."
+          }
         />
         <KpiTile
           label="Savings rate"

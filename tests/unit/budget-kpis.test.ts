@@ -16,6 +16,9 @@ import {
   yearPeriod,
   kindMeter,
   monthBudgetPicture,
+  monthCoverage,
+  firstFullMonth,
+  completeMonthBalance,
 } from "@/lib/tracking/budget-kpis";
 import type { BudgetPlanEntry } from "@/types/tracking";
 
@@ -163,6 +166,30 @@ describe("ledger", () => {
     expect(rows[0].balance).toBe(2500 + 5197);
   });
 
+  it("orders the same day by when the line was logged", () => {
+    const rows = ledgerRows([
+      { txn_date: "2026-10-28", amount: 10, direction: "in", line_role: "income", created_at: "2026-10-28T15:00:00Z", id: "b" },
+      { txn_date: "2026-10-28", amount: 5, direction: "in", line_role: "income", created_at: "2026-10-28T12:00:00Z", id: "a" },
+    ]);
+    expect(rows.map((row) => row.txn.id)).toEqual(["a", "b"]);
+    expect(rows[1].balance).toBe(15);
+  });
+
+  it("leaves the bank balance blank until the day it was entered", () => {
+    const rows = ledgerRows(
+      [
+        { txn_date: "2026-10-22", amount: 100, direction: "out", line_role: "purchase", id: "before" },
+        { txn_date: "2026-10-23", amount: 50, direction: "out", line_role: "purchase", id: "on" },
+        { txn_date: "2026-10-28", amount: 20, direction: "in", line_role: "income", id: "after" },
+      ],
+      1000,
+      "2026-10-23",
+    );
+    expect(rows.find((row) => row.txn.id === "before")?.balance).toBeNull();
+    expect(rows.find((row) => row.txn.id === "on")?.balance).toBe(1000);
+    expect(rows.find((row) => row.txn.id === "after")?.balance).toBe(1020);
+  });
+
   it("rolls a cash anchor forward as the year's opening", () => {
     const prior = [
       { txn_date: "2025-11-02", amount: 200, direction: "out" as const, line_role: "purchase" },
@@ -179,7 +206,7 @@ describe("ledger", () => {
       { txn_date: "2025-08-01", amount: 50, direction: "out" as const, line_role: "purchase" },
       { txn_date: "2026-01-02", amount: 10, direction: "out" as const, line_role: "purchase" },
     ];
-    expect(ledgerOpening(2026, prior, { starting_balance: 9000, anchor_date: "2026-01-15" })).toBe(350);
+    expect(ledgerOpening(2026, prior, { starting_balance: 9000, anchor_date: "2026-01-15" })).toBe(9000);
     expect(ledgerOpening(2026, prior, null)).toBe(350);
   });
 
@@ -189,6 +216,20 @@ describe("ledger", () => {
     expect(kpis.daysSinceLastRecord).toBe(8);
     expect(kpis.recordsThisYear).toBe(8);
     expect(kpis.trackingBalanceYtd).toBe(9209 - 3859 - 1000 - 50);
+    expect(kpis.trackedSince).toBe("2026-03-01");
+    expect(kpis.completeMonths).toBe(1);
+    expect(kpis.completeMonthBalance).toBe(9209 - 3859 - 1000);
+    expect(kpis.daysTrackedThisMonth).toBe(10);
+    expect(kpis.daysInThisMonth).toBe(30);
+  });
+
+  it("treats a mid-month start as partial until the next month closes", () => {
+    expect(monthCoverage("2026-10-01", "2026-10-23", "2026-10-29")).toBe("partial");
+    expect(monthCoverage("2026-09-01", "2026-10-23", "2026-10-29")).toBe("untracked");
+    expect(monthCoverage("2026-11-01", "2026-10-23", "2026-12-01")).toBe("complete");
+    expect(firstFullMonth("2026-10-23")).toBe("2026-11-01");
+    expect(firstFullMonth("2026-10-01")).toBe("2026-10-01");
+    expect(completeMonthBalance(txns, 2026, "2026-10-23", "2026-10-29")).toEqual({ months: 0, balance: null });
   });
 });
 

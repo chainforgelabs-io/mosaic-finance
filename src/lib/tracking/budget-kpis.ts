@@ -9,7 +9,7 @@ import {
   type CashTxn,
 } from "@/lib/tracking/cash-capture";
 import { isSpendingCategory, INCOME_CATEGORIES, SAVINGS_CATEGORIES, SPENDING_CATEGORIES } from "@/lib/tracking/categories";
-import { endOfMonth, startOfMonth } from "@/lib/tracking/dates";
+import { addMonths, endOfMonth, startOfMonth } from "@/lib/tracking/dates";
 
 export type SavingsRateMode = "active" | "passive";
 
@@ -507,21 +507,26 @@ export interface LedgerRow<T extends CashTxn = CashTxn> {
   kind: ReturnType<typeof transactionKind>;
   /** Signed cash movement for this line. */
   effect: number;
-  /** Running sum of effects from the oldest line to this one. */
-  balance: number;
+  /** Bank balance after this line. Blank before the anchor date. */
+  balance: number | null;
 }
 
 /**
- * Cash on hand at the start of `year`.
- * Prefers the cash anchor rolled forward through Dec 31 of the prior year;
- * otherwise the running cash effect of every line dated before Jan 1.
+ * Bank balance at the start of the running tally for `year`.
+ * An anchor inside the year is used as entered. An earlier anchor is rolled to Dec 31.
+ * With no anchor, the tally is the cash effect of lines before Jan 1.
  */
 export function ledgerOpening(
   year: number,
   priorTxns: CashTxn[],
   anchor?: { starting_balance: number; anchor_date: string } | null,
 ): number {
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
   const lastPrior = `${year - 1}-12-31`;
+  if (anchor && anchor.anchor_date >= yearStart && anchor.anchor_date <= yearEnd) {
+    return roundMoney(anchor.starting_balance);
+  }
   const beforeYear = priorTxns.filter((txn) => txn.txn_date <= lastPrior);
   if (anchor && anchor.anchor_date <= lastPrior) {
     return expectedBalance(anchor.starting_balance, anchor.anchor_date, beforeYear, lastPrior);
@@ -530,17 +535,95 @@ export function ledgerOpening(
 }
 
 /**
- * Lines oldest-first with a running balance, so a user can scan the period like a statement.
- * The balance starts at `opening`, which defaults to zero.
+ * Lines oldest-first with a bank balance.
+ * `anchorDate` is the day the user entered their balance. Lines before it have no balance.
+ * Lines on that day show the opening amount. Later lines move it.
+ * Same-day lines follow `created_at`, then `id`.
  */
-export function ledgerRows<T extends CashTxn>(txns: T[], opening = 0): LedgerRow<T>[] {
-  const ordered = [...txns].sort((a, b) => (a.txn_date < b.txn_date ? -1 : a.txn_date > b.txn_date ? 1 : 0));
+export function ledgerRows<T extends CashTxn & { created_at?: string | null; id?: string }>(
+  txns: T[],
+  opening = 0,
+  anchorDate?: string | null,
+): LedgerRow<T>[] {
+  const ordered = [...txns].sort((a, b) => {
+    if (a.txn_date !== b.txn_date) return a.txn_date < b.txn_date ? -1 : 1;
+    const created = (a.created_at ?? "").localeCompare(b.created_at ?? "");
+    if (created !== 0) return created;
+    return (a.id ?? "").localeCompare(b.id ?? "");
+  });
   let balance = opening;
   return ordered.map((txn) => {
-    const effect = cashEffect(txn);
+    const effect = roundMoney(cashEffect(txn));
+    const kind = transactionKind(txn);
+    if (anchorDate && txn.txn_date < anchorDate) {
+      return { txn, kind, effect, balance: null };
+    }
+    if (anchorDate && txn.txn_date === anchorDate) {
+      return { txn, kind, effect, balance: opening };
+    }
     balance = roundMoney(balance + effect);
-    return { txn, kind: transactionKind(txn), effect: roundMoney(effect), balance };
+    return { txn, kind, effect, balance };
   });
+}
+
+export type PeriodCoverage = "complete" | "partial" | "untracked";
+
+/** The day tracking starts: the bank-balance date, or the first logged line. */
+export function trackedFromDate(anchorDate: string | null | undefined, txns: Array<{ txn_date: string }>): string | null {
+  if (anchorDate) return anchorDate;
+  let earliest: string | null = null;
+  for (const txn of txns) {
+    if (!earliest || txn.txn_date < earliest) earliest = txn.txn_date;
+  }
+  return earliest;
+}
+
+/**
+ * A month is complete only when tracking covered it from the 1st through the last day.
+ * The month that contains the start date, and the current month, are partial.
+ */
+export function monthCoverage(month: string, trackedFrom: string | null, today: string): PeriodCoverage {
+  const start = startOfMonth(month);
+  const end = endOfMonth(start);
+  if (today < start) return "untracked";
+  if (!trackedFrom || end < trackedFrom) return "untracked";
+  if (trackedFrom <= start && today >= end) return "complete";
+  return "partial";
+}
+
+/** The first month that can close as a full tracked month. */
+export function firstFullMonth(trackedFrom: string): string {
+  const start = startOfMonth(trackedFrom);
+  return trackedFrom === start ? start : startOfMonth(addMonths(trackedFrom, 1));
+}
+
+export function completeMonthBalance(
+  txns: CashTxn[],
+  year: number,
+  trackedFrom: string | null,
+  today: string,
+): { months: number; balance: number | null } {
+  let income = 0;
+  let expense = 0;
+  let savings = 0;
+  let months = 0;
+  for (const month of yearPeriod(year).months) {
+    if (monthCoverage(month, trackedFrom, today) !== "complete") continue;
+    const totals = trackedTotals(txns, monthPeriod(month));
+    income += totals.income;
+    expense += totals.expense;
+    savings += totals.savings;
+    months += 1;
+  }
+  if (months === 0) return { months: 0, balance: null };
+  return {
+    months,
+    balance: trackingBalance({
+      income: roundMoney(income),
+      expense: roundMoney(expense),
+      savings: roundMoney(savings),
+    }),
+  };
 }
 
 export interface LedgerHeaderKpis {
@@ -550,16 +633,41 @@ export interface LedgerHeaderKpis {
   recordsThisYear: number;
   /** Income minus expenses and savings for the calendar year to date. */
   trackingBalanceYtd: number;
+  trackedSince: string | null;
+  completeMonths: number;
+  /** Null until a full month has been tracked. */
+  completeMonthBalance: number | null;
+  daysTrackedThisMonth: number | null;
+  daysInThisMonth: number | null;
 }
 
-export function ledgerHeaderKpis(txns: CashTxn[], today: string): LedgerHeaderKpis {
-  const year = Number(today.slice(0, 4));
+export function ledgerHeaderKpis(
+  txns: CashTxn[],
+  today: string,
+  options?: { year?: number; trackedFrom?: string | null },
+): LedgerHeaderKpis {
+  const year = options?.year ?? Number(today.slice(0, 4));
   const period = yearPeriod(year);
+  const trackedSince = options?.trackedFrom ?? trackedFromDate(null, txns);
   let lastRecord: string | null = null;
   let recordsThisYear = 0;
   for (const txn of txns) {
     if (!lastRecord || txn.txn_date > lastRecord) lastRecord = txn.txn_date;
     if (inPeriod(txn, period)) recordsThisYear += 1;
+  }
+  const complete = completeMonthBalance(txns, year, trackedSince, today);
+  const currentMonth = startOfMonth(today);
+  let daysTrackedThisMonth: number | null = null;
+  let daysInThisMonth: number | null = null;
+  if (currentMonth.startsWith(String(year)) && today >= currentMonth) {
+    const end = endOfMonth(currentMonth);
+    daysInThisMonth = daysBetween(currentMonth, end) + 1;
+    if (trackedSince && trackedSince <= today && monthCoverage(currentMonth, trackedSince, today) !== "untracked") {
+      const from = trackedSince > currentMonth ? trackedSince : currentMonth;
+      daysTrackedThisMonth = daysBetween(from, today) + 1;
+    } else {
+      daysTrackedThisMonth = 0;
+    }
   }
   return {
     today,
@@ -567,5 +675,10 @@ export function ledgerHeaderKpis(txns: CashTxn[], today: string): LedgerHeaderKp
     daysSinceLastRecord: lastRecord ? daysBetween(lastRecord, today) : null,
     recordsThisYear,
     trackingBalanceYtd: trackingBalance(trackedTotals(txns, { ...period, end: today < period.end ? today : period.end })),
+    trackedSince,
+    completeMonths: complete.months,
+    completeMonthBalance: complete.balance,
+    daysTrackedThisMonth,
+    daysInThisMonth,
   };
 }

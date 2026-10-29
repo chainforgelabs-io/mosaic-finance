@@ -89,7 +89,7 @@ export default function LedgerPage() {
   const [editing, setEditing] = useState<TransactionRow | null>(null);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [opening, setOpening] = useState(0);
-  const [openingSource, setOpeningSource] = useState<"anchor" | "prior" | "none">("none");
+  const [anchor, setAnchor] = useState<CashAnchor | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,15 +98,8 @@ export default function LedgerPage() {
       setTxns(data.txns);
       setCatalog(data.catalog);
       setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(data.catalog)])]);
-      const nextOpening = ledgerOpening(year, data.priorTxns, data.anchor);
-      setOpening(nextOpening);
-      setOpeningSource(
-        data.anchor && data.anchor.anchor_date <= `${year - 1}-12-31`
-          ? "anchor"
-          : data.priorTxns.length > 0
-            ? "prior"
-            : "none",
-      );
+      setAnchor(data.anchor);
+      setOpening(ledgerOpening(year, data.priorTxns, data.anchor));
       setLoadedYear(year);
     });
     return () => {
@@ -117,12 +110,22 @@ export default function LedgerPage() {
   const reload = useCallback(() => {
     loadYear(year).then((data) => {
       setTxns(data.txns);
+      setAnchor(data.anchor);
       setOpening(ledgerOpening(year, data.priorTxns, data.anchor));
     });
   }, [year]);
 
-  const kpis = useMemo(() => ledgerHeaderKpis(txns, today), [txns, today]);
-  const rows = useMemo(() => ledgerRows(txns, opening), [txns, opening]);
+  const anchorInYear = Boolean(
+    anchor && anchor.anchor_date >= `${year}-01-01` && anchor.anchor_date <= `${year}-12-31`,
+  );
+  const kpis = useMemo(
+    () => ledgerHeaderKpis(txns, today, { year, trackedFrom: anchor?.anchor_date ?? null }),
+    [txns, today, year, anchor],
+  );
+  const rows = useMemo(
+    () => ledgerRows(txns, opening, anchorInYear ? anchor?.anchor_date : null),
+    [txns, opening, anchor, anchorInYear],
+  );
 
   const months = useMemo(() => {
     const set = new Set(txns.map((txn) => monthKey(txn.txn_date)));
@@ -192,7 +195,7 @@ export default function LedgerPage() {
         <div>
           <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Ledger</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            Every entry for the year, with a running balance of money in minus money out.
+            Every entry for the year. The bank balance runs from the balance you entered.
           </p>
         </div>
         <div className="inline-flex items-center rounded-lg border border-[var(--warm-200)] bg-white">
@@ -231,22 +234,37 @@ export default function LedgerPage() {
           }
         />
         <Tile label="Entries this year" value={String(kpis.recordsThisYear)} hint={`${year === currentYear ? "so far" : "in"} ${year}`} />
-        <Tile
-          label="Tracking balance"
-          value={formatMoney(kpis.trackingBalanceYtd)}
-          hint={kpis.trackingBalanceYtd >= 0 ? "income not yet spent or set aside" : "spent or set aside beyond income"}
-          tone={kpis.trackingBalanceYtd >= 0 ? "good" : "bad"}
-        />
+        {kpis.completeMonths === 0 ? (
+          <Tile
+            label="Tracked since"
+            value={kpis.trackedSince ? formatDate(kpis.trackedSince) : "—"}
+            hint={
+              kpis.daysTrackedThisMonth != null && kpis.daysInThisMonth != null
+                ? `${kpis.daysTrackedThisMonth} of ${kpis.daysInThisMonth} days this month`
+                : "No full month tracked yet"
+            }
+          />
+        ) : (
+          <Tile
+            label="Tracking balance"
+            value={formatMoney(kpis.completeMonthBalance)}
+            hint={`${kpis.completeMonths} full month${kpis.completeMonths === 1 ? "" : "s"}. Partial months are left out.`}
+            tone={(kpis.completeMonthBalance ?? 0) >= 0 ? "good" : "bad"}
+          />
+        )}
       </div>
 
-      {openingSource !== "none" && (
+      {anchor ? (
         <p className="font-body text-xs text-[var(--text-muted)]">
-          Running balance starts at {formatMoney(opening)}
-          {openingSource === "anchor"
-            ? ", from your starting cash rolled to the end of last year."
-            : ", the cash effect of last year’s entries."}
+          {anchorInYear
+            ? `Bank balance starts at ${formatMoneyExact(anchor.starting_balance)}, your balance on ${formatDate(anchor.anchor_date)}. Lines before that show no balance.`
+            : `Bank balance starts at ${formatMoney(opening)}, your balance on ${formatDate(anchor.anchor_date)} rolled to the start of ${year}.`}
         </p>
-      )}
+      ) : opening !== 0 ? (
+        <p className="font-body text-xs text-[var(--text-muted)]">
+          Bank balance starts at {formatMoney(opening)}, from last year’s entries.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -307,7 +325,7 @@ export default function LedgerPage() {
             <SortHeader label="Category" active={sortKey === "category"} desc={sortDesc} onClick={() => toggleSort("category")} />
             <SortHeader label="Amount" active={sortKey === "amount"} desc={sortDesc} onClick={() => toggleSort("amount")} right />
             <span>Details</span>
-            <span className="text-right">Balance</span>
+            <span className="text-right">Bank balance</span>
             <span />
           </div>
           <ul className="divide-y divide-[var(--warm-100)]">
@@ -429,7 +447,9 @@ function LedgerLine({
           {txn.source === "screenshot" && <span className="ml-1 text-[var(--text-muted)]">· statement</span>}
           {txn.category_confirmed === false && <span className="ml-1 text-amber-700">· inbox</span>}
         </span>
-        <span className="text-right font-body text-sm tabular-nums text-[var(--text-muted)]">{formatMoney(row.balance)}</span>
+        <span className="text-right font-body text-sm tabular-nums text-[var(--text-muted)]">
+          {row.balance == null ? "—" : formatMoney(row.balance)}
+        </span>
         <button
           type="button"
           onClick={onEdit}
@@ -463,7 +483,9 @@ function LedgerLine({
           >
             {formatMoneyExact(amount)}
           </p>
-          <p className="font-body text-[11px] tabular-nums text-[var(--text-muted)]">bal {formatMoney(row.balance)}</p>
+          <p className="font-body text-[11px] tabular-nums text-[var(--text-muted)]">
+            {row.balance == null ? "—" : `bal ${formatMoney(row.balance)}`}
+          </p>
         </div>
       </button>
     </li>
