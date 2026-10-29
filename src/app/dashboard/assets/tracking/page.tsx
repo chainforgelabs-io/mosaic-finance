@@ -159,7 +159,7 @@ export default function NetWorthTrackingPage() {
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             {latest
               ? `Last updated ${formatMonthLabel(latest.snapshot_date)}. Update once a month so each point on the line is a real reading.`
-              : "Save a monthly check-in to start the history. Update once a month so each point on the line is a real reading."}
+              : "Choose a month and add a reading. Each saved month is a point on the chart."}
           </p>
         </div>
         <button
@@ -168,15 +168,17 @@ export default function NetWorthTrackingPage() {
           className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)]"
         >
           <CalendarCheck className="size-4" />
-          Monthly check-in
+          {snapshots.some((row) => monthKey(row.snapshot_date) === month)
+            ? `Change ${monthLabel(month)}`
+            : `Add ${monthLabel(month)}`}
         </button>
       </div>
 
       {staleMonths != null && staleMonths >= 1 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 font-body text-sm text-amber-800">
           {staleMonths === 1
-            ? "No snapshot this month yet. Run the monthly check-in to add this month's reading."
-            : `No snapshot for ${staleMonths} months. Run the monthly check-in to catch up; the line will pick up from here.`}
+            ? `No reading for ${monthLabel(monthKey(today))} yet. Add it to put this month on the chart.`
+            : `No reading for ${staleMonths} months. Choose a month and add it. The chart picks up each month you save.`}
         </div>
       )}
 
@@ -215,7 +217,7 @@ export default function NetWorthTrackingPage() {
         </div>
         {currentIsFallback && comparison.current && (
           <p className="font-body text-xs text-[var(--text-muted)]">
-            No snapshot in {monthLabel(month)}; showing {formatMonthLabel(comparison.current.snapshot_date)}.
+            No reading for {monthLabel(month)} yet. Use Add {monthLabel(month)} to put it on the chart. The numbers below are from {formatMonthLabel(comparison.current.snapshot_date)}.
           </p>
         )}
       </div>
@@ -246,7 +248,7 @@ export default function NetWorthTrackingPage() {
         <div className="rounded-xl border border-dashed border-[var(--warm-200)] bg-white p-8 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">No readings yet</p>
           <p className="mx-auto mt-1 max-w-md font-body text-sm text-[var(--text-muted)]">
-            The monthly check-in walks through your accounts, assets, and debts, then saves one snapshot for the month you have selected. Pick an earlier month to file a past reading.
+            Pick the month, including one from earlier this year, then add a reading for the accounts you have now.
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button
@@ -255,7 +257,7 @@ export default function NetWorthTrackingPage() {
               className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white"
             >
               <CalendarCheck className="size-4" />
-              Start the first check-in
+              Add {monthLabel(month)}
             </button>
             <Link
               href="/dashboard/assets"

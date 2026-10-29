@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import { presentGoalName } from "@/lib/tracking/categories";
 import Link from "next/link";
+import { HoldingsEditor } from "@/components/tracking/HoldingsEditor";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
@@ -605,6 +606,7 @@ export default function AssetsPage() {
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
   const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
   const [checkInOpen, setCheckInOpen] = useState(false);
+  const [holdingsOpen, setHoldingsOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
   const [debtName, setDebtName] = useState("");
   const [debtBalance, setDebtBalance] = useState("");
@@ -881,12 +883,13 @@ export default function AssetsPage() {
             <CalendarCheck className="w-4 h-4" />
             Monthly check-in
           </button>
-          <Link
-            href="/onboarding/holdings"
+          <button
+            type="button"
+            onClick={() => setHoldingsOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors"
           >
             Edit Holdings
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -1085,7 +1088,9 @@ export default function AssetsPage() {
             {holdings.length === 0 ? (
               <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
                 No investment accounts on file.{" "}
-                <Link href="/onboarding/holdings" className="text-[var(--emerald)] hover:underline">Add accounts</Link>
+                <button type="button" onClick={() => setHoldingsOpen(true)} className="text-[var(--emerald)] hover:underline">
+                  Add accounts
+                </button>
               </p>
             ) : (
               <div className="space-y-2">
@@ -1485,6 +1490,21 @@ export default function AssetsPage() {
         )}
       </div>
 
+      <HoldingsEditor
+        open={holdingsOpen}
+        accounts={holdings.map((account) => ({
+          accountType: account.account_type,
+          holdings: account.holdings.map((holding) => ({
+            tickerOrName: holding.ticker || holding.name || "",
+            balance: holding.balance,
+            units: holding.units,
+          })),
+        }))}
+        onClose={() => setHoldingsOpen(false)}
+        onSaved={() => {
+          void loadData(true);
+        }}
+      />
       <MonthlyCheckIn
         open={checkInOpen}
         holdings={holdings}
