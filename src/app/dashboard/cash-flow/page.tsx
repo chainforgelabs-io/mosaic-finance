@@ -23,7 +23,6 @@ import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
 import { EditSpendSheet } from "@/components/tracking/EditSpendSheet";
 import { RecurringPanel } from "@/components/tracking/RecurringPanel";
 import { SpendInbox } from "@/components/tracking/SpendInbox";
-import { StatementStart } from "@/components/tracking/StatementStart";
 import { StatementSummary } from "@/components/tracking/StatementSummary";
 import { MonthBudget } from "@/components/tracking/MonthBudget";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
@@ -814,9 +813,9 @@ export default function CashFlowPage() {
             </button>
           </div>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
-            {picture
-              ? "Log variable spending for the household. Bills and paycheques can post on their dates."
-              : "Upload the last three months of bank and card statements. One person can cover the household."}
+            {hasAnyPlan === false
+              ? "Start with a budget plan. Then log spending here."
+              : "Log spending for the household. Bills and paycheques can post on their dates."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -877,18 +876,6 @@ export default function CashFlowPage() {
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 space-y-6">
-      {cashLoaded && !picture && (
-        <StatementStart
-          parsing={parsing}
-          onUpload={requestUpload}
-          manualLabel={hasAnyPlan === true ? "Enter a balance instead" : "Set up income, expenses, and savings"}
-          onManual={() => {
-            if (hasAnyPlan === true) setShowSetup(true);
-            else openPlan();
-          }}
-        />
-      )}
-
       {cashLoaded && !picture && anchor != null && expectedBalance != null && (
         <div className="rounded-xl border border-[var(--warm-200)] bg-white p-4">
           <p className="font-body text-sm text-[var(--text-secondary)]">
@@ -1188,7 +1175,7 @@ export default function CashFlowPage() {
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             {picture
               ? "Statement lines stay in the monthly picture. Log variable spending above."
-              : "Upload statements to set what's left, or type an amount above."}
+              : "Type an amount above to log spending."}
           </p>
           {hiddenStatementLines > 0 && !showStatementLines && (
             <button
