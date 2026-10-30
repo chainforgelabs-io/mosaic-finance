@@ -368,7 +368,7 @@ function ConversationPanel({
 }
 
 export default function WalkthroughPage() {
-  const { plan } = usePlanStore();
+  const { plan, isLoading } = usePlanStore();
   const {
     currentSectionIndex,
     messages,
@@ -529,6 +529,15 @@ export default function WalkthroughPage() {
     },
     [setCurrentSectionIndex, currentSectionIndex]
   );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <p className="font-body text-sm text-[var(--text-muted)]">Loading the walkthrough</p>
+        <div className="skeleton h-44 w-full" />
+      </div>
+    );
+  }
 
   if (!plan || plan.status !== "delivered") {
     return (

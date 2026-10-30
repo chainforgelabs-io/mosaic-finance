@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import CppTimingPage from "@/app/(marketing)/calculators/cpp-timing/page";
+import FhsaCalculatorPage from "@/app/(marketing)/calculators/fhsa/page";
+import RrspVsTfsaPage from "@/app/(marketing)/calculators/rrsp-vs-tfsa/page";
 
 const CALCULATORS = [
-  { slug: "rrsp-vs-tfsa", href: "/calculators/rrsp-vs-tfsa", title: "RRSP vs TFSA room (illustrative)" },
-  { slug: "cpp-timing", href: "/calculators/cpp-timing", title: "CPP at 60 vs 65 vs 70" },
-  { slug: "fhsa", href: "/calculators/fhsa", title: "FHSA contribution room" },
+  { slug: "rrsp-vs-tfsa", title: "RRSP vs TFSA room (illustrative)" },
+  { slug: "cpp-timing", title: "CPP at 60 vs 65 vs 70" },
+  { slug: "fhsa", title: "FHSA contribution room" },
 ] as const;
 
 export default async function DashboardCalculators({
@@ -14,8 +17,9 @@ export default async function DashboardCalculators({
 }) {
   const { slug } = await params;
   const key = slug?.join("/") ?? "";
-  const match = CALCULATORS.find((item) => item.slug === key);
-  if (match) redirect(match.href);
+  if (key === "rrsp-vs-tfsa") return <RrspVsTfsaPage embedded />;
+  if (key === "cpp-timing") return <CppTimingPage embedded />;
+  if (key === "fhsa") return <FhsaCalculatorPage embedded />;
   if (key) redirect("/dashboard/calculators");
 
   return (
@@ -30,7 +34,7 @@ export default async function DashboardCalculators({
         {CALCULATORS.map((item) => (
           <li key={item.slug}>
             <Link
-              href={item.href}
+              href={`/dashboard/calculators/${item.slug}`}
               className="block rounded-lg border border-[var(--warm-200)] bg-white px-4 py-3 font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)] hover:border-[var(--emerald)]"
             >
               {item.title}

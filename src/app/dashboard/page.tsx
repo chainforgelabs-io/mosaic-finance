@@ -83,7 +83,7 @@ function fmtKpi(n: number | null | undefined): string {
   return `$${n.toLocaleString()}`;
 }
 
-function DashGlassCard({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: string }) {
+function DashGlassCard({ label, value, unit, accent, note }: { label: string; value: string; unit?: string; accent?: string; note?: string }) {
   return (
     <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5 hover:bg-white/[0.09] transition-colors">
       <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
@@ -95,6 +95,7 @@ function DashGlassCard({ label, value, unit, accent }: { label: string; value: s
         </span>
         {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">{unit}</span>}
       </div>
+      {note && <p className="mt-1 font-body text-[10px] text-white/40">{note}</p>}
     </div>
   );
 }
@@ -566,6 +567,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
             <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
               Health Score
             </p>
+            <p className="font-body text-[10px] text-white/40">Today</p>
             {liveScore?.delta90 != null && (
               <p className="mt-1 font-body text-xs text-white/60">
                 90-day {liveScore.delta90 >= 0 ? "+" : ""}
@@ -578,10 +580,10 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
         <div className="hidden md:block w-px h-20 bg-white/10" />
 
         <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
-          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
-          <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" />
-          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
-          <DashGlassCard label="Total Debt" value={fmtKpi(totalDebt)} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} />
+          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" note={hasLiveAssets ? "Today" : "From your last report"} />
+          <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" note="From your last report" />
+          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} note={hasLiveAssets ? "Today" : "From your last report"} />
+          <DashGlassCard label="Total Debt" value={fmtKpi(totalDebt)} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} note={hasLiveAssets ? "Today" : "From your last report"} />
           <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
             <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
               Emergency Fund
@@ -592,6 +594,7 @@ function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.g
               </span>
               {emergencyMonths != null && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">mo</span>}
             </div>
+            <p className="mt-1 font-body text-[10px] text-white/40">From your last report</p>
             {emergencyMonths != null && (
               <div className="mt-3">
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -804,6 +807,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <p className="font-body text-sm text-[var(--text-muted)]">Loading your dashboard</p>
         <div className="skeleton h-44 w-full" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (

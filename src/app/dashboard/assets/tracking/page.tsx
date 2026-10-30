@@ -7,6 +7,7 @@ import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
+  formatDiffPct,
   groupComparison,
   lineSeries,
   liquidity,
@@ -84,10 +85,8 @@ async function loadAll(): Promise<PageData> {
   return { snapshots, holdings, fixedAssets, debts };
 }
 
-function pct(value: number | null, digits = 1): string {
-  if (value == null) return "—";
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${(value * 100).toFixed(digits)}%`;
+function pct(value: number | null): string {
+  return formatDiffPct(value);
 }
 
 function signed(value: number | null): string {

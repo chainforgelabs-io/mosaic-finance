@@ -313,8 +313,37 @@ function itemKey(item: SnapshotBreakdownItem, index: number): string {
   return item.id ?? item.type ?? item.name ?? `item-${index}`;
 }
 
+const SNAPSHOT_LABELS: Record<string, string> = {
+  "bank-account": "Bank account",
+  bank_account: "Bank account",
+  car_loan: "Car loan",
+  mortgage: "Mortgage",
+};
+
+/** A stored account type or debt key, shown as words. Names the user wrote stay as written. */
+export function formatSnapshotLabel(raw: string): string {
+  const trimmed = raw.trim();
+  const key = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
+  if (SNAPSHOT_LABELS[key]) return SNAPSHOT_LABELS[key];
+  if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(trimmed)) {
+    return trimmed
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+  return trimmed;
+}
+
 function itemLabel(item: SnapshotBreakdownItem): string {
-  return item.name || item.type || item.account_type || "Item";
+  return formatSnapshotLabel(item.name || item.type || item.account_type || "Item");
+}
+
+/** A percent for a month-to-month change. A real dollar change that rounds to 0.0% stays visible. */
+export function formatDiffPct(value: number | null): string {
+  if (value == null) return "—";
+  const points = value * 100;
+  if (value !== 0 && Math.abs(points) < 0.05) return value > 0 ? "+<0.1%" : "−<0.1%";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${points.toFixed(1)}%`;
 }
 
 function compareItems(

@@ -32,7 +32,7 @@ export function AssetAllocationChart() {
         Illustrative mix
       </h3>
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-        An example asset-class mix for a profile like yours.
+        An example of how asset classes can be mixed. Not a mix for your accounts.
       </p>
       <div className="flex items-center gap-6">
         <div className="w-[170px] h-[170px] shrink-0">

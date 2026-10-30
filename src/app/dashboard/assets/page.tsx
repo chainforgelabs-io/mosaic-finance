@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import { presentGoalName } from "@/lib/tracking/categories";
 import Link from "next/link";
 import { HoldingsEditor } from "@/components/tracking/HoldingsEditor";
@@ -42,8 +41,8 @@ import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import { planOverview } from "@/lib/tracking/budget-plan";
 import { fetchPlan } from "@/lib/tracking/plan-client";
 import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
-import { classifyLiability, lineSeries, type LiabilityTerm } from "@/lib/net-worth/tracking";
-import type { BudgetPlanEntry, NetWorthSnapshotRow } from "@/types/tracking";
+import { classifyLiability, formatSnapshotLabel, lineSeries, type LiabilityTerm } from "@/lib/net-worth/tracking";
+import type { BudgetPlanEntry, GoalRow, NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
 
@@ -493,14 +492,40 @@ function FixedAssetForm({
   );
 }
 
+function noteWithLiveDebt(
+  notes: string,
+  category: string,
+  debts: FinancialProfile["major_debts"],
+): string {
+  if (!debts?.length) return notes;
+  const mortgage = /mortgage balance/i.test(notes) && /real_estate|home|residence/i.test(category);
+  const loan = /loan balance/i.test(notes) && /vehicle/i.test(category);
+  const debt = mortgage
+    ? debts.find((row) => /mortgage/i.test(row.type))
+    : loan
+      ? debts.find((row) => /car|auto|vehicle/i.test(row.type))
+      : undefined;
+  if (!debt) return notes;
+  const live = mortgage
+    ? `Current mortgage on the debt list: ${fmtFull(debt.amount)}${debt.rate != null ? ` at ${debt.rate}%` : ""}.`
+    : `Current loan on the debt list: ${fmtFull(debt.amount)}${debt.rate != null ? ` at ${debt.rate}%` : ""}.`;
+  const rest = notes
+    .split(/(?<=\.)\s+/)
+    .filter((sentence) => !/mortgage balance|loan balance/i.test(sentence))
+    .join(" ");
+  return rest ? `${live} ${rest}` : live;
+}
+
 /* ---------- Fixed Asset Card ---------- */
 
 function FixedAssetCard({
   asset,
+  debts,
   onEdit,
   onDelete,
 }: {
   asset: FixedAsset;
+  debts: FinancialProfile["major_debts"];
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -582,7 +607,9 @@ function FixedAssetCard({
       )}
 
       {asset.notes && (
-        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mt-2 italic">{asset.notes}</p>
+        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mt-2 italic">
+          {noteWithLiveDebt(asset.notes, asset.category, debts)}
+        </p>
       )}
     </div>
   );
@@ -605,6 +632,7 @@ export default function AssetsPage() {
   const lastHoldingsFetchAt = useRef<number>(0);
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
   const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
+  const [trackedGoals, setTrackedGoals] = useState<GoalRow[]>([]);
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [holdingsOpen, setHoldingsOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
@@ -653,6 +681,12 @@ export default function AssetsPage() {
       })
       .catch(() => {});
     void fetchPlan(Number(todayIso().slice(0, 4))).then((plan) => setPlanEntries(plan.entries));
+    void fetch("/api/goals", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (json?.goals) setTrackedGoals(json.goals as GoalRow[]);
+      })
+      .catch(() => undefined);
     void fetch("/api/setup/status", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -835,8 +869,9 @@ export default function AssetsPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Assets & Liabilities</h1>
+          <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Net Worth</h1>
         </div>
+        <p className="mb-4 font-body text-sm text-[var(--text-muted)]">Loading your accounts</p>
         <div className="space-y-4">
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-32 w-full" />)}
         </div>
@@ -1193,6 +1228,7 @@ export default function AssetsPage() {
                         <FixedAssetCard
                           key={asset.id}
                           asset={asset}
+                          debts={profile?.major_debts ?? null}
                           onEdit={() => { setEditingAsset(asset); setShowForm(false); }}
                           onDelete={() => handleDeleteAsset(asset.id)}
                         />
@@ -1303,7 +1339,7 @@ export default function AssetsPage() {
                   {manualDebts.map((d) => (
                     <div key={`${d.type}-${d.index}`} className="flex items-center justify-between rounded-lg bg-[var(--warm-50)] px-3 py-2">
                       <div>
-                        <p className="font-body text-sm">{presentGoalName(d.type)}</p>
+                        <p className="font-body text-sm">{formatSnapshotLabel(d.type)}</p>
                         {d.rate != null && <p className="font-body text-xs text-amber-600">{d.rate}%</p>}
                         <TermSelect
                           value={classifyLiability(d.type, d.term)}
@@ -1347,7 +1383,7 @@ export default function AssetsPage() {
                       <tr key={`${d.type}-${d.index}`} className="border-b border-[var(--warm-50)] last:border-0">
                         <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
                           <div className="flex flex-wrap items-center gap-3">
-                            <span>{presentGoalName(d.type)}</span>
+                            <span>{formatSnapshotLabel(d.type)}</span>
                             <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
                               Remove
                             </button>
@@ -1376,7 +1412,7 @@ export default function AssetsPage() {
                 {avalanche?.payoff_months != null && (
                   <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
                     <p className="font-[family-name:var(--font-body)] text-sm text-[var(--emerald-dark)]">
-                      <span className="font-semibold">Payoff timeline:</span> {String(avalanche.payoff_months)} months using the {formatDebtRecommendedMethod(debtPlan?.recommended_method as string)}
+                      An illustration: about {String(avalanche.payoff_months)} months if extra payments go to the highest rate first. This is not a payment instruction.
                     </p>
                   </div>
                 )}
@@ -1422,7 +1458,7 @@ export default function AssetsPage() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <FinancialCard label="ANNUAL INCOME" value={fmt(annualIncome)} className="bg-gradient-to-br from-white to-emerald-50/40" />
-                <FinancialCard label="MONTHLY CASH FLOW" value={fmt(cashFlowMonthly ?? (monthlySavings != null && monthlyExpenses != null ? monthlySavings : null))} className="bg-gradient-to-br from-white to-blue-50/40" />
+                <FinancialCard label={fromPlan ? "PLAN SURPLUS" : "MONTHLY CASH FLOW"} value={fmt(cashFlowMonthly ?? (monthlySavings != null && monthlyExpenses != null ? monthlySavings : null))} className="bg-gradient-to-br from-white to-blue-50/40" />
                 <FinancialCard
                   label="SAVINGS RATE"
                   value={savingsRate != null ? `${savingsRate}%` : (monthlyExpenses != null ? fmt(monthlyExpenses) : "--")}
@@ -1454,7 +1490,7 @@ export default function AssetsPage() {
         })()}
 
         {/* FINANCIAL GOALS */}
-        {profile?.financial_goals && profile.financial_goals.length > 0 && (
+        {((trackedGoals.length > 0) || (profile?.financial_goals && profile.financial_goals.length > 0)) && (
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -1466,25 +1502,53 @@ export default function AssetsPage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {profile.financial_goals.map((g, i) => (
-                <div key={i} className="bg-white border border-[var(--warm-200)] rounded-lg p-5 hover:shadow-sm transition-shadow">
-                  <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] mb-2">{g.goal}</p>
-                  <div className="flex items-center gap-4">
-                    {g.target_amount != null && (
-                      <div>
-                        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">Target</p>
-                        <p className="font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(g.target_amount)}</p>
+              {(trackedGoals.length > 0 ? trackedGoals.filter((goal) => goal.status === "active") : []).map((goal) => {
+                const target = Number(goal.target_amount) || 0;
+                const debtGoal = goal.goal_type === "debt_payoff" && totalDebt > 0 && target > 0;
+                const paidDown = debtGoal ? Math.max(target - totalDebt, 0) : Number(goal.current_amount) || 0;
+                return (
+                  <div key={goal.id} className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
+                    <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] mb-2">
+                      {presentGoalName(goal.name)}
+                    </p>
+                    {goal.amount_unknown ? (
+                      <p className="font-body text-xs text-[var(--text-secondary)]">
+                        Not sure of the amount — looking to find out what this will cost
+                      </p>
+                    ) : debtGoal ? (
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="font-body text-xs text-[var(--text-muted)]">Paid down</p>
+                          <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(paidDown)}</p>
+                        </div>
+                        <div>
+                          <p className="font-body text-xs text-[var(--text-muted)]">Still owed</p>
+                          <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(totalDebt)}</p>
+                        </div>
                       </div>
-                    )}
-                    {g.target_year != null && (
+                    ) : target > 0 ? (
                       <div>
-                        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)]">By</p>
-                        <p className="font-[family-name:var(--font-body)] text-sm font-semibold text-[var(--text-primary)]">{g.target_year}</p>
+                        <p className="font-body text-xs text-[var(--text-muted)]">Target</p>
+                        <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(target)}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {trackedGoals.length === 0 &&
+                profile?.financial_goals?.map((g, i) => (
+                  <div key={i} className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
+                    <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] mb-2">
+                      {presentGoalName(g.goal)}
+                    </p>
+                    {g.target_amount != null && g.target_amount > 0 && (
+                      <div>
+                        <p className="font-body text-xs text-[var(--text-muted)]">Target</p>
+                        <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(g.target_amount)}</p>
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         )}
@@ -1606,8 +1670,7 @@ function BucketDeltas({
                   !good && !bad && "text-[var(--text-primary)]",
                 )}
               >
-                {delta > 0 ? "+" : ""}
-                {fmt(delta)}
+                {delta === 0 ? "No change" : `${delta > 0 ? "+" : ""}${fmt(delta)}`}
               </p>
             </div>
           );

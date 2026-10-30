@@ -6,11 +6,27 @@ import { isLaunchLive } from "@/lib/config/launch";
 export function CalculatorShell({
   title,
   children,
+  embedded = false,
 }: {
   title: string;
   children: React.ReactNode;
+  embedded?: boolean;
 }) {
   const cta = isLaunchLive() ? "/signup" : "/waitlist";
+  if (embedded) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <p className="font-display text-xs font-semibold uppercase tracking-wider text-[var(--emerald)]">
+          Calculator
+        </p>
+        <h1 className="mt-2 font-display text-2xl font-bold text-[var(--text-primary)]">{title}</h1>
+        <p className="mt-2 font-body text-sm text-[var(--text-secondary)]">
+          Educational estimates using published CRA-style limits. Not tax advice.
+        </p>
+        <div className="mt-8">{children}</div>
+      </div>
+    );
+  }
   return (
     <main className="min-h-screen bg-white">
       <Nav hideAuth={!isLaunchLive()} onLight />

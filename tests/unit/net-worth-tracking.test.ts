@@ -3,6 +3,8 @@ import {
   availableCreditFor,
   classifyLiability,
   enrichBreakdown,
+  formatDiffPct,
+  formatSnapshotLabel,
   groupComparison,
   lineSeries,
   liquidity,
@@ -279,6 +281,11 @@ describe("groupComparison", () => {
     expect(liquid.items).toHaveLength(2);
     expect(liquid.items.find((item) => item.label === "RRSP")).toMatchObject({ current: 42200, previous: 40000, diff: 2200 });
     expect(liquid.items.find((item) => item.label === "TFSA")).toMatchObject({ current: 28500, previous: 26000, diff: 2500 });
+    expect(formatSnapshotLabel("Bank-Account")).toBe("Bank account");
+    expect(formatSnapshotLabel("car_loan")).toBe("Car loan");
+    expect(formatSnapshotLabel("Primary residence")).toBe("Primary residence");
+    expect(formatDiffPct(60 / 466990)).toBe("+<0.1%");
+    expect(formatDiffPct(0.05)).toBe("+5.0%");
   });
 
   it("leaves two accounts of the same type unmatched when the ids differ", () => {

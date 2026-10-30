@@ -14,14 +14,14 @@ function cppFactor(age: number): number {
 
 const MARKS = [60, 65, 70] as const;
 
-export default function CppTimingPage() {
+export default function CppTimingPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [base, setBase] = useState(13600);
   const [age, setAge] = useState(65);
   const annual = useMemo(() => Math.round(base * cppFactor(age)), [base, age]);
   const monthly = Math.round(annual / 12);
 
   return (
-    <CalculatorShell title="CPP at 60 vs 65 vs 70">
+    <CalculatorShell embedded={embedded} title="CPP at 60 vs 65 vs 70">
       <div className="space-y-5">
         <CalculatorNumberField
           label="Estimated CPP at 65 (annual)"

@@ -165,6 +165,7 @@ export function varianceSections(
     const key = `${kind}|${txn.category}`;
     tracked.set(key, (tracked.get(key) ?? 0) + (Number(txn.amount) || 0));
   }
+  foldGenericPayIntoSalary(tracked, plan, period);
 
   const sections: VarianceSection[] = [];
   for (const kind of PLAN_KINDS) {
@@ -203,6 +204,36 @@ export function varianceSections(
     });
   }
   return sections;
+}
+
+const GENERIC_PAY = new Set(["paycheque", "paycheck", "payroll", "salary", "wages", "income"]);
+
+/**
+ * A logged "Paycheque" has no plan line of its own. When the plan has one
+ * salary line, count that pay against it. Two salary lines stay separate.
+ */
+function foldGenericPayIntoSalary(
+  tracked: Map<string, number>,
+  plan: BudgetPlanEntry[],
+  period: Period,
+): void {
+  const planIncome = new Set<string>();
+  for (const entry of plan) {
+    if (entry.kind !== "income" || !period.months.includes(startOfMonth(entry.month))) continue;
+    planIncome.add(entry.category);
+  }
+  const salaryLines = [...planIncome].filter((category) => /salary|wage|paycheque|paycheck|payroll/i.test(category));
+  if (salaryLines.length !== 1) return;
+  const target = salaryLines[0];
+  for (const key of [...tracked.keys()]) {
+    if (!key.startsWith("income|")) continue;
+    const category = key.slice("income|".length);
+    if (planIncome.has(category) || !GENERIC_PAY.has(category.toLowerCase())) continue;
+    const amount = tracked.get(key) ?? 0;
+    tracked.delete(key);
+    const dest = `income|${target}`;
+    tracked.set(dest, (tracked.get(dest) ?? 0) + amount);
+  }
 }
 
 /** Plan lines that have no spending category yet. */

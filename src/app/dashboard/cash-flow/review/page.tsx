@@ -12,7 +12,6 @@ import {
   type UserCategory,
 } from "@/lib/tracking/categories";
 import {
-  expenseCategoryVariance,
   monthPeriod,
   monthlySeries,
   completeMonthBalance,
@@ -35,7 +34,7 @@ import { formatMoney } from "@/lib/tracking/format";
 import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import type { PlanKind } from "@/lib/tracking/budget-plan";
 import { cn } from "@/lib/utils";
-import type { BudgetPlanEntry, BudgetPlanSchedule, TransactionRow } from "@/types/tracking";
+import type { BudgetPlanEntry, TransactionRow } from "@/types/tracking";
 
 const RATE_MODE_KEY = "mosaic-savings-rate-mode";
 
@@ -56,7 +55,6 @@ function loadRateMode(): SavingsRateMode {
 async function loadYear(targetYear: number): Promise<{
   txns: TransactionRow[];
   plan: BudgetPlanEntry[];
-  schedules: BudgetPlanSchedule[];
   budgets: Record<string, number>;
   catalog: UserCategory[];
   anchorDate: string | null;
@@ -81,7 +79,7 @@ async function loadYear(targetYear: number): Promise<{
   }
   const cash = cashRes.ok ? await cashRes.json() : null;
   const anchorDate = (cash?.anchor?.anchor_date as string | undefined) ?? null;
-  return { txns, plan: planData.entries, schedules: planData.schedules, budgets, catalog, anchorDate };
+  return { txns, plan: planData.entries, budgets, catalog, anchorDate };
 }
 
 function shortDate(iso: string): string {
@@ -118,7 +116,6 @@ export default function ReviewPage() {
   const [month, setMonth] = useState<string | "year">(() => startOfMonth(today));
   const [txns, setTxns] = useState<TransactionRow[]>([]);
   const [plan, setPlan] = useState<BudgetPlanEntry[]>([]);
-  const [schedules, setSchedules] = useState<BudgetPlanSchedule[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [catalog, setCatalog] = useState<UserCategory[]>([]);
   const [anchorDate, setAnchorDate] = useState<string | null>(null);
@@ -132,7 +129,6 @@ export default function ReviewPage() {
       if (cancelled) return;
       setTxns(data.txns);
       setPlan(data.plan);
-      setSchedules(data.schedules);
       setBudgets(data.budgets);
       setCatalog(data.catalog);
       setAnchorDate(data.anchorDate);
@@ -149,10 +145,6 @@ export default function ReviewPage() {
   const balance = trackingBalance(totals);
   const rate = savingsRate(totals, rateMode);
   const sections = useMemo(() => varianceSections(txns, plan, period, budgets), [txns, plan, period, budgets]);
-  const categorySection = useMemo(
-    () => expenseCategoryVariance(txns, plan, schedules, period),
-    [txns, plan, schedules, period],
-  );
   const series = useMemo(() => monthlySeries(txns, plan, year), [txns, plan, year]);
   const months = useMemo(() => yearPeriod(year).months, [year]);
   const currentYear = Number(today.slice(0, 4));
@@ -301,8 +293,8 @@ export default function ReviewPage() {
                 : `${fullMonths.months} full month${fullMonths.months === 1 ? "" : "s"}. Partial months are left out.`
               : coverage === "complete"
                 ? balance >= 0
-                  ? "Income not yet spent or set aside, for this full month."
-                  : "Spent or set aside beyond tracked income, for this full month."
+                  ? "Income not yet spent or saved, for this full month."
+                  : "Spent or saved beyond tracked income, for this full month."
                 : coverage === "partial"
                   ? "So far this month. It is not a full month yet."
                   : "Not tracked."
@@ -315,7 +307,7 @@ export default function ReviewPage() {
             rate == null
               ? "needs tracked income"
               : rateMode === "active"
-                ? "set aside, as a share of income"
+                ? "saved, as a share of income"
                 : "not spent, as a share of income"
           }
         >
@@ -330,7 +322,7 @@ export default function ReviewPage() {
                   rateMode === mode ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
                 )}
               >
-                {mode === "active" ? "Set aside" : "Not spent"}
+                {mode === "active" ? "Saved" : "Not spent"}
               </button>
             ))}
           </div>
@@ -346,16 +338,6 @@ export default function ReviewPage() {
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <div className="space-y-4">
-            {categorySection.rows.length > 0 && (
-              <div className="space-y-2">
-                <VarianceTable
-                  section={categorySection}
-                  catalog={catalog}
-                  title="Spending categories"
-                  subtitle="Plan lines grouped by category. Flex/Misc, and anything you log that is not on the plan, still show here."
-                />
-              </div>
-            )}
             {sections.map((section) => (
               <VarianceTable key={section.kind} section={section} catalog={catalog} />
             ))}

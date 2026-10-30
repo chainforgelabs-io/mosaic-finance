@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  Calculator,
   FileText,
   MessageSquare,
   TrendingUp,
@@ -75,6 +76,7 @@ function learnItems(planId?: string): NavItem[] {
       match: "walkthrough",
     },
     { label: "Charlie", href: "/dashboard/meeting", icon: Video, tour: "nav-charlie" },
+    { label: "Calculators", href: "/dashboard/calculators", icon: Calculator },
   ];
   const masteryLearn: NavItem[] = [
     { label: "Market Context", href: "/dashboard/market-context", icon: TrendingUp },

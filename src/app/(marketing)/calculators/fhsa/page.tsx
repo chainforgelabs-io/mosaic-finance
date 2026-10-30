@@ -21,7 +21,7 @@ function eligibilityCopy(owned: boolean, age: number): string | null {
   return "A new FHSA is not available after the year you turn 71.";
 }
 
-export default function FhsaCalculatorPage() {
+export default function FhsaCalculatorPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [age, setAge] = useState(30);
   const [owned, setOwned] = useState(false);
   const [years, setYears] = useState(1);
@@ -40,7 +40,7 @@ export default function FhsaCalculatorPage() {
   });
 
   return (
-    <CalculatorShell title="FHSA contribution room">
+    <CalculatorShell embedded={embedded} title="FHSA contribution room">
       <div className="space-y-5">
         <CalculatorNumberField label="Age" value={age} onValue={setAge} />
         <label className="flex items-start gap-3 font-body text-sm leading-snug text-text-secondary">

@@ -111,6 +111,18 @@ describe("variance", () => {
     expect(savings?.rows[0]).toMatchObject({ category: "tfsa", tracked: 1000, budget: 1000, remaining: 0, excess: 0 });
   });
 
+  it("counts a generic paycheque against the one salary line on the plan", () => {
+    const salaryPlan: BudgetPlanEntry[] = [
+      { kind: "income", category: "Salary (Net)", month: "2026-03-01", amount: 7608 },
+      { kind: "income", category: "EI", month: "2026-03-01", amount: 2628 },
+    ];
+    const pay = [{ txn_date: "2026-03-15", amount: 7827, direction: "in" as const, line_role: "income" as const, category: "paycheque" }];
+    const income = varianceSections(pay, salaryPlan, monthPeriod("2026-03-01")).find((section) => section.kind === "income");
+    expect(income?.rows.find((row) => row.category === "Salary (Net)")).toMatchObject({ tracked: 7827, budget: 7608 });
+    expect(income?.rows.find((row) => row.category === "paycheque")).toBeUndefined();
+    expect(income?.rows.find((row) => row.category === "EI")).toMatchObject({ tracked: 0, budget: 2628 });
+  });
+
   it("falls back to standing category budgets when the plan has nothing for a month", () => {
     const sections = varianceSections(txns, [], monthPeriod("2026-03-01"), { dining: 300 });
     const dining = sections.find((section) => section.kind === "expense")?.rows.find((row) => row.category === "dining");

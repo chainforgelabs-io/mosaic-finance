@@ -10,7 +10,7 @@ import {
   calculateTFSARoom,
 } from "@/lib/calculations/canadian-accounts";
 
-export default function RrspVsTfsaPage() {
+export default function RrspVsTfsaPage({ embedded = false }: { embedded?: boolean } = {}) {
   const [income, setIncome] = useState(80000);
   const [age, setAge] = useState(32);
   const [unusedRrsp, setUnusedRrsp] = useState(0);
@@ -24,7 +24,7 @@ export default function RrspVsTfsaPage() {
   const tfsa = calculateTFSARoom(yearTurnedEighteen, tfsaContributed);
 
   return (
-    <CalculatorShell title="RRSP vs TFSA room (illustrative)">
+    <CalculatorShell embedded={embedded} title="RRSP vs TFSA room (illustrative)">
       <div className="space-y-5">
         <CalculatorNumberField label="Last year's earned income" value={income} onValue={setIncome} />
         <CalculatorNumberField label="Age" value={age} onValue={setAge} />

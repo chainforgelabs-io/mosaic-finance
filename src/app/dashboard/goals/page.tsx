@@ -65,7 +65,7 @@ export default function GoalsPage() {
         <div>
           <h1 data-tour="page-goals" className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-            Track the outcomes continued use of Mosaic should help you hit.
+            Track the outcomes that continued use of Mosaic should help you hit.
           </p>
         </div>
         <button
@@ -241,7 +241,7 @@ function GoalCard({
       {target > 0 && (
         <div className="mt-4">
           <div className="mb-1 flex justify-between font-body text-xs text-[var(--text-muted)]">
-            <span>{formatMoney(current)}</span>
+            <span>{goal.goal_type === "debt_payoff" ? `Paid down ${formatMoney(current)}` : formatMoney(current)}</span>
             <span>{formatMoney(target)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">

@@ -214,6 +214,7 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
               <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
                 Health Score
               </p>
+              <p className="font-body text-[10px] text-white/40">In this report</p>
             </div>
           )}
           {retPct != null && (
@@ -237,6 +238,9 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
           <DarkMetric label="Insurance Gap" value={insuranceGap != null ? fmtPlanKpi(insuranceGap) : "--"} accent={insuranceGap != null && insuranceGap > 0 ? "#ef4444" : "#10b981"} />
         </div>
       </div>
+      <p className="mt-3 text-center font-body text-xs text-white/50">
+        Figures in this strip are from this report. Today&apos;s score and net worth are on the dashboard.
+      </p>
     </div>
   );
 }
@@ -564,7 +568,7 @@ function PlanDelivered() {
 /* ---------- Main Page ---------- */
 
 export default function PlanHubPage() {
-  const { planStatus } = usePlanStore();
+  const { planStatus, isLoading } = usePlanStore();
 
   return (
     <div>
@@ -574,10 +578,19 @@ export default function PlanHubPage() {
         </h1>
       </div>
 
-      {planStatus === "none" && <PlanNone />}
-      {planStatus === "generating" && <PlanGenerating />}
-      {planStatus === "pending_review" && <PlanPendingReview />}
-      {planStatus === "delivered" && <PlanDelivered />}
+      {isLoading ? (
+        <div className="space-y-4">
+          <p className="font-body text-sm text-[var(--text-muted)]">Loading your report</p>
+          <div className="skeleton h-44 w-full" />
+        </div>
+      ) : (
+        <>
+          {planStatus === "none" && <PlanNone />}
+          {planStatus === "generating" && <PlanGenerating />}
+          {planStatus === "pending_review" && <PlanPendingReview />}
+          {planStatus === "delivered" && <PlanDelivered />}
+        </>
+      )}
     </div>
   );
 }

@@ -521,7 +521,15 @@ function SubscriptionTabInner() {
               <div className="mb-3 flex flex-col items-start gap-2">
                 <TierBadge
                   tier={tier}
-                  label={(founding || foundingOpen) && tier === "progress" ? "Founding Progress" : undefined}
+                  label={
+                    founding && tier === "progress"
+                      ? "Founding Progress"
+                      : trialProgress && tier === "progress"
+                        ? "Progress"
+                        : foundingOpen && tier === "progress"
+                          ? "Founding Progress"
+                          : undefined
+                  }
                 />
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   {compare && (
@@ -558,7 +566,7 @@ function SubscriptionTabInner() {
                 <>
                   {subscribeDuringTrial && (
                     <p className="mt-4 text-center font-[family-name:var(--font-display)] text-sm font-medium text-[var(--emerald)]">
-                      Current Plan
+                      Your trial
                     </p>
                   )}
                   <button
@@ -567,10 +575,12 @@ function SubscriptionTabInner() {
                     onClick={() => void handleTierChange(tier)}
                     className={`${subscribeDuringTrial ? "mt-2" : "mt-4"} w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {tierFeatures.findIndex((t) => t.tier === tier) >
-                    tierFeatures.findIndex((t) => t.tier === shownTier)
-                      ? "Upgrade"
-                      : "Downgrade"}
+                    {subscribeDuringTrial
+                      ? "Subscribe"
+                      : tierFeatures.findIndex((t) => t.tier === tier) >
+                          tierFeatures.findIndex((t) => t.tier === shownTier)
+                        ? "Upgrade"
+                        : "Downgrade"}
                   </button>
                 </>
               )}
@@ -598,8 +608,10 @@ function SubscriptionTabInner() {
             {GUARANTEE_SHORT}
           </p>
           <p className="mt-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
-            {guarantee.weeksLogged}/13 weeks logged · {guarantee.snapshots}/3
-            snapshots
+            {Math.min(guarantee.weeksLogged, 13)}/13 weeks logged ·{" "}
+            {guarantee.snapshots > 3
+              ? `${guarantee.snapshots} snapshots · 3 required`
+              : `${guarantee.snapshots}/3 snapshots`}
             {guarantee.scoreDelta != null
               ? ` · score ${guarantee.scoreDelta >= 0 ? "+" : ""}${guarantee.scoreDelta}`
               : ""}
@@ -718,15 +730,15 @@ function PrivacyTab() {
 
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
         <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-3">
-          What Mosaic Finance never collects
+          What Mosaic Finance does not ask for
         </h3>
         <ul className="space-y-2">
           {[
             "Your legal name or government ID",
-            "Bank account numbers or credentials",
+            "Bank sign-in credentials. A category name you type can still contain an account number — leave those out.",
             "Social insurance number (SIN)",
             "Exact home address",
-            "Employer name or details",
+            "An employer name, unless you put one in a category you name",
           ].map((item) => (
             <li
               key={item}
@@ -822,10 +834,12 @@ function Toggle({
   enabled,
   onToggle,
   disabled,
+  label,
 }: {
   enabled: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  label: string;
 }) {
   return (
     <button
@@ -833,6 +847,8 @@ function Toggle({
       onClick={onToggle}
       disabled={disabled}
       aria-disabled={disabled}
+      aria-label={label}
+      aria-pressed={enabled}
       className={`relative w-11 h-6 rounded-full transition-colors ${
         enabled ? "bg-[var(--emerald)]" : "bg-[var(--warm-200)]"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -1034,6 +1050,7 @@ function NotificationsTab() {
             enabled={n.enabled}
             onToggle={n.onToggle}
             disabled={notifSaving || !user}
+            label={n.label}
           />
         </div>
       ))}

@@ -389,6 +389,7 @@ export default function MeetingPage() {
             type="button"
             onClick={sendMessage}
             disabled={isStreaming || !inputValue.trim() || !sessionId || sessionComplete}
+            aria-label="Send message"
             className={charlieSendClass}
           >
             {isStreaming ? (
