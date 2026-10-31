@@ -321,7 +321,7 @@ export default function MeetingPage() {
 
   // Active meeting
   return (
-    <CharlieChatSurface className="max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:bottom-20 max-md:z-30 md:-mx-6 md:-my-8 md:h-[calc(100dvh-4rem)] md:w-[calc(100%+3rem)]">
+    <CharlieChatSurface className="phone-chat max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:bottom-20 max-md:z-30 md:-mx-6 md:-my-8 md:h-[calc(100dvh-4rem)] md:w-[calc(100%+3rem)]">
       <CharlieChatHeader
         subtitle={meetingType === "annual-review" ? "Check-in" : "Financial Q&A"}
         trailing={

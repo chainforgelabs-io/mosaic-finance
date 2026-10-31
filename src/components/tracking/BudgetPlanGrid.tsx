@@ -655,7 +655,7 @@ function RowLabel({
         aria-label={`Edit ${label}`}
         title="Edit payment"
         onClick={onOpen}
-        className="shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+        className="phone-hit shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
       >
         <Pencil className="size-3.5" />
       </button>
@@ -664,7 +664,7 @@ function RowLabel({
         onClick={onRemove}
         aria-label={`Remove ${label} from the plan`}
         title="Remove from the plan"
-        className="shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+        className="phone-hit shrink-0 cursor-pointer rounded p-1 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
       >
         <X className="size-3.5" />
       </button>
@@ -814,7 +814,7 @@ function PaymentScheduleSheet({
       : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div
         className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-lg sm:rounded-xl"
         role="dialog"

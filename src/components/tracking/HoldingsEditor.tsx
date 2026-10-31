@@ -125,7 +125,7 @@ export function HoldingsEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl bg-white sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-[var(--warm-200)] px-5 py-4">
           <div>
@@ -134,7 +134,7 @@ export function HoldingsEditor({
               These are the accounts on your overview. A past month is added from Tracking.
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close">
+          <button type="button" onClick={onClose} aria-label="Close" className="phone-hit">
             <X className="size-5 text-[var(--text-muted)]" />
           </button>
         </div>
@@ -161,7 +161,7 @@ export function HoldingsEditor({
                 <button
                   type="button"
                   onClick={() => setDrafts((current) => current.filter((item) => item.localId !== account.localId))}
-                  className="rounded-md p-2 text-[var(--text-muted)] hover:text-[var(--error)]"
+                  className="phone-hit rounded-md p-2 text-[var(--text-muted)] hover:text-[var(--error)]"
                   aria-label="Remove account"
                   disabled={drafts.length === 1}
                 >

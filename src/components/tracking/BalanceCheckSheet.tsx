@@ -73,7 +73,7 @@ export function BalanceCheckSheet({
         : `${formatMoneyExact(gap)} more than expected`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Balance check</h2>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app/AppSidebar";
+import { PhoneViewport } from "@/components/app/PhoneViewport";
 import { AppTour } from "@/components/app/AppTour";
 import { ComplianceFooter } from "@/components/app/ComplianceFooter";
 import { usePlanStore } from "@/stores/plan-store";
@@ -288,7 +289,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [planStatus, pollPlanStatus]);
 
   return (
-    <div className="min-h-screen bg-[var(--warm-50)]">
+    <div className="min-h-dvh bg-[var(--warm-50)] md:min-h-screen">
+      <PhoneViewport />
       <AppSidebar
         userAlias={user?.alias ?? ""}
         tier={user?.tier ?? "pulse"}
@@ -298,7 +300,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         role={user?.role}
       />
       <AppTour userId={user?.id} />
-      <main className="md:pl-14 lg:pl-60 flex min-h-screen flex-col pb-20 md:pb-0">
+      <main className="md:pl-14 lg:pl-60 flex min-h-dvh flex-col pb-24 max-md:pt-[env(safe-area-inset-top)] md:min-h-screen md:pb-0">
         <div className="mx-auto flex w-full max-w-[1080px] flex-1 flex-col px-4 py-6 sm:px-6 sm:py-8">
           {children}
         </div>

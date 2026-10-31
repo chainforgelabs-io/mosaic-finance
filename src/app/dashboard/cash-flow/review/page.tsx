@@ -405,7 +405,7 @@ function VarianceTable({
           <h2 className="font-display text-sm font-semibold">{title ?? CATEGORY_KIND_LABELS[section.kind]}</h2>
           {subtitle && <p className="font-body text-[11px] font-normal">{subtitle}</p>}
         </div>
-        <span className="font-body text-xs">
+        <span className="hidden font-body text-xs sm:inline">
           {isIncome ? "Tracked · Plan · Above plan" : "Tracked · Budget · Remaining · Excess"}
         </span>
       </div>
@@ -460,19 +460,36 @@ function VarianceLine({
       : over
         ? `−${formatMoney(row.excess ?? 0)}`
         : formatMoney(row.remaining ?? 0);
+  const planLabel = isIncome ? "Plan" : "Budget";
+  const diffLabel = isIncome ? "Above plan" : over ? "Excess" : "Remaining";
   return (
     <li className={cn("px-4 py-2", bold && "font-semibold")}>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(120px,1.6fr)_repeat(4,minmax(70px,1fr))]">
+      <div className="space-y-0.5 sm:hidden">
+        <p className="font-body text-sm text-[var(--text-primary)]">{label}</p>
+        <p className="font-body text-sm tabular-nums text-[var(--text-primary)]">Tracked {formatMoney(row.tracked)}</p>
+        <p className="font-body text-sm tabular-nums text-[var(--text-secondary)]">
+          {planLabel} {row.budget == null ? "—" : formatMoney(row.budget)}
+        </p>
+        <p
+          className={cn(
+            "font-body text-sm tabular-nums",
+            over ? "text-red-700" : isIncome && row.budget != null && row.tracked > row.budget ? "text-[var(--emerald-dark)]" : "text-[var(--text-secondary)]",
+          )}
+        >
+          {diffLabel} {lastCell}
+        </p>
+      </div>
+      <div className="hidden items-center gap-2 sm:grid sm:grid-cols-[minmax(120px,1.6fr)_repeat(4,minmax(70px,1fr))]">
         <span className="truncate font-body text-sm text-[var(--text-primary)]">{label}</span>
-        <span className="text-right font-body text-sm tabular-nums text-[var(--text-primary)] sm:order-none">
+        <span className="text-right font-body text-sm tabular-nums text-[var(--text-primary)]">
           {formatMoney(row.tracked)}
         </span>
-        <span className="hidden text-right font-body text-sm tabular-nums text-[var(--text-secondary)] sm:block">
+        <span className="text-right font-body text-sm tabular-nums text-[var(--text-secondary)]">
           {row.budget == null ? "—" : formatMoney(row.budget)}
         </span>
         <span
           className={cn(
-            "hidden text-right font-body text-sm tabular-nums sm:block",
+            "text-right font-body text-sm tabular-nums",
             ratio == null ? "text-[var(--text-muted)]" : over ? "text-red-700" : "text-[var(--text-secondary)]",
           )}
         >
@@ -480,7 +497,7 @@ function VarianceLine({
         </span>
         <span
           className={cn(
-            "hidden text-right font-body text-sm tabular-nums sm:block",
+            "text-right font-body text-sm tabular-nums",
             over ? "text-red-700" : isIncome && row.budget != null && row.tracked > row.budget ? "text-[var(--emerald-dark)]" : "text-[var(--text-secondary)]",
           )}
         >
@@ -488,16 +505,11 @@ function VarianceLine({
         </span>
       </div>
       {row.budget != null && row.budget > 0 && (
-        <div className="mt-1 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--warm-100)]">
-            <div
-              className={cn("h-full rounded-full", over ? "bg-red-500" : tone.bar)}
-              style={{ width: `${Math.min(100, Math.round((ratio ?? 0) * 100))}%` }}
-            />
-          </div>
-          <span className="w-28 text-right font-body text-[11px] tabular-nums text-[var(--text-muted)] sm:hidden">
-            {Math.round((ratio ?? 0) * 100)}% of {formatMoney(row.budget)}
-          </span>
+        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--warm-100)]">
+          <div
+            className={cn("h-full rounded-full", over ? "bg-red-500" : tone.bar)}
+            style={{ width: `${Math.min(100, Math.round((ratio ?? 0) * 100))}%` }}
+          />
         </div>
       )}
     </li>

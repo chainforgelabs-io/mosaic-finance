@@ -223,7 +223,7 @@ export function MonthlyCheckIn({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
       <div className="flex max-h-[92vh] w-full max-w-lg flex-col rounded-t-2xl bg-white sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-[var(--warm-200)] px-5 py-4">
           <div>
@@ -232,7 +232,7 @@ export function MonthlyCheckIn({
               {formatMonthLabel(`${filingMonth}-01`)} · Step {step + 1} of {STEPS.length} · {STEPS[step]}
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close">
+          <button type="button" onClick={onClose} aria-label="Close" className="phone-hit">
             <X className="size-5 text-[var(--text-muted)]" />
           </button>
         </div>

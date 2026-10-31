@@ -39,14 +39,14 @@ export function StatementSummary({
   ] as const;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold">Your typical month</h2>
             <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">{baseline.coverageNote}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close">
+          <button type="button" onClick={onClose} aria-label="Close" className="phone-hit">
             <X className="size-5 text-[var(--text-muted)]" />
           </button>
         </div>

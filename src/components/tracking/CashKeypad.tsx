@@ -385,11 +385,11 @@ function DetailsSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">Entry details</h2>
-          <button type="button" onClick={onClose} className="font-display text-sm text-[var(--text-muted)]">
+          <button type="button" onClick={onClose} className="phone-hit font-display text-sm text-[var(--text-muted)]">
             Close
           </button>
         </div>

@@ -33,7 +33,7 @@ export function CashGuideSheet({
   const last = step === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="w-full rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
         <p className="font-body text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)]">
           How tracking works · {step + 1} of {STEPS.length}

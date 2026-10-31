@@ -1254,7 +1254,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => setEditing(t)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
                     aria-label="Edit income"
                   >
                     <Pencil className="size-3.5" />
@@ -1262,7 +1262,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => handleDelete(t.id)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                     aria-label="Delete income"
                   >
                     <Trash2 className="size-3.5" />
@@ -1294,7 +1294,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => handleDelete(t.id)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                     aria-label="Delete refund"
                   >
                     <Trash2 className="size-3.5" />
@@ -1348,7 +1348,7 @@ export default function CashFlowPage() {
                       <button
                         type="button"
                         onClick={() => setEditing(t)}
-                        className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                        className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
                         aria-label="Edit"
                       >
                         <Pencil className="size-3.5" />
@@ -1356,7 +1356,7 @@ export default function CashFlowPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(t.id)}
-                        className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                        className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                         aria-label="Delete"
                       >
                         <Trash2 className="size-3.5" />
@@ -1390,7 +1390,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => handleDelete(t.id)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                     aria-label="Delete card payment"
                   >
                     <Trash2 className="size-3.5" />
@@ -1422,7 +1422,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => setEditing(t)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
                     aria-label="Edit savings"
                   >
                     <Pencil className="size-3.5" />
@@ -1430,7 +1430,7 @@ export default function CashFlowPage() {
                   <button
                     type="button"
                     onClick={() => handleDelete(t.id)}
-                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                     aria-label="Delete savings"
                   >
                     <Trash2 className="size-3.5" />
@@ -1627,7 +1627,7 @@ function BudgetSheet({
   const [saving, setSaving] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-xl">
         <div className="flex items-center justify-between border-b border-[var(--warm-200)] p-4">
           <h2 className="font-display text-base font-semibold">Set monthly budgets</h2>

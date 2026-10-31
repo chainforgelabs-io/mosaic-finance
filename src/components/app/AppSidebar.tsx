@@ -163,12 +163,12 @@ export function AppSidebar({
           key={item.label}
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2.5 opacity-40",
-            mobile && "flex-col gap-0.5 px-2 py-1.5",
+            mobile && "min-h-11 flex-col justify-center gap-0.5 px-2 py-2",
           )}
           title="Available after your Progress Report is ready"
         >
           <item.icon className="size-[18px] text-[var(--text-muted)]" />
-          <span className="font-display text-sm font-medium text-[var(--text-muted)] md:max-lg:hidden max-md:text-[10px]">
+          <span className="font-display text-sm font-medium text-[var(--text-muted)] md:max-lg:hidden max-md:text-xs">
             {item.label}
           </span>
         </div>
@@ -183,7 +183,7 @@ export function AppSidebar({
         onClick={() => setMoreOpen(false)}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
-          mobile && "flex-col gap-0.5 px-2 py-1.5",
+          mobile && "min-h-11 flex-col justify-center gap-0.5 px-2 py-2",
           isActive
             ? "border-l-[3px] border-[var(--emerald)] bg-white/5 text-white max-md:border-l-0 max-md:border-t-[3px]"
             : "text-[var(--text-muted)] hover:bg-white/5 hover:text-white",
@@ -198,7 +198,7 @@ export function AppSidebar({
             />
           )}
         </span>
-        <span className="font-display text-sm font-medium md:max-lg:hidden max-md:text-[10px]">
+        <span className="font-display text-sm font-medium md:max-lg:hidden max-md:text-xs">
           {item.label}
         </span>
       </Link>
@@ -254,12 +254,12 @@ export function AppSidebar({
           type="button"
           onClick={() => setMoreOpen(true)}
           className={cn(
-            "flex flex-col items-center gap-0.5 px-2 py-1.5",
+            "flex min-h-11 flex-col items-center justify-center gap-0.5 px-2 py-2",
             moreActive ? "border-t-[3px] border-[var(--emerald)] text-white" : "text-[var(--text-muted)]",
           )}
         >
           <MoreHorizontal className="size-[18px]" />
-          <span className="font-display text-[10px] font-medium">More</span>
+          <span className="font-display text-xs font-medium">More</span>
         </button>
       </nav>
 
@@ -271,7 +271,7 @@ export function AppSidebar({
             aria-label="Close menu"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-[var(--slate-950)] px-4 pb-8 pt-4">
+          <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-[var(--slate-950)] px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="font-display text-sm font-semibold text-white">More</p>
@@ -279,7 +279,7 @@ export function AppSidebar({
                   <p className="font-body text-xs text-[var(--text-muted)]">{userAlias}</p>
                 ) : null}
               </div>
-              <button type="button" onClick={() => setMoreOpen(false)} aria-label="Close">
+              <button type="button" onClick={() => setMoreOpen(false)} aria-label="Close" className="phone-hit">
                 <X className="size-5 text-[var(--text-muted)]" />
               </button>
             </div>
