@@ -30,6 +30,7 @@ import {
   SPENDING_CATEGORIES,
   categoryColor,
   categoryLabel,
+  type UserCategory,
 } from "@/lib/tracking/categories";
 import {
   addDays,
@@ -95,6 +96,12 @@ const HOWTO_KEY = "mosaic-spending-howto-seen";
 const GUIDE_KEY = "mosaic-cash-guide-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 
+function loggedVerb(input: CaptureInput): string {
+  if (input.lineRole === "savings") return "Saved";
+  if (input.direction === "in") return "Earned";
+  return "Spent";
+}
+
 function loadCustomCategories(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -141,7 +148,7 @@ export default function CashFlowPage() {
   function toggleList(key: PeriodList) {
     setOpenLists((current) => ({ ...current, [key]: !current[key] }));
   }
-  const [undo, setUndo] = useState<{ ids: string[]; label: string } | null>(null);
+  const [undo, setUndo] = useState<{ ids: string[]; verb: string; label: string } | null>(null);
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -161,6 +168,7 @@ export default function CashFlowPage() {
   const [showBudgets, setShowBudgets] = useState(false);
   const [monthTxns, setMonthTxns] = useState<TransactionRow[]>([]);
   const [customCategories, setCustomCategories] = useState<string[]>(() => loadCustomCategories());
+  const [catalog, setCatalog] = useState<UserCategory[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const range = weekRange(weekStart);
@@ -251,8 +259,9 @@ export default function CashFlowPage() {
       const json = await recurringRes.json();
       setRecurring(json.items ?? []);
     }
-    const catalog = await migrateLocalCategories(await fetchCatalog());
-    setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(catalog)])]);
+    const nextCatalog = await migrateLocalCategories(await fetchCatalog());
+    setCatalog(nextCatalog);
+    setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(nextCatalog)])]);
   }, [monthStart]);
 
   useEffect(() => {
@@ -423,7 +432,7 @@ export default function CashFlowPage() {
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
     const ids = (json.transactions ?? []).map((txn: TransactionRow) => txn.id).filter(Boolean);
-    setUndo({ ids, label: formatMoneyExact(input.amount) });
+    setUndo({ ids, verb: loggedVerb(input), label: formatMoneyExact(input.amount) });
     await reload();
     return true;
   }
@@ -1046,6 +1055,9 @@ export default function CashFlowPage() {
       <CashKeypad
         history={history}
         catchUpDays={quietDays}
+        planEntries={planEntries}
+        catalog={catalog}
+        month={monthStart}
         onAddCategory={addCategory}
         onSave={handleCapture}
       />
@@ -1532,7 +1544,7 @@ export default function CashFlowPage() {
 
       {undo && (
         <div className="fixed bottom-24 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-[var(--slate-950)] px-4 py-2 text-white shadow-lg">
-          <span className="font-body text-sm">Saved {undo.label}</span>
+          <span className="font-body text-sm">{undo.verb} {undo.label}</span>
           <button type="button" onClick={() => void undoLast()} className="font-display text-sm font-semibold">
             Undo
           </button>

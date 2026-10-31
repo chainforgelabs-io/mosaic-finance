@@ -113,6 +113,37 @@ export function plannedCategories(entries: BudgetPlanEntry[], kind: PlanKind): s
 }
 
 /**
+ * Keypad chips from the plan. Frequent logged categories come first when they
+ * are on the plan. The rest of the chips are the largest plan amounts that month.
+ */
+export function keypadPlanCategories(
+  entries: BudgetPlanEntry[],
+  kind: PlanKind,
+  month: string,
+  frequent: string[],
+  limit = 4,
+): { quick: string[]; all: string[] } {
+  const all = plannedCategories(entries, kind);
+  const allowed = new Set(all);
+  const index = indexPlan(entries);
+  const byAmount = [...all].sort((a, b) => {
+    const diff = (planAmount(index, kind, b, month) ?? 0) - (planAmount(index, kind, a, month) ?? 0);
+    if (diff !== 0) return diff;
+    return a.localeCompare(b);
+  });
+  const quick: string[] = [];
+  for (const category of frequent) {
+    if (quick.length >= limit) break;
+    if (allowed.has(category) && !quick.includes(category)) quick.push(category);
+  }
+  for (const category of byAmount) {
+    if (quick.length >= limit) break;
+    if (!quick.includes(category)) quick.push(category);
+  }
+  return { quick, all };
+}
+
+/**
  * Copy one month's value into the months that follow it in the same year.
  * Returns the full set of entries for that row so the caller can upsert them.
  */

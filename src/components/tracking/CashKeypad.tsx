@@ -3,15 +3,12 @@
 import { useMemo, useRef, useState } from "react";
 import { AmountPad } from "@/components/tracking/AmountPad";
 import {
-  INCOME_CATEGORIES,
-  KEYPAD_CATEGORIES,
-  SAVINGS_CATEGORIES,
-  SPENDING_CATEGORIES,
   categoryColor,
-  categoryLabel,
   categorySlug,
-  isSpendingCategory,
+  labelFor,
+  type UserCategory,
 } from "@/lib/tracking/categories";
+import { keypadPlanCategories, type PlanKind } from "@/lib/tracking/budget-plan";
 import {
   amountFromDigits,
   CADENCE_LABELS,
@@ -23,7 +20,7 @@ import {
 } from "@/lib/tracking/cash-capture";
 import { todayIso } from "@/lib/tracking/dates";
 import { cn } from "@/lib/utils";
-import type { CaptureInput, CaptureMode, TransactionRow } from "@/types/tracking";
+import type { BudgetPlanEntry, CaptureInput, CaptureMode, TransactionRow } from "@/types/tracking";
 
 const MODE_LABELS: Record<CaptureMode, string> = {
   out: "Out",
@@ -41,21 +38,26 @@ function captureFields(mode: CaptureMode): Pick<CaptureInput, "direction" | "lin
   return { direction: "out", lineRole: "purchase", instrument: "debit" };
 }
 
-/** Everyday categories behind More. Bill names stay on the due cards. */
-function presetOptions(mode: CaptureMode): string[] {
-  if (mode === "save") return [...SAVINGS_CATEGORIES];
-  if (mode === "in") return [...INCOME_CATEGORIES];
-  return [...SPENDING_CATEGORIES];
+function kindForMode(mode: CaptureMode): PlanKind {
+  if (mode === "in") return "income";
+  if (mode === "save") return "savings";
+  return "expense";
 }
 
 export function CashKeypad({
   history,
   catchUpDays,
+  planEntries,
+  catalog,
+  month,
   onAddCategory,
   onSave,
 }: {
   history: TransactionRow[];
   catchUpDays: number | null;
+  planEntries: BudgetPlanEntry[];
+  catalog: UserCategory[];
+  month: string;
   onAddCategory: (slug: string) => void;
   onSave: (input: CaptureInput) => Promise<boolean>;
 }) {
@@ -73,19 +75,16 @@ export function CashKeypad({
   const predicted = useMemo(
     () =>
       mode === "save"
-        ? predictSavingsCategories(history)
-        : predictCategories(history, new Date(), amount > 0 ? amount : null, direction),
+        ? predictSavingsCategories(history, 20)
+        : predictCategories(history, new Date(), amount > 0 ? amount : null, direction, 20),
     [history, amount, direction, mode],
   );
-  const quickCategories = useMemo(() => {
-    if (mode !== "out") return predicted;
-    const spending = predicted.filter((category) => isSpendingCategory(category));
-    for (const category of KEYPAD_CATEGORIES) {
-      if (spending.length >= 4) break;
-      if (!spending.includes(category)) spending.push(category);
-    }
-    return spending.slice(0, 4);
-  }, [mode, predicted]);
+  const planCategories = useMemo(
+    () => keypadPlanCategories(planEntries, kindForMode(mode), month, predicted),
+    [planEntries, mode, month, predicted],
+  );
+  const quickCategories = planCategories.quick;
+  const nameFor = (slug: string) => labelFor(catalog, slug);
 
   async function save(input: CaptureInput) {
     if (savingRef.current || input.amount <= 0) {
@@ -146,7 +145,7 @@ export function CashKeypad({
         {quickCategories.map((category) => (
           <CategoryChip
             key={category}
-            label={categoryLabel(category)}
+            label={nameFor(category)}
             disabled={saving}
             onTap={() => tapCategory(category)}
             onHold={() => setDetailsCategory(category)}
@@ -165,13 +164,14 @@ export function CashKeypad({
           ? "Tap the account the money went to. Savings leave the bank but never count as spending."
           : mode === "in"
             ? "Tap where the money came from. This increases the bank balance. Hold a category for a note or date."
-            : "Tap a category to save. This changes the bank balance. Hold a category for a note, merchant, date, split, or repeat."}
+            : "Tap a category to log it. This changes the bank balance. Hold a category for a note, merchant, date, split, or repeat."}
       </p>
 
       {moreOpen && (
         <MoreCategories
-          mode={mode}
+          options={planCategories.all}
           current={quickCategories}
+          nameFor={nameFor}
           onAddCategory={onAddCategory}
           onPick={(category) => tapCategory(category)}
         />
@@ -204,6 +204,8 @@ export function CashKeypad({
           category={detailsCategory}
           amount={amount}
           mode={mode}
+          options={planCategories.all}
+          nameFor={nameFor}
           onClose={() => setDetailsCategory(null)}
           onSave={(input) => save(input)}
         />
@@ -263,39 +265,57 @@ function CategoryChip({
 }
 
 function MoreCategories({
-  mode,
+  options,
   current,
+  nameFor,
   onAddCategory,
   onPick,
 }: {
-  mode: CaptureMode;
+  options: string[];
   current: string[];
+  nameFor: (slug: string) => string;
   onAddCategory: (slug: string) => void;
   onPick: (category: string) => void;
 }) {
+  const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
-  const options = presetOptions(mode).filter((category) => !current.includes(category));
+  const needle = query.trim().toLowerCase();
+  const pool = needle ? options : options.filter((category) => !current.includes(category));
+  const shown = pool.filter((category) => nameFor(category).toLowerCase().includes(needle));
 
   return (
     <div className="mb-3 rounded-xl border border-[var(--warm-200)] bg-white p-3">
-      <div className="grid grid-cols-2 gap-2">
-        {options.map((category) => (
-          <button
-            key={category}
-            type="button"
-            onClick={() => onPick(category)}
-            className="flex items-center gap-2 rounded-xl border border-[var(--warm-200)] bg-white px-3 py-2.5 text-left font-display text-sm font-semibold text-[var(--text-primary)]"
-          >
-            <span
-              className="size-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: categoryColor(category) }}
-            />
-            {categoryLabel(category)}
-          </button>
-        ))}
-      </div>
-      {mode === "out" && (
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Find a category"
+        className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        aria-label="Find a category"
+      />
+      {options.length === 0 ? (
+        <p className="mb-3 font-body text-sm text-[var(--text-muted)]">Nothing on the plan for this yet.</p>
+      ) : shown.length === 0 ? (
+        <p className="mb-3 font-body text-sm text-[var(--text-muted)]">No match on the plan.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {shown.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => onPick(category)}
+              className="flex items-center gap-2 rounded-xl border border-[var(--warm-200)] bg-white px-3 py-2.5 text-left font-display text-sm font-semibold text-[var(--text-primary)]"
+            >
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: categoryColor(category) }}
+              />
+              {nameFor(category)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-3 flex gap-2">
         <input
           type="text"
@@ -323,7 +343,6 @@ function MoreCategories({
           Add
         </button>
       </div>
-      )}
       {invalid && (
         <p className="mt-1 font-body text-[11px] text-red-700">Use a short name, like rental condo fees.</p>
       )}
@@ -335,12 +354,16 @@ function DetailsSheet({
   category,
   amount,
   mode,
+  options,
+  nameFor,
   onClose,
   onSave,
 }: {
   category: string;
   amount: number;
   mode: CaptureMode;
+  options: string[];
+  nameFor: (slug: string) => string;
   onClose: () => void;
   onSave: (input: CaptureInput) => void;
 }) {
@@ -351,12 +374,12 @@ function DetailsSheet({
   const [date, setDate] = useState(todayIso());
   const [split, setSplit] = useState(false);
   const [secondAmount, setSecondAmount] = useState("");
-  const [secondCategory, setSecondCategory] = useState("other");
+  const [secondCategory, setSecondCategory] = useState(options.find((option) => option !== category) ?? category);
   const [repeat, setRepeat] = useState(false);
   const [repeatName, setRepeatName] = useState("");
   const [cadence, setCadence] = useState<RecurringCadence>("monthly");
   const [formError, setFormError] = useState<string | null>(null);
-  const options = [...new Set([chosen, secondCategory, ...presetOptions(mode)])];
+  const choices = [...new Set([chosen, secondCategory, ...options])];
 
   function submit() {
     const lines = split
@@ -404,9 +427,9 @@ function DetailsSheet({
           }}
           className="mt-1 mb-3 w-full rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
         >
-          {options.map((option) => (
+          {choices.map((option) => (
             <option key={option} value={option}>
-              {categoryLabel(option)}
+              {nameFor(option)}
             </option>
           ))}
         </select>
@@ -456,9 +479,9 @@ function DetailsSheet({
               onChange={(event) => setSecondCategory(event.target.value)}
               className="rounded-lg border border-[var(--warm-200)] px-2 py-2 font-body text-sm"
             >
-              {options.map((option) => (
+              {choices.map((option) => (
                 <option key={option} value={option}>
-                  {categoryLabel(option)}
+                  {nameFor(option)}
                 </option>
               ))}
             </select>

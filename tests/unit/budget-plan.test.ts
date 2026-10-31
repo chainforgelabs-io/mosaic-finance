@@ -15,6 +15,7 @@ import {
   planFromStatementLines,
   planOverview,
   planTotals,
+  keypadPlanCategories,
   plannedCategories,
   presetSuggestions,
   rowTotal,
@@ -341,5 +342,29 @@ describe("ledger rows", () => {
     expect(salary.some((entry) => entry.amount === 11538.46 || entry.amount === 17307.69)).toBe(true);
     expect(built.schedules[1]).toMatchObject({ amount: 2000, direction: "out", line_role: "purchase" });
     expect(built.planSchedules[1].anchor_date).toBe("2026-11-01");
+  });
+});
+
+describe("keypad plan categories", () => {
+  const plan: BudgetPlanEntry[] = [
+    { kind: "expense", category: "rent", month: "2026-10-01", amount: 1800 },
+    { kind: "expense", category: "groceries", month: "2026-10-01", amount: 400 },
+    { kind: "expense", category: "power", month: "2026-10-01", amount: 120 },
+    { kind: "expense", category: "phone", month: "2026-10-01", amount: 80 },
+    { kind: "expense", category: "dining", month: "2026-10-01", amount: 60 },
+    { kind: "income", category: "salary", month: "2026-10-01", amount: 5000 },
+    { kind: "savings", category: "tfsa", month: "2026-10-01", amount: 200 },
+  ];
+
+  it("keeps frequent plan categories, then fills with the largest plan amounts", () => {
+    const result = keypadPlanCategories(plan, "expense", "2026-10-01", ["dining", "housing", "phone"]);
+    expect(result.quick).toEqual(["dining", "phone", "rent", "groceries"]);
+    expect(result.all).toEqual(["rent", "groceries", "power", "phone", "dining"]);
+  });
+
+  it("does not offer built-in categories that are not on the plan", () => {
+    const result = keypadPlanCategories(plan, "income", "2026-10-01", ["paycheque", "benefits"]);
+    expect(result.quick).toEqual(["salary"]);
+    expect(result.all).toEqual(["salary"]);
   });
 });
