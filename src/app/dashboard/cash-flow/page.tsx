@@ -1241,7 +1241,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("income")}
             >
               {listedIncome.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || t.note || categoryLabel(t.category)}
@@ -1251,22 +1251,24 @@ export default function CashFlowPage() {
                   <span className="font-body text-sm font-semibold tabular-nums">
                     +{formatMoneyExact(Number(t.amount))}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(t)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-                    aria-label="Edit income"
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                    aria-label="Delete income"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="phone-actions flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                      aria-label="Edit income"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete income"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </LineGroup>
@@ -1281,7 +1283,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("refunds")}
             >
               {refundTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || t.note || "Refund"}
@@ -1291,14 +1293,16 @@ export default function CashFlowPage() {
                   <span className="font-body text-sm font-semibold tabular-nums">
                     {formatMoneyExact(Number(t.amount))}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                    aria-label="Delete refund"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="phone-actions flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete refund"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </LineGroup>
@@ -1317,7 +1321,7 @@ export default function CashFlowPage() {
                 const title = named || category;
                 const showCategory = named.length > 0 && named.toLowerCase() !== category.toLowerCase();
                 return (
-                  <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <li key={t.id} className="flex items-center gap-1 px-4 py-2.5 md:gap-3">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: categoryColor(t.category) }}
@@ -1344,7 +1348,7 @@ export default function CashFlowPage() {
                     <span className="font-body text-sm font-semibold tabular-nums">
                       {formatMoneyExact(Number(t.amount))}
                     </span>
-                    <div className="flex items-center gap-1">
+                    <div className="phone-actions flex shrink-0 items-center gap-1">
                       <button
                         type="button"
                         onClick={() => setEditing(t)}
@@ -1377,7 +1381,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("payments")}
             >
               {paymentTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || "Card payment"}
@@ -1387,14 +1391,16 @@ export default function CashFlowPage() {
                   <span className="font-body text-sm font-semibold tabular-nums">
                     {formatMoneyExact(Number(t.amount))}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                    aria-label="Delete card payment"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="phone-actions flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete card payment"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </LineGroup>
@@ -1408,7 +1414,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("savings")}
             >
               {savingsTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {categoryLabel(t.category)}
@@ -1419,22 +1425,24 @@ export default function CashFlowPage() {
                   <span className="font-body text-sm font-semibold tabular-nums">
                     {formatMoneyExact(Number(t.amount))}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(t)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-                    aria-label="Edit savings"
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(t.id)}
-                    className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
-                    aria-label="Delete savings"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="phone-actions flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                      aria-label="Edit savings"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete savings"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </li>
               ))}
             </LineGroup>

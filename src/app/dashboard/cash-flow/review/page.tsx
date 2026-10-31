@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { TrackedVsBudgetChart } from "@/components/charts/TrackedVsBudgetChart";
 import {
@@ -337,12 +337,12 @@ export default function ReviewPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-          <div className="space-y-4">
+          <div className="order-2 space-y-4 xl:order-1">
             {sections.map((section) => (
               <VarianceTable key={section.kind} section={section} catalog={catalog} />
             ))}
           </div>
-          <div className="space-y-4">
+          <div className="order-1 space-y-4 xl:order-2">
             <TrackedVsBudgetChart data={series} year={year} highlightMonth={month === "year" ? null : month} />
             {sections.map((section) => (
               <KindDonut key={section.kind} section={section} catalog={catalog} periodLabel={periodLabel} />
@@ -395,20 +395,33 @@ function VarianceTable({
   title?: string;
   subtitle?: string;
 }) {
+  const [open, setOpen] = useState(true);
   const tone = KIND_TONE[section.kind];
   const isIncome = section.kind === "income";
   if (section.rows.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--warm-200)] bg-white">
-      <div className={cn("flex items-center justify-between px-4 py-2", tone.header)}>
-        <div>
-          <h2 className="font-display text-sm font-semibold">{title ?? CATEGORY_KIND_LABELS[section.kind]}</h2>
-          {subtitle && <p className="font-body text-[11px] font-normal">{subtitle}</p>}
-        </div>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center justify-between px-4 py-2 text-left xl:pointer-events-none",
+          tone.header,
+        )}
+      >
+        <span className="flex items-center gap-1.5">
+          <ChevronDown className={cn("size-3.5 shrink-0 xl:hidden", open && "rotate-180")} />
+          <span>
+            <h2 className="font-display text-sm font-semibold">{title ?? CATEGORY_KIND_LABELS[section.kind]}</h2>
+            {subtitle && <p className="font-body text-[11px] font-normal">{subtitle}</p>}
+          </span>
+        </span>
         <span className="hidden font-body text-xs sm:inline">
           {isIncome ? "Tracked · Plan · Above plan" : "Tracked · Budget · Remaining · Excess"}
         </span>
-      </div>
+      </button>
+      <div className={cn(!open && "max-xl:hidden")}>
       <div className="hidden grid-cols-[minmax(120px,1.6fr)_repeat(4,minmax(70px,1fr))] gap-2 border-b border-[var(--warm-100)] px-4 py-1.5 font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)] sm:grid">
         <span>Category</span>
         <span className="text-right">Tracked</span>
@@ -429,6 +442,7 @@ function VarianceTable({
       </ul>
       <div className="border-t border-[var(--warm-200)] bg-[var(--warm-50)]">
         <VarianceLine row={section.totals} label="Total" tone={tone} isIncome={isIncome} bold />
+      </div>
       </div>
     </section>
   );
@@ -525,6 +539,7 @@ function KindDonut({
   catalog: UserCategory[];
   periodLabel: string;
 }) {
+  const [open, setOpen] = useState(true);
   const slices = section.rows.filter((row) => row.tracked > 0);
   if (slices.length === 0) return null;
   const palette = section.kind === "income" ? INCOME_PALETTE : section.kind === "savings" ? SAVINGS_PALETTE : null;
@@ -536,11 +551,19 @@ function KindDonut({
   const total = slices.reduce((sum, row) => sum + row.tracked, 0);
   return (
     <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
-      <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">
-        {CATEGORY_KIND_LABELS[section.kind]} tracked · {periodLabel}
-      </h3>
-      <p className="mb-3 font-body text-xs text-[var(--text-muted)]">{formatMoney(total)} total</p>
-      <div className="flex items-center gap-4">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 text-left xl:pointer-events-none"
+      >
+        <ChevronDown className={cn("size-3.5 shrink-0 text-[var(--text-muted)] xl:hidden", open && "rotate-180")} />
+        <h3 className="font-display text-sm font-semibold text-[var(--text-primary)]">
+          {CATEGORY_KIND_LABELS[section.kind]} tracked · {periodLabel}
+        </h3>
+      </button>
+      <p className={cn("mb-3 font-body text-xs text-[var(--text-muted)]", !open && "max-xl:mb-0")}>{formatMoney(total)} total</p>
+      <div className={cn("flex items-center gap-4", !open && "max-xl:hidden")}>
         <div className="h-[120px] w-[120px] shrink-0">
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <PieChart>

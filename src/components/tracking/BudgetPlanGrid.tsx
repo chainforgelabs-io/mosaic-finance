@@ -324,6 +324,7 @@ function PlanSection({
   onAddRow,
   onCreateCategory,
   onOpenSchedule,
+  onFocusMonth,
   schedules,
 }: BudgetPlanGridProps & {
   kind: PlanKind;
@@ -579,38 +580,28 @@ function PlanSection({
       <>
       <div className="divide-y divide-[var(--warm-100)]">
         {rows.map((category) => {
-          const month = months[focusIndex];
           const saved = schedules.find((row) => row.kind === kind && row.category === category);
-          const slot = saved
-            ? monthAmountsFromRow(saved.amount, saved.cadence, saved.basis, saved.anchor_date, year).find(
-                (item) => item.month === month,
-              )
-            : undefined;
-          const value = planAmount(index, kind, category, month);
-          const hits = slot && slot.count > 1 && Math.abs(slot.amount - (value ?? 0)) < 0.02 ? slot.count : 0;
+          const spend = saved?.spend_category;
           return (
-            <div key={category} className="flex items-center gap-2 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <RowLabel
-                  label={labelFor(catalog, category)}
-                  detail={kind === "expense" && saved?.spend_category && isSpendingCategory(saved.spend_category) ? SPENDING_CATEGORY_LABELS[saved.spend_category] : undefined}
-                  onOpen={() => onOpenSchedule(kind, category)}
-                  onRemove={() => onRemoveRow(kind, category)}
-                />
-                <p className="font-body text-[11px] text-[var(--text-muted)]">
-                  {formatMoney(rowTotal(index, kind, category, months))} / yr
-                </p>
-              </div>
-              <PlanCell
-                value={value}
-                onCommit={(amount) => onSetAmount(kind, category, month, amount)}
-                onFillRight={(amount) => onFillRight(kind, category, month, amount)}
-                canFill={month !== months[months.length - 1]}
-                label={`${shortMonth(month)} for ${labelFor(catalog, category)}`}
-                hits={hits}
-                wide
-              />
-            </div>
+            <MobilePlanRow
+              key={category}
+              name={labelFor(catalog, category)}
+              detail={
+                kind === "expense" && spend && isSpendingCategory(spend) ? SPENDING_CATEGORY_LABELS[spend] : undefined
+              }
+              index={index}
+              kind={kind}
+              category={category}
+              year={year}
+              months={months}
+              focusMonth={months[focusIndex]}
+              saved={saved}
+              onFocusMonth={onFocusMonth}
+              onOpen={() => onOpenSchedule(kind, category)}
+              onRemove={() => onRemoveRow(kind, category)}
+              onSetAmount={(month, amount) => onSetAmount(kind, category, month, amount)}
+              onFillRight={(month, amount) => onFillRight(kind, category, month, amount)}
+            />
           );
         })}
         <div className="flex items-center justify-between px-4 py-2">
@@ -625,6 +616,126 @@ function PlanSection({
       </>
       )}
     </section>
+  );
+}
+
+function MobilePlanRow({
+  name,
+  detail,
+  index,
+  kind,
+  category,
+  year,
+  months,
+  focusMonth,
+  saved,
+  onFocusMonth,
+  onOpen,
+  onRemove,
+  onSetAmount,
+  onFillRight,
+}: {
+  name: string;
+  detail?: string;
+  index: Map<string, number>;
+  kind: PlanKind;
+  category: string;
+  year: number;
+  months: string[];
+  focusMonth: string;
+  saved: BudgetPlanSchedule | undefined;
+  onFocusMonth: (month: string) => void;
+  onOpen: () => void;
+  onRemove: () => void;
+  onSetAmount: (month: string, amount: number) => void;
+  onFillRight: (month: string, amount: number) => void;
+}) {
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const strip = stripRef.current;
+    const selected = strip?.querySelector<HTMLElement>("[data-selected='true']");
+    if (!strip || !selected) return;
+    const delta = selected.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+    strip.scrollLeft += delta - 8;
+  }, [focusMonth]);
+
+  const slots = saved ? monthAmountsFromRow(saved.amount, saved.cadence, saved.basis, saved.anchor_date, year) : [];
+  const slotByMonth = new Map(slots.map((slot) => [slot.month, slot]));
+
+  return (
+    <div className="px-3 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-body text-sm leading-snug text-[var(--text-primary)]">{name}</p>
+          {detail && <p className="truncate font-body text-[11px] text-[var(--text-muted)]">{detail}</p>}
+          <p className="font-body text-[11px] text-[var(--text-muted)]">
+            {formatMoney(rowTotal(index, kind, category, months))} / yr
+          </p>
+        </div>
+        <div className="phone-actions flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-label={`Edit ${name}`}
+            title="Edit payment"
+            onClick={onOpen}
+            className="phone-hit cursor-pointer rounded text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${name} from the plan`}
+            title="Remove from the plan"
+            className="phone-hit cursor-pointer rounded text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      </div>
+      <div ref={stripRef} className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+        {months.map((month) => {
+          const value = planAmount(index, kind, category, month);
+          const slot = slotByMonth.get(month);
+          const hits = slot && slot.count > 1 && Math.abs(slot.amount - (value ?? 0)) < 0.02 ? slot.count : 0;
+          const selected = month === focusMonth;
+          if (selected) {
+            return (
+              <div key={month} data-selected="true" className="w-28 shrink-0">
+                <p className="font-body text-[10px] font-medium uppercase tracking-wider text-[var(--emerald-dark)]">
+                  {shortMonth(month)}
+                </p>
+                <PlanCell
+                  value={value}
+                  onCommit={(amount) => onSetAmount(month, amount)}
+                  onFillRight={(amount) => onFillRight(month, amount)}
+                  canFill={month !== months[months.length - 1]}
+                  label={`${shortMonth(month)} for ${name}`}
+                  hits={hits}
+                  wide
+                />
+              </div>
+            );
+          }
+          return (
+            <button
+              key={month}
+              type="button"
+              onClick={() => onFocusMonth(month)}
+              className="shrink-0 rounded-lg border border-[var(--warm-200)] px-2 py-1 text-left"
+            >
+              <span className="block font-body text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                {shortMonth(month)}
+              </span>
+              <span className="block whitespace-nowrap font-body text-xs tabular-nums text-[var(--text-primary)]">
+                {value ? formatMoney(value) : "–"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -717,7 +828,7 @@ function PlanCell({
   }
 
   return (
-    <div className={cn("relative", wide ? "w-36" : "w-full")}>
+    <div className="relative w-full">
       <input
         type="text"
         inputMode="decimal"

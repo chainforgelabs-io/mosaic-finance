@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import {
   Area,
   ComposedChart,
@@ -46,6 +46,15 @@ export function NetWorthHistoryChart({
   height?: number;
 }) {
   const [shown, setShown] = useState<Record<Series, boolean>>({ netWorth: true, assets: false, liabilities: false });
+  const phone = useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia("(max-width: 767px)");
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(max-width: 767px)").matches,
+    () => false,
+  );
   const hasSeries = data.some((d) => d.assets != null || d.liabilities != null);
   const toggles = showToggles && hasSeries;
 
@@ -70,7 +79,7 @@ export function NetWorthHistoryChart({
   const visible = toggles ? SERIES.filter((s) => shown[s.key]) : SERIES.filter((s) => s.key === "netWorth");
 
   return (
-    <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
+    <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6 max-md:px-3">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
           <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">{title}</h3>
@@ -105,7 +114,7 @@ export function NetWorthHistoryChart({
       </div>
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-          <ComposedChart data={chartData} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ left: phone ? 0 : 8, right: 8, top: 8, bottom: 0 }}>
             <defs>
               <linearGradient id="nwHistGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
@@ -124,7 +133,7 @@ export function NetWorthHistoryChart({
               tick={{ fontSize: 11, fill: "var(--text-muted)" }}
               axisLine={false}
               tickLine={false}
-              width={55}
+              width={phone ? 40 : 55}
             />
             <Tooltip
               formatter={(value, name) => [toggles ? formatMoney(Number(value)) : formatCompact(Number(value)), String(name)]}
