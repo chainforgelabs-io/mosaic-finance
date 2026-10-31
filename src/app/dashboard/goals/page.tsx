@@ -1,20 +1,98 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Archive, Check, Plus, Target, Trash2, X } from "lucide-react";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   GOAL_PRIORITIES,
   GOAL_TYPE_LABELS,
   GOAL_TYPES,
+  labelFor,
   presentGoalName,
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
+import { isSavings } from "@/lib/tracking/cash-capture";
+import { startOfMonth, todayIso } from "@/lib/tracking/dates";
 import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
+import {
+  GOAL_CLASS_LABELS,
+  GOAL_CLASSES,
+  accountsFromBreakdown,
+  goalClassOf,
+  inferGoalClass,
+  measureGoal,
+  type GoalAccount,
+  type GoalClass,
+  type GoalMeasure,
+} from "@/lib/tracking/goal-class";
+import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import { formatMoney } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
-import type { GoalRow } from "@/types/tracking";
+import type { GoalRow, SnapshotBreakdown } from "@/types/tracking";
+
+const CLASS_ORDER: GoalClass[] = ["retirement_age", "retirement_income", "debt", "balance", "note"];
+
+function subscribeMinute(onChange: () => void) {
+  const id = setInterval(onChange, 60_000);
+  return () => clearInterval(id);
+}
+
+function snapshotNow() {
+  return Date.now();
+}
+
+interface GoalPageData {
+  goals: GoalRow[] | null;
+  latestAccounts: GoalAccount[];
+  previousAccounts: GoalAccount[];
+  loggedByCategory: Record<string, number>;
+  planChoices: { slug: string; label: string }[];
+}
+
+async function fetchGoalPageData(): Promise<GoalPageData> {
+  const month = startOfMonth(todayIso());
+  const year = Number(todayIso().slice(0, 4));
+  const [res, snapRes, txnRes, plan, catalog] = await Promise.all([
+    fetch("/api/goals", { credentials: "include" }),
+    fetch("/api/net-worth/snapshots", { credentials: "include" }),
+    fetch(`/api/transactions?start=${month}&end=${todayIso()}`, { credentials: "include" }),
+    fetchPlan(year).catch(() => null),
+    fetchCatalog().catch(() => []),
+  ]);
+  let goals: GoalRow[] | null = null;
+  if (res.ok) {
+    const json = await res.json();
+    goals = json.goals ?? [];
+  }
+  let latestAccounts: GoalAccount[] = [];
+  let previousAccounts: GoalAccount[] = [];
+  if (snapRes.ok) {
+    const json = await snapRes.json();
+    const snaps = (json.snapshots ?? []) as { breakdown?: SnapshotBreakdown }[];
+    const last = snaps[snaps.length - 1];
+    const prev = snaps.length > 1 ? snaps[snaps.length - 2] : null;
+    latestAccounts = accountsFromBreakdown(last?.breakdown);
+    previousAccounts = accountsFromBreakdown(prev?.breakdown);
+  }
+  const loggedByCategory: Record<string, number> = {};
+  if (txnRes.ok) {
+    const json = await txnRes.json();
+    for (const txn of json.transactions ?? []) {
+      if (!isSavings(txn) || !txn.category) continue;
+      loggedByCategory[txn.category] = (loggedByCategory[txn.category] ?? 0) + (Number(txn.amount) || 0);
+    }
+  }
+  const slugs = new Set<string>((plan?.entries ?? []).map((entry) => entry.category));
+  slugs.add("debt_principal");
+  return {
+    goals,
+    latestAccounts,
+    previousAccounts,
+    loggedByCategory,
+    planChoices: [...slugs].map((slug) => ({ slug, label: labelFor(catalog, slug) })),
+  };
+}
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<GoalRow[]>([]);
@@ -22,19 +100,33 @@ export default function GoalsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<GoalRow | null>(null);
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
+  const [latestAccounts, setLatestAccounts] = useState<GoalAccount[]>([]);
+  const [previousAccounts, setPreviousAccounts] = useState<GoalAccount[]>([]);
+  const [loggedByCategory, setLoggedByCategory] = useState<Record<string, number>>({});
+  const [planChoices, setPlanChoices] = useState<{ slug: string; label: string }[]>([]);
 
-  const load = useCallback(async () => {
-    const res = await fetch("/api/goals", { credentials: "include" });
-    if (res.ok) {
-      const json = await res.json();
-      setGoals(json.goals ?? []);
-    }
+  const applyPage = useCallback((data: GoalPageData) => {
+    if (data.goals) setGoals(data.goals);
+    setLatestAccounts(data.latestAccounts);
+    setPreviousAccounts(data.previousAccounts);
+    setLoggedByCategory(data.loggedByCategory);
+    setPlanChoices(data.planChoices);
     setLoading(false);
   }, []);
 
+  const load = useCallback(async () => {
+    applyPage(await fetchGoalPageData());
+  }, [applyPage]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    let cancelled = false;
+    void fetchGoalPageData().then((data) => {
+      if (!cancelled) applyPage(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [applyPage]);
 
   const active = goals.filter((g) => g.status === "active");
   const achieved = goals.filter((g) => g.status === "achieved");
@@ -65,7 +157,7 @@ export default function GoalsPage() {
         <div>
           <h1 data-tour="page-goals" className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
-            Track the outcomes that continued use of Mosaic should help you hit.
+            Each goal is measured in its own way, from the accounts and plan lines you attach.
           </p>
         </div>
         <button
@@ -122,29 +214,54 @@ export default function GoalsPage() {
         </div>
       ) : (
         <>
-          {active.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {active.map((g) => (
-                <GoalCard
-                  key={g.id}
-                  goal={g}
-                  onEdit={() => {
-                    setEditing(g);
-                    setShowForm(true);
-                  }}
-                  onAchieve={() => patch(g.id, { status: "achieved", current_amount: g.target_amount ?? g.current_amount })}
-                  onArchive={() => patch(g.id, { status: "archived" })}
-                  onDelete={() => remove(g.id)}
-                />
-              ))}
-            </div>
-          )}
+          {CLASS_ORDER.map((goalClass) => {
+            const rows = active.filter((goal) => goalClassOf(goal) === goalClass);
+            if (rows.length === 0) return null;
+            return (
+              <section key={goalClass} className="space-y-3">
+                <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">
+                  {GOAL_CLASS_LABELS[goalClass]}
+                </h2>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {rows.map((g) => (
+                    <GoalCard
+                      key={g.id}
+                      goal={g}
+                      measure={measureGoal(
+                        g,
+                        latestAccounts,
+                        previousAccounts,
+                        (g.linked_plan_categories ?? []).reduce((sum, slug) => sum + (loggedByCategory[slug] ?? 0), 0),
+                      )}
+                      onEdit={() => {
+                        setEditing(g);
+                        setShowForm(true);
+                      }}
+                      onAchieve={() => patch(g.id, { status: "achieved", current_amount: g.target_amount ?? g.current_amount })}
+                      onArchive={() => patch(g.id, { status: "archived" })}
+                      onDelete={() => remove(g.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
           {achieved.length > 0 && (
             <div>
               <h2 className="mb-3 font-display text-lg font-semibold">Achieved</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {achieved.map((g) => (
-                  <GoalCard key={g.id} goal={g} onDelete={() => remove(g.id)} />
+                  <GoalCard
+                    key={g.id}
+                    goal={g}
+                    measure={measureGoal(
+                      g,
+                      latestAccounts,
+                      previousAccounts,
+                      (g.linked_plan_categories ?? []).reduce((sum, slug) => sum + (loggedByCategory[slug] ?? 0), 0),
+                    )}
+                    onDelete={() => remove(g.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -157,6 +274,12 @@ export default function GoalsPage() {
                   <GoalCard
                     key={g.id}
                     goal={g}
+                    measure={measureGoal(
+                      g,
+                      latestAccounts,
+                      previousAccounts,
+                      (g.linked_plan_categories ?? []).reduce((sum, slug) => sum + (loggedByCategory[slug] ?? 0), 0),
+                    )}
                     onDelete={() => remove(g.id)}
                     onAchieve={() => patch(g.id, { status: "active" })}
                   />
@@ -170,6 +293,8 @@ export default function GoalsPage() {
       {showForm && (
         <GoalForm
           initial={editing}
+          accounts={latestAccounts}
+          planChoices={planChoices}
           onClose={() => {
             setShowForm(false);
             setEditing(null);
@@ -187,25 +312,43 @@ export default function GoalsPage() {
   );
 }
 
+function measureLine(goal: GoalRow, measure: GoalMeasure): string {
+  if (measure.goalClass === "debt") {
+    if (measure.paidDown == null) return "No debt attached";
+    return `${formatMoney(measure.paidDown)} paid down · ${formatMoney(measure.remaining ?? 0)} still owed`;
+  }
+  if (measure.goalClass === "retirement_age") {
+    return goal.target_age != null ? `Target age ${goal.target_age}` : "Retirement age";
+  }
+  if (measure.goalClass === "retirement_income") {
+    return goal.target_amount != null ? `${formatMoney(goal.target_amount)} a year on file` : "Retirement income on file";
+  }
+  if (measure.goalClass === "note") {
+    return goal.amount_unknown || goal.target_amount == null ? "Amount not set" : formatMoney(goal.target_amount);
+  }
+  if (measure.target != null && measure.current != null) return `${formatMoney(measure.current)} of ${formatMoney(measure.target)}`;
+  return measure.current != null ? formatMoney(measure.current) : "";
+}
+
 function GoalCard({
   goal,
+  measure,
   onEdit,
   onAchieve,
   onArchive,
   onDelete,
 }: {
   goal: GoalRow;
+  measure: GoalMeasure;
   onEdit?: () => void;
   onAchieve?: () => void;
   onArchive?: () => void;
   onDelete?: () => void;
 }) {
-  const target = Number(goal.target_amount) || 0;
-  const current = Number(goal.current_amount) || 0;
-  const pct = target > 0 ? Math.min((current / target) * 100, 100) : 0;
+  const now = useSyncExternalStore(subscribeMinute, snapshotNow, () => 0);
   const remaining =
-    goal.target_date != null
-      ? Math.ceil((new Date(goal.target_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    goal.target_date != null && now > 0
+      ? Math.ceil((new Date(goal.target_date).getTime() - now) / (1000 * 60 * 60 * 24))
       : null;
 
   return (
@@ -213,7 +356,7 @@ function GoalCard({
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
-            {GOAL_TYPE_LABELS[goal.goal_type] ?? goal.goal_type}
+            {GOAL_CLASS_LABELS[measure.goalClass]}
           </p>
           <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{presentGoalName(goal.name)}</h3>
           {(goal.source === "fact_find" || goal.source === "onboarding") && (
@@ -238,21 +381,29 @@ function GoalCard({
           Not sure of the amount — looking to find out what this will cost
         </p>
       )}
-      {target > 0 && (
-        <div className="mt-4">
-          <div className="mb-1 flex justify-between font-body text-xs text-[var(--text-muted)]">
-            <span>{goal.goal_type === "debt_payoff" ? `Paid down ${formatMoney(current)}` : formatMoney(current)}</span>
-            <span>{formatMoney(target)}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
-            <div
-              className="h-full rounded-full bg-[var(--emerald)] transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
+      <p className="mt-3 font-display text-sm font-semibold text-[var(--text-primary)]">{measureLine(goal, measure)}</p>
+      {measure.goalClass === "retirement_age" && measure.current != null && (
+        <p className="mt-1 font-body text-xs text-[var(--text-secondary)]">
+          {formatMoney(measure.current)} in the accounts you attached
+        </p>
+      )}
+      {measure.goalClass === "retirement_income" && measure.current != null && (
+        <p className="mt-1 font-body text-xs text-[var(--text-secondary)]">
+          {formatMoney(measure.current)} in the accounts you attached
+        </p>
+      )}
+      <p className="mt-1 font-body text-xs text-[var(--text-muted)]">{measure.secondary}</p>
+      {measure.loggedThisMonth > 0 && (
+        <p className="mt-1 font-body text-xs text-[var(--text-secondary)]">
+          {formatMoney(measure.loggedThisMonth)} logged this month
+        </p>
+      )}
+      {measure.bar != null && (
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--warm-100)]">
+          <div className="h-full rounded-full bg-[var(--emerald)]" style={{ width: `${measure.bar}%` }} />
         </div>
       )}
-      {goal.target_age != null && goal.status === "active" && (
+      {goal.target_age != null && goal.status === "active" && measure.goalClass !== "retirement_age" && (
         <p className="mt-2 font-body text-xs text-[var(--text-muted)]">Target age {goal.target_age}</p>
       )}
       {remaining != null && goal.target_age == null && goal.status === "active" && (
@@ -320,15 +471,33 @@ function GoalCard({
 
 function GoalForm({
   initial,
+  accounts,
+  planChoices,
   onClose,
   onSaved,
 }: {
   initial: GoalRow | null;
+  accounts: GoalAccount[];
+  planChoices: { slug: string; label: string }[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [goalType, setGoalType] = useState<GoalType>(initial?.goal_type ?? "savings");
+  const [trackingClass, setTrackingClass] = useState<GoalClass>(
+    initial?.tracking_class && (GOAL_CLASSES as readonly string[]).includes(initial.tracking_class)
+      ? (initial.tracking_class as GoalClass)
+      : inferGoalClass({
+          name: initial?.name ?? "",
+          goalType: initial?.goal_type ?? "savings",
+          targetAmount: initial?.target_amount,
+          amountUnknown: initial?.amount_unknown,
+          targetAge: initial?.target_age,
+        }),
+  );
+  const [classTouched, setClassTouched] = useState(Boolean(initial?.tracking_class));
+  const [linkedAccounts, setLinkedAccounts] = useState<string[]>(initial?.linked_account_ids ?? []);
+  const [linkedPlans, setLinkedPlans] = useState<string[]>(initial?.linked_plan_categories ?? []);
   const [targetAmount, setTargetAmount] = useState(
     initial?.target_amount != null ? String(initial.target_amount) : "",
   );
@@ -359,6 +528,9 @@ function GoalForm({
         priority,
       }),
       current_amount: Number(currentAmount) || 0,
+      tracking_class: trackingClass,
+      linked_account_ids: linkedAccounts,
+      linked_plan_categories: linkedPlans,
       source: initial ? undefined : ("manual" as const),
     };
     if (initial) {
@@ -392,7 +564,21 @@ function GoalForm({
         <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Name</label>
         <input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            setName(next);
+            if (!classTouched) {
+              setTrackingClass(
+                inferGoalClass({
+                  name: next,
+                  goalType,
+                  targetAmount: Number(targetAmount) || null,
+                  amountUnknown,
+                  targetAge: Number(targetAge) || null,
+                }),
+              );
+            }
+          }}
           className="mb-3 mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
         />
         <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Type</label>
@@ -404,6 +590,21 @@ function GoalForm({
           {GOAL_TYPES.map((t) => (
             <option key={t} value={t}>
               {GOAL_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+        <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">How this is measured</label>
+        <select
+          value={trackingClass}
+          onChange={(e) => {
+            setClassTouched(true);
+            setTrackingClass(e.target.value as GoalClass);
+          }}
+          className="mb-3 mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        >
+          {GOAL_CLASSES.map((goalClass) => (
+            <option key={goalClass} value={goalClass}>
+              {GOAL_CLASS_LABELS[goalClass]}
             </option>
           ))}
         </select>
@@ -480,6 +681,61 @@ function GoalForm({
             aria-label="Target age"
             className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
           />
+        )}
+        {trackingClass !== "note" && (
+          <div className="mb-4">
+            <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">
+              {trackingClass === "debt" ? "Loan or mortgage" : "Accounts to watch"}
+            </p>
+            <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
+              {accounts
+                .filter((account) => (trackingClass === "debt" ? account.side === "debt" : account.side === "asset"))
+                .map((account) => (
+                  <label key={account.key} className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+                    <input
+                      type="checkbox"
+                      checked={linkedAccounts.includes(account.key)}
+                      onChange={() =>
+                        setLinkedAccounts((current) =>
+                          current.includes(account.key)
+                            ? current.filter((key) => key !== account.key)
+                            : [...current, account.key],
+                        )
+                      }
+                      className="size-4 accent-[var(--emerald)]"
+                    />
+                    {account.name}
+                  </label>
+                ))}
+              {accounts.length === 0 && (
+                <p className="font-body text-xs text-[var(--text-muted)]">Add a net-worth check-in to attach an account.</p>
+              )}
+            </div>
+          </div>
+        )}
+        {(trackingClass === "balance" || trackingClass === "debt") && planChoices.length > 0 && (
+          <div className="mb-4">
+            <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Plan lines to count</p>
+            <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
+              {planChoices.map((choice) => (
+                <label key={choice.slug} className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={linkedPlans.includes(choice.slug)}
+                    onChange={() =>
+                      setLinkedPlans((current) =>
+                        current.includes(choice.slug)
+                          ? current.filter((slug) => slug !== choice.slug)
+                          : [...current, choice.slug],
+                      )
+                    }
+                    className="size-4 accent-[var(--emerald)]"
+                  />
+                  {choice.label}
+                </label>
+              ))}
+            </div>
+          </div>
         )}
         <p className="mb-2 font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Priority</p>
         <div className="mb-5 flex gap-2">

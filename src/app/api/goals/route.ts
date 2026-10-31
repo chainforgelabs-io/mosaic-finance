@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { GOAL_PRIORITIES, GOAL_STATUSES, GOAL_TYPES } from "@/lib/tracking/categories";
+import { GOAL_CLASSES } from "@/lib/tracking/goal-class";
 import { seedGoalsFromProfile } from "@/lib/tracking/sync-goals";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
@@ -17,7 +18,22 @@ const createSchema = z.object({
   priority: z.enum(GOAL_PRIORITIES).optional().default("medium"),
   status: z.enum(GOAL_STATUSES).optional().default("active"),
   source: z.enum(["onboarding", "fact_find", "manual"]).optional().default("manual"),
+  tracking_class: z.enum(GOAL_CLASSES).optional().nullable(),
+  linked_account_ids: z.array(z.string().min(1).max(80)).max(40).optional(),
+  linked_plan_categories: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)).max(40).optional(),
 });
+
+function missingGoalColumns(message: string): boolean {
+  return /tracking_class|linked_account_ids|linked_plan_categories|schema cache/i.test(message);
+}
+
+function withoutLinkColumns<T extends Record<string, unknown>>(row: T): T {
+  const copy = { ...row };
+  delete copy.tracking_class;
+  delete copy.linked_account_ids;
+  delete copy.linked_plan_categories;
+  return copy;
+}
 
 const patchSchema = createSchema.partial().extend({
   id: z.string().uuid().optional(),
@@ -76,20 +92,26 @@ export async function POST(req: NextRequest) {
     status: g.status ?? "active",
     source: g.source ?? "manual",
     reviewed_at: g.source === "fact_find" ? null : new Date().toISOString(),
+    tracking_class: g.tracking_class ?? null,
+    linked_account_ids: g.linked_account_ids ?? [],
+    linked_plan_categories: g.linked_plan_categories ?? [],
   }));
 
-  const inserted = await supabase.from("goals").insert(rows).select();
+  let payload: Record<string, unknown>[] = rows;
+  let inserted = await supabase.from("goals").insert(payload).select();
+  if (inserted.error && missingGoalColumns(inserted.error.message)) {
+    payload = rows.map((row) => withoutLinkColumns(row));
+    inserted = await supabase.from("goals").insert(payload).select();
+  }
   const { data, error } =
     inserted.error && /reviewed_at/i.test(inserted.error.message)
       ? await supabase
           .from("goals")
-          .insert(
-            rows.map((row) => {
-              const copy: Record<string, unknown> = { ...row };
-              delete copy.reviewed_at;
-              return copy;
-            }),
-          )
+          .insert(payload.map((row) => {
+            const copy = { ...row };
+            delete copy.reviewed_at;
+            return copy;
+          }))
           .select()
       : inserted;
   if (error) return NextResponse.json({ error: "Failed to save goals" }, { status: 500 });
@@ -137,14 +159,17 @@ export async function PATCH(req: NextRequest) {
   } else if (updates.target_date) {
     updates.target_age = null;
   }
-  const stamped = { ...updates, reviewed_at: new Date().toISOString() };
-  const { data, error } = await supabase
-    .from("goals")
-    .update(stamped)
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select()
-    .single();
+  let stamped: Record<string, unknown> = { ...updates, reviewed_at: new Date().toISOString() };
+  let updated = await supabase.from("goals").update(stamped).eq("id", id).eq("user_id", user.id).select().single();
+  if (updated.error && missingGoalColumns(updated.error.message)) {
+    stamped = withoutLinkColumns(stamped);
+    updated = await supabase.from("goals").update(stamped).eq("id", id).eq("user_id", user.id).select().single();
+  }
+  if (updated.error && /reviewed_at/i.test(updated.error.message)) {
+    delete stamped.reviewed_at;
+    updated = await supabase.from("goals").update(stamped).eq("id", id).eq("user_id", user.id).select().single();
+  }
+  const { data, error } = updated;
 
   if (error || !data) {
     return NextResponse.json({ error: "Goal not found or update failed" }, { status: 404 });

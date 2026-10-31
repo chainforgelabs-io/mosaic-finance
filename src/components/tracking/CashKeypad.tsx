@@ -79,10 +79,13 @@ export function CashKeypad({
         : predictCategories(history, new Date(), amount > 0 ? amount : null, direction, 20),
     [history, amount, direction, mode],
   );
-  const planCategories = useMemo(
-    () => keypadPlanCategories(planEntries, kindForMode(mode), month, predicted),
-    [planEntries, mode, month, predicted],
-  );
+  const planCategories = useMemo(() => {
+    const result = keypadPlanCategories(planEntries, kindForMode(mode), month, predicted);
+    if (mode === "save" && !result.all.includes("debt_principal")) {
+      return { ...result, all: [...result.all, "debt_principal"] };
+    }
+    return result;
+  }, [planEntries, mode, month, predicted]);
   const quickCategories = planCategories.quick;
   const nameFor = (slug: string) => labelFor(catalog, slug);
 

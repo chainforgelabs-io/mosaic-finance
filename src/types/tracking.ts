@@ -181,6 +181,9 @@ export interface GoalRow {
   status: GoalStatus;
   source: GoalSource;
   reviewed_at?: string | null;
+  tracking_class?: string | null;
+  linked_account_ids?: string[] | null;
+  linked_plan_categories?: string[] | null;
   created_at: string;
   updated_at: string;
 }

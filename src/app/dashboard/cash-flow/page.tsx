@@ -90,7 +90,7 @@ import type {
 
 const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
-type PeriodList = "income" | "refunds" | "expense" | "payments" | "savings";
+type PeriodList = "income" | "refunds" | "expense" | "payments" | "savings" | "paydown";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
 const GUIDE_KEY = "mosaic-cash-guide-seen";
@@ -324,6 +324,8 @@ export default function CashFlowPage() {
   const incomeTxns = visibleTxns.filter((txn) => !isSavings(txn) && resolvedLineRole(txn) === "income");
   const refundTxns = visibleTxns.filter((txn) => resolvedLineRole(txn) === "refund");
   const savingsTxns = visibleTxns.filter((txn) => isSavings(txn));
+  const paydownTxns = savingsTxns.filter((txn) => txn.category === "debt_principal");
+  const setAsideTxns = savingsTxns.filter((txn) => txn.category !== "debt_principal");
   const paymentTxns = visibleTxns.filter(
     (txn) => resolvedLineRole(txn) === "card_payment" && (showStatementLines || txn.source !== "screenshot"),
   );
@@ -1417,15 +1419,58 @@ export default function CashFlowPage() {
               ))}
             </LineGroup>
           )}
-          {savingsTxns.length > 0 && (
+          {paydownTxns.length > 0 && (
+            <LineGroup
+              label="Debt paydown"
+              note="Principal is counted with savings. Interest stays in expenses."
+              count={paydownTxns.length}
+              total={sumAmounts(paydownTxns)}
+              open={openLists.paydown === true}
+              onToggle={() => toggleList("paydown")}
+            >
+              {paydownTxns.map((t) => (
+                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                      {categoryLabel(t.category)}
+                      {t.description || t.note ? ` · ${t.description || t.note}` : ""}
+                    </p>
+                    <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                  </div>
+                  <span className="font-body text-sm font-semibold tabular-nums">
+                    {formatMoneyExact(Number(t.amount))}
+                  </span>
+                  <div className="phone-actions flex shrink-0 items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(t)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
+                      aria-label="Edit debt paydown"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(t.id)}
+                      className="phone-hit rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                      aria-label="Delete debt paydown"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </LineGroup>
+          )}
+          {setAsideTxns.length > 0 && (
             <LineGroup
               label="Savings"
-              count={savingsTxns.length}
-              total={sumAmounts(savingsTxns)}
+              count={setAsideTxns.length}
+              total={sumAmounts(setAsideTxns)}
               open={openLists.savings === true}
               onToggle={() => toggleList("savings")}
             >
-              {savingsTxns.map((t) => (
+              {setAsideTxns.map((t) => (
                 <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
