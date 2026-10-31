@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightToLine, Pencil, Plus, X } from "lucide-react";
+import { ArrowRightToLine, ChevronDown, Pencil, Plus, X } from "lucide-react";
 import {
   CATEGORY_KIND_LABELS,
   categorySlug,
@@ -341,6 +341,11 @@ function PlanSection({
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(true);
+
+  function toggleOpen() {
+    setOpen((value) => !value);
+  }
 
   async function createFromDraft() {
     const label = draft.trim();
@@ -434,15 +439,28 @@ function PlanSection({
   if (layout === "desktop") {
     return (
       <>
-        <tr>
-          <th className={cn(STICKY, styles.header, "px-3 py-2 text-left font-display text-sm font-semibold")}>
-            {CATEGORY_KIND_LABELS[kind]}
+        <tr onClick={toggleOpen} className="cursor-pointer">
+          <th className={cn(STICKY, styles.header, "p-0 text-left")}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleOpen();
+              }}
+              aria-expanded={open}
+              className="flex w-full cursor-pointer items-center gap-1.5 px-3 py-2 text-left font-display text-sm font-semibold"
+            >
+              <ChevronDown className={cn("size-3.5 shrink-0 transition", open && "rotate-180")} />
+              {CATEGORY_KIND_LABELS[kind]}
+            </button>
           </th>
           <th className={styles.header} colSpan={12} />
           <th className={cn(styles.header, "py-2 text-right font-display text-xs font-semibold")}>
             <MonthText>{formatMoney(yearTotal)} / yr</MonthText>
           </th>
         </tr>
+        {open && (
+        <>
         <tr className="border-b border-[var(--warm-200)]">
           <th
             className={cn(
@@ -525,17 +543,29 @@ function PlanSection({
             </div>
           </td>
         </tr>
+        </>
+        )}
       </>
     );
   }
 
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--warm-200)] bg-white">
-      <div className={cn("flex items-center justify-between px-4 py-2", styles.header)}>
-        <h2 className="font-display text-sm font-semibold">{CATEGORY_KIND_LABELS[kind]}</h2>
+      <button
+        type="button"
+        onClick={toggleOpen}
+        aria-expanded={open}
+        className={cn("flex w-full cursor-pointer items-center justify-between px-4 py-2 text-left", styles.header)}
+      >
+        <span className="flex items-center gap-1.5 font-display text-sm font-semibold">
+          <ChevronDown className={cn("size-3.5 shrink-0 transition", open && "rotate-180")} />
+          {CATEGORY_KIND_LABELS[kind]}
+        </span>
         <span className="font-display text-xs font-semibold tabular-nums">{formatMoney(yearTotal)} / yr</span>
-      </div>
+      </button>
 
+      {open && (
+      <>
       <div className="divide-y divide-[var(--warm-100)]">
         {rows.map((category) => {
           const month = months[focusIndex];
@@ -581,6 +611,8 @@ function PlanSection({
       </div>
 
       <div className="border-t border-[var(--warm-100)] px-3 py-2">{addRow}</div>
+      </>
+      )}
     </section>
   );
 }
