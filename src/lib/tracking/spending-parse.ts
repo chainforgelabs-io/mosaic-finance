@@ -137,19 +137,20 @@ const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "in
 const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep|direct deposit)\b/i;
 const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst)\b|\bei\b/i;
 const REFUND_REVERSAL = /\b(refund reversal|reversal of (a )?refund)\b/i;
-const REFUND_HINT =
-  /\b(refund|refunded|merchant credit|purchase return|returned item|rebate|cash\s?back|price adjustment|tax refund|government deposit|govt deposit)\b|\breturn\b/i;
+const MERCHANT_REFUND =
+  /\b(refund|refunded|merchant credit|purchase return|returned item|rebate|cash\s?back|price adjustment)\b|\breturn\b/i;
 const CREDIT_SUFFIX = /\b(?:CR|CREDIT)\s*$/i;
 const DEPOSIT_HINT = /\b(direct deposit|deposit from|deposit)\b/i;
 const SECURITY_DEPOSIT = /\bsecurity deposit\b/i;
 const SUMMARY_LINE =
   /\b(opening balance|closing balance|previous balance|new balance|statement balance|credit limit|minimum payment|payment due|total purchases|total payments|total credits|total fees|total debits)\b|^(balance|total)$/i;
 
-/** A statement credit lowers spending. Card payments and transfers are left alone. */
-export function isStatementCredit(description: string): boolean {
+/** A merchant credit or return. It is not pay and it is not a new purchase. */
+export function isMerchantRefund(description: string): boolean {
   if (REFUND_REVERSAL.test(description)) return false;
   if (/\bcredit card\b/i.test(description)) return false;
-  return REFUND_HINT.test(description) || CREDIT_SUFFIX.test(description);
+  if (/\b(government|govt)\s+deposit\b/i.test(description)) return false;
+  return MERCHANT_REFUND.test(description) || CREDIT_SUFFIX.test(description);
 }
 
 export function isSummaryLine(description: string): boolean {
@@ -172,23 +173,23 @@ function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (ty
   if (REFUND_REVERSAL.test(description)) return "purchase";
   if (role === "card_payment") return role;
   if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
-  if (
-    isStatementCredit(description) ||
-    PAY_HINT.test(description) ||
-    BENEFIT_HINT.test(description) ||
-    DEPOSIT_HINT.test(description)
-  ) {
+  if (isMerchantRefund(description)) return "transfer";
+  if (PAY_HINT.test(description) || BENEFIT_HINT.test(description) || DEPOSIT_HINT.test(description)) {
     return "income";
   }
   return role;
 }
 
-/** Role used for totals. Re-reads the description so a credit saved earlier as a purchase is not spending. */
+export type ResolvedRole = (typeof LINE_ROLES)[number] | "refund";
+
+/** Role used for totals. A refund stays out of income and out of spending. */
 export function resolvedLineRole(txn: {
   description?: string | null;
   line_role?: string | null;
   direction?: string | null;
-}): (typeof LINE_ROLES)[number] {
+  category?: string | null;
+}): ResolvedRole {
+  if (txn.category === "refund" || isMerchantRefund(txn.description ?? "")) return "refund";
   const raw = txn.line_role ?? "";
   const role = (LINE_ROLES as readonly string[]).includes(raw)
     ? (raw as (typeof LINE_ROLES)[number])
@@ -203,6 +204,7 @@ function categoryForRole(
   raw: unknown,
   description: string,
 ): string {
+  if (isMerchantRefund(description)) return "refund";
   if (role === "card_payment") return "debt_payments";
   if (role === "transfer") return "other";
   if (role === "income") {
@@ -287,8 +289,9 @@ function descriptionScore(incoming: string, existing: string | null): number {
 }
 
 /**
- * A statement line matches a logged spend when the date and amount are the same.
- * Each logged row can match only one incoming line. Same-day repeats stay separate.
+ * A statement line matches a logged line when the date, amount, and merchant agree.
+ * A different description is a different line, even when it is the only one that day
+ * at that amount. Each logged row can match only one incoming line.
  */
 export function matchUploadDuplicates<
   T extends {
@@ -308,19 +311,12 @@ export function matchUploadDuplicates<
     const candidates = existing.filter(
       (row) => !used.has(row.id) && row.txn_date === item.txn_date && cents(row.amount) === itemCents,
     );
-    // One logged line at this date and amount is the same statement line, even when a
-    // re-read phrases the merchant differently. Two lines at the same amount stay distinct.
-    if (candidates.length === 1) {
-      used.add(candidates[0].id);
-      return { ...item, duplicateOf: candidates[0], duplicateAction: "skip" as const };
-    }
     let best: { row: ExistingSpend; score: number } | null = null;
     for (const row of candidates) {
-      const score =
-        (row.category === item.suggested_category ? 2 : 0) +
-        descriptionScore(item.description, row.description);
+      const words = descriptionScore(item.description, row.description);
       const bothDescribed = Boolean(item.description.trim() && row.description?.trim());
-      if (bothDescribed && score === 0) continue;
+      if (bothDescribed && words === 0) continue;
+      const score = (row.category === item.suggested_category ? 2 : 0) + words;
       if (!best || score > best.score) best = { row, score };
     }
     if (!best) return { ...item, duplicateOf: null, duplicateAction: "add" as const };

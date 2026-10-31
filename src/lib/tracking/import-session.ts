@@ -1,4 +1,5 @@
 import { transactionKind } from "@/lib/tracking/cash-capture";
+import { isMerchantRefund } from "@/lib/tracking/spending-parse";
 import {
   INCOME_CATEGORIES,
   SAVINGS_CATEGORIES,
@@ -202,6 +203,9 @@ export function importRowMenuKind(row: ImportRow): PlanMenuKind {
 /** Keep a guess only when it is already a category on the plan. Everything else starts unassigned. */
 export function alignImportRows(rows: ImportRow[], lists: PlanCategoryLists): ImportRow[] {
   return rows.map((row) => {
+    if (isMerchantRefund(row.description ?? "") || row.suggested_category === "refund") {
+      return { ...row, line_role: "transfer", suggested_category: "refund", categoryConfirmed: true };
+    }
     const savingsGuess =
       (SAVINGS_CATEGORIES as readonly string[]).includes(row.suggested_category) &&
       row.line_role !== "income" &&
@@ -285,7 +289,7 @@ export async function saveImportRows(rows: ImportRow[]): Promise<UnlockItem[]> {
           source: "screenshot",
           document_id: row.documentId,
           category_confirmed: row.categoryConfirmed,
-          direction: row.line_role === "income" ? "in" : "out",
+          direction: row.line_role === "income" || row.suggested_category === "refund" ? "in" : "out",
           line_role: row.line_role ?? "purchase",
           instrument: row.instrument ?? "debit",
         })),

@@ -124,7 +124,8 @@ describe("statement baseline", () => {
     );
     expect(baseline?.incomeMonthly).toBe(14025.15);
     expect(baseline?.months).toEqual(["2026-07", "2026-08", "2026-09"]);
-    expect(baseline?.needsMonthly).toBe(266.67);
+    expect(baseline?.needsMonthly).toBe(0);
+    expect(baseline?.flexibleMonthly).toBe(100);
     expect(baseline?.coverageNote).toBe("Money in is from July. Spending is from July, August, and September.");
   });
 

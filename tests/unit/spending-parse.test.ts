@@ -44,7 +44,7 @@ describe("parseSpendingPayload", () => {
 });
 
 describe("normalizeStatementItems", () => {
-  it("counts refunds and deposits as money in, and a refund reversal as spending", () => {
+  it("keeps refunds out of income and counts deposits as money in", () => {
     const rows = normalizeStatementItems(
       [
         {
@@ -71,10 +71,16 @@ describe("normalizeStatementItems", () => {
       ],
       "credit",
     );
-    expect(rows.map((row) => row.line_role)).toEqual(["income", "income", "purchase"]);
+    expect(rows.map((row) => [row.line_role, row.suggested_category])).toEqual([
+      ["transfer", "refund"],
+      ["income", "paycheque"],
+      ["purchase", "shopping"],
+    ]);
+    expect(resolvedLineRole(rows[0])).toBe("refund");
+    expect(countsTowardSpend(rows[0])).toBe(false);
   });
 
-  it("treats a trailing credit mark and a return as money in, and drops a balance line", () => {
+  it("treats a trailing credit mark and a return as refunds, and drops a balance line", () => {
     const rows = normalizeStatementItems(
       [
         {
@@ -108,10 +114,10 @@ describe("normalizeStatementItems", () => {
       ],
       "credit",
     );
-    expect(rows.map((row) => [row.description, row.line_role])).toEqual([
-      ["AMAZON MARKETPLACE CR", "income"],
-      ["STORE RETURN", "income"],
-      ["PAYMENT THANK YOU", "card_payment"],
+    expect(rows.map((row) => [row.description, row.line_role, row.suggested_category])).toEqual([
+      ["AMAZON MARKETPLACE CR", "transfer", "refund"],
+      ["STORE RETURN", "transfer", "refund"],
+      ["PAYMENT THANK YOU", "card_payment", "debt_payments"],
     ]);
     expect(isSummaryLine("Previous balance")).toBe(true);
     expect(
@@ -127,7 +133,24 @@ describe("normalizeStatementItems", () => {
         line_role: "purchase",
         description: "STORE RETURN",
       }),
-    ).toBe("income");
+    ).toBe("refund");
+  });
+
+  it("keeps a government deposit as income", () => {
+    const [row] = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-07-20",
+          amount: 80,
+          description: "GOVT DEPOSIT GST",
+          line_role: "purchase",
+          suggested_category: "other",
+        },
+      ],
+      "debit",
+    );
+    expect(row?.line_role).toBe("income");
+    expect(resolvedLineRole(row ?? { description: "" })).toBe("income");
   });
 });
 
@@ -225,13 +248,28 @@ describe("upload duplicates", () => {
     expect(row?.duplicateOf).toBeNull();
   });
 
-  it("matches a re-read when it is the only line at that date and amount", () => {
+  it("does not drop a different merchant that shares only the date and amount", () => {
     const [row] = matchUploadDuplicates(
       [
         {
           txn_date: "2026-09-02",
           amount: 12.4,
           description: "Online order",
+          suggested_category: "shopping",
+        },
+      ],
+      [existing[0]],
+    );
+    expect(row?.duplicateOf).toBeNull();
+  });
+
+  it("still matches a re-read that shares the merchant", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 12.4,
+          description: "Coffee shop",
           suggested_category: "shopping",
         },
       ],

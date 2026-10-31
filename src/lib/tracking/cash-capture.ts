@@ -91,7 +91,7 @@ export function transactionKind(txn: {
 }): TransactionKind {
   if (isSavings(txn)) return "savings";
   const role = resolvedLineRole(txn);
-  if (role === "card_payment" || role === "transfer") return "neutral";
+  if (role === "refund" || role === "card_payment" || role === "transfer") return "neutral";
   if (role === "income") return "income";
   if (SPEND_ROLES.has(role)) return "expense";
   return isOutflow(txn.direction) ? "expense" : "income";
@@ -104,6 +104,7 @@ export function linePlaceLabel(txn: {
   description?: string | null;
 }): string | null {
   const role = resolvedLineRole(txn);
+  if (role === "refund") return "Refund";
   if (role === "card_payment") return "Card payment";
   if (txn.instrument === "credit" && role !== "transfer") return "On a card";
   return null;
@@ -114,6 +115,7 @@ export function cashEffect(txn: CashTxn): number {
   const amount = Number(txn.amount);
   if (!Number.isFinite(amount)) return 0;
   const role = resolvedLineRole(txn);
+  if (role === "refund") return txn.instrument === "credit" ? 0 : Math.abs(amount);
   if (role === "transfer") return 0;
   if (role === "card_payment") return -Math.abs(amount);
   // Card purchases and card credits change the card balance, not the bank.

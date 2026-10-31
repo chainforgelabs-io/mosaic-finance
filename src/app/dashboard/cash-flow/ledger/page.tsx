@@ -8,6 +8,7 @@ import { extraSlugs, fetchCatalog, persistCustomCategory } from "@/lib/tracking/
 import { ledgerHeaderKpis, ledgerOpening, ledgerRows, yearPeriod, type LedgerRow } from "@/lib/tracking/budget-kpis";
 import type { CashAnchor } from "@/types/tracking";
 import { type TransactionKind } from "@/lib/tracking/cash-capture";
+import { resolvedLineRole } from "@/lib/tracking/spending-parse";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,12 @@ const KIND_LABEL: Record<TransactionKind, string> = {
   savings: "Savings",
   neutral: "Transfer",
 };
+
+function ledgerKindLabel(txn: TransactionRow, kind: TransactionKind): string {
+  if (resolvedLineRole(txn) === "refund") return "Refund";
+  if (txn.line_role === "card_payment") return "Card payment";
+  return KIND_LABEL[kind];
+}
 
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 
@@ -428,7 +435,7 @@ function LedgerLine({
       <div className="hidden grid-cols-[96px_90px_minmax(120px,1fr)_110px_minmax(120px,1.4fr)_120px_40px] items-center gap-2 md:grid">
         <span className="font-body text-sm tabular-nums text-[var(--text-secondary)]">{formatDate(txn.txn_date)}</span>
         <span className={cn("w-fit rounded-full px-2 py-0.5 font-display text-[11px] font-semibold", KIND_PILL[row.kind])}>
-          {txn.line_role === "card_payment" ? "Card payment" : KIND_LABEL[row.kind]}
+          {ledgerKindLabel(txn, row.kind)}
         </span>
         <span className="truncate font-body text-sm text-[var(--text-primary)]">{labelFor(catalog, txn.category)}</span>
         <span
@@ -464,7 +471,7 @@ function LedgerLine({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("rounded-full px-2 py-0.5 font-display text-[11px] font-semibold", KIND_PILL[row.kind])}>
-              {txn.line_role === "card_payment" ? "Card payment" : KIND_LABEL[row.kind]}
+              {ledgerKindLabel(txn, row.kind)}
             </span>
             <span className="truncate font-body text-sm text-[var(--text-primary)]">{labelFor(catalog, txn.category)}</span>
           </div>

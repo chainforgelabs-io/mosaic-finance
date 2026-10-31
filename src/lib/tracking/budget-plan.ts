@@ -11,8 +11,9 @@ import {
   type CashTxn,
   type RecurringCadence,
 } from "@/lib/tracking/cash-capture";
-import { cardPaymentIsCovered, type StatementLine } from "@/lib/tracking/statement-baseline";
+import type { StatementLine } from "@/lib/tracking/statement-baseline";
 import { monthKey, startOfMonth } from "@/lib/tracking/dates";
+import { isMerchantRefund } from "@/lib/tracking/spending-parse";
 import { formatMoneyExact } from "@/lib/tracking/format";
 
 export type PlanKind = CategoryKind;
@@ -330,7 +331,7 @@ function kindForLine(line: StatementLine): PlanKind | null {
 /**
  * Monthly averages per category from parsed statement lines.
  * Averages over the months present, so a three-month upload gives a three-month average.
- * A bank payment to a card counts only when that card's statement is not in the set.
+ * A payment to a card is never a budget line. The month total leaves those payments out too.
  */
 export function planFromStatementLines(lines: StatementLine[], today: string): PlanSuggestion[] {
   const dated = lines.filter((line) => line.txn_date && Number(line.amount) > 0);
@@ -356,12 +357,8 @@ export function planFromStatementLines(lines: StatementLine[], today: string): P
     const amount = Number(line.amount) || 0;
     const role = line.line_role ?? "purchase";
 
-    if (role === "card_payment") {
-      if (line.instrument !== "credit" && !cardPaymentIsCovered(line, dated)) {
-        add("expense", line.suggested_category || "debt_payments", amount);
-      }
-      continue;
-    }
+    if (role === "card_payment") continue;
+    if (isMerchantRefund(line.description ?? "")) continue;
     if (role === "income" && line.instrument === "credit") {
       // A card credit or refund offsets spending in that category.
       add("expense", line.suggested_category || "other", -amount);

@@ -106,7 +106,7 @@ export const ENTITLEMENT_COPY = {
   charlieCap:
     "You've used a lot of Charlie this month. We'll keep the conversation going.",
   reportCap:
-    "You've already regenerated your Progress Report this month. It refreshes again next month on Progress.",
+    "Your Progress Report for this month is already in. It refreshes again next month on Progress.",
 } as const;
 
 function startOfMonthIso(now = new Date()): string {

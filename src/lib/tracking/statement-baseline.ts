@@ -9,6 +9,7 @@ import {
   type RecurringCadence,
 } from "@/lib/tracking/cash-capture";
 import { monthKey } from "@/lib/tracking/dates";
+import { isMerchantRefund } from "@/lib/tracking/spending-parse";
 
 export type { StatementInstrument, StatementLineRole };
 
@@ -208,22 +209,6 @@ function monthIsCovered(lines: StatementLine[], month: string): boolean {
   return hasBank || dates.length >= 10 || daysBetween(dates[0], dates[dates.length - 1]) >= 14;
 }
 
-function amountsMatch(left: number, right: number): boolean {
-  return Math.abs(left - right) <= 1;
-}
-
-/** A bank payment is already in the picture when the card statement shows the same payment. */
-export function cardPaymentIsCovered(payment: StatementLine, lines: StatementLine[]): boolean {
-  if (payment.line_role !== "card_payment") return false;
-  if (payment.instrument === "credit") return true;
-  if (!payment.txn_date) return false;
-  return lines.some((other) => {
-    if (other === payment || other.instrument !== "credit" || other.line_role !== "card_payment") return false;
-    if (!other.txn_date || !amountsMatch(Number(other.amount), Number(payment.amount))) return false;
-    return Math.abs(daysBetween(payment.txn_date as string, other.txn_date)) <= 7;
-  });
-}
-
 function coverageNote(incomeMonths: string[], spendMonths: string[]): string {
   const incomeLabels = joinLabels(incomeMonths.map(monthName));
   const spendLabels = joinLabels(spendMonths.map(monthName));
@@ -236,7 +221,7 @@ function coverageNote(incomeMonths: string[], spendMonths: string[]): string {
 /**
  * Income is averaged over months that show pay landing in the bank.
  * Spending is averaged over months with a real span of activity.
- * A payment to a card counts as spending only when that card's statement is not here.
+ * A payment to a card is never spending. The month total leaves those lines out too.
  */
 export function buildStatementBaseline(lines: StatementLine[], today: string): StatementBaseline | null {
   const dated = lines.filter((line) => line.txn_date && Number(line.amount) > 0);
@@ -287,9 +272,9 @@ export function buildStatementBaseline(lines: StatementLine[], today: string): S
     if (!monthsForSpend.includes(month)) continue;
     if (role === "card_payment") {
       if (line.instrument === "credit") totals.creditPayments += amount;
-      else if (!cardPaymentIsCovered(line, dated)) addSpend(line.suggested_category || "debt_payments", amount);
       continue;
     }
+    if (isMerchantRefund(line.description ?? "")) continue;
     if (role === "income" && line.instrument === "credit") {
       addSpend(line.suggested_category || "other", -amount);
       continue;

@@ -41,7 +41,7 @@ Then extract every transaction line, including money in. For each:
 - description: Merchant or description as shown.
 - line_role: one of purchase, income, card_payment, transfer, fee, interest.
   - purchase: a purchase, cash withdrawal, or refund reversal that is new spending. Do not use purchase for a refund or a credit.
-  - income: payroll, EI, maternity or parental benefits, government deposits, bank deposits, and other money in. A refund, return, or merchant credit lowers spending — mark it income, not purchase. A line that says payroll, EI, or deposit is income even when it sits among withdrawals.
+  - income: payroll, EI, maternity or parental benefits, government deposits, bank deposits, and other money in. A refund, return, merchant credit, or price adjustment is not income and not a purchase — use line_role "transfer" and suggested_category "refund". A line that says payroll, EI, or deposit is income even when it sits among withdrawals.
   - card_payment: a payment that pays down a credit card. On a card statement this is often "payment thank you" or "payment from". On a bank statement it is a bill payment or transfer to a card. This is not spending and not income.
   - transfer: money moved between the user's own accounts, such as to their own investment account, other than a credit card payment. An Interac e-Transfer that leaves the account is a purchase, not a transfer, unless it is clearly to the user's own account.
   - fee: a bank or card fee

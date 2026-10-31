@@ -34,6 +34,21 @@ describe("buildImportNotice", () => {
     });
     expect(notice).toBe("Could not read Statements 2.pdf.");
   });
+
+  it("names the upload limit instead of a bad file", () => {
+    const notice = buildImportNotice({
+      failures: [],
+      rateLimited: ["August.pdf", "September.pdf"],
+      readerNotes: [],
+      stored: true,
+      duplicateCheckFailed: false,
+      duplicateCount: 0,
+    });
+    expect(notice).toBe(
+      "Upload limit reached. Wait a few minutes, then try August.pdf, September.pdf again.",
+    );
+    expect(notice).not.toContain("Could not read");
+  });
 });
 
 function row(patch: Partial<ImportRow>): ImportRow {
@@ -78,6 +93,15 @@ describe("plan categories for a statement import", () => {
       lists,
     );
     expect(aligned.find((item) => item.key === "home")?.suggested_category).toBe("housing");
+    const refunds = alignImportRows(
+      [row({ key: "back", description: "STORE REFUND", suggested_category: "shopping", line_role: "purchase" })],
+      lists,
+    );
+    expect(refunds[0]).toMatchObject({
+      suggested_category: "refund",
+      line_role: "transfer",
+      categoryConfirmed: true,
+    });
     expect(aligned.find((item) => item.key === "store")?.suggested_category).toBe("");
     expect(aligned.find((item) => item.key === "pay")?.suggested_category).toBe("paycheque");
     expect(aligned.find((item) => item.key === "tfsa")?.suggested_category).toBe("tfsa");

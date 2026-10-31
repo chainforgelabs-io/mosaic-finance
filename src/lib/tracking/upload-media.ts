@@ -14,6 +14,26 @@ export class UploadMediaError extends Error {
 const UNSUPPORTED_MESSAGE =
   "That file type isn't supported. Upload a photo (including iPhone HEIC), a screenshot, or a PDF.";
 
+export const SPREADSHEET_MESSAGE =
+  "Spreadsheets are not read as statements. Upload a PDF or a photo of the statement.";
+
+export function spendingUploadRejection(fileName: string, mime: string): string | null {
+  const type = mime.toLowerCase();
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (
+    ext === "csv" ||
+    ext === "xlsx" ||
+    ext === "xls" ||
+    type.includes("csv") ||
+    type.includes("spreadsheet") ||
+    type.includes("ms-excel")
+  ) {
+    return SPREADSHEET_MESSAGE;
+  }
+  if (classifySpendingUpload(fileName, mime) === "unsupported") return UNSUPPORTED_MESSAGE;
+  return null;
+}
+
 const HEIC_READ_MESSAGE =
   "Couldn't read that photo. Try a screenshot or PDF, or export the photo as JPEG.";
 
@@ -60,6 +80,8 @@ export async function prepareSpendingMedia(
   fileName: string,
   mime: string,
 ): Promise<PreparedSpendingMedia> {
+  const rejected = spendingUploadRejection(fileName, mime);
+  if (rejected) throw new UploadMediaError(rejected);
   const kind = classifySpendingUpload(fileName, mime);
   if (kind === "unsupported") {
     throw new UploadMediaError(UNSUPPORTED_MESSAGE);

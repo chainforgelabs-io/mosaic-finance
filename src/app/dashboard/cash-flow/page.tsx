@@ -89,7 +89,7 @@ import type {
 
 const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
-type PeriodList = "income" | "expense" | "payments" | "savings";
+type PeriodList = "income" | "refunds" | "expense" | "payments" | "savings";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
 const GUIDE_KEY = "mosaic-cash-guide-seen";
@@ -313,6 +313,7 @@ export default function CashFlowPage() {
   const visibleTxns = view === "month" ? monthTxns : transactions;
   const spendTxns = visibleTxns.filter((txn) => countsTowardSpend(txn));
   const incomeTxns = visibleTxns.filter((txn) => !isSavings(txn) && resolvedLineRole(txn) === "income");
+  const refundTxns = visibleTxns.filter((txn) => resolvedLineRole(txn) === "refund");
   const savingsTxns = visibleTxns.filter((txn) => isSavings(txn));
   const paymentTxns = visibleTxns.filter(
     (txn) => resolvedLineRole(txn) === "card_payment" && (showStatementLines || txn.source !== "screenshot"),
@@ -468,15 +469,29 @@ export default function CashFlowPage() {
         }
       > = [];
       const failures: string[] = [];
+      const explanations: string[] = [];
+      const rateLimited: string[] = [];
       const notes: string[] = [];
       let stored = true;
+      let hitLimit = false;
       for (const file of list) {
+        if (hitLimit) {
+          rateLimited.push(file.name);
+          continue;
+        }
         const fd = new FormData();
         fd.append("files", file);
         const res = await fetch("/api/upload/spending", { method: "POST", body: fd, credentials: "include" });
         const json = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          hitLimit = true;
+          rateLimited.push(file.name);
+          continue;
+        }
         if (!res.ok) {
-          failures.push(file.name);
+          const message = typeof json.error === "string" ? json.error.trim() : "";
+          if (message) explanations.push(`${file.name}: ${message}`);
+          else failures.push(file.name);
           continue;
         }
         if (json.stored === false) stored = false;
@@ -500,7 +515,16 @@ export default function CashFlowPage() {
           status: "error",
           rows: null,
           notice: null,
-          error: failures.length > 0 ? `Could not read ${failures.join(", ")}.` : "Could not read that file.",
+          error:
+            buildImportNotice({
+              failures,
+              explanations,
+              rateLimited,
+              readerNotes: notes,
+              stored: true,
+              duplicateCheckFailed: false,
+              duplicateCount: 0,
+            }) ?? "Could not read that file.",
         });
         return;
       }
@@ -533,6 +557,8 @@ export default function CashFlowPage() {
       const duplicateCount = rows.filter((row) => row.duplicateOf).length;
       const notice = buildImportNotice({
         failures,
+        explanations,
+        rateLimited,
         readerNotes: notes,
         stored,
         duplicateCheckFailed,
@@ -1184,7 +1210,7 @@ export default function CashFlowPage() {
             <div key={i} className="skeleton h-20 w-full" />
           ))}
         </div>
-      ) : listedSpend.length === 0 && listedIncome.length === 0 && savingsTxns.length === 0 && paymentTxns.length === 0 ? (
+      ) : listedSpend.length === 0 && listedIncome.length === 0 && refundTxns.length === 0 && savingsTxns.length === 0 && paymentTxns.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--warm-200)] bg-white px-4 py-10 text-center">
           <p className="font-display font-semibold text-[var(--text-primary)]">
             {picture ? "Nothing new this period" : "Nothing logged yet"}
@@ -1238,6 +1264,38 @@ export default function CashFlowPage() {
                     onClick={() => handleDelete(t.id)}
                     className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
                     aria-label="Delete income"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </LineGroup>
+          )}
+          {refundTxns.length > 0 && (
+            <LineGroup
+              label="Refunds"
+              note="Came back in. Not counted as income or spending."
+              count={refundTxns.length}
+              total={sumAmounts(refundTxns)}
+              open={openLists.refunds === true}
+              onToggle={() => toggleList("refunds")}
+            >
+              {refundTxns.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-body text-sm text-[var(--text-primary)]">
+                      {t.description || t.note || "Refund"}
+                    </p>
+                    <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{t.txn_date}</p>
+                  </div>
+                  <span className="font-body text-sm font-semibold tabular-nums">
+                    {formatMoneyExact(Number(t.amount))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(t.id)}
+                    className="rounded-md p-1.5 text-[var(--text-muted)] hover:text-[var(--error)]"
+                    aria-label="Delete refund"
                   >
                     <Trash2 className="size-3.5" />
                   </button>

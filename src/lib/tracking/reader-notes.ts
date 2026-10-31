@@ -27,13 +27,20 @@ export function publishReaderNotes(notes: string[]): string {
 
 export function buildImportNotice(input: {
   failures: string[];
+  explanations?: string[];
+  rateLimited?: string[];
   readerNotes: string[];
   stored: boolean;
   duplicateCheckFailed: boolean;
   duplicateCount: number;
 }): string | null {
+  const limited = input.rateLimited ?? [];
   const parts = [
     input.failures.length > 0 ? `Could not read ${input.failures.join(", ")}.` : "",
+    ...(input.explanations ?? []),
+    limited.length > 0
+      ? `Upload limit reached. Wait a few minutes, then try ${limited.join(", ")} again.`
+      : "",
     publishReaderNotes(input.readerNotes),
     input.stored ? "" : "The file itself was not stored, but the lines below are ready to review.",
     input.duplicateCheckFailed

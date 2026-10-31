@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifySpendingUpload } from "@/lib/tracking/upload-media";
+import { classifySpendingUpload, spendingUploadRejection, SPREADSHEET_MESSAGE } from "@/lib/tracking/upload-media";
 
 describe("classifySpendingUpload", () => {
   it("accepts photos, screenshots, and PDFs by mime type", () => {
@@ -27,5 +27,6 @@ describe("classifySpendingUpload", () => {
       "unsupported",
     );
     expect(classifySpendingUpload("data.csv", "text/csv")).toBe("unsupported");
+    expect(spendingUploadRejection("data.csv", "text/csv")).toBe(SPREADSHEET_MESSAGE);
   });
 });
