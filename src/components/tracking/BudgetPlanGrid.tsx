@@ -454,7 +454,15 @@ function PlanSection({
               {CATEGORY_KIND_LABELS[kind]}
             </button>
           </th>
-          <th className={styles.header} colSpan={12} />
+          {open ? (
+            <th className={styles.header} colSpan={12} />
+          ) : (
+            months.map((month, i) => (
+              <td key={month} className={cn(styles.header, "py-2 align-middle")}>
+                <MonthText className="font-bold">{formatMoney(monthTotals[i]?.[kind] ?? 0)}</MonthText>
+              </td>
+            ))
+          )}
           <th className={cn(styles.header, "py-2 text-right font-display text-xs font-semibold")}>
             <MonthText>{formatMoney(yearTotal)} / yr</MonthText>
           </th>
@@ -561,7 +569,10 @@ function PlanSection({
           <ChevronDown className={cn("size-3.5 shrink-0 transition", open && "rotate-180")} />
           {CATEGORY_KIND_LABELS[kind]}
         </span>
-        <span className="font-display text-xs font-semibold tabular-nums">{formatMoney(yearTotal)} / yr</span>
+        <span className="flex items-center gap-3 font-display text-xs font-semibold tabular-nums">
+          {!open && <span>{formatMoney(monthTotals[focusIndex]?.[kind] ?? 0)}</span>}
+          <span>{formatMoney(yearTotal)} / yr</span>
+        </span>
       </button>
 
       {open && (
