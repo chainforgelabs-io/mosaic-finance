@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightToLine, ChevronDown, Pencil, Plus, X } from "lucide-react";
+import { AmountPad } from "@/components/tracking/AmountPad";
 import {
   CATEGORY_KIND_LABELS,
   categorySlug,
@@ -24,7 +25,7 @@ import {
   PLAN_KINDS,
   type PlanKind,
 } from "@/lib/tracking/budget-plan";
-import { CADENCE_LABELS, type AmountBasis, type RecurringCadence } from "@/lib/tracking/cash-capture";
+import { amountFromDigits, CADENCE_LABELS, type AmountBasis, type RecurringCadence } from "@/lib/tracking/cash-capture";
 import { todayIso } from "@/lib/tracking/dates";
 import { formatMoney, formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
@@ -324,7 +325,6 @@ function PlanSection({
   onAddRow,
   onCreateCategory,
   onOpenSchedule,
-  onFocusMonth,
   schedules,
 }: BudgetPlanGridProps & {
   kind: PlanKind;
@@ -592,11 +592,8 @@ function PlanSection({
               index={index}
               kind={kind}
               category={category}
-              year={year}
               months={months}
               focusMonth={months[focusIndex]}
-              saved={saved}
-              onFocusMonth={onFocusMonth}
               onOpen={() => onOpenSchedule(kind, category)}
               onRemove={() => onRemoveRow(kind, category)}
               onSetAmount={(month, amount) => onSetAmount(kind, category, month, amount)}
@@ -619,17 +616,19 @@ function PlanSection({
   );
 }
 
+function digitsFromAmount(amount: number): string {
+  const cents = Math.round(amount * 100);
+  return cents > 0 ? String(cents) : "";
+}
+
 function MobilePlanRow({
   name,
   detail,
   index,
   kind,
   category,
-  year,
   months,
   focusMonth,
-  saved,
-  onFocusMonth,
   onOpen,
   onRemove,
   onSetAmount,
@@ -640,100 +639,183 @@ function MobilePlanRow({
   index: Map<string, number>;
   kind: PlanKind;
   category: string;
-  year: number;
   months: string[];
   focusMonth: string;
-  saved: BudgetPlanSchedule | undefined;
-  onFocusMonth: (month: string) => void;
   onOpen: () => void;
   onRemove: () => void;
   onSetAmount: (month: string, amount: number) => void;
   onFillRight: (month: string, amount: number) => void;
 }) {
-  const stripRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const strip = stripRef.current;
-    const selected = strip?.querySelector<HTMLElement>("[data-selected='true']");
-    if (!strip || !selected) return;
-    const delta = selected.getBoundingClientRect().left - strip.getBoundingClientRect().left;
-    strip.scrollLeft += delta - 8;
-  }, [focusMonth]);
-
-  const slots = saved ? monthAmountsFromRow(saved.amount, saved.cadence, saved.basis, saved.anchor_date, year) : [];
-  const slotByMonth = new Map(slots.map((slot) => [slot.month, slot]));
+  const [open, setOpen] = useState(false);
+  const amounts = months.map((month) => planAmount(index, kind, category, month) ?? 0);
+  const varies = amounts.some((amount) => Math.abs(amount - amounts[0]) > 0.001);
+  const focusAmount = planAmount(index, kind, category, focusMonth) ?? 0;
 
   return (
-    <div className="px-3 py-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-body text-sm leading-snug text-[var(--text-primary)]">{name}</p>
-          {detail && <p className="truncate font-body text-[11px] text-[var(--text-muted)]">{detail}</p>}
-          <p className="font-body text-[11px] text-[var(--text-muted)]">
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+      >
+        <span className="min-w-0">
+          <span className="block font-body text-sm leading-snug text-[var(--text-primary)]">{name}</span>
+          {detail && <span className="block truncate font-body text-[11px] text-[var(--text-muted)]">{detail}</span>}
+          <span className="block font-body text-[11px] text-[var(--text-muted)]">
             {formatMoney(rowTotal(index, kind, category, months))} / yr
-          </p>
-        </div>
-        <div className="phone-actions flex shrink-0 items-center">
-          <button
-            type="button"
-            aria-label={`Edit ${name}`}
-            title="Edit payment"
-            onClick={onOpen}
-            className="phone-hit cursor-pointer rounded text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-          >
-            <Pencil className="size-3.5" />
+          </span>
+          {varies && <span className="block font-body text-[11px] text-[var(--text-muted)]">Varies by month</span>}
+        </span>
+        <span className="shrink-0 font-display text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+          {focusAmount ? formatMoney(focusAmount) : "–"}
+        </span>
+      </button>
+      {open && (
+        <MonthPlanSheet
+          name={name}
+          index={index}
+          kind={kind}
+          category={category}
+          months={months}
+          focusMonth={focusMonth}
+          onClose={() => setOpen(false)}
+          onOpenSchedule={() => {
+            setOpen(false);
+            onOpen();
+          }}
+          onRemove={() => {
+            setOpen(false);
+            onRemove();
+          }}
+          onSetAmount={onSetAmount}
+          onFillRight={onFillRight}
+        />
+      )}
+    </>
+  );
+}
+
+function MonthPlanSheet({
+  name,
+  index,
+  kind,
+  category,
+  months,
+  focusMonth,
+  onClose,
+  onOpenSchedule,
+  onRemove,
+  onSetAmount,
+  onFillRight,
+}: {
+  name: string;
+  index: Map<string, number>;
+  kind: PlanKind;
+  category: string;
+  months: string[];
+  focusMonth: string;
+  onClose: () => void;
+  onOpenSchedule: () => void;
+  onRemove: () => void;
+  onSetAmount: (month: string, amount: number) => void;
+  onFillRight: (month: string, amount: number) => void;
+}) {
+  const [selected, setSelected] = useState(focusMonth);
+  const [digits, setDigits] = useState(() => digitsFromAmount(planAmount(index, kind, category, focusMonth) ?? 0));
+
+  function stored(month: string): number {
+    return planAmount(index, kind, category, month) ?? 0;
+  }
+
+  function commit(month: string, raw: string) {
+    const amount = amountFromDigits(raw);
+    if (Math.abs(amount - stored(month)) < 0.001) return;
+    onSetAmount(month, amount);
+  }
+
+  function choose(month: string) {
+    if (month === selected) return;
+    commit(selected, digits);
+    setSelected(month);
+    setDigits(digitsFromAmount(stored(month)));
+  }
+
+  function close() {
+    commit(selected, digits);
+    onClose();
+  }
+
+  const typed = amountFromDigits(digits);
+  const canFill = selected !== months[months.length - 1];
+
+  return (
+    <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:max-w-md sm:rounded-xl">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold text-[var(--text-primary)]">{name}</h2>
+          <button type="button" onClick={close} aria-label="Close" className="phone-hit font-display text-sm text-[var(--text-muted)]">
+            Close
           </button>
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove ${name} from the plan`}
-            title="Remove from the plan"
-            className="phone-hit cursor-pointer rounded text-[var(--text-muted)] hover:bg-[var(--warm-100)]"
-          >
-            <X className="size-3.5" />
-          </button>
         </div>
-      </div>
-      <div ref={stripRef} className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-        {months.map((month) => {
-          const value = planAmount(index, kind, category, month);
-          const slot = slotByMonth.get(month);
-          const hits = slot && slot.count > 1 && Math.abs(slot.amount - (value ?? 0)) < 0.02 ? slot.count : 0;
-          const selected = month === focusMonth;
-          if (selected) {
+        <div className="grid grid-cols-3 gap-2">
+          {months.map((month) => {
+            const amount = month === selected ? typed : stored(month);
+            const active = month === selected;
             return (
-              <div key={month} data-selected="true" className="w-28 shrink-0">
-                <p className="font-body text-[10px] font-medium uppercase tracking-wider text-[var(--emerald-dark)]">
+              <button
+                key={month}
+                type="button"
+                onClick={() => choose(month)}
+                aria-pressed={active}
+                className={cn(
+                  "rounded-xl border px-2 py-2 text-left",
+                  active
+                    ? "border-[var(--emerald)] bg-[var(--emerald-soft)]"
+                    : "border-[var(--warm-200)] bg-white",
+                )}
+              >
+                <span className="block font-body text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
                   {shortMonth(month)}
-                </p>
-                <PlanCell
-                  value={value}
-                  onCommit={(amount) => onSetAmount(month, amount)}
-                  onFillRight={(amount) => onFillRight(month, amount)}
-                  canFill={month !== months[months.length - 1]}
-                  label={`${shortMonth(month)} for ${name}`}
-                  hits={hits}
-                  wide
-                />
-              </div>
+                </span>
+                <span className="block font-display text-sm font-semibold tabular-nums text-[var(--text-primary)]">
+                  {amount ? formatMoney(amount) : "–"}
+                </span>
+              </button>
             );
-          }
-          return (
-            <button
-              key={month}
-              type="button"
-              onClick={() => onFocusMonth(month)}
-              className="shrink-0 rounded-lg border border-[var(--warm-200)] px-2 py-1 text-left"
-            >
-              <span className="block font-body text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                {shortMonth(month)}
-              </span>
-              <span className="block whitespace-nowrap font-body text-xs tabular-nums text-[var(--text-primary)]">
-                {value ? formatMoney(value) : "–"}
-              </span>
-            </button>
-          );
-        })}
+          })}
+        </div>
+        <div className="mt-4">
+          <AmountPad digits={digits} onDigitsChange={setDigits} />
+        </div>
+        {canFill && (
+          <button
+            type="button"
+            onClick={() => {
+              commit(selected, digits);
+              onFillRight(selected, typed);
+            }}
+            className="mt-4 w-full rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold text-[var(--text-primary)]"
+          >
+            Fill the rest of the year
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            commit(selected, digits);
+            onOpenSchedule();
+          }}
+          className="mt-2 w-full rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold text-[var(--text-primary)]"
+        >
+          Edit the payment schedule
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="mt-2 w-full rounded-lg py-2.5 font-display text-sm font-semibold text-red-700"
+        >
+          Remove from the plan
+        </button>
       </div>
     </div>
   );
