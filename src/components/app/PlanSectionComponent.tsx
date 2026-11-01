@@ -202,7 +202,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
         {section.actionItems.length > 0 && (
           <div className="mb-6">
             <h4 className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] uppercase tracking-wider mb-3">
-              Action Items
+              Notes
             </h4>
             <ul className="space-y-2">
               {section.actionItems.map((item) => (
@@ -211,23 +211,11 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                   <span className="font-[family-name:var(--font-body)] text-[15px] text-[var(--text-secondary)] flex-1">
                     {item.text}
                   </span>
-                  <span
-                    className={`ml-auto shrink-0 px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider ${
-                      item.priority === "high"
-                        ? "bg-red-50 text-red-600"
-                        : item.priority === "medium"
-                        ? "bg-amber-50 text-amber-600"
-                        : "bg-gray-50 text-gray-500"
-                    }`}
-                  >
-                    {item.priority}
-                  </span>
                 </li>
               ))}
             </ul>
             <p className="mt-3 font-[family-name:var(--font-body)] text-xs leading-relaxed text-[var(--text-muted)]">
-              These are options you can take to a licensed financial advisor to discuss. This is
-              educational information, not financial advice.
+              These notes describe the figures in this section. Educational information, not financial advice.
             </p>
           </div>
         )}

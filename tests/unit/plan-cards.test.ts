@@ -20,4 +20,30 @@ describe("plan cards", () => {
     expect(emergency).toEqual({ label: "Emergency Fund", value: "3", unit: "months" });
     expect(netWorth?.value).toBe("$500");
   });
+
+  it("names report sections as education and does not pick a payoff method", () => {
+    const plan = transformDbPlanToFinancialPlan({
+      id: "plan-1",
+      status: "delivered",
+      created_at: "2026-01-01T00:00:00.000Z",
+      plan_data: {
+        investment_portfolio_blueprint: { current_portfolio_assessment: "Cash." },
+        debt_elimination_plan: {
+          total_debt: 1000,
+          recommended_method: "avalanche",
+          recommendation_rationale: "The interest totals differ.",
+        },
+        lifetime_financial_roadmap: { decade_by_decade_summary: "Later years." },
+      },
+    });
+    const titles = plan.sections.map((item) => item.title).join(" ");
+    expect(titles).toContain("Accounts and asset classes");
+    expect(titles).toContain("Balances and payoff timelines");
+    expect(titles).toContain("A look across the decades");
+    expect(titles).not.toMatch(/Blueprint|Elimination Plan|Roadmap/);
+    const debt = plan.sections.find((item) => item.id === "debt_elimination_plan");
+    expect(debt?.cards.some((card) => card.label === "Recommended Method")).toBe(false);
+    expect(debt?.subtitle).toContain("avalanche and snowball");
+    expect(debt?.prose).toContain("How the two methods differ");
+  });
 });

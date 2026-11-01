@@ -315,9 +315,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(fhd.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(fhd.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(fhd.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -357,9 +357,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(rr.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(rr.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(rr.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -368,7 +368,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#8b5cf6;"></div>
-    <h2>Investment Portfolio Blueprint</h2>
+    <h2>Accounts and asset classes</h2>
     <p>An educational look at asset-class mix and example funds</p>
   </div>
 
@@ -402,9 +402,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(ipb.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(ipb.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(ipb.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -431,9 +431,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(ter.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(ter.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(ter.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -442,17 +442,16 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#ef4444;"></div>
-    <h2>Debt Elimination Plan</h2>
-    <p>Your optimized path to becoming debt-free</p>
+    <h2>Balances and payoff timelines</h2>
+    <p>A comparison of avalanche and snowball math on the balances in this report</p>
   </div>
 
   <div class="kpi-row">
     <div class="kpi kpi-red"><div class="kl">Total Debt</div><div class="kv">$${fmt(dep.total_debt)}</div></div>
-    <div class="kpi kpi-gold"><div class="kl">Suggested Method</div><div class="kv">${dep.recommended_method ?? '—'}</div></div>
     <div class="kpi kpi-green"><div class="kl">Payoff Timeline</div><div class="kv">${avalanche.payoff_months ?? snowball.payoff_months ?? '—'} <span class="ku">months</span></div></div>
   </div>
 
-  ${dep.recommendation_rationale ? `<div class="insight-card"><h4>Why This Method</h4><p>${dep.recommendation_rationale}</p></div>` : ''}
+  ${dep.recommendation_rationale ? `<div class="insight-card"><h4>How the two methods differ</h4><p>${dep.recommendation_rationale}</p></div>` : ''}
 
   <h3 style="font-size:13px;">Method Comparison</h3>
   <table class="tbl">
@@ -476,9 +475,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(dep.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(dep.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(dep.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -517,9 +516,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(ica.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(ica.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(ica.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 </div>
@@ -550,8 +549,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#c9aa71;"></div>
-    <h2>Lifetime Financial Roadmap</h2>
-    <p>Your decade-by-decade path to financial independence</p>
+    <h2>A look across the decades</h2>
+    <p>The same report figures, shown by age</p>
   </div>
 
   <div class="kpi-row">
@@ -560,13 +559,13 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   ${(lfr.current_decade_priorities as string[])?.length > 0 ? `
-  <h3 style="font-size:13px;">This Decade's Priorities</h3>
+  <h3 style="font-size:13px;">This decade</h3>
   <div class="action-list">
     ${(lfr.current_decade_priorities as string[]).map((p) => `<div class="ai"><div class="ai-icon" style="background:#c9aa71;">★</div><div class="ai-text">${p}</div></div>`).join('')}
   </div>` : ''}
 
   ${(lfr.next_decade_priorities as string[])?.length > 0 ? `
-  <h3 style="font-size:13px;">Next Decade's Priorities</h3>
+  <h3 style="font-size:13px;">Next decade</h3>
   <div class="action-list">
     ${(lfr.next_decade_priorities as string[]).map((p) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${p}</div></div>`).join('')}
   </div>` : ''}
@@ -586,9 +585,9 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(lfr.action_items as string[])?.length > 0 ? `
   <div class="action-section">
-  <h3 style="font-size:13px;">Action Items</h3>
+  <h3 style="font-size:13px;">Notes</h3>
   <div class="action-list">
-    ${(lfr.action_items as string[]).map((a, i) => `<div class="ai"><div class="ai-icon" style="background:${i === 0 ? '#ef4444' : i < 3 ? '#f59e0b' : '#6b7280'};">→</div><div class="ai-text">${a}</div></div>`).join('')}
+    ${(lfr.action_items as string[]).map((a) => `<div class="ai"><div class="ai-icon" style="background:#6b7280;">→</div><div class="ai-text">${a}</div></div>`).join('')}
   </div>
   </div>` : ''}
 

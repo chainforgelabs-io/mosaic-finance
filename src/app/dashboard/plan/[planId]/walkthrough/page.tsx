@@ -149,7 +149,7 @@ function SectionPanel({
         {section.actionItems.length > 0 && (
           <div className="mt-4">
             <h4 className="font-[family-name:var(--font-display)] font-semibold text-xs text-[var(--text-muted)] uppercase tracking-wider mb-2">
-              Action Items
+              Notes
             </h4>
             <ul className="space-y-1.5">
               {section.actionItems.map((item) => (
@@ -162,8 +162,7 @@ function SectionPanel({
               ))}
             </ul>
             <p className="mt-3 font-[family-name:var(--font-body)] text-xs leading-relaxed text-[var(--text-muted)]">
-              These are options you can take to a licensed financial advisor to discuss. This is
-              educational information, not financial advice.
+              These notes describe the figures in this section. Educational information, not financial advice.
             </p>
           </div>
         )}

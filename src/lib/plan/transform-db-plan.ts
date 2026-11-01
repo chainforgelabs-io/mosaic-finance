@@ -117,7 +117,7 @@ function buildSections(raw: any): PlanSection[] {
 
     sections.push({
       id: "investment_portfolio_blueprint",
-      title: "Investment Portfolio Blueprint",
+      title: "Accounts and asset classes",
       subtitle: "An educational look at asset-class mix and example funds",
       status: "ai_generated",
       summary: ipb.current_portfolio_assessment ?? "",
@@ -166,7 +166,6 @@ function buildSections(raw: any): PlanSection[] {
 
     const cards = [
       card("Total Debt", dep.total_debt),
-      { label: "Recommended Method", value: String(dep.recommended_method ?? "--") },
     ].filter(Boolean) as FinancialCardData[];
 
     const tables: ComparisonTable[] = [];
@@ -183,14 +182,14 @@ function buildSections(raw: any): PlanSection[] {
 
     sections.push({
       id: "debt_elimination_plan",
-      title: "Debt Elimination Plan",
-      subtitle: "Your optimized path to becoming debt-free",
+      title: "Balances and payoff timelines",
+      subtitle: "A comparison of avalanche and snowball math on the balances in this report",
       status: "ai_generated",
-      summary: dep.recommendation_rationale ?? "",
+      summary: "Compares avalanche and snowball interest and timelines. It does not choose a balance to pay first.",
       cards,
       prose: proseLines(
-        labeledProse("Why This Method", dep.recommendation_rationale),
-        labeledProse("Refinancing Analysis", dep.refinancing_analysis),
+        labeledProse("How the two methods differ", dep.recommendation_rationale),
+        labeledProse("Refinancing", dep.refinancing_analysis),
       ),
       actionItems: actionItems(dep, "dep"),
       tables: tables.length > 0 ? tables : undefined,
@@ -253,10 +252,10 @@ function buildSections(raw: any): PlanSection[] {
     ].filter(Boolean) as FinancialCardData[];
 
     const currentPriorities = Array.isArray(lfr.current_decade_priorities)
-      ? "This Decade:\n" + lfr.current_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
+      ? "This decade:\n" + lfr.current_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
       : "";
     const nextPriorities = Array.isArray(lfr.next_decade_priorities)
-      ? "Next Decade:\n" + lfr.next_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
+      ? "Next decade:\n" + lfr.next_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
       : "";
 
     const milestones = (lfr.net_worth_milestones ?? []) as any[];
@@ -264,7 +263,7 @@ function buildSections(raw: any): PlanSection[] {
     if (milestones.length > 0) {
       tables.push({
         title: "Net Worth Milestones",
-        headers: ["Age", "Target Net Worth", "Key Actions"],
+        headers: ["Age", "Target Net Worth", "Notes"],
         rows: milestones.map((m: any) => ({
           label: String(m.age ?? ""),
           values: [m.target_net_worth != null ? fmtFull(m.target_net_worth) : "—", String(m.key_actions ?? "—")],
@@ -274,8 +273,8 @@ function buildSections(raw: any): PlanSection[] {
 
     sections.push({
       id: "lifetime_financial_roadmap",
-      title: "Lifetime Financial Roadmap",
-      subtitle: "Your decade-by-decade path to financial independence",
+      title: "A look across the decades",
+      subtitle: "The same report figures, shown by age",
       status: "ai_generated",
       summary: lfr.decade_by_decade_summary ?? "",
       cards,

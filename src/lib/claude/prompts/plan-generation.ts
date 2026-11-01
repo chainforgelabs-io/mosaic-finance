@@ -48,7 +48,7 @@ ${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData)}
 
-Generate a complete 8-section Progress Report. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the user's specific numbers, province, account types, and goals. Frame all output as educational tracking and trajectory analysis — not prescriptive advice. Every action_items array should include, as its last item: "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."
+Generate a complete 8-section Progress Report. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the user's specific numbers, province, account types, and goals. Frame all output as educational tracking and trajectory analysis — not prescriptive advice. Every action_items array should include, as its last item: "This is educational information, not financial advice."
 
 OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 
@@ -152,6 +152,9 @@ CRITICAL RULES:
 - Tax analysis must be province-specific
 - Retirement projections must include CPP and OAS estimates
 - Describe the user's current position and the tradeoffs of different approaches. Do not tell them what to buy or sell
+- action_items state what the figures show. Write each as an observation, not an instruction. Do not tell the user to buy, sell, hold, move money, contribute, withdraw, pay one debt ahead of another, or open or close an account
+- recommended_method is only a comparison label: avalanche, snowball, or same. recommendation_rationale explains the interest and timeline arithmetic. Do not tell the user which balance to pay first
+- current_decade_priorities, next_decade_priorities, decade_by_decade_summary, and key_actions describe the figures at that age. Do not assign tasks
 - Flag any areas of uncertainty with explicit disclaimers within that section
 - Any value you cannot calculate with confidence must be flagged with "[VERIFY WITH A PROFESSIONAL]" rather than fabricating a number
 - Write as an educational Progress Report: current position, trajectory, and options to learn about

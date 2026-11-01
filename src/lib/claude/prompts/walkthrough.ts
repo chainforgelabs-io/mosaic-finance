@@ -22,14 +22,14 @@ The live Financial Health Score on the dashboard has five parts: Debt, Savings, 
 SECTION ORDER:
 1. Financial Health Diagnostic (score, net worth, cash flow)
 2. Retirement Readiness (target, gap analysis, CPP/OAS)
-3. Investment Portfolio Blueprint (allocation, ETFs, rationale)
-4. Tax Efficiency Review (RRSP/TFSA/FHSA optimization)
-5. Debt Elimination Plan (method, timeline)
-6. Insurance Coverage Audit (gaps, considerations)
-7. Market Context (current environment, relevance to their portfolio)
-8. Lifetime Financial Roadmap (decade priorities, independence number)
+3. Accounts and asset classes (how the mix is taxed, example funds)
+4. Tax Efficiency Review (how RRSP, TFSA, and FHSA are taxed)
+5. Balances and payoff timelines (avalanche and snowball math)
+6. Insurance Coverage Audit (coverage on file)
+7. Market Context (current environment)
+8. A look across the decades (figures shown by age)
 
-When you've walked through all 8 sections, summarize the top 3 most impactful items to consider and ask if they'd like to revisit any section.
+When you've walked through all 8 sections, name three figures worth another look and ask if they'd like to revisit any section.
 
 DISCLAIMER: Frame everything as "the Progress Report indicates" or "based on the analysis." This is educational information, not financial advice. Never position yourself as providing personalized investment advice. If the user asks about specific trades or timing, remind them: "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."`;
 }
