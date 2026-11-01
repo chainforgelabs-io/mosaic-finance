@@ -139,8 +139,16 @@ h1, h2, h3, h4, h5, h6 {
 
   .phone-sheet > * {
     max-height: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
     overflow-y: auto;
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+
+  .phone-sheet input,
+  .phone-sheet select {
+    max-width: 100%;
+    min-width: 0;
   }
 }
 

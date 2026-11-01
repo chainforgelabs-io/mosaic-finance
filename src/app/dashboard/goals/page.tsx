@@ -1011,7 +1011,7 @@ function GoalForm({
 
   return (
     <div className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
-      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-xl">
+      <div className="max-h-[92vh] w-full min-w-0 max-w-md overflow-x-hidden overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-lg font-semibold">{initial ? "Edit goal" : "New goal"}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="phone-hit">
@@ -1066,7 +1066,7 @@ function GoalForm({
           ))}
         </select>
         <div className="mb-3 grid grid-cols-2 gap-3">
-          <div>
+          <div className="min-w-0">
             <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Target</label>
             <input
               type="number"
@@ -1074,17 +1074,17 @@ function GoalForm({
               value={amountUnknown ? "" : targetAmount}
               disabled={amountUnknown}
               onChange={(e) => setTargetAmount(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
+              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Current</label>
             <input
               type="number"
               min="0"
               value={currentAmount}
               onChange={(e) => setCurrentAmount(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
             />
           </div>
         </div>
@@ -1125,7 +1125,7 @@ function GoalForm({
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             aria-label="Target date"
-            className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+            className="mb-3 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
           />
         ) : (
           <input
@@ -1136,7 +1136,7 @@ function GoalForm({
             onChange={(e) => setTargetAge(e.target.value)}
             placeholder="Target age, e.g. 55"
             aria-label="Target age"
-            className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+            className="mb-3 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
           />
         )}
         {trackingClass !== "note" && (
@@ -1148,7 +1148,7 @@ function GoalForm({
               {accounts
                 .filter((account) => (trackingClass === "debt" ? account.side === "debt" : account.side === "asset"))
                 .map((account) => (
-                  <label key={account.key} className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+                  <label key={account.key} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
                     <input
                       type="checkbox"
                       checked={linkedAccounts.includes(account.key)}
@@ -1161,7 +1161,7 @@ function GoalForm({
                       }
                       className="size-4 accent-[var(--emerald)]"
                     />
-                    {account.name}
+                    <span className="min-w-0 break-words">{account.name}</span>
                   </label>
                 ))}
               {accounts.length === 0 && (
@@ -1175,7 +1175,7 @@ function GoalForm({
             <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Plan lines to count</p>
             <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
               {planChoices.map((choice) => (
-                <label key={choice.slug} className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+                <label key={choice.slug} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
                   <input
                     type="checkbox"
                     checked={linkedPlans.includes(choice.slug)}
@@ -1188,7 +1188,7 @@ function GoalForm({
                     }
                     className="size-4 accent-[var(--emerald)]"
                   />
-                  {choice.label}
+                  <span className="min-w-0 break-words">{choice.label}</span>
                 </label>
               ))}
             </div>
