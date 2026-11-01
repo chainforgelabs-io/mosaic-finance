@@ -184,6 +184,8 @@ export interface GoalRow {
   tracking_class?: string | null;
   linked_account_ids?: string[] | null;
   linked_plan_categories?: string[] | null;
+  baseline_balances?: Record<string, number> | null;
+  monthly_need?: number | null;
   created_at: string;
   updated_at: string;
 }

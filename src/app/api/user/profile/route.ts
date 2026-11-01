@@ -20,6 +20,7 @@ const NotificationsSchema = z.object({
 
 const PatchBodySchema = z.object({
   alias: z.string().min(1).max(200).optional(),
+  age: z.number().int().min(1).max(120).optional(),
   province: z.string().optional(),
   employmentType: z.string().optional(),
   familyStructure: z.string().optional(),
@@ -84,6 +85,10 @@ export async function PATCH(req: NextRequest) {
 
     if (body.alias !== undefined) {
       update.alias = body.alias;
+    }
+
+    if (body.age !== undefined) {
+      update.age = body.age;
     }
 
     if (body.province !== undefined) {

@@ -21,10 +21,12 @@ const createSchema = z.object({
   tracking_class: z.enum(GOAL_CLASSES).optional().nullable(),
   linked_account_ids: z.array(z.string().min(1).max(80)).max(40).optional(),
   linked_plan_categories: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)).max(40).optional(),
+  baseline_balances: z.record(z.string().min(1).max(80), z.number().min(0).max(100_000_000)).optional(),
+  monthly_need: z.number().min(0).max(1_000_000).optional().nullable(),
 });
 
 function missingGoalColumns(message: string): boolean {
-  return /tracking_class|linked_account_ids|linked_plan_categories|schema cache/i.test(message);
+  return /tracking_class|linked_account_ids|linked_plan_categories|baseline_balances|monthly_need|schema cache/i.test(message);
 }
 
 function withoutLinkColumns<T extends Record<string, unknown>>(row: T): T {
@@ -32,6 +34,8 @@ function withoutLinkColumns<T extends Record<string, unknown>>(row: T): T {
   delete copy.tracking_class;
   delete copy.linked_account_ids;
   delete copy.linked_plan_categories;
+  delete copy.baseline_balances;
+  delete copy.monthly_need;
   return copy;
 }
 
@@ -56,7 +60,26 @@ export async function GET() {
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: "Failed to fetch goals" }, { status: 500 });
-  return NextResponse.json({ goals: data ?? [] });
+
+  const [profileRes, financeRes] = await Promise.all([
+    supabase.from("user_profiles").select("age").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("financial_profiles")
+      .select("monthly_expenses")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return NextResponse.json({
+    goals: data ?? [],
+    context: {
+      age: profileRes.data?.age != null ? Number(profileRes.data.age) : null,
+      monthlyExpenses:
+        financeRes.data?.monthly_expenses != null ? Number(financeRes.data.monthly_expenses) : null,
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -95,6 +118,8 @@ export async function POST(req: NextRequest) {
     tracking_class: g.tracking_class ?? null,
     linked_account_ids: g.linked_account_ids ?? [],
     linked_plan_categories: g.linked_plan_categories ?? [],
+    baseline_balances: g.baseline_balances ?? {},
+    monthly_need: g.monthly_need ?? null,
   }));
 
   let payload: Record<string, unknown>[] = rows;
