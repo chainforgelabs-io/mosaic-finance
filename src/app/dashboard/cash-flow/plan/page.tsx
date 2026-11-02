@@ -647,7 +647,11 @@ export default function BudgetPlanPage() {
         </p>
       )}
 
-      <p className="font-body text-xs text-[var(--text-muted)]">
+      <p className="font-body text-xs text-[var(--text-muted)] lg:hidden">
+        Tip: tap a row to change the amount, fill the rest of the year, or remove the line. The payment schedule
+        is in that sheet. You can still edit any month. Tracking, budgets, and this plan are always free.
+      </p>
+      <p className="hidden font-body text-xs text-[var(--text-muted)] lg:block">
         Tip: click a category to fill the year from one payment, how often it happens, and the last payment date.
         Use the pencil to edit a row and the × to remove it. You can still edit any month. Tracking, budgets,
         and this plan are always free.
