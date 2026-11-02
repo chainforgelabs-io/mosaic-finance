@@ -540,6 +540,7 @@ export default function GoalsPage() {
             initial={editing}
             accounts={latestAccounts}
             planChoices={planChoices}
+            exampleMonthly={planExpense ?? profileMonthly}
             onClose={() => {
               setShowForm(false);
               setEditing(null);
@@ -887,6 +888,123 @@ function TripFunding({
   );
 }
 
+function RetirementReading({
+  goal,
+  reading,
+  selectedAccounts,
+  onSaveAge,
+}: {
+  goal: GoalRow;
+  reading: Extract<GoalReading, { goalClass: "retirement_age" }>;
+  selectedAccounts: string[];
+  onSaveAge: (age: number) => void;
+}) {
+  const [ageValue, setAgeValue] = useState("");
+  const years = reading.yearsInRetirement;
+  const yearWord = years === 1 ? "year" : "years";
+  const countedMonthly =
+    reading.monthlyNeed != null && reading.monthlyNeed > 0
+      ? reading.monthlyNeed
+      : reading.exampleMonthly != null && reading.exampleMonthly > 0
+        ? reading.exampleMonthly
+        : null;
+  const total = countedMonthly != null && years != null ? countedMonthly * 12 * years : null;
+  const gap = total != null && reading.balance != null ? total - reading.balance : null;
+  const usingSaved = reading.monthlyNeed != null;
+  let spendLine: string | null = null;
+  if (total != null && countedMonthly != null && years != null) {
+    const over = years === 1 ? "Over that year" : `Over those ${years} years`;
+    const source = usingSaved
+      ? `Using ${formatMoney(countedMonthly)} a month, the amount saved on this goal.`
+      : reading.exampleFromPlan
+        ? `Using the plan's spending, about ${formatMoney(countedMonthly)} a month, because no retirement spending amount is saved yet.`
+        : `Using the monthly spending on your profile, about ${formatMoney(countedMonthly)} a month, because no retirement spending amount is saved yet.`;
+    spendLine = `${source} ${over}, in today's dollars and with no investment growth, that is ${formatMoney(total)}.`;
+  }
+
+  return (
+    <div className="mt-3 space-y-1">
+      <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+        {goal.target_age != null ? `Retire at ${goal.target_age}` : "Retirement age"}
+      </p>
+      {reading.needsAge ? (
+        <div className="pt-1">
+          <p className="font-body text-xs text-[var(--text-secondary)]">Add your age to count the years until {goal.target_age ?? "retirement"}.</p>
+          <div className="mt-2 flex gap-2">
+            <input
+              type="number"
+              min="1"
+              max="120"
+              value={ageValue}
+              onChange={(event) => setAgeValue(event.target.value)}
+              aria-label="Your age"
+              className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const next = Number(ageValue);
+                if (next >= 1 && next <= 120) onSaveAge(next);
+              }}
+              className="shrink-0 rounded-lg bg-[var(--emerald)] px-3 py-2 font-display text-xs font-semibold text-white"
+            >
+              Save age
+            </button>
+          </div>
+        </div>
+      ) : reading.yearsUntil === 0 ? (
+        <p className="font-body text-xs text-[var(--text-secondary)]">This is the retirement age.</p>
+      ) : reading.yearsUntil != null && reading.yearsUntil > 0 ? (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          {reading.yearsUntil} {reading.yearsUntil === 1 ? "year" : "years"} from now.
+        </p>
+      ) : reading.yearsUntil != null ? (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          Age {goal.target_age} was {Math.abs(reading.yearsUntil)} {Math.abs(reading.yearsUntil) === 1 ? "year" : "years"} ago.
+        </p>
+      ) : (
+        <p className="font-body text-xs text-[var(--text-muted)]">The retirement age is set in Edit.</p>
+      )}
+      {years != null && goal.target_age != null && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          Spending in this comparison runs from {goal.target_age} to {reading.lifeExpectancy}, which is {years} {yearWord}. {reading.lifeExpectancy} is a general Canadian life expectancy at birth. It is not a forecast for you.
+        </p>
+      )}
+      {spendLine != null ? (
+        <p className="font-body text-xs text-[var(--text-secondary)]">{spendLine}</p>
+      ) : years != null ? (
+        <p className="font-body text-xs text-[var(--text-muted)]">A monthly spending amount is set in Edit.</p>
+      ) : null}
+      {reading.balance != null ? (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          Retirement accounts on the latest check-in hold {formatMoney(reading.balance)}.
+          {selectedAccounts.length > 0
+            ? " The accounts checked on this goal are included."
+            : " RRSP, TFSA, and the other registered accounts are included together."}
+        </p>
+      ) : (
+        <p className="font-body text-xs text-[var(--text-muted)]">No retirement account is on the latest net-worth check-in.</p>
+      )}
+      {gap != null && gap > 0 && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          The two amounts differ by {formatMoney(gap)} in today&apos;s dollars. This comparison does not assume investment growth.
+        </p>
+      )}
+      {gap != null && gap === 0 && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          The two amounts match in today&apos;s dollars. This comparison does not assume investment growth.
+        </p>
+      )}
+      {gap != null && gap < 0 && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          The balance on file is {formatMoney(Math.abs(gap))} above that amount in today&apos;s dollars. This comparison does not assume investment growth.
+        </p>
+      )}
+      <p className="font-body text-xs text-[var(--text-muted)]">The retirement age and the monthly amount are changed in Edit.</p>
+    </div>
+  );
+}
+
 function ReadingView({
   goal,
   reading,
@@ -902,99 +1020,18 @@ function ReadingView({
   onPatch: (updates: Partial<GoalRow>) => void;
   onSaveAge: (age: number) => void;
 }) {
-  const [ageValue, setAgeValue] = useState("");
   const assets = (accounts ?? []).filter((account) => account && account.side === "asset");
   const selectedAccounts = idList(goal.linked_account_ids);
   const selectedPlans = idList(goal.linked_plan_categories);
 
   if (reading.goalClass === "retirement_age") {
-    const spendPrompt =
-      reading.exampleMonthly == null
-        ? "Enter the monthly spending you want in retirement."
-        : reading.exampleFromPlan
-          ? `Your plan spends about ${formatMoney(reading.exampleMonthly)} a month. Use that, or enter a different amount.`
-          : `Your profile lists about ${formatMoney(reading.exampleMonthly)} a month. Use that, or enter a different amount.`;
     return (
-      <div className="mt-3 space-y-1">
-        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
-          {goal.target_age != null ? `Target age ${goal.target_age}` : "Retirement age"}
-        </p>
-        {reading.needsAge ? (
-          <div className="pt-1">
-            <p className="font-body text-xs text-[var(--text-secondary)]">Add your age to count the years until {goal.target_age ?? "retirement"}.</p>
-            <div className="mt-2 flex gap-2">
-              <input
-                type="number"
-                min="1"
-                max="120"
-                value={ageValue}
-                onChange={(event) => setAgeValue(event.target.value)}
-                aria-label="Your age"
-                className="w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const next = Number(ageValue);
-                  if (next >= 1 && next <= 120) onSaveAge(next);
-                }}
-                className="shrink-0 rounded-lg bg-[var(--emerald)] px-3 py-2 font-display text-xs font-semibold text-white"
-              >
-                Save age
-              </button>
-            </div>
-          </div>
-        ) : reading.yearsUntil != null && reading.yearsUntil >= 0 ? (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            {reading.yearsUntil} {reading.yearsUntil === 1 ? "year" : "years"} from now until age {goal.target_age}.
-          </p>
-        ) : reading.yearsUntil != null ? (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            Age {goal.target_age} was {Math.abs(reading.yearsUntil)} {Math.abs(reading.yearsUntil) === 1 ? "year" : "years"} ago.
-          </p>
-        ) : null}
-        {reading.yearsInRetirement != null && goal.target_age != null && (
-          <p className="font-body text-xs text-[var(--text-muted)]">
-            From {goal.target_age} to {reading.lifeExpectancy} is {reading.yearsInRetirement} years. A general Canadian life expectancy at birth is {reading.lifeExpectancy}. This is not a forecast for you.
-          </p>
-        )}
-        {reading.needsSpend ? (
-          <AmountPrompt example={reading.exampleMonthly} prompt={spendPrompt} onSave={(amount) => onPatch({ monthly_need: amount })} />
-        ) : (
-          reading.spendingTotal != null && (
-            <p className="font-body text-xs text-[var(--text-secondary)]">
-              At {formatMoney(reading.monthlyNeed ?? 0)} a month, that is {formatMoney(reading.spendingTotal)} in today&apos;s dollars.
-            </p>
-          )
-        )}
-        {reading.balance != null ? (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            {formatMoney(reading.balance)} is on the latest check-in in retirement accounts.
-          </p>
-        ) : (
-          <p className="font-body text-xs text-[var(--text-muted)]">
-            No retirement account is on the latest net-worth check-in.
-          </p>
-        )}
-        {reading.gap != null && reading.gap > 0 && (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            The difference in today&apos;s dollars is {formatMoney(reading.gap)}. This does not assume investment growth.
-          </p>
-        )}
-        {reading.gap != null && reading.gap <= 0 && (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            The balance on file is {formatMoney(Math.abs(reading.gap))} above that amount in today&apos;s dollars. This does not assume investment growth.
-          </p>
-        )}
-        {reading.balance == null && (
-          <AccountChecks
-            label="Attach a retirement account if the savings sit somewhere else."
-            accounts={accountsForGoal("retirement_age", accounts)}
-            selected={selectedAccounts}
-            onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
-          />
-        )}
-      </div>
+      <RetirementReading
+        goal={goal}
+        reading={reading}
+        selectedAccounts={selectedAccounts}
+        onSaveAge={onSaveAge}
+      />
     );
   }
 
@@ -1309,12 +1346,14 @@ function GoalForm({
   initial,
   accounts,
   planChoices,
+  exampleMonthly,
   onClose,
   onSaved,
 }: {
   initial: GoalRow | null;
   accounts: GoalAccount[];
   planChoices: { slug: string; label: string; kind: CategoryKind }[];
+  exampleMonthly: number | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -1351,6 +1390,13 @@ function GoalForm({
     initial?.target_age != null ? String(initial.target_age) : "",
   );
   const [priority, setPriority] = useState<GoalPriority>(initial?.priority ?? "medium");
+  const [monthlyNeed, setMonthlyNeed] = useState(
+    initial?.monthly_need != null && initial.monthly_need > 0
+      ? String(initial.monthly_need)
+      : exampleMonthly != null
+        ? String(Math.round(exampleMonthly))
+        : "",
+  );
   const [saving, setSaving] = useState(false);
 
   const trip = isTripGoal({ name, goal_type: goalType }) && trackingClass === "balance";
@@ -1367,13 +1413,16 @@ function GoalForm({
     if (!name.trim()) return;
     setSaving(true);
     const months = Number(payoffMonths);
+    const monthly = Number(monthlyNeed);
+    const countedMonthly =
+      Number.isFinite(monthly) && monthly > 0 && monthly <= 1_000_000 ? monthly : null;
     const payload = {
       ...goalDraftToPayload({
         name,
         goal_type: goalType,
         target_amount: targetAmount,
         amount_unknown: amountUnknown,
-        horizon,
+        horizon: trackingClass === "retirement_age" ? "age" : horizon,
         target_date: targetDate,
         target_age: targetAge,
         priority,
@@ -1384,6 +1433,7 @@ function GoalForm({
       linked_plan_categories: keepPlans ? linkedPlans.filter((slug) => allowedLines.has(slug)) : [],
       funding_method: trip ? funding : null,
       payoff_months: trip && funding === "credit" && Number.isInteger(months) && months >= 1 && months <= 120 ? months : null,
+      monthly_need: trackingClass === "retirement_age" ? countedMonthly : undefined,
       source: initial ? undefined : ("manual" as const),
     };
     if (initial) {
@@ -1461,61 +1511,82 @@ function GoalForm({
             </option>
           ))}
         </select>
-        <div className="mb-3 grid grid-cols-2 gap-3">
-          <div className="min-w-0">
-            <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Target</label>
+        {trackingClass === "retirement_age" ? (
+          <div className="mb-3">
+            <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Monthly spending to count</label>
             <input
               type="number"
               min="0"
-              value={amountUnknown ? "" : targetAmount}
-              disabled={amountUnknown}
-              onChange={(e) => setTargetAmount(e.target.value)}
-              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
-            />
-          </div>
-          <div className="min-w-0">
-            <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Current</label>
-            <input
-              type="number"
-              min="0"
-              value={currentAmount}
-              onChange={(e) => setCurrentAmount(e.target.value)}
+              value={monthlyNeed}
+              onChange={(e) => setMonthlyNeed(e.target.value)}
+              aria-label="Monthly spending to count"
               className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
             />
+            <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
+              The comparison multiplies this by the years from the retirement age to 82. It starts from the plan until you set one.
+            </p>
           </div>
-        </div>
-        <label className="mb-3 flex items-start gap-2">
-          <input
-            type="checkbox"
-            checked={amountUnknown}
-            onChange={(e) => {
-              setAmountUnknown(e.target.checked);
-              if (e.target.checked) setTargetAmount("");
-            }}
-            className="mt-0.5 size-4 accent-[var(--emerald)]"
-          />
-          <span className="font-body text-xs text-[var(--text-secondary)]">
-            Not sure — I want to find out what this will cost
-          </span>
-        </label>
-        <div className="mb-2 flex gap-1">
-          {(["date", "age"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setHorizon(mode)}
-              className={cn(
-                "flex-1 rounded-lg py-2 font-display text-xs font-semibold",
-                horizon === mode
-                  ? "bg-[var(--emerald)] text-white"
-                  : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
-              )}
-            >
-              {mode === "date" ? "By date" : "By age"}
-            </button>
-          ))}
-        </div>
-        {horizon === "date" ? (
+        ) : (
+          <>
+            <div className="mb-3 grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Target</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={amountUnknown ? "" : targetAmount}
+                  disabled={amountUnknown}
+                  onChange={(e) => setTargetAmount(e.target.value)}
+                  className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm disabled:bg-[var(--warm-100)] disabled:text-[var(--text-muted)]"
+                />
+              </div>
+              <div className="min-w-0">
+                <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Current</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={currentAmount}
+                  onChange={(e) => setCurrentAmount(e.target.value)}
+                  className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+                />
+              </div>
+            </div>
+            <label className="mb-3 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={amountUnknown}
+                onChange={(e) => {
+                  setAmountUnknown(e.target.checked);
+                  if (e.target.checked) setTargetAmount("");
+                }}
+                className="mt-0.5 size-4 accent-[var(--emerald)]"
+              />
+              <span className="font-body text-xs text-[var(--text-secondary)]">
+                Not sure — I want to find out what this will cost
+              </span>
+            </label>
+          </>
+        )}
+        {trackingClass !== "retirement_age" && (
+          <div className="mb-2 flex gap-1">
+            {(["date", "age"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setHorizon(mode)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 font-display text-xs font-semibold",
+                  horizon === mode
+                    ? "bg-[var(--emerald)] text-white"
+                    : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+                )}
+              >
+                {mode === "date" ? "By date" : "By age"}
+              </button>
+            ))}
+          </div>
+        )}
+        {trackingClass !== "retirement_age" && horizon === "date" ? (
           <input
             type="date"
             value={targetDate}
@@ -1524,16 +1595,21 @@ function GoalForm({
             className="mb-3 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
           />
         ) : (
-          <input
-            type="number"
-            min="1"
-            max="120"
-            value={targetAge}
-            onChange={(e) => setTargetAge(e.target.value)}
-            placeholder="Target age, e.g. 55"
-            aria-label="Target age"
-            className="mb-3 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
-          />
+          <div className="mb-3">
+            {trackingClass === "retirement_age" && (
+              <label className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Retirement age</label>
+            )}
+            <input
+              type="number"
+              min="1"
+              max="120"
+              value={targetAge}
+              onChange={(e) => setTargetAge(e.target.value)}
+              placeholder="Target age, e.g. 55"
+              aria-label={trackingClass === "retirement_age" ? "Retirement age" : "Target age"}
+              className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+            />
+          </div>
         )}
         {trip && (
           <div className="mb-4">
@@ -1578,6 +1654,11 @@ function GoalForm({
             <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">
               {trackingClass === "debt" || funding === "credit" ? "Loan or card" : "Accounts to watch"}
             </p>
+            {(trackingClass === "retirement_age" || trackingClass === "retirement_income") && (
+              <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
+                Leaving these unchecked counts every retirement account on the latest check-in.
+              </p>
+            )}
             <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
               {accountChoices.map((account) => (
                 <label key={account.key} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
