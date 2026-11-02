@@ -902,7 +902,6 @@ function RetirementReading({
   const [ageValue, setAgeValue] = useState("");
   const [open, setOpen] = useState(false);
   const years = reading.yearsInRetirement;
-  const yearWord = years === 1 ? "year" : "years";
   const countedMonthly =
     reading.monthlyNeed != null && reading.monthlyNeed > 0
       ? reading.monthlyNeed
@@ -911,16 +910,28 @@ function RetirementReading({
         : null;
   const total = countedMonthly != null && years != null ? countedMonthly * 12 * years : null;
   const gap = total != null && reading.balance != null ? total - reading.balance : null;
-  const usingSaved = reading.monthlyNeed != null;
-  let spendLine: string | null = null;
-  if (total != null && countedMonthly != null && years != null) {
-    const over = years === 1 ? "Over that year" : `Over those ${years} years`;
-    const source = usingSaved
-      ? `Using ${formatMoney(countedMonthly)} a month, the amount saved on this goal.`
-      : reading.exampleFromPlan
-        ? `Using the plan's spending, about ${formatMoney(countedMonthly)} a month, because no retirement spending amount is saved yet.`
-        : `Using the monthly spending on your profile, about ${formatMoney(countedMonthly)} a month, because no retirement spending amount is saved yet.`;
-    spendLine = `${source} ${over}, in today's dollars and with no investment growth, that is ${formatMoney(total)}.`;
+  const spendSource = reading.monthlyNeed != null
+    ? "the amount saved on this goal"
+    : reading.exampleFromPlan
+      ? "the plan"
+      : "your profile";
+  let countedLine: string | null = null;
+  if (countedMonthly != null && total != null && years != null && goal.target_age != null) {
+    const accounts =
+      reading.balance == null
+        ? ""
+        : selectedAccounts.length > 0
+          ? " The accounts checked on this goal are included."
+          : " RRSP, TFSA, and the other registered accounts are included together.";
+    const difference =
+      reading.balance == null || gap == null
+        ? " No retirement account is on the latest net-worth check-in."
+        : gap > 0
+          ? ` By age ${goal.target_age}, that is ${formatMoney(gap)} more than the ${formatMoney(reading.balance)} already in retirement accounts.`
+          : gap < 0
+            ? ` The ${formatMoney(reading.balance)} already in retirement accounts is ${formatMoney(Math.abs(gap))} above that amount by age ${goal.target_age}.`
+            : ` The ${formatMoney(reading.balance)} already in retirement accounts matches that amount by age ${goal.target_age}.`;
+    countedLine = `Based on about ${formatMoney(countedMonthly)} a month from ${spendSource}, indexed in today's dollars, this counts ${formatMoney(total)} of spending from ${goal.target_age} to ${reading.lifeExpectancy}.${difference}${accounts}`;
   }
 
   return (
@@ -1000,29 +1011,21 @@ function RetirementReading({
         {open ? "Hide how this is counted" : "How this is counted"}
       </button>
       {open && (
-        <div className="space-y-1 pt-1">
-          {years != null && goal.target_age != null && (
-            <p className="font-body text-xs text-[var(--text-secondary)]">
-              Spending in this comparison runs from {goal.target_age} to {reading.lifeExpectancy}, which is {years} {yearWord}. {reading.lifeExpectancy} is a general Canadian life expectancy at birth. It is not a forecast for you.
-            </p>
-          )}
-          {spendLine != null ? (
-            <p className="font-body text-xs text-[var(--text-secondary)]">{spendLine}</p>
-          ) : years != null ? (
-            <p className="font-body text-xs text-[var(--text-muted)]">A monthly spending amount is set in Edit.</p>
-          ) : null}
-          {reading.balance != null ? (
-            <p className="font-body text-xs text-[var(--text-secondary)]">
-              Retirement accounts on the latest check-in hold {formatMoney(reading.balance)}.
-              {selectedAccounts.length > 0
-                ? " The accounts checked on this goal are included."
-                : " RRSP, TFSA, and the other registered accounts are included together."}
-            </p>
+        <div className="max-h-48 space-y-2 overflow-y-auto pt-2">
+          {countedLine != null ? (
+            <p className="font-body text-sm text-[var(--text-secondary)]">{countedLine}</p>
           ) : (
-            <p className="font-body text-xs text-[var(--text-muted)]">No retirement account is on the latest net-worth check-in.</p>
+            <p className="font-body text-sm text-[var(--text-secondary)]">
+              {years == null
+                ? "The retirement age is set in Edit."
+                : countedMonthly == null
+                  ? "A monthly spending amount is set in Edit."
+                  : "No retirement account is on the latest net-worth check-in."}
+            </p>
           )}
-          <p className="font-body text-xs text-[var(--text-secondary)]">This comparison does not assume investment growth.</p>
-          <p className="font-body text-xs text-[var(--text-muted)]">The retirement age and the monthly amount are changed in Edit.</p>
+          <p className="font-body text-sm text-[var(--text-secondary)]">
+            No investment growth is assumed. {reading.lifeExpectancy} is a general Canadian life expectancy at birth, not a forecast for you. The retirement age and the monthly amount are changed in Edit.
+          </p>
         </div>
       )}
     </div>
