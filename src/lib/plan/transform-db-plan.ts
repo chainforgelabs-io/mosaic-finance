@@ -252,10 +252,10 @@ function buildSections(raw: any): PlanSection[] {
       { label: "Target Age", value: String(lfr.financial_independence_target_age ?? "--") },
     ].filter(Boolean) as FinancialCardData[];
 
-    const currentPriorities = Array.isArray(lfr.current_decade_priorities)
+    const currentPriorities = Array.isArray(lfr.current_decade_priorities) && lfr.current_decade_priorities.length > 0
       ? "This decade:\n" + lfr.current_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
       : "";
-    const nextPriorities = Array.isArray(lfr.next_decade_priorities)
+    const nextPriorities = Array.isArray(lfr.next_decade_priorities) && lfr.next_decade_priorities.length > 0
       ? "Next decade:\n" + lfr.next_decade_priorities.map((p: string) => `  → ${p}`).join("\n")
       : "";
 
@@ -267,7 +267,7 @@ function buildSections(raw: any): PlanSection[] {
         headers: ["Age", "Target Net Worth", "Notes"],
         rows: milestones.map((m: any) => ({
           label: String(m.age ?? ""),
-          values: [m.target_net_worth != null ? fmtFull(m.target_net_worth) : "—", String(m.key_actions ?? "—")],
+          values: [m.target_net_worth != null ? fmtFull(m.target_net_worth) : "—", m.key_actions ? String(m.key_actions) : "—"],
         })),
       });
     }

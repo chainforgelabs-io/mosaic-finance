@@ -7,13 +7,13 @@ const DISCLAIMER =
   /educational information, not financial advice|licensed (financial |insurance )?advisor/i;
 
 const INSTRUCTION_START =
-  /^(?:please\s+)?(?:track|review|explore|consider|confirm|request|monitor|revisit|coordinate|recognize|build|clarify|close|reassess|check|ask|model|direct|allocate|prioriti[sz]e)\b/i;
+  /^(?:please\s+)?(?:track|review|explore|consider|confirm|request|monitor|revisit|coordinate|recognize|build|clarify|close|reassess|check|ask|model|direct|allocate|prioriti[sz]e|evaluate|adjust)\b/i;
 
 const ADVICE_PHRASE =
-  /\b(?:you should|we recommend|worth exploring|worth checking|consider modeling|close the gap)\b/i;
+  /\b(?:you should|we recommend|worth (?:exploring|checking|reviewing)|consider modeling|close the gap|could be explored|may not align|personalized projection|accelerat\w*|specific attention|adjust(?:ing)? (?:the |your |a )?savings|evaluate progress|gap persists|this gap|the gap|a gap\b|shortfall|prioriti[sz]\w*|higher-rate|higher rate debt|tackling|verify with a professional)\b/i;
 
 const ASSUMPTION =
-  /\b(?:\d+(?:\.\d+)?\s*%[^.]{0,48}\breturn\b|assuming\b[^.]{0,48}\breturn\b|nominal return|expected return|mathematically optimal|insurance gap|coverage gap|life insurance gap|potential gap of|estimated gap|gap of roughly|gap of about)\b/i;
+  /\b(?:\d+(?:\.\d+)?\s*%[^.]{0,48}\breturn\b|assuming\b[^.]{0,48}\breturn\b|nominal return|expected return|mathematically optimal|insurance gaps?|coverage gaps?|life insurance gaps?|potential gap of|estimated gap|gap of roughly|gap of about|closing insurance)\b/i;
 
 function lead(text: string): string {
   return text.replace(/^[\s→•*\-\d.)]+/, "").trim();
@@ -111,7 +111,9 @@ function cleanSection(section: Record<string, unknown>): Record<string, unknown>
       if (!item || typeof item !== "object") return item;
       const milestone = { ...(item as Record<string, unknown>) };
       if (typeof milestone.key_actions === "string") {
-        milestone.key_actions = descriptiveText(milestone.key_actions);
+        const text = descriptiveText(milestone.key_actions);
+        if (text) milestone.key_actions = text;
+        else delete milestone.key_actions;
       }
       return milestone;
     });

@@ -75,6 +75,44 @@ describe("stored report copy", () => {
     expect(retirement?.prose).not.toMatch(/nominal return|Explore/);
     expect(retirement?.actionItems).toEqual([]);
   });
+
+  it("drops shortfall, worth reviewing, insurance gaps, a savings task, and a named payoff order", () => {
+    const kept = descriptiveText(
+      "The registered accounts hold cash. A pension on file offsets this gap, but a shortfall likely remains. [VERIFY WITH A PROFESSIONAL] for a personalized projection.",
+    );
+    expect(kept).toBe("The registered accounts hold cash.");
+
+    const holdings = descriptiveText(
+      "Holdings on file are cash. The mix may not align with the stated profile — this is worth reviewing.",
+    );
+    expect(holdings).toBe("Holdings on file are cash.");
+
+    const view = transformDbPlanToFinancialPlan({
+      id: "plan-1",
+      status: "delivered",
+      created_at: "2026-10-23T00:00:00.000Z",
+      plan_data: {
+        debt_elimination_plan: {
+          recommendation_rationale: "Prioritizing the higher-rate balance tackles that rate first. The interest totals differ.",
+        },
+        lifetime_financial_roadmap: {
+          decade_by_decade_summary: "The early years include closing insurance gaps. Later years show the same balances.",
+          current_decade_priorities: ["Closing insurance gaps is the focus."],
+          net_worth_milestones: [
+            { age: 50, target_net_worth: 1000, key_actions: "Evaluate progress and adjust savings if a gap persists." },
+          ],
+        },
+      },
+    });
+    const debt = view.sections.find((section) => section.id === "debt_elimination_plan");
+    expect(debt?.prose).toContain("The interest totals differ.");
+    expect(debt?.prose).not.toMatch(/[Pp]rioritiz|higher-rate|tackl/);
+    const decades = view.sections.find((section) => section.id === "lifetime_financial_roadmap");
+    expect(decades?.summary).toBe("Later years show the same balances.");
+    expect(decades?.prose).not.toMatch(/insurance gaps|This decade/);
+    const note = decades?.tables?.[0]?.rows[0]?.values[1];
+    expect(note).toBe("—");
+  });
 });
 
 describe("plan generation prompt observations", () => {
@@ -94,5 +132,9 @@ describe("plan generation prompt observations", () => {
     expect(prompt).toContain("Do not call either method mathematically optimal");
     expect(prompt).toContain("Do not describe an insurance gap");
     expect(prompt).toContain("Do not start one with track, review, explore, consider");
+    expect(prompt).toContain("Do not write the words shortfall or gap");
+    expect(prompt).toContain("worth reviewing");
+    expect(prompt).toContain("Do not name a balance or a rate");
+    expect(prompt).toContain("closing insurance gaps");
   });
 });
