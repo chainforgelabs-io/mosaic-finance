@@ -14,6 +14,7 @@ import {
   type GoalType,
 } from "@/lib/tracking/categories";
 import { isSavings, transactionKind } from "@/lib/tracking/cash-capture";
+import { addCreditSource } from "@/lib/tracking/add-credit-source";
 import { createSavingsAccount } from "@/lib/tracking/create-savings-account";
 import { addDays, addMonths, formatMonthLabel, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
 import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
@@ -22,6 +23,7 @@ import {
   GOAL_CLASSES,
   accountsForGoal,
   accountsFromBreakdown,
+  accountsFromDebts,
   fundingMethodOf,
   goalClassOf,
   inferGoalClass,
@@ -106,6 +108,7 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
   }
   if (holdRes.ok) {
     const json = await holdRes.json();
+    const liveDebts = accountsFromDebts(json.financialProfile?.major_debts);
     const live: GoalAccount[] = (json.holdings ?? []).map(
       (row: { id: string; account_type?: string; display_name?: string | null; total_value?: number | null }) => ({
         key: row.id,
@@ -116,11 +119,12 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
         bucket: "investment" as const,
       }),
     );
+    const liveAccounts = [...live, ...liveDebts];
     if (history.length === 0) {
-      history = [{ date: today, accounts: live }];
+      history = [{ date: today, accounts: liveAccounts }];
     } else {
       const last = history[history.length - 1];
-      history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, live) }];
+      history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, liveAccounts) }];
     }
   }
   const loggedByCategory: Record<string, number> = {};
@@ -649,6 +653,54 @@ function AddSavingsAccount({
   );
 }
 
+function AddCreditSource({
+  onCreated,
+}: {
+  onCreated: (created: { key: string; name: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function add() {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    const created = await addCreditSource(name);
+    setSaving(false);
+    if (!created) {
+      setError("Could not add that card.");
+      return;
+    }
+    setName("");
+    onCreated(created);
+  }
+
+  return (
+    <div className="mt-3">
+      <label className="font-body text-xs text-[var(--text-secondary)]">Name the card or line</label>
+      <div className="mt-1 flex gap-2">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Credit card"
+          className="min-w-0 flex-1 rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+        <button
+          type="button"
+          onClick={() => void add()}
+          disabled={saving || !name.trim()}
+          className="shrink-0 rounded-lg bg-[var(--emerald)] px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {saving ? "Adding…" : "Add"}
+        </button>
+      </div>
+      <p className="mt-1 font-body text-xs text-[var(--text-muted)]">The balance can stay at zero until it is used. It is added on Net Worth.</p>
+      {error && <p className="mt-1 font-body text-xs text-[var(--error)]">{error}</p>}
+    </div>
+  );
+}
+
 function TripFunding({
   goal,
   reading,
@@ -741,13 +793,21 @@ function TripFunding({
         <>
           <CashOrCard goal={goal} reading={reading} monthLabel={monthLabel} onPatch={onPatch} />
           {cards.length === 0 && (
-            <p className="font-body text-xs text-[var(--text-muted)]">Add the card or line on Net Worth. This goal reads that balance.</p>
+            <p className="font-body text-xs text-[var(--text-muted)]">No card or line is on Net Worth yet.</p>
           )}
           <AccountChecks
             label="Which card or line?"
             accounts={cards}
             selected={selectedAccounts}
             onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
+          />
+          <AddCreditSource
+            onCreated={(created) =>
+              onPatch({
+                funding_method: "credit",
+                linked_account_ids: [...selectedAccounts, created.key],
+              })
+            }
           />
           <PayoffMonths
             value={goal.payoff_months ?? null}
@@ -1527,7 +1587,7 @@ function GoalForm({
           </div>
         )}
         {trackingClass === "debt" && accountChoices.length === 0 && (
-          <p className="mb-4 font-body text-xs text-[var(--text-muted)]">Add the loan or card on Net Worth. This goal reads that balance.</p>
+          <p className="mb-4 font-body text-xs text-[var(--text-muted)]">No loan or card is on Net Worth yet.</p>
         )}
         {accountChoices.length > 0 && (
           <div className="mb-4">
@@ -1554,6 +1614,17 @@ function GoalForm({
               ))}
             </div>
           </div>
+        )}
+        {((trip && funding === "credit") || trackingClass === "debt") && (
+          <AddCreditSource
+            onCreated={(created) => {
+              setAddedAccounts((current) => [
+                ...current,
+                { key: created.key, name: created.name, value: 0, side: "debt", bucket: "debt" },
+              ]);
+              setLinkedAccounts((current) => [...current, created.key]);
+            }}
+          />
         )}
         {(trackingClass === "balance" && (!trip || funding === "set_aside")) && (
           <AddSavingsAccount

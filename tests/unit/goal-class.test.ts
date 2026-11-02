@@ -4,6 +4,7 @@ import {
   CANADA_LIFE_EXPECTANCY_YEARS,
   accountsForGoal,
   accountsFromBreakdown,
+  accountsFromDebts,
   cardPaydown,
   inferGoalClass,
   linesForGoal,
@@ -335,6 +336,15 @@ describe("goal sheet lines", () => {
   it("names a new savings line without taking over an expense category", () => {
     expect(savingsSlug("Travel fund")).toBe("travel_fund");
     expect(savingsSlug("Travel")).toBe("travel_savings");
+  });
+
+  it("keeps a zero-balance card that is not on the latest check-in", () => {
+    const card = accountsFromDebts([{ type: "Credit card", balance: 0 }]);
+    expect(card.map((account) => account.name)).toEqual(["Credit card"]);
+    expect(card[0]?.value).toBe(0);
+    const loan = accountsFromDebts([{ type: "car_loan", amount: 18100 }]);
+    expect(mergeMissingAccounts(loan, card).map((account) => account.name)).toEqual(["Car loan", "Credit card"]);
+    expect(mergeMissingAccounts(loan, loan)).toHaveLength(1);
   });
 
   it("keeps a new savings account that is not on the latest check-in", () => {

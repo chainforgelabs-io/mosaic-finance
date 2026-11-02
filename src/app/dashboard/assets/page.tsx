@@ -772,11 +772,12 @@ export default function AssetsPage() {
 
   async function handleAddDebt() {
     const name = debtName.trim();
-    const balance = Number(debtBalance.replace(/[$,]/g, ""));
+    const balanceRaw = debtBalance.trim();
+    const balance = balanceRaw === "" ? 0 : Number(balanceRaw.replace(/[$,]/g, ""));
     const rateRaw = debtRate.trim();
     const rate = rateRaw === "" ? undefined : Number(rateRaw);
-    if (!name || !Number.isFinite(balance) || balance <= 0) {
-      setDebtError("Enter a name and a balance greater than zero.");
+    if (!name || !Number.isFinite(balance) || balance < 0) {
+      setDebtError("Enter a name. The balance can be zero.");
       return;
     }
     if (rate != null && !Number.isFinite(rate)) {
@@ -854,12 +855,12 @@ export default function AssetsPage() {
   const planTotalDebt = debtPlan?.total_debt;
   const planDebtNum =
     typeof planTotalDebt === "number" && !Number.isNaN(planTotalDebt) ? planTotalDebt : null;
+  const hasProfileDebts = (profile?.major_debts ?? []).length > 0;
   const parsedDebts =
-    profileDebtTotal > 0 ? [] : debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
-  const manualDebts =
-    profileDebtTotal > 0
-      ? (profile?.major_debts ?? []).map((d, index) => ({ ...d, index }))
-      : [];
+    hasProfileDebts ? [] : debtOrder.map(parseDebtFromPlan).filter((d) => d.amount > 0);
+  const manualDebts = hasProfileDebts
+    ? (profile?.major_debts ?? []).map((d, index) => ({ ...d, index }))
+    : [];
   const totalDebt = recordedDebt(profileDebtTotal, planDebtNum);
   const liveNetWorth = totalAssets - totalDebt;
   const netWorth =

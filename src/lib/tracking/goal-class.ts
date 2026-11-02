@@ -150,6 +150,27 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
   ];
 }
 
+/** Debts on the profile, including a card whose balance is still zero. */
+export function accountsFromDebts(
+  rows: { type?: string | null; name?: string | null; balance?: number | null; amount?: number | null }[] | null | undefined,
+): GoalAccount[] {
+  if (!rows) return [];
+  return rows.flatMap((row) => {
+    const type = String(row.type ?? row.name ?? "").trim();
+    const value = Number(row.balance ?? row.amount);
+    if (!type || !Number.isFinite(value)) return [];
+    return [
+      {
+        key: accountKey({ type, value }, "debt"),
+        name: formatSnapshotLabel(type),
+        value,
+        side: "debt" as const,
+        bucket: "debt" as const,
+      },
+    ];
+  });
+}
+
 /** A vacation, or a goal whose name is a trip. */
 export function isTripGoal(input: { name?: string | null; goal_type?: string | null }): boolean {
   if ((input.goal_type ?? "").toLowerCase() === "vacation") return true;
