@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { Archive, Check, Plus, Target, Trash2, X } from "lucide-react";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
@@ -46,13 +47,58 @@ import type { GoalRow, SnapshotBreakdown } from "@/types/tracking";
 
 const CLASS_ORDER: GoalClass[] = ["retirement_age", "retirement_income", "debt", "balance", "cost_of_living", "note"];
 
+let cachedNow = 0;
+
 function subscribeMinute(onChange: () => void) {
-  const id = setInterval(onChange, 60_000);
+  const id = setInterval(() => {
+    cachedNow = Date.now();
+    onChange();
+  }, 60_000);
   return () => clearInterval(id);
 }
 
 function snapshotNow() {
-  return Date.now();
+  if (cachedNow === 0 && typeof window !== "undefined") cachedNow = Date.now();
+  return cachedNow;
+}
+
+function idList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+function accountLabel(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+class QuietBoundary extends Component<{ children: React.ReactNode }, { failed: boolean; nonce: number }> {
+  state = { failed: false, nonce: 0 };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    Sentry.captureException(error);
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="rounded-lg border border-[var(--warm-200)] bg-white p-5">
+          <p className="font-body text-sm text-[var(--text-secondary)]">Something went wrong.</p>
+          <button
+            type="button"
+            onClick={() => this.setState((current) => ({ failed: false, nonce: current.nonce + 1 }))}
+            className="mt-3 rounded-lg bg-[var(--emerald)] px-3 py-2 font-display text-xs font-semibold text-white"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return <div key={this.state.nonce}>{this.props.children}</div>;
+  }
 }
 
 interface GoalPageData {
@@ -107,24 +153,38 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
   if (holdRes.ok) {
-    const json = await holdRes.json();
-    const liveDebts = accountsFromDebts(json.financialProfile?.major_debts);
-    const live: GoalAccount[] = (json.holdings ?? []).map(
-      (row: { id: string; account_type?: string; display_name?: string | null; total_value?: number | null }) => ({
-        key: row.id,
-        name: formatSnapshotLabel(row.display_name?.trim() || row.account_type || "Account"),
-        value: Number(row.total_value) || 0,
-        side: "asset" as const,
-        accountType: row.account_type,
-        bucket: "investment" as const,
-      }),
-    );
-    const liveAccounts = [...live, ...liveDebts];
-    if (history.length === 0) {
-      history = [{ date: today, accounts: liveAccounts }];
-    } else {
-      const last = history[history.length - 1];
-      history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, liveAccounts) }];
+    try {
+      const json = await holdRes.json();
+      const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null; holdings?: unknown }).financialProfile : null;
+      const liveDebts = accountsFromDebts(profile?.major_debts);
+      const holdingRows = json && typeof json === "object" && Array.isArray((json as { holdings?: unknown }).holdings)
+        ? ((json as { holdings: unknown[] }).holdings)
+        : [];
+      const live: GoalAccount[] = holdingRows.flatMap((row) => {
+        if (!row || typeof row !== "object") return [];
+        const holding = row as { id?: unknown; account_type?: unknown; display_name?: unknown; total_value?: unknown };
+        const key = typeof holding.id === "string" ? holding.id : "";
+        if (!key) return [];
+        const named = typeof holding.display_name === "string" ? holding.display_name.trim() : "";
+        const typeName = typeof holding.account_type === "string" ? holding.account_type : "";
+        return [{
+          key,
+          name: formatSnapshotLabel(named || typeName || "Account"),
+          value: Number(holding.total_value) || 0,
+          side: "asset" as const,
+          accountType: typeName || undefined,
+          bucket: "investment" as const,
+        }];
+      });
+      const liveAccounts = [...live, ...liveDebts];
+      if (history.length === 0) {
+        history = [{ date: today, accounts: liveAccounts }];
+      } else {
+        const last = history[history.length - 1];
+        history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, liveAccounts) }];
+      }
+    } catch {
+      // A bad holdings payload should not blank the goals already read from check-ins.
     }
   }
   const loggedByCategory: Record<string, number> = {};
@@ -133,7 +193,9 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
   let monthExpense = 0;
   if (txnRes.ok) {
     const json = await txnRes.json();
-    for (const txn of json.transactions ?? []) {
+    const txns = json && Array.isArray(json.transactions) ? json.transactions : [];
+    for (const txn of txns) {
+      if (!txn || typeof txn !== "object") continue;
       const date = String(txn.txn_date ?? "");
       const amount = Number(txn.amount) || 0;
       if (isSavings(txn) && txn.category && date >= month) {
@@ -227,24 +289,32 @@ export default function GoalsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    applyPage(await fetchGoalPageData());
+    try {
+      applyPage(await fetchGoalPageData());
+    } catch {
+      setLoading(false);
+    }
   }, [applyPage]);
 
   useEffect(() => {
     let cancelled = false;
-    void fetchGoalPageData().then((data) => {
-      if (!cancelled) applyPage(data);
-    });
+    void fetchGoalPageData()
+      .then((data) => {
+        if (!cancelled) applyPage(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
   }, [applyPage]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !Array.isArray(goals)) return;
     let cancelled = false;
     for (const goal of goals) {
-      if (goal.status === "archived") continue;
+      if (!goal || goal.status === "archived") continue;
       if (goalClassOf(goal) !== "debt") continue;
       if (goal.baseline_balances && Object.keys(goal.baseline_balances).length > 0) continue;
       if (baselineTried.current.has(goal.id)) continue;
@@ -259,9 +329,13 @@ export default function GoalsPage() {
         body: JSON.stringify({ id: goal.id, baseline_balances }),
       }).then((res) => {
         if (!res.ok || cancelled) return;
-        void fetchGoalPageData().then((data) => {
-          if (!cancelled) applyPage(data);
-        });
+        void fetchGoalPageData()
+          .then((data) => {
+            if (!cancelled) applyPage(data);
+          })
+          .catch(() => {
+            if (!cancelled) setLoading(false);
+          });
       });
     }
     return () => {
@@ -269,9 +343,10 @@ export default function GoalsPage() {
     };
   }, [loading, goals, history, applyPage]);
 
-  const active = goals.filter((g) => g.status === "active");
-  const achieved = goals.filter((g) => g.status === "achieved");
-  const archived = goals.filter((g) => g.status === "archived");
+  const goalRows = Array.isArray(goals) ? goals : [];
+  const active = goalRows.filter((g) => g && g.status === "active");
+  const achieved = goalRows.filter((g) => g && g.status === "achieved");
+  const archived = goalRows.filter((g) => g && g.status === "archived");
 
   async function patch(id: string, updates: Partial<GoalRow>) {
     setGoals((current) => current.map((goal) => (goal.id === id ? { ...goal, ...updates } : goal)));
@@ -357,7 +432,7 @@ export default function GoalsPage() {
       </div>
 
       {!loading &&
-        goals.some((g) => g.source === "fact_find" && !g.reviewed_at) && (
+        goalRows.some((g) => g && g.source === "fact_find" && !g.reviewed_at) && (
           <div className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-body text-sm text-[var(--text-secondary)]">
               These goals came from your conversation with Charlie. Check the amounts and dates, then
@@ -407,23 +482,24 @@ export default function GoalsPage() {
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {rows.map((g) => (
-                    <GoalCard
-                      key={g.id}
-                      goal={g}
-                      reading={readGoal(g, factsFor(g))}
-                      accounts={latestAccounts}
-                      savingsChoices={savingsChoices}
-                      onPatch={(updates) => patch(g.id, updates)}
-                      onSaveAge={saveAge}
-                      choiceError={choiceErrors[g.id]}
-                      onEdit={() => {
-                        setEditing(g);
-                        setShowForm(true);
-                      }}
-                      onAchieve={() => patch(g.id, { status: "achieved", current_amount: g.target_amount ?? g.current_amount })}
-                      onArchive={() => patch(g.id, { status: "archived" })}
-                      onDelete={() => remove(g.id)}
-                    />
+                    <QuietBoundary key={g.id}>
+                      <GoalMeasure
+                        goal={g}
+                        facts={factsFor(g)}
+                        accounts={latestAccounts}
+                        savingsChoices={savingsChoices}
+                        onPatch={(updates) => patch(g.id, updates)}
+                        onSaveAge={saveAge}
+                        choiceError={choiceErrors[g.id]}
+                        onEdit={() => {
+                          setEditing(g);
+                          setShowForm(true);
+                        }}
+                        onAchieve={() => patch(g.id, { status: "achieved", current_amount: g.target_amount ?? g.current_amount })}
+                        onArchive={() => patch(g.id, { status: "archived" })}
+                        onDelete={() => remove(g.id)}
+                      />
+                    </QuietBoundary>
                   ))}
                 </div>
               </section>
@@ -434,16 +510,17 @@ export default function GoalsPage() {
               <h2 className="mb-3 font-display text-lg font-semibold">Achieved</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {achieved.map((g) => (
-                  <GoalCard
-                    key={g.id}
-                    goal={g}
-                    reading={readGoal(g, factsFor(g))}
-                    accounts={latestAccounts}
-                    savingsChoices={savingsChoices}
-                    onPatch={(updates) => patch(g.id, updates)}
-                    onSaveAge={saveAge}
-                    onDelete={() => remove(g.id)}
-                  />
+                  <QuietBoundary key={g.id}>
+                    <GoalMeasure
+                      goal={g}
+                      facts={factsFor(g)}
+                      accounts={latestAccounts}
+                      savingsChoices={savingsChoices}
+                      onPatch={(updates) => patch(g.id, updates)}
+                      onSaveAge={saveAge}
+                      onDelete={() => remove(g.id)}
+                    />
+                  </QuietBoundary>
                 ))}
               </div>
             </div>
@@ -453,17 +530,18 @@ export default function GoalsPage() {
               <h2 className="mb-3 font-display text-lg font-semibold text-[var(--text-muted)]">Archived</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {archived.map((g) => (
-                  <GoalCard
-                    key={g.id}
-                    goal={g}
-                    reading={readGoal(g, factsFor(g))}
-                    accounts={latestAccounts}
-                    savingsChoices={savingsChoices}
-                    onPatch={(updates) => patch(g.id, updates)}
-                    onSaveAge={saveAge}
-                    onDelete={() => remove(g.id)}
-                    onAchieve={() => patch(g.id, { status: "active" })}
-                  />
+                  <QuietBoundary key={g.id}>
+                    <GoalMeasure
+                      goal={g}
+                      facts={factsFor(g)}
+                      accounts={latestAccounts}
+                      savingsChoices={savingsChoices}
+                      onPatch={(updates) => patch(g.id, updates)}
+                      onSaveAge={saveAge}
+                      onDelete={() => remove(g.id)}
+                      onAchieve={() => patch(g.id, { status: "active" })}
+                    />
+                  </QuietBoundary>
                 ))}
               </div>
             </div>
@@ -472,20 +550,22 @@ export default function GoalsPage() {
       )}
 
       {showForm && (
-        <GoalForm
-          initial={editing}
-          accounts={latestAccounts}
-          planChoices={planChoices}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
-          onSaved={async () => {
-            setShowForm(false);
-            setEditing(null);
-            await load();
-          }}
-        />
+        <QuietBoundary>
+          <GoalForm
+            initial={editing}
+            accounts={latestAccounts}
+            planChoices={planChoices}
+            onClose={() => {
+              setShowForm(false);
+              setEditing(null);
+            }}
+            onSaved={async () => {
+              setShowForm(false);
+              setEditing(null);
+              await load();
+            }}
+          />
+        </QuietBoundary>
       )}
 
       <UnlockToast unlocks={unlocks} onDismiss={() => setUnlocks([])} />
@@ -494,8 +574,15 @@ export default function GoalsPage() {
 }
 
 function toggleId(list: string[] | null | undefined, value: string): string[] {
-  const current = list ?? [];
+  const current = idList(list);
   return current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+}
+
+function GoalMeasure({
+  facts,
+  ...props
+}: Omit<React.ComponentProps<typeof GoalCard>, "reading"> & { facts: GoalFacts }) {
+  return <GoalCard {...props} reading={readGoal(props.goal, facts)} />;
 }
 
 function AmountPrompt({
@@ -559,7 +646,7 @@ function AccountChecks({
               onChange={() => onToggle(account.key)}
               className="size-4 accent-[var(--emerald)]"
             />
-            {account.name}
+            {accountLabel(account.name, "Account")}
           </label>
         ))}
       </div>
@@ -666,14 +753,19 @@ function AddCreditSource({
     if (!name.trim() || saving) return;
     setSaving(true);
     setError(null);
-    const created = await addCreditSource(name);
-    setSaving(false);
-    if (!created) {
+    try {
+      const created = await addCreditSource(name);
+      if (!created || typeof created.key !== "string" || typeof created.name !== "string") {
+        setError("Could not add that card.");
+        return;
+      }
+      setName("");
+      onCreated(created);
+    } catch {
       setError("Could not add that card.");
-      return;
+    } finally {
+      setSaving(false);
     }
-    setName("");
-    onCreated(created);
   }
 
   return (
@@ -919,9 +1011,9 @@ function ReadingView({
   choiceError?: string;
 }) {
   const [ageValue, setAgeValue] = useState("");
-  const assets = accounts.filter((account) => account.side === "asset");
-  const selectedAccounts = goal.linked_account_ids ?? [];
-  const selectedPlans = goal.linked_plan_categories ?? [];
+  const assets = (accounts ?? []).filter((account) => account && account.side === "asset");
+  const selectedAccounts = idList(goal.linked_account_ids);
+  const selectedPlans = idList(goal.linked_plan_categories);
 
   if (reading.goalClass === "retirement_age") {
     const spendPrompt =
@@ -1051,7 +1143,7 @@ function ReadingView({
         <ul className="space-y-1">
           {reading.rows.map((row) => (
             <li key={row.key} className="font-body text-xs text-[var(--text-secondary)]">
-              {row.name}: started at {formatMoney(row.start)} · {formatMoney(row.now)} still owed
+              {accountLabel(row.name, "Debt")}: started at {formatMoney(row.start)} · {formatMoney(row.now)} still owed
             </li>
           ))}
         </ul>
@@ -1229,7 +1321,7 @@ function GoalCard({
           <p className="font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
             {GOAL_CLASS_LABELS[reading.goalClass]}
           </p>
-          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{presentGoalName(goal.name)}</h3>
+          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{presentGoalName(typeof goal.name === "string" ? goal.name : "Goal")}</h3>
           {(goal.source === "fact_find" || goal.source === "onboarding") && (
             <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
               From your onboarding session — change this if it isn&apos;t quite right.
@@ -1244,7 +1336,7 @@ function GoalCard({
             goal.priority === "low" && "bg-[var(--warm-100)] text-[var(--text-secondary)]",
           )}
         >
-          {goal.priority}
+          {typeof goal.priority === "string" ? goal.priority : ""}
         </span>
       </div>
       {goal.amount_unknown && reading.goalClass === "note" && (
@@ -1354,8 +1446,8 @@ function GoalForm({
         }),
   );
   const [classTouched, setClassTouched] = useState(Boolean(initial?.tracking_class));
-  const [linkedAccounts, setLinkedAccounts] = useState<string[]>(initial?.linked_account_ids ?? []);
-  const [linkedPlans, setLinkedPlans] = useState<string[]>(initial?.linked_plan_categories ?? []);
+  const [linkedAccounts, setLinkedAccounts] = useState<string[]>(idList(initial?.linked_account_ids));
+  const [linkedPlans, setLinkedPlans] = useState<string[]>(idList(initial?.linked_plan_categories));
   const [addedAccounts, setAddedAccounts] = useState<GoalAccount[]>([]);
   const [addedSlugs, setAddedSlugs] = useState<string[]>([]);
   const [fundingMethod, setFundingMethod] = useState<FundingMethod | "">(fundingMethodOf(initial?.funding_method) ?? "");
@@ -1615,7 +1707,7 @@ function GoalForm({
                     }
                     className="size-4 accent-[var(--emerald)]"
                   />
-                  <span className="min-w-0 break-words">{account.name}</span>
+                  <span className="min-w-0 break-words">{accountLabel(account.name, "Account")}</span>
                 </label>
               ))}
             </div>
@@ -1624,11 +1716,14 @@ function GoalForm({
         {((trip && funding === "credit") || trackingClass === "debt") && (
           <AddCreditSource
             onCreated={(created) => {
+              const key = typeof created.key === "string" ? created.key : "";
+              const label = accountLabel(created.name, "");
+              if (!key || !label) return;
               setAddedAccounts((current) => [
-                ...current,
-                { key: created.key, name: created.name, value: 0, side: "debt", bucket: "debt" },
+                ...(Array.isArray(current) ? current : []),
+                { key, name: label, value: 0, side: "debt", bucket: "debt" },
               ]);
-              setLinkedAccounts((current) => [...current, created.key]);
+              setLinkedAccounts((current) => [...idList(current), key]);
             }}
           />
         )}

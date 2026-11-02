@@ -120,10 +120,23 @@ export function accountKey(item: SnapshotBreakdownItem, side: "asset" | "debt"):
   return `${side}:${item.account_type ?? ""}:${item.name ?? item.type ?? ""}`;
 }
 
+function finiteMoney(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value.replace(/[$,\s]/g, ""));
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function breakdownItems(items: SnapshotBreakdownItem[] | null | undefined): SnapshotBreakdownItem[] {
+  return (items ?? []).filter((item) => item != null && typeof item === "object");
+}
+
 export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | undefined): GoalAccount[] {
   if (!breakdown) return [];
   return [
-    ...(breakdown.investments ?? []).map((item) => ({
+    ...breakdownItems(breakdown.investments).map((item) => ({
       key: accountKey(item, "asset"),
       name: formatSnapshotLabel(item.name || item.account_type || item.type || "Account"),
       value: Number(item.value) || 0,
@@ -131,7 +144,7 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
       accountType: item.account_type,
       bucket: "investment" as const,
     })),
-    ...(breakdown.fixed_assets ?? []).map((item) => ({
+    ...breakdownItems(breakdown.fixed_assets).map((item) => ({
       key: accountKey(item, "asset"),
       name: formatSnapshotLabel(item.name || item.account_type || item.type || "Account"),
       value: Number(item.value) || 0,
@@ -139,7 +152,7 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
       accountType: item.account_type,
       bucket: "fixed" as const,
     })),
-    ...(breakdown.debts ?? []).map((item) => ({
+    ...breakdownItems(breakdown.debts).map((item) => ({
       key: accountKey(item, "debt"),
       name: formatSnapshotLabel(item.name || item.account_type || item.type || "Debt"),
       value: Number(item.value) || 0,
@@ -151,14 +164,14 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
 }
 
 /** Debts on the profile, including a card whose balance is still zero. */
-export function accountsFromDebts(
-  rows: { type?: string | null; name?: string | null; balance?: number | null; amount?: number | null }[] | null | undefined,
-): GoalAccount[] {
-  if (!rows) return [];
+export function accountsFromDebts(rows: unknown): GoalAccount[] {
+  if (!Array.isArray(rows)) return [];
   return rows.flatMap((row) => {
-    const type = String(row.type ?? row.name ?? "").trim();
-    const value = Number(row.balance ?? row.amount);
-    if (!type || !Number.isFinite(value)) return [];
+    if (!row || typeof row !== "object") return [];
+    const debt = row as { type?: unknown; name?: unknown; balance?: unknown; amount?: unknown };
+    const type = String(debt.type ?? debt.name ?? "").trim();
+    const value = finiteMoney(debt.balance ?? debt.amount);
+    if (!type || value == null) return [];
     return [
       {
         key: accountKey({ type, value }, "debt"),
@@ -190,18 +203,19 @@ export function accountsForGoal(
 ): GoalAccount[] {
   const trip = options?.trip === true;
   const funding = options?.funding ?? null;
+  const list = (accounts ?? []).filter((account) => account && account.key);
   if (goalClass === "cost_of_living" || goalClass === "note") return [];
   if (goalClass === "debt" || (trip && funding === "credit")) {
-    return accounts.filter((account) => account.side === "debt");
+    return list.filter((account) => account.side === "debt");
   }
   if (trip && funding !== "set_aside" && funding !== "existing") return [];
   if (goalClass === "retirement_age" || goalClass === "retirement_income") {
-    return accounts.filter((account) => account.side === "asset" && isRetirementAccount(account.accountType));
+    return list.filter((account) => account.side === "asset" && isRetirementAccount(account.accountType));
   }
   if (goalClass === "balance") {
-    return accounts.filter((account) => account.side === "asset" && account.bucket !== "fixed");
+    return list.filter((account) => account.side === "asset" && account.bucket !== "fixed");
   }
-  return accounts.filter((account) => account.side === "asset");
+  return list.filter((account) => account.side === "asset");
 }
 
 /** Plan lines the goal sheet is allowed to offer. */
@@ -210,32 +224,40 @@ export function linesForGoal<T extends { slug: string; kind: "income" | "expense
   lines: T[],
   trip = false,
 ): T[] {
-  if (trip || goalClass !== "balance") return [];
-  return lines.filter((line) => line.kind === "savings" && line.slug !== "debt_principal");
+  if (trip || goalClass !== "balance" || !Array.isArray(lines)) return [];
+  return lines.filter((line) => line && line.kind === "savings" && line.slug !== "debt_principal");
 }
 
 /** Last check-in strictly before a YYYY-MM month. */
-export function snapshotBefore(history: DatedAccounts[], month: string): DatedAccounts | null {
+export function snapshotBefore(history: DatedAccounts[] | null | undefined, month: string): DatedAccounts | null {
+  if (!Array.isArray(history) || month.length < 7) return null;
   const start = `${month}-01`;
-  const prior = history.filter((row) => row.date.slice(0, 10) < start).sort((a, b) => a.date.localeCompare(b.date));
+  const prior = history
+    .filter((row) => typeof row?.date === "string" && row.date.slice(0, 10) < start)
+    .sort((a, b) => a.date.localeCompare(b.date));
   return prior.length > 0 ? prior[prior.length - 1] : null;
 }
 
 /** Last check-in inside a YYYY-MM month. */
-export function snapshotDuring(history: DatedAccounts[], month: string): DatedAccounts | null {
-  const rows = history.filter((row) => row.date.slice(0, 7) === month).sort((a, b) => a.date.localeCompare(b.date));
+export function snapshotDuring(history: DatedAccounts[] | null | undefined, month: string): DatedAccounts | null {
+  if (!Array.isArray(history) || month.length < 7) return null;
+  const rows = history
+    .filter((row) => typeof row?.date === "string" && row.date.slice(0, 7) === month)
+    .sort((a, b) => a.date.localeCompare(b.date));
   return rows.length > 0 ? rows[rows.length - 1] : null;
 }
 
-function sumKeys(accounts: GoalAccount[], keys: string[]): number | null {
+function sumKeys(accounts: GoalAccount[] | null | undefined, keys: string[]): number | null {
+  if (!Array.isArray(accounts)) return null;
   const wanted = new Set(keys);
-  const found = accounts.filter((account) => wanted.has(account.key));
+  const found = accounts.filter((account) => account && wanted.has(account.key));
   if (found.length === 0) return null;
   return found.reduce((sum, account) => sum + account.value, 0);
 }
 
-function debtTotal(accounts: GoalAccount[]): number {
-  return accounts.filter((account) => account.side === "debt").reduce((sum, account) => sum + account.value, 0);
+function debtTotal(accounts: GoalAccount[] | null | undefined): number {
+  if (!Array.isArray(accounts)) return 0;
+  return accounts.filter((account) => account && account.side === "debt").reduce((sum, account) => sum + account.value, 0);
 }
 
 /** The increase on a card in the trip month, and how much of that increase is still owed. */
@@ -246,9 +268,13 @@ export function cardPaydown(input: { before: number; added: number; now: number 
 }
 
 /** Live accounts that are not already on the latest check-in. */
-export function mergeMissingAccounts(accounts: GoalAccount[], live: GoalAccount[]): GoalAccount[] {
-  const seen = new Set(accounts.map((account) => account.key));
-  return [...accounts, ...live.filter((account) => !seen.has(account.key))];
+export function mergeMissingAccounts(
+  accounts: GoalAccount[] | null | undefined,
+  live: GoalAccount[] | null | undefined,
+): GoalAccount[] {
+  const base = (accounts ?? []).filter((account) => account && account.key);
+  const seen = new Set(base.map((account) => account.key));
+  return [...base, ...(live ?? []).filter((account) => account && account.key && !seen.has(account.key))];
 }
 
 export interface DatedAccounts {
@@ -257,13 +283,16 @@ export interface DatedAccounts {
 }
 
 /** Debts on the check-in dated on or before the goal was created. The first check-in if none is earlier. */
-export function startingDebts(history: DatedAccounts[], goalCreatedAt: string): GoalAccount[] {
+export function startingDebts(history: DatedAccounts[] | null | undefined, goalCreatedAt: string | null | undefined): GoalAccount[] {
+  if (!Array.isArray(history) || typeof goalCreatedAt !== "string" || goalCreatedAt.length < 10) return [];
   const created = goalCreatedAt.slice(0, 10);
-  const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = history
+    .filter((row) => typeof row?.date === "string")
+    .sort((a, b) => a.date.localeCompare(b.date));
   const onOrBefore = sorted.filter((row) => row.date.slice(0, 10) <= created);
   const chosen = onOrBefore.length > 0 ? onOrBefore[onOrBefore.length - 1] : sorted[0];
-  if (!chosen) return [];
-  return chosen.accounts.filter((account) => account.side === "debt");
+  if (!chosen || !Array.isArray(chosen.accounts)) return [];
+  return chosen.accounts.filter((account) => account && account.side === "debt");
 }
 
 /** How many of the last `window` weeks, including this one, have a spending date. */
@@ -412,8 +441,8 @@ export type GoalReading =
 
 export function readGoal(goal: GoalInput, facts: GoalFacts): GoalReading {
   const goalClass = goalClassOf(goal);
-  const links = goal.linked_account_ids ?? [];
-  const planLinks = goal.linked_plan_categories ?? [];
+  const links = Array.isArray(goal.linked_account_ids) ? goal.linked_account_ids : [];
+  const planLinks = Array.isArray(goal.linked_plan_categories) ? goal.linked_plan_categories : [];
   const loggedThisMonth = planLinks.reduce((sum, slug) => sum + (facts.loggedByCategory[slug] ?? 0), 0);
 
   if (goalClass === "retirement_age") {

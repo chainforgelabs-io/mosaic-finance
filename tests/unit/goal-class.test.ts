@@ -345,6 +345,11 @@ describe("goal sheet lines", () => {
     const loan = accountsFromDebts([{ type: "car_loan", amount: 18100 }]);
     expect(mergeMissingAccounts(loan, card).map((account) => account.name)).toEqual(["Car loan", "Credit card"]);
     expect(mergeMissingAccounts(loan, loan)).toHaveLength(1);
+    expect(accountsFromDebts(null)).toEqual([]);
+    expect(accountsFromDebts({ type: "Credit card" })).toEqual([]);
+    expect(accountsFromDebts([null, { type: "Line of credit", balance: "0" }]).map((account) => account.name)).toEqual([
+      "Line of credit",
+    ]);
   });
 
   it("keeps a new savings account that is not on the latest check-in", () => {

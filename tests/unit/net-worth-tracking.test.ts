@@ -284,6 +284,8 @@ describe("groupComparison", () => {
     expect(formatSnapshotLabel("Bank-Account")).toBe("Bank account");
     expect(formatSnapshotLabel("car_loan")).toBe("Car loan");
     expect(formatSnapshotLabel("Primary residence")).toBe("Primary residence");
+    expect(formatSnapshotLabel("constructor")).toBe("constructor");
+    expect(formatSnapshotLabel("__proto__")).toBe("__proto__");
     expect(formatDiffPct(60 / 466990)).toBe("+<0.1%");
     expect(formatDiffPct(0.05)).toBe("+5.0%");
   });

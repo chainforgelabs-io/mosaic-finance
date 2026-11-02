@@ -322,9 +322,10 @@ const SNAPSHOT_LABELS: Record<string, string> = {
 
 /** A stored account type or debt key, shown as words. Names the user wrote stay as written. */
 export function formatSnapshotLabel(raw: string): string {
-  const trimmed = raw.trim();
+  const trimmed = String(raw ?? "").trim();
   const key = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
-  if (SNAPSHOT_LABELS[key]) return SNAPSHOT_LABELS[key];
+  const known = Object.prototype.hasOwnProperty.call(SNAPSHOT_LABELS, key) ? SNAPSHOT_LABELS[key] : "";
+  if (known) return known;
   if (/^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(trimmed)) {
     return trimmed
       .replace(/[_-]+/g, " ")
