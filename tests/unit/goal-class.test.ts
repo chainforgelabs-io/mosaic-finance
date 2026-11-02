@@ -220,6 +220,27 @@ describe("goal reading", () => {
     expect(lines.join(" ").toLowerCase()).not.toContain("not sure");
   });
 
+  it("uses the plan spending amount when the goal has none saved", () => {
+    const reading = readGoal(
+      {
+        name: "Retirement",
+        goal_type: "retirement",
+        target_amount: null,
+        current_amount: 0,
+        target_age: 60,
+        amount_unknown: true,
+      },
+      { ...emptyFacts, latest: [rrsp, tfsa] },
+    );
+    if (reading.goalClass !== "retirement_age") throw new Error("expected retirement");
+    expect(reading.monthlyNeed).toBeNull();
+    const lines = goalSummaryLines({ target_age: 60, linked_account_ids: [] }, reading);
+    const text = lines.join(" ");
+    expect(text).toContain("of spending");
+    expect(text).toContain("apart in today's dollars");
+    expect(text).not.toContain("set in Edit");
+  });
+
   it("counts weeks logged and the month against the plan", () => {
     const reading = readGoal(
       {

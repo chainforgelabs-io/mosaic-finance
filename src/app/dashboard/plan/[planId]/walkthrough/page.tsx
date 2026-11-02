@@ -291,7 +291,7 @@ function ConversationPanel({
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-3">
               You&apos;ve walked through all {totalSections} sections of your Progress Report.
-              {topItems.length > 0 && " Here are the action items from your report to consider discussing with a licensed advisor:"}
+              {topItems.length > 0 && " Notes from the report:"}
             </p>
             {topItems.length > 0 && (
               <ol className="space-y-2">

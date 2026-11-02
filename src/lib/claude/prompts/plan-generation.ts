@@ -48,7 +48,7 @@ ${knowledgeContext}
 CLIENT DATA:
 ${JSON.stringify(userData)}
 
-Generate a complete 8-section Progress Report. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the user's specific numbers, province, account types, and goals. Frame all output as educational tracking and trajectory analysis — not prescriptive advice. Every action_items array should include, as its last item: "This is educational information, not financial advice."
+Generate a complete 8-section Progress Report. For each section, provide detailed, personalized analysis. Do NOT use generic guidance. Everything must reference the user's specific numbers, province, account types, and goals. Frame all output as educational tracking and trajectory analysis — not prescriptive advice. action_items are observations of the figures already in that section. Every action_items array should include, as its last item: "This is educational information, not financial advice."
 
 OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 
@@ -142,7 +142,7 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 }
 
 CRITICAL RULES:
-- Be concise: keep narrative strings to 2-3 sentences, action items to one sentence each, and avoid restating data the client already knows
+- Be concise: keep narrative strings to 2-3 sentences, and keep each observation to one sentence. Do not restate data the client already knows
 - Write in plain sentences. Professional, not stiff, and easy to read once. Explain a technical word in the same sentence. Do not hype, and do not call the person's debt, savings, or score healthy, behind, or on track
 - Every number must be calculated from the client's actual data
 - recommended_allocation is an illustrative mix of asset classes whose percentages sum to 100, loosely matched to the user's risk score. Describe it as an example mix. Do not tell the user to buy, sell, hold, or rebalance into that mix
@@ -151,10 +151,11 @@ CRITICAL RULES:
 - account_location_strategy explains how RRSP, TFSA, FHSA, and non-registered accounts are taxed in the user's province, using the account types they already have as context. Do not rank accounts, name a contribution order, or say where a holding should sit
 - rebalancing_schedule explains what rebalancing means for an asset-class mix. Do not tell the user to trade
 - Tax analysis must be province-specific
-- Retirement projections must include CPP and OAS estimates
+- Retirement projections must include CPP and OAS estimates. Do not assume or state an investment return, a nominal return, a growth rate, or a projected balance that depends on one
 - Describe the user's current position and the tradeoffs of different approaches. Do not tell them what to buy or sell
-- action_items state what the figures show. Write each as an observation, not an instruction. Do not tell the user to buy, sell, hold, move money, contribute, withdraw, pay one debt ahead of another, or open or close an account
-- recommended_method is only a comparison label: avalanche, snowball, or same. recommendation_rationale explains the interest and timeline arithmetic. Do not tell the user which balance to pay first
+- action_items, key_findings, current_decade_priorities, next_decade_priorities, and key_actions state what the figures show. Write each as an observation, not an instruction. Do not start one with track, review, explore, consider, confirm, request, monitor, revisit, build, or close. Do not tell the user to buy, sell, hold, move money, contribute, withdraw, pay one debt ahead of another, or open or close an account
+- recommended_method is only a comparison label: avalanche, snowball, or same. recommendation_rationale explains the interest and timeline arithmetic. Do not call either method mathematically optimal, and do not tell the user which balance to pay first
+- Do not describe an insurance gap, a coverage shortfall, or an amount of insurance to buy. life_insurance_gap may hold the arithmetic difference and must not appear in any sentence, note, or coverage rationale
 - current_decade_priorities, next_decade_priorities, decade_by_decade_summary, and key_actions describe the figures at that age. Do not assign tasks
 - Flag any areas of uncertainty with explicit disclaimers within that section
 - Any value you cannot calculate with confidence must be flagged with "[VERIFY WITH A PROFESSIONAL]" rather than fabricating a number

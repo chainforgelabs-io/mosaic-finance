@@ -144,7 +144,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                   Avalanche Method
                 </p>
                 <p className="font-[family-name:var(--font-body)] text-xs text-indigo-700 leading-relaxed">
-                  Pay off the highest-interest debt first while making minimum payments on the rest. Minimizes total interest paid and is mathematically optimal.
+                  The avalanche order applies the extra amount in the math to the higher interest rate. The other balances stay at their minimum payments. This compares the interest. It is not a choice for these balances.
                 </p>
               </div>
             </div>
@@ -155,7 +155,7 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                   Snowball Method
                 </p>
                 <p className="font-[family-name:var(--font-body)] text-xs text-amber-700 leading-relaxed">
-                  Pay off the smallest balance first for quick wins, then roll those payments into the next debt. Builds momentum and is psychologically effective.
+                  The snowball order applies the extra amount in the math to the smaller balance first, then adds that payment onto the next balance. This compares the order of the balances. It is not a choice for these balances.
                 </p>
               </div>
             </div>

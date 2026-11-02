@@ -7,6 +7,7 @@ import type {
   CoverageRec,
   RiskLabel,
 } from "@/types";
+import { describeStoredReport } from "@/lib/plan/describe-stored-report";
 import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
 
 function fmt(n: number): string {
@@ -303,7 +304,7 @@ export function transformDbPlanToFinancialPlan(
     typeof dbPlan.plan_data === "string"
       ? JSON.parse(dbPlan.plan_data)
       : (dbPlan.plan_data ?? {});
-  const raw = sanitizeInvestmentSection(parsed as Record<string, unknown>);
+  const raw = describeStoredReport(sanitizeInvestmentSection(parsed as Record<string, unknown>));
   const diag = raw.financial_health_diagnostic as
     | {
         financial_health_score?: number;

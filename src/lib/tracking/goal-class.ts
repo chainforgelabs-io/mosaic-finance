@@ -787,15 +787,26 @@ export function goalSummaryLines(
       const ago = Math.abs(reading.yearsUntil);
       lines.push(`Age ${goal.target_age} was ${ago} ${ago === 1 ? "year" : "years"} ago.`);
     }
-    if (reading.spendingTotal != null && reading.balance != null) {
-      lines.push(`${formatMoney(reading.spendingTotal)} of spending, ${formatMoney(reading.balance)} in retirement accounts.`);
+    const countedMonthly =
+      reading.monthlyNeed != null && reading.monthlyNeed > 0
+        ? reading.monthlyNeed
+        : reading.exampleMonthly != null && reading.exampleMonthly > 0
+          ? reading.exampleMonthly
+          : null;
+    const spendingTotal =
+      countedMonthly != null && reading.yearsInRetirement != null
+        ? countedMonthly * 12 * reading.yearsInRetirement
+        : null;
+    const gap = spendingTotal != null && reading.balance != null ? spendingTotal - reading.balance : null;
+    if (spendingTotal != null && reading.balance != null) {
+      lines.push(`${formatMoney(spendingTotal)} of spending, ${formatMoney(reading.balance)} in retirement accounts.`);
     }
-    if (reading.gap != null && reading.gap > 0) lines.push(`${formatMoney(reading.gap)} apart in today's dollars.`);
-    if (reading.gap === 0) lines.push("The two amounts match in today's dollars.");
-    if (reading.gap != null && reading.gap < 0) {
-      lines.push(`${formatMoney(Math.abs(reading.gap))} above that spending, in today's dollars.`);
+    if (gap != null && gap > 0) lines.push(`${formatMoney(gap)} apart in today's dollars.`);
+    if (gap === 0) lines.push("The two amounts match in today's dollars.");
+    if (gap != null && gap < 0) {
+      lines.push(`${formatMoney(Math.abs(gap))} above that spending, in today's dollars.`);
     }
-    if (reading.gap == null && reading.yearsUntil != null && reading.monthlyNeed == null) {
+    if (gap == null && reading.yearsUntil != null && countedMonthly == null) {
       lines.push("A monthly spending amount is set in Edit.");
     }
     if (reading.gap == null && reading.balance == null && !reading.needsAge) {

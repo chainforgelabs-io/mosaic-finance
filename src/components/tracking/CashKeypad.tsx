@@ -139,7 +139,7 @@ export function CashKeypad({
               setMoreOpen(false);
             }}
             className={cn(
-              "flex-1 rounded-full py-2 font-display text-sm font-semibold",
+              "phone-hit flex-1 rounded-full py-2 font-display text-sm font-semibold",
               mode === option ? "bg-[var(--slate-950)] text-white" : "text-[var(--text-secondary)]",
             )}
           >

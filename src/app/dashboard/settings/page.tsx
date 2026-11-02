@@ -233,7 +233,7 @@ function guaranteeProgress(guarantee: {
   const weeks = Math.min(guarantee.weeksLogged, 13);
   const snapshots =
     guarantee.snapshots > 3
-      ? `You have saved ${guarantee.snapshots} monthly snapshots. The guarantee asks for 3.`
+      ? `You have saved ${guarantee.snapshots} monthly snapshots. The guarantee asks for 3 monthly snapshots.`
       : `You have saved ${guarantee.snapshots} of the 3 monthly snapshots.`;
   let score = "";
   if (guarantee.scoreDelta != null && guarantee.scoreDelta > 0) {

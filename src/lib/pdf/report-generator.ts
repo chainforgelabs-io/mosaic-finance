@@ -1,6 +1,7 @@
 import path from 'node:path';
 import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
+import { describeStoredReport } from '@/lib/plan/describe-stored-report';
 import { sanitizeInvestmentSection } from '@/lib/plan/sanitize-investment-section';
 
 /** Letter width minus the left and right print margins, at 96px per inch. */
@@ -87,13 +88,8 @@ function fmt(n: unknown): string {
   return num.toLocaleString('en-CA');
 }
 
-function actionItems(items: string[]): string {
-  if (!items?.length) return '';
-  return items.map((item) => `<div class="action-item">${item}</div>`).join('');
-}
-
 function buildReportHTML(plan: Record<string, unknown>): string {
-  const p = sanitizeInvestmentSection(plan) as Record<string, Record<string, unknown>>;
+  const p = describeStoredReport(sanitizeInvestmentSection(plan)) as Record<string, Record<string, unknown>>;
   const fhd = p.financial_health_diagnostic ?? {};
   const rr = p.retirement_readiness ?? {};
   const ipb = p.investment_portfolio_blueprint ?? {};
@@ -113,10 +109,6 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   const retTarget = Number(rr.retirement_number) || 0;
   const retCurrent = Number(rr.current_trajectory) || 0;
   const retPct = retTarget > 0 ? Math.round((retCurrent / retTarget) * 100) : 0;
-
-  const insNeed = Number(ica.life_insurance_need) || 0;
-  const insCurrent = Number(ica.current_coverage) || 0;
-  const insPct = insNeed > 0 ? Math.round((insCurrent / insNeed) * 100) : 0;
 
   const allocColors: Record<string, string> = {
     canadian_equity: '#10b981', us_equity: '#3b82f6', international_equity: '#8b5cf6',
@@ -510,16 +502,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   <div class="kpi-row">
     <div class="kpi kpi-blue"><div class="kl">Calculated life coverage</div><div class="kv">$${fmt(ica.life_insurance_need)}</div></div>
     <div class="kpi kpi-green"><div class="kl">Coverage on file</div><div class="kv">$${fmt(ica.current_coverage)}</div></div>
-    <div class="kpi kpi-red"><div class="kl">Difference</div><div class="kv">$${fmt(ica.life_insurance_gap)}</div></div>
   </div>
-
-  ${insNeed > 0 ? `
-  <div style="margin:12px 0 20px;">
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">Coverage on file is ${insPct}% of the calculated figure</div>
-    <div class="progress-bar" style="height:14px;">
-      <div class="progress-fill" style="width:${Math.min(insPct, 100)}%;background:${insPct >= 80 ? '#10b981' : insPct >= 50 ? '#f59e0b' : '#ef4444'};"></div>
-    </div>
-  </div>` : ''}
 
   ${ica.disability_insurance_analysis ? `<div class="prose-block"><strong>Disability Insurance</strong><p>${ica.disability_insurance_analysis}</p></div>` : ''}
   ${ica.critical_illness_analysis ? `<div class="prose-block"><strong>Critical Illness</strong><p>${ica.critical_illness_analysis}</p></div>` : ''}

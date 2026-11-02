@@ -503,7 +503,7 @@ function ExpandablePlanSection({
               ) : (
                 <>
                   <ChevronDown className="w-3 h-3" />
-                  +{section.actionItems.length - 2} more action items
+                  +{section.actionItems.length - 2} more notes
                 </>
               )}
             </button>
