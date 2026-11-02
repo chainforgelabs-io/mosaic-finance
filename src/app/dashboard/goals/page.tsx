@@ -2,7 +2,7 @@
 
 import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as Sentry from "@sentry/nextjs";
-import { Archive, Check, Plus, Target, Trash2, X } from "lucide-react";
+import { Archive, Check, ChevronDown, Plus, Target, Trash2, X } from "lucide-react";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   GOAL_PRIORITIES,
@@ -900,6 +900,7 @@ function RetirementReading({
   onSaveAge: (age: number) => void;
 }) {
   const [ageValue, setAgeValue] = useState("");
+  const [open, setOpen] = useState(false);
   const years = reading.yearsInRetirement;
   const yearWord = years === 1 ? "year" : "years";
   const countedMonthly =
@@ -965,42 +966,65 @@ function RetirementReading({
       ) : (
         <p className="font-body text-xs text-[var(--text-muted)]">The retirement age is set in Edit.</p>
       )}
-      {years != null && goal.target_age != null && (
+      {gap != null && total != null && reading.balance != null && (
         <p className="font-body text-xs text-[var(--text-secondary)]">
-          Spending in this comparison runs from {goal.target_age} to {reading.lifeExpectancy}, which is {years} {yearWord}. {reading.lifeExpectancy} is a general Canadian life expectancy at birth. It is not a forecast for you.
+          {formatMoney(total)} of spending, {formatMoney(reading.balance)} in retirement accounts.
         </p>
-      )}
-      {spendLine != null ? (
-        <p className="font-body text-xs text-[var(--text-secondary)]">{spendLine}</p>
-      ) : years != null ? (
-        <p className="font-body text-xs text-[var(--text-muted)]">A monthly spending amount is set in Edit.</p>
-      ) : null}
-      {reading.balance != null ? (
-        <p className="font-body text-xs text-[var(--text-secondary)]">
-          Retirement accounts on the latest check-in hold {formatMoney(reading.balance)}.
-          {selectedAccounts.length > 0
-            ? " The accounts checked on this goal are included."
-            : " RRSP, TFSA, and the other registered accounts are included together."}
-        </p>
-      ) : (
-        <p className="font-body text-xs text-[var(--text-muted)]">No retirement account is on the latest net-worth check-in.</p>
       )}
       {gap != null && gap > 0 && (
-        <p className="font-body text-xs text-[var(--text-secondary)]">
-          The two amounts differ by {formatMoney(gap)} in today&apos;s dollars. This comparison does not assume investment growth.
+        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+          {formatMoney(gap)} apart in today&apos;s dollars.
         </p>
       )}
       {gap != null && gap === 0 && (
-        <p className="font-body text-xs text-[var(--text-secondary)]">
-          The two amounts match in today&apos;s dollars. This comparison does not assume investment growth.
-        </p>
+        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">The two amounts match in today&apos;s dollars.</p>
       )}
       {gap != null && gap < 0 && (
-        <p className="font-body text-xs text-[var(--text-secondary)]">
-          The balance on file is {formatMoney(Math.abs(gap))} above that amount in today&apos;s dollars. This comparison does not assume investment growth.
+        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+          {formatMoney(Math.abs(gap))} above that spending, in today&apos;s dollars.
         </p>
       )}
-      <p className="font-body text-xs text-[var(--text-muted)]">The retirement age and the monthly amount are changed in Edit.</p>
+      {gap == null && years != null && countedMonthly == null && (
+        <p className="font-body text-xs text-[var(--text-muted)]">A monthly spending amount is set in Edit.</p>
+      )}
+      {gap == null && reading.balance == null && (
+        <p className="font-body text-xs text-[var(--text-muted)]">No retirement account is on the latest net-worth check-in.</p>
+      )}
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="mt-2 inline-flex cursor-pointer items-center gap-1 font-display text-xs font-semibold text-[var(--emerald-dark)]"
+      >
+        <ChevronDown className={cn("size-3.5 transition", open && "rotate-180")} />
+        {open ? "Hide how this is counted" : "How this is counted"}
+      </button>
+      {open && (
+        <div className="space-y-1 pt-1">
+          {years != null && goal.target_age != null && (
+            <p className="font-body text-xs text-[var(--text-secondary)]">
+              Spending in this comparison runs from {goal.target_age} to {reading.lifeExpectancy}, which is {years} {yearWord}. {reading.lifeExpectancy} is a general Canadian life expectancy at birth. It is not a forecast for you.
+            </p>
+          )}
+          {spendLine != null ? (
+            <p className="font-body text-xs text-[var(--text-secondary)]">{spendLine}</p>
+          ) : years != null ? (
+            <p className="font-body text-xs text-[var(--text-muted)]">A monthly spending amount is set in Edit.</p>
+          ) : null}
+          {reading.balance != null ? (
+            <p className="font-body text-xs text-[var(--text-secondary)]">
+              Retirement accounts on the latest check-in hold {formatMoney(reading.balance)}.
+              {selectedAccounts.length > 0
+                ? " The accounts checked on this goal are included."
+                : " RRSP, TFSA, and the other registered accounts are included together."}
+            </p>
+          ) : (
+            <p className="font-body text-xs text-[var(--text-muted)]">No retirement account is on the latest net-worth check-in.</p>
+          )}
+          <p className="font-body text-xs text-[var(--text-secondary)]">This comparison does not assume investment growth.</p>
+          <p className="font-body text-xs text-[var(--text-muted)]">The retirement age and the monthly amount are changed in Edit.</p>
+        </div>
+      )}
     </div>
   );
 }
