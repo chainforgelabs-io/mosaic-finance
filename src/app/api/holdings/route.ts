@@ -14,11 +14,20 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data: holdings, error } = await supabase
+  const named = await supabase
     .from('investment_holdings')
-    .select('id, account_type, holdings, total_value, source, created_at')
+    .select('id, account_type, display_name, holdings, total_value, source, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
+  const holdingsQuery =
+    named.error && /display_name/i.test(named.error.message)
+      ? await supabase
+          .from('investment_holdings')
+          .select('id, account_type, holdings, total_value, source, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+      : named;
+  const { data: holdings, error } = holdingsQuery;
 
   if (error) {
     return NextResponse.json({ error: 'Failed to fetch holdings' }, { status: 500 });
@@ -101,6 +110,44 @@ const patchSchema = z.object({
   id: z.string().uuid(),
   total_value: z.number().min(0),
 });
+
+const createSchema = z.object({
+  display_name: z.string().trim().min(1).max(80),
+  total_value: z.number().min(0).max(100_000_000).optional(),
+});
+
+/** A named bank account. Cash Flow gets a savings line with the same name from the goal sheet. */
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const parsed = createSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const total = parsed.data.total_value ?? 0;
+  const { data, error } = await supabase
+    .from('investment_holdings')
+    .insert({
+      user_id: user.id,
+      account_type: 'Bank-Account',
+      display_name: parsed.data.display_name,
+      holdings: [],
+      total_value: total,
+      source: 'manual',
+    })
+    .select('id, account_type, display_name, total_value')
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json({ error: 'Failed to add account' }, { status: 500 });
+  }
+  return NextResponse.json({ holding: data }, { status: 201 });
+}
 
 export async function PATCH(req: NextRequest) {
   const supabase = await createClient();

@@ -9,6 +9,7 @@ import {
   type UserCategory,
 } from "@/lib/tracking/categories";
 import { keypadPlanCategories, type PlanKind } from "@/lib/tracking/budget-plan";
+import { extraSlugs } from "@/lib/tracking/plan-client";
 import {
   amountFromDigits,
   CADENCE_LABELS,
@@ -81,11 +82,14 @@ export function CashKeypad({
   );
   const planCategories = useMemo(() => {
     const result = keypadPlanCategories(planEntries, kindForMode(mode), month, predicted);
-    if (mode === "save" && !result.all.includes("debt_principal")) {
-      return { ...result, all: [...result.all, "debt_principal"] };
+    if (mode !== "save") return result;
+    const all = [...result.all];
+    for (const slug of extraSlugs(catalog, "savings")) {
+      if (!all.includes(slug)) all.push(slug);
     }
-    return result;
-  }, [planEntries, mode, month, predicted]);
+    if (!all.includes("debt_principal")) all.push("debt_principal");
+    return { ...result, all };
+  }, [planEntries, mode, month, predicted, catalog]);
   const quickCategories = planCategories.quick;
   const nameFor = (slug: string) => labelFor(catalog, slug);
 

@@ -73,11 +73,17 @@ export async function POST(request: Request) {
     filed = parsed.data;
   }
 
+  const namedHoldings = await supabase
+    .from("investment_holdings")
+    .select("id, account_type, display_name, total_value")
+    .eq("user_id", user.id);
+  const holdingsQuery =
+    namedHoldings.error && /display_name/i.test(namedHoldings.error.message)
+      ? await supabase.from("investment_holdings").select("id, account_type, total_value").eq("user_id", user.id)
+      : namedHoldings;
+
   const [holdingsRes, assetsRes, profileRes] = await Promise.all([
-    supabase
-      .from("investment_holdings")
-      .select("id, account_type, total_value")
-      .eq("user_id", user.id),
+    Promise.resolve(holdingsQuery),
     supabase
       .from("fixed_assets")
       .select("id, name, category, estimated_value")
@@ -106,6 +112,7 @@ export async function POST(request: Request) {
     : holdings.map((h) => ({
         id: h.id as string,
         account_type: String(h.account_type ?? ""),
+        ...("display_name" in h && h.display_name ? { name: String(h.display_name) } : {}),
         value: num(h.total_value),
       }));
   const fixed_assets = filed

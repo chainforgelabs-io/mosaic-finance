@@ -56,10 +56,17 @@ interface Holding {
 interface AccountRow {
   id: string;
   account_type: string;
+  display_name?: string | null;
   holdings: Holding[];
   total_value: number;
   source: string;
   created_at: string;
+}
+
+function accountLabel(account: { account_type: string; display_name?: string | null }): string {
+  const named = account.display_name?.trim();
+  if (named) return named;
+  return ACCOUNT_LABELS[account.account_type] ?? account.account_type;
 }
 
 interface FinancialProfile {
@@ -149,7 +156,7 @@ const FEATURE_OPTIONS = ["Pool", "Garage", "Basement", "Renovated", "Deck/Patio"
 
 function AccountCard({ account }: { account: AccountRow }) {
   const [expanded, setExpanded] = useState(false);
-  const label = ACCOUNT_LABELS[account.account_type] ?? account.account_type;
+  const label = accountLabel(account);
 
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
@@ -1133,7 +1140,7 @@ export default function AssetsPage() {
                   <div key={account.id} className="flex items-center justify-between py-2 border-b border-[var(--warm-50)] last:border-0">
                     <div className="flex items-center gap-2">
                       <Landmark className="size-3.5 text-[var(--text-muted)]" />
-                      <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">{ACCOUNT_LABELS[account.account_type] ?? account.account_type}</span>
+                      <span className="font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">{accountLabel(account)}</span>
                     </div>
                     <span className="font-[family-name:var(--font-body)] text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmtFull(account.total_value)}</span>
                   </div>

@@ -186,6 +186,8 @@ export interface GoalRow {
   linked_plan_categories?: string[] | null;
   baseline_balances?: Record<string, number> | null;
   monthly_need?: number | null;
+  funding_method?: "set_aside" | "existing" | "cash_flow" | "credit" | null;
+  payoff_months?: number | null;
   created_at: string;
   updated_at: string;
 }

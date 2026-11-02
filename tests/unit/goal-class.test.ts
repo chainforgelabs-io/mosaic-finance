@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { savingsSlug } from "@/lib/tracking/create-savings-account";
 import {
   CANADA_LIFE_EXPECTANCY_YEARS,
+  accountsForGoal,
   accountsFromBreakdown,
+  cardPaydown,
   inferGoalClass,
+  linesForGoal,
+  mergeMissingAccounts,
   monthShare,
   readGoal,
   startingDebts,
@@ -24,8 +29,10 @@ const emptyFacts = {
   monthExpense: 3800,
   expenseDates: ["2026-10-12", "2026-10-20", "2026-11-01"],
   latest: [] as GoalAccount[],
+  history: [] as { date: string; accounts: GoalAccount[] }[],
   startDebts: [] as GoalAccount[],
   loggedByCategory: {} as Record<string, number>,
+  spendByMonthCategory: {} as Record<string, number>,
 };
 
 describe("goal class from the name", () => {
@@ -169,6 +176,179 @@ describe("goal reading", () => {
     expect(monthShare("2026-11-30").complete).toBe(true);
     expect(reading.monthComplete).toBe(true);
     expect(monthShare("2026-02-28")).toEqual({ day: 28, days: 28, complete: true });
+  });
+});
+
+describe("trip funding", () => {
+  const cardBefore: GoalAccount = { key: "card-1", name: "Card", value: 400, side: "debt", bucket: "debt" };
+  const cardAdded: GoalAccount = { key: "card-1", name: "Card", value: 2400, side: "debt", bucket: "debt" };
+  const cardNow: GoalAccount = { key: "card-1", name: "Card", value: 1400, side: "debt", bucket: "debt" };
+  const bank: GoalAccount = {
+    key: "bank-1",
+    name: "Travel fund",
+    value: 3000,
+    side: "asset",
+    accountType: "Bank-Account",
+    bucket: "investment",
+  };
+
+  it("asks how a trip is paid for and does not offer every plan line", () => {
+    const reading = readGoal(
+      {
+        name: "Travel",
+        goal_type: "vacation",
+        target_amount: 20000,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+      },
+      emptyFacts,
+    );
+    if (reading.goalClass !== "balance") throw new Error("expected balance");
+    expect(reading.trip).toBe(true);
+    expect(reading.needsFunding).toBe(true);
+    expect(reading.needsPlanLine).toBe(false);
+    expect(
+      linesForGoal("balance", [
+        { slug: "groceries", label: "Groceries", kind: "expense" as const },
+        { slug: "paycheque", label: "Paycheque", kind: "income" as const },
+        { slug: "resp", label: "RESP", kind: "savings" as const },
+        { slug: "debt_principal", label: "Extra debt principal", kind: "savings" as const },
+        { slug: "cash_savings", label: "Cash savings", kind: "savings" as const },
+      ], true),
+    ).toEqual([]);
+  });
+
+  it("reads a savings account balance and keeps logged savings separate", () => {
+    const reading = readGoal(
+      {
+        name: "Travel",
+        goal_type: "vacation",
+        target_amount: 20000,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        funding_method: "set_aside",
+        linked_account_ids: ["bank-1"],
+        linked_plan_categories: ["travel_fund"],
+      },
+      { ...emptyFacts, latest: [bank], loggedByCategory: { travel_fund: 500 } },
+    );
+    if (reading.goalClass !== "balance") throw new Error("expected balance");
+    expect(reading.current).toBe(3000);
+    expect(reading.loggedThisMonth).toBe(500);
+    expect(reading.bar).toBe(15);
+    expect(reading.needsPlanLine).toBe(false);
+  });
+
+  it("waits for the trip month before comparing cash flow", () => {
+    const early = readGoal(
+      {
+        name: "Travel",
+        goal_type: "vacation",
+        target_amount: 20000,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        funding_method: "cash_flow",
+        target_date: "2026-12-01",
+      },
+      { ...emptyFacts, today: "2026-11-01", spendByMonthCategory: { "2026-12:travel": 900 } },
+    );
+    if (early.goalClass !== "balance") throw new Error("expected balance");
+    expect(early.beforeTrip).toBe(true);
+    expect(early.tripSpend).toBeNull();
+
+    const during = readGoal(
+      {
+        name: "Travel",
+        goal_type: "vacation",
+        target_amount: 20000,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        funding_method: "cash_flow",
+        target_date: "2026-11-15",
+      },
+      {
+        ...emptyFacts,
+        today: "2026-11-20",
+        latest: [cardAdded],
+        history: [
+          { date: "2026-10-01", accounts: [cardBefore] },
+          { date: "2026-11-20", accounts: [cardAdded] },
+        ],
+        spendByMonthCategory: { "2026-11:travel": 1800 },
+      },
+    );
+    if (during.goalClass !== "balance") throw new Error("expected balance");
+    expect(during.beforeTrip).toBe(false);
+    expect(during.tripSpend).toBe(1800);
+    expect(during.creditChange).toBe(2000);
+  });
+
+  it("tracks only the card increase from the trip month", () => {
+    expect(cardPaydown({ before: 400, added: 2400, now: 1400 })).toEqual({ increase: 2000, stillOwed: 1000 });
+    const reading = readGoal(
+      {
+        name: "Travel",
+        goal_type: "vacation",
+        target_amount: 2000,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        funding_method: "credit",
+        payoff_months: 6,
+        target_date: "2026-11-01",
+        linked_account_ids: ["card-1"],
+      },
+      {
+        ...emptyFacts,
+        today: "2026-11-20",
+        latest: [cardNow],
+        history: [
+          { date: "2026-10-01", accounts: [cardBefore] },
+          { date: "2026-11-10", accounts: [cardAdded] },
+        ],
+      },
+    );
+    if (reading.goalClass !== "balance") throw new Error("expected balance");
+    expect(reading.cardIncrease).toBe(2000);
+    expect(reading.cardStillOwed).toBe(1000);
+    expect(reading.payoffMonths).toBe(6);
+    expect(reading.current).toBeNull();
+  });
+});
+
+describe("goal sheet lines", () => {
+  it("offers savings lines for a savings goal and drops groceries, salary, and extra principal", () => {
+    const lines = linesForGoal("balance", [
+      { slug: "groceries", label: "Groceries", kind: "expense" as const },
+      { slug: "paycheque", label: "Paycheque", kind: "income" as const },
+      { slug: "debt_principal", label: "Extra debt principal", kind: "savings" as const },
+      { slug: "cash_savings", label: "Cash savings", kind: "savings" as const },
+    ]);
+    expect(lines.map((line) => line.slug)).toEqual(["cash_savings"]);
+    expect(linesForGoal("debt", lines)).toEqual([]);
+  });
+
+  it("names a new savings line without taking over an expense category", () => {
+    expect(savingsSlug("Travel fund")).toBe("travel_fund");
+    expect(savingsSlug("Travel")).toBe("travel_savings");
+  });
+
+  it("keeps a new savings account that is not on the latest check-in", () => {
+    const house: GoalAccount = { key: "house", name: "House", value: 100, side: "asset", bucket: "fixed" };
+    const bank: GoalAccount = {
+      key: "bank-1",
+      name: "Travel fund",
+      value: 0,
+      side: "asset",
+      accountType: "Bank-Account",
+      bucket: "investment",
+    };
+    expect(accountsForGoal("balance", [house, bank]).map((account) => account.key)).toEqual(["bank-1"]);
+    expect(mergeMissingAccounts([house], [bank]).map((account) => account.name)).toEqual(["House", "Travel fund"]);
   });
 });
 

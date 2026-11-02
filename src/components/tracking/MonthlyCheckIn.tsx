@@ -23,6 +23,7 @@ const ACCOUNT_LABELS: Record<string, string> = {
 interface HoldingAccount {
   id: string;
   account_type: string;
+  display_name?: string | null;
   total_value: number;
 }
 
@@ -194,6 +195,7 @@ export function MonthlyCheckIn({
                 investments: holdings.map((h) => ({
                   id: h.id,
                   account_type: h.account_type,
+                  ...(h.display_name?.trim() ? { name: h.display_name.trim() } : {}),
                   value: Number(holdVals[h.id]) || 0,
                 })),
                 fixed_assets: fixedAssets.map((a) => ({
@@ -253,7 +255,7 @@ export function MonthlyCheckIn({
               empty="No investment accounts yet."
               items={holdings.map((h) => ({
                 id: h.id,
-                label: ACCOUNT_LABELS[h.account_type] ?? h.account_type,
+                label: h.display_name?.trim() || ACCOUNT_LABELS[h.account_type] || formatSnapshotLabel(h.account_type),
                 value: holdVals[h.id] ?? "",
               }))}
               onChange={(id, v) => setHoldVals((p) => ({ ...p, [id]: v }))}

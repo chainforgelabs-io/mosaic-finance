@@ -23,19 +23,32 @@ const createSchema = z.object({
   linked_plan_categories: z.array(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)).max(40).optional(),
   baseline_balances: z.record(z.string().min(1).max(80), z.number().min(0).max(100_000_000)).optional(),
   monthly_need: z.number().min(0).max(1_000_000).optional().nullable(),
+  funding_method: z.enum(["set_aside", "existing", "cash_flow", "credit"]).optional().nullable(),
+  payoff_months: z.number().int().min(1).max(120).optional().nullable(),
 });
 
 function missingGoalColumns(message: string): boolean {
-  return /tracking_class|linked_account_ids|linked_plan_categories|baseline_balances|monthly_need|schema cache/i.test(message);
+  return /tracking_class|linked_account_ids|linked_plan_categories|baseline_balances|monthly_need|funding_method|payoff_months|schema cache/i.test(
+    message,
+  );
 }
 
-function withoutLinkColumns<T extends Record<string, unknown>>(row: T): T {
+function withoutLinkColumns<T extends Record<string, unknown>>(row: T, message: string): T {
   const copy = { ...row };
-  delete copy.tracking_class;
-  delete copy.linked_account_ids;
-  delete copy.linked_plan_categories;
-  delete copy.baseline_balances;
-  delete copy.monthly_need;
+  if (/funding_method|payoff_months/i.test(message)) {
+    delete copy.funding_method;
+    delete copy.payoff_months;
+  }
+  if (
+    /tracking_class|linked_account_ids|linked_plan_categories|baseline_balances|monthly_need/i.test(message) ||
+    (/schema cache/i.test(message) && !/funding_method|payoff_months/i.test(message))
+  ) {
+    delete copy.tracking_class;
+    delete copy.linked_account_ids;
+    delete copy.linked_plan_categories;
+    delete copy.baseline_balances;
+    delete copy.monthly_need;
+  }
   return copy;
 }
 
@@ -120,12 +133,14 @@ export async function POST(req: NextRequest) {
     linked_plan_categories: g.linked_plan_categories ?? [],
     baseline_balances: g.baseline_balances ?? {},
     monthly_need: g.monthly_need ?? null,
+    funding_method: g.funding_method ?? null,
+    payoff_months: g.payoff_months ?? null,
   }));
 
   let payload: Record<string, unknown>[] = rows;
   let inserted = await supabase.from("goals").insert(payload).select();
   if (inserted.error && missingGoalColumns(inserted.error.message)) {
-    payload = rows.map((row) => withoutLinkColumns(row));
+    payload = rows.map((row) => withoutLinkColumns(row, inserted.error?.message ?? ""));
     inserted = await supabase.from("goals").insert(payload).select();
   }
   const { data, error } =
@@ -187,7 +202,7 @@ export async function PATCH(req: NextRequest) {
   let stamped: Record<string, unknown> = { ...updates, reviewed_at: new Date().toISOString() };
   let updated = await supabase.from("goals").update(stamped).eq("id", id).eq("user_id", user.id).select().single();
   if (updated.error && missingGoalColumns(updated.error.message)) {
-    stamped = withoutLinkColumns(stamped);
+    stamped = withoutLinkColumns(stamped, updated.error.message);
     updated = await supabase.from("goals").update(stamped).eq("id", id).eq("user_id", user.id).select().single();
   }
   if (updated.error && /reviewed_at/i.test(updated.error.message)) {

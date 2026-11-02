@@ -46,12 +46,17 @@ const RETIREMENT_ACCOUNT_TYPES = new Set([
   "spp",
 ]);
 
+export const FUNDING_METHODS = ["set_aside", "existing", "cash_flow", "credit"] as const;
+export type FundingMethod = (typeof FUNDING_METHODS)[number];
+
 export interface GoalAccount {
   key: string;
   name: string;
   value: number;
   side: "asset" | "debt";
   accountType?: string;
+  /** Investment accounts can be linked from a goal. Fixed assets stay on Net Worth only. */
+  bucket?: "investment" | "fixed" | "debt";
 }
 
 export function isRetirementAccount(accountType: string | null | undefined): boolean {
@@ -117,14 +122,22 @@ export function accountKey(item: SnapshotBreakdownItem, side: "asset" | "debt"):
 
 export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | undefined): GoalAccount[] {
   if (!breakdown) return [];
-  const assets = [...(breakdown.investments ?? []), ...(breakdown.fixed_assets ?? [])];
   return [
-    ...assets.map((item) => ({
+    ...(breakdown.investments ?? []).map((item) => ({
       key: accountKey(item, "asset"),
       name: formatSnapshotLabel(item.name || item.account_type || item.type || "Account"),
       value: Number(item.value) || 0,
       side: "asset" as const,
       accountType: item.account_type,
+      bucket: "investment" as const,
+    })),
+    ...(breakdown.fixed_assets ?? []).map((item) => ({
+      key: accountKey(item, "asset"),
+      name: formatSnapshotLabel(item.name || item.account_type || item.type || "Account"),
+      value: Number(item.value) || 0,
+      side: "asset" as const,
+      accountType: item.account_type,
+      bucket: "fixed" as const,
     })),
     ...(breakdown.debts ?? []).map((item) => ({
       key: accountKey(item, "debt"),
@@ -132,8 +145,89 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
       value: Number(item.value) || 0,
       side: "debt" as const,
       accountType: item.account_type,
+      bucket: "debt" as const,
     })),
   ];
+}
+
+/** A vacation, or a goal whose name is a trip. */
+export function isTripGoal(input: { name?: string | null; goal_type?: string | null }): boolean {
+  if ((input.goal_type ?? "").toLowerCase() === "vacation") return true;
+  return /\b(travel|vacation|holiday|trip)\b/i.test(input.name ?? "");
+}
+
+export function fundingMethodOf(value: string | null | undefined): FundingMethod | null {
+  if (value && (FUNDING_METHODS as readonly string[]).includes(value)) return value as FundingMethod;
+  return null;
+}
+
+/** Accounts the goal sheet is allowed to offer. */
+export function accountsForGoal(
+  goalClass: GoalClass,
+  accounts: GoalAccount[],
+  options?: { trip?: boolean; funding?: FundingMethod | null },
+): GoalAccount[] {
+  const trip = options?.trip === true;
+  const funding = options?.funding ?? null;
+  if (goalClass === "cost_of_living" || goalClass === "note") return [];
+  if (goalClass === "debt" || (trip && funding === "credit")) {
+    return accounts.filter((account) => account.side === "debt");
+  }
+  if (trip && funding !== "set_aside" && funding !== "existing") return [];
+  if (goalClass === "retirement_age" || goalClass === "retirement_income") {
+    return accounts.filter((account) => account.side === "asset" && isRetirementAccount(account.accountType));
+  }
+  if (goalClass === "balance") {
+    return accounts.filter((account) => account.side === "asset" && account.bucket !== "fixed");
+  }
+  return accounts.filter((account) => account.side === "asset");
+}
+
+/** Plan lines the goal sheet is allowed to offer. */
+export function linesForGoal<T extends { slug: string; kind: "income" | "expense" | "savings" }>(
+  goalClass: GoalClass,
+  lines: T[],
+  trip = false,
+): T[] {
+  if (trip || goalClass !== "balance") return [];
+  return lines.filter((line) => line.kind === "savings" && line.slug !== "debt_principal");
+}
+
+/** Last check-in strictly before a YYYY-MM month. */
+export function snapshotBefore(history: DatedAccounts[], month: string): DatedAccounts | null {
+  const start = `${month}-01`;
+  const prior = history.filter((row) => row.date.slice(0, 10) < start).sort((a, b) => a.date.localeCompare(b.date));
+  return prior.length > 0 ? prior[prior.length - 1] : null;
+}
+
+/** Last check-in inside a YYYY-MM month. */
+export function snapshotDuring(history: DatedAccounts[], month: string): DatedAccounts | null {
+  const rows = history.filter((row) => row.date.slice(0, 7) === month).sort((a, b) => a.date.localeCompare(b.date));
+  return rows.length > 0 ? rows[rows.length - 1] : null;
+}
+
+function sumKeys(accounts: GoalAccount[], keys: string[]): number | null {
+  const wanted = new Set(keys);
+  const found = accounts.filter((account) => wanted.has(account.key));
+  if (found.length === 0) return null;
+  return found.reduce((sum, account) => sum + account.value, 0);
+}
+
+function debtTotal(accounts: GoalAccount[]): number {
+  return accounts.filter((account) => account.side === "debt").reduce((sum, account) => sum + account.value, 0);
+}
+
+/** The increase on a card in the trip month, and how much of that increase is still owed. */
+export function cardPaydown(input: { before: number; added: number; now: number }): { increase: number; stillOwed: number } {
+  const increase = Math.max(0, input.added - input.before);
+  const stillOwed = Math.min(increase, Math.max(0, input.now - input.before));
+  return { increase, stillOwed };
+}
+
+/** Live accounts that are not already on the latest check-in. */
+export function mergeMissingAccounts(accounts: GoalAccount[], live: GoalAccount[]): GoalAccount[] {
+  const seen = new Set(accounts.map((account) => account.key));
+  return [...accounts, ...live.filter((account) => !seen.has(account.key))];
 }
 
 export interface DatedAccounts {
@@ -199,9 +293,13 @@ export interface GoalFacts {
   monthExpense: number;
   expenseDates: string[];
   latest: GoalAccount[];
+  /** Check-ins, oldest or newest. Trip goals read the month around the trip. */
+  history: DatedAccounts[];
   /** Debts on the check-in when the goal began. Ignored once the goal has a saved baseline. */
   startDebts: GoalAccount[];
   loggedByCategory: Record<string, number>;
+  /** Expense totals keyed by `YYYY-MM:category`. */
+  spendByMonthCategory: Record<string, number>;
 }
 
 type GoalInput = Pick<
@@ -213,6 +311,9 @@ type GoalInput = Pick<
   linked_plan_categories?: string[] | null;
   baseline_balances?: Record<string, number> | null;
   monthly_need?: number | null;
+  funding_method?: string | null;
+  payoff_months?: number | null;
+  target_date?: string | null;
   created_at?: string;
 };
 
@@ -255,6 +356,16 @@ export type GoalReading =
       loggedThisMonth: number;
       needsAccount: boolean;
       needsPlanLine: boolean;
+      trip: boolean;
+      fundingMethod: FundingMethod | null;
+      needsFunding: boolean;
+      tripMonth: string | null;
+      beforeTrip: boolean;
+      tripSpend: number | null;
+      creditChange: number | null;
+      payoffMonths: number | null;
+      cardIncrease: number | null;
+      cardStillOwed: number | null;
     }
   | {
       goalClass: "cost_of_living";
@@ -377,16 +488,52 @@ export function readGoal(goal: GoalInput, facts: GoalFacts): GoalReading {
     };
   }
 
+  const trip = isTripGoal(goal);
+  const method = trip ? fundingMethodOf(goal.funding_method) : null;
+  const tripMonth = trip && goal.target_date ? goal.target_date.slice(0, 7) : null;
+  const beforeTrip = tripMonth != null && facts.today.slice(0, 7) < tripMonth;
+  const tripSpend =
+    tripMonth != null && !beforeTrip ? (facts.spendByMonthCategory[`${tripMonth}:travel`] ?? 0) : null;
+  const prior = tripMonth ? snapshotBefore(facts.history, tripMonth) : null;
+  const during = tripMonth ? snapshotDuring(facts.history, tripMonth) : null;
+  const creditChange =
+    method === "cash_flow" && !beforeTrip && prior != null
+      ? debtTotal(facts.latest) - debtTotal(prior.accounts)
+      : null;
+  let cardIncrease: number | null = null;
+  let cardStillOwed: number | null = null;
+  if (method === "credit" && !beforeTrip && prior && during && links.length > 0) {
+    const before = sumKeys(prior.accounts, links);
+    const added = sumKeys(during.accounts, links);
+    const now = sumKeys(facts.latest, links);
+    if (before != null && added != null && now != null) {
+      const paydown = cardPaydown({ before, added, now });
+      cardIncrease = paydown.increase;
+      cardStillOwed = paydown.stillOwed;
+    }
+  }
+  const watchesBalance = !trip || method == null || method === "set_aside" || method === "existing";
   const target = Number(goal.target_amount) || 0;
-  const current = links.length > 0 ? sumLinked(facts.latest, links) : null;
-  const bar = target > 0 && current != null ? Math.min(100, (current / target) * 100) : null;
+  const current = watchesBalance && links.length > 0 ? sumLinked(facts.latest, links) : null;
+  const bar = watchesBalance && target > 0 && current != null ? Math.min(100, (current / target) * 100) : null;
+  const asksForAccount = method == null || method === "set_aside" || method === "existing";
   return {
     goalClass: "balance",
     bar,
     current,
     target: target > 0 ? target : null,
     loggedThisMonth,
-    needsAccount: links.length === 0,
-    needsPlanLine: planLinks.length === 0,
+    needsAccount: trip ? asksForAccount && links.length === 0 : links.length === 0,
+    needsPlanLine: trip ? false : planLinks.length === 0,
+    trip,
+    fundingMethod: method,
+    needsFunding: trip && method == null,
+    tripMonth,
+    beforeTrip,
+    tripSpend,
+    creditChange,
+    payoffMonths: method === "credit" && goal.payoff_months != null ? goal.payoff_months : null,
+    cardIncrease,
+    cardStillOwed,
   };
 }

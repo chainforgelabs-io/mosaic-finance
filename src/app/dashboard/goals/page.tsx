@@ -9,20 +9,28 @@ import {
   GOAL_TYPES,
   labelFor,
   presentGoalName,
+  type CategoryKind,
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
 import { isSavings, transactionKind } from "@/lib/tracking/cash-capture";
-import { addDays, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
+import { createSavingsAccount } from "@/lib/tracking/create-savings-account";
+import { addDays, addMonths, formatMonthLabel, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
 import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
 import {
   GOAL_CLASS_LABELS,
   GOAL_CLASSES,
+  accountsForGoal,
   accountsFromBreakdown,
+  fundingMethodOf,
   goalClassOf,
   inferGoalClass,
+  isTripGoal,
+  linesForGoal,
+  mergeMissingAccounts,
   readGoal,
   startingDebts,
+  type FundingMethod,
   type GoalAccount,
   type GoalClass,
   type GoalFacts,
@@ -30,6 +38,7 @@ import {
 } from "@/lib/tracking/goal-class";
 import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import { formatMoney } from "@/lib/tracking/format";
+import { formatSnapshotLabel } from "@/lib/net-worth/tracking";
 import { cn } from "@/lib/utils";
 import type { GoalRow, SnapshotBreakdown } from "@/types/tracking";
 
@@ -52,22 +61,25 @@ interface GoalPageData {
   history: { date: string; accounts: GoalAccount[] }[];
   latestAccounts: GoalAccount[];
   loggedByCategory: Record<string, number>;
+  spendByMonthCategory: Record<string, number>;
   expenseDates: string[];
   monthExpense: number;
   planExpense: number | null;
-  savingsChoices: { slug: string; label: string }[];
-  planChoices: { slug: string; label: string }[];
+  savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
+  planChoices: { slug: string; label: string; kind: CategoryKind }[];
 }
 
 async function fetchGoalPageData(): Promise<GoalPageData> {
   const today = todayIso();
   const month = startOfMonth(today);
   const weekStart = addDays(startOfWeekMonday(today), -21);
-  const start = weekStart < month ? weekStart : month;
+  const rangeStart = addMonths(month, -12);
+  const start = weekStart < rangeStart ? weekStart : rangeStart;
   const year = Number(today.slice(0, 4));
-  const [res, snapRes, txnRes, plan, catalog] = await Promise.all([
+  const [res, snapRes, holdRes, txnRes, plan, catalog] = await Promise.all([
     fetch("/api/goals", { credentials: "include" }),
     fetch("/api/net-worth/snapshots", { credentials: "include" }),
+    fetch("/api/holdings", { credentials: "include" }),
     fetch(`/api/transactions?start=${start}&end=${today}`, { credentials: "include" }),
     fetchPlan(year).catch(() => null),
     fetchCatalog().catch(() => []),
@@ -85,12 +97,34 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
   if (snapRes.ok) {
     const json = await snapRes.json();
     const snaps = (json.snapshots ?? []) as { snapshot_date?: string; breakdown?: SnapshotBreakdown }[];
-    history = snaps.map((snap) => ({
-      date: String(snap.snapshot_date ?? ""),
-      accounts: accountsFromBreakdown(snap.breakdown),
-    }));
+    history = snaps
+      .map((snap) => ({
+        date: String(snap.snapshot_date ?? ""),
+        accounts: accountsFromBreakdown(snap.breakdown),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+  if (holdRes.ok) {
+    const json = await holdRes.json();
+    const live: GoalAccount[] = (json.holdings ?? []).map(
+      (row: { id: string; account_type?: string; display_name?: string | null; total_value?: number | null }) => ({
+        key: row.id,
+        name: formatSnapshotLabel(row.display_name?.trim() || row.account_type || "Account"),
+        value: Number(row.total_value) || 0,
+        side: "asset" as const,
+        accountType: row.account_type,
+        bucket: "investment" as const,
+      }),
+    );
+    if (history.length === 0) {
+      history = [{ date: today, accounts: live }];
+    } else {
+      const last = history[history.length - 1];
+      history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, live) }];
+    }
   }
   const loggedByCategory: Record<string, number> = {};
+  const spendByMonthCategory: Record<string, number> = {};
   const expenseDates: string[] = [];
   let monthExpense = 0;
   if (txnRes.ok) {
@@ -102,26 +136,37 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
         loggedByCategory[txn.category] = (loggedByCategory[txn.category] ?? 0) + amount;
       }
       if (transactionKind(txn) === "expense") {
+        if (txn.category) {
+          const key = `${date.slice(0, 7)}:${txn.category}`;
+          spendByMonthCategory[key] = (spendByMonthCategory[key] ?? 0) + amount;
+        }
         if (date >= month) monthExpense += amount;
         if (date >= weekStart) expenseDates.push(date);
       }
     }
   }
   const monthKey = month.slice(0, 7);
-  const savings = new Set<string>();
-  const slugs = new Set<string>();
+  const planChoices = new Map<string, { slug: string; label: string; kind: CategoryKind }>();
   let planExpenseSum = 0;
   let planExpenseRows = 0;
   for (const entry of plan?.entries ?? []) {
-    slugs.add(entry.category);
-    if (entry.kind === "savings") savings.add(entry.category);
+    if (!planChoices.has(entry.category)) {
+      planChoices.set(entry.category, {
+        slug: entry.category,
+        label: labelFor(catalog, entry.category),
+        kind: entry.kind,
+      });
+    }
     if (entry.kind === "expense" && entry.month.slice(0, 7) === monthKey) {
       planExpenseSum += Number(entry.amount) || 0;
       planExpenseRows += 1;
     }
   }
-  savings.add("debt_principal");
-  slugs.add("debt_principal");
+  for (const row of catalog) {
+    if (row.archived || row.kind !== "savings" || planChoices.has(row.slug)) continue;
+    planChoices.set(row.slug, { slug: row.slug, label: row.label, kind: "savings" });
+  }
+  const choices = [...planChoices.values()];
   return {
     goals,
     today,
@@ -130,11 +175,12 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
     history,
     latestAccounts: history[history.length - 1]?.accounts ?? [],
     loggedByCategory,
+    spendByMonthCategory,
     expenseDates,
     monthExpense,
     planExpense: planExpenseRows > 0 ? planExpenseSum : null,
-    savingsChoices: [...savings].map((slug) => ({ slug, label: labelFor(catalog, slug) })),
-    planChoices: [...slugs].map((slug) => ({ slug, label: labelFor(catalog, slug) })),
+    savingsChoices: choices.filter((choice) => choice.kind === "savings" && choice.slug !== "debt_principal"),
+    planChoices: choices,
   };
 }
 
@@ -147,14 +193,15 @@ export default function GoalsPage() {
   const [latestAccounts, setLatestAccounts] = useState<GoalAccount[]>([]);
   const [history, setHistory] = useState<GoalPageData["history"]>([]);
   const [loggedByCategory, setLoggedByCategory] = useState<Record<string, number>>({});
+  const [spendByMonthCategory, setSpendByMonthCategory] = useState<Record<string, number>>({});
   const [expenseDates, setExpenseDates] = useState<string[]>([]);
   const [monthExpense, setMonthExpense] = useState(0);
   const [planExpense, setPlanExpense] = useState<number | null>(null);
   const [profileMonthly, setProfileMonthly] = useState<number | null>(null);
   const [age, setAge] = useState<number | null>(null);
   const [today, setToday] = useState("");
-  const [savingsChoices, setSavingsChoices] = useState<{ slug: string; label: string }[]>([]);
-  const [planChoices, setPlanChoices] = useState<{ slug: string; label: string }[]>([]);
+  const [savingsChoices, setSavingsChoices] = useState<{ slug: string; label: string; kind: CategoryKind }[]>([]);
+  const [planChoices, setPlanChoices] = useState<{ slug: string; label: string; kind: CategoryKind }[]>([]);
   const baselineTried = useRef(new Set<string>());
 
   const applyPage = useCallback((data: GoalPageData) => {
@@ -162,6 +209,7 @@ export default function GoalsPage() {
     setLatestAccounts(data.latestAccounts);
     setHistory(data.history);
     setLoggedByCategory(data.loggedByCategory);
+    setSpendByMonthCategory(data.spendByMonthCategory);
     setExpenseDates(data.expenseDates);
     setMonthExpense(data.monthExpense);
     setPlanExpense(data.planExpense);
@@ -243,8 +291,10 @@ export default function GoalsPage() {
       monthExpense,
       expenseDates,
       latest: latestAccounts,
+      history,
       startDebts: startingDebts(history, goal.created_at),
       loggedByCategory,
+      spendByMonthCategory,
     };
   }
 
@@ -527,6 +577,245 @@ function PlanChecks({
   );
 }
 
+const FUNDING_LABELS: Record<FundingMethod, string> = {
+  set_aside: "A savings account set aside for it",
+  existing: "Savings already on file",
+  cash_flow: "General cash flow",
+  credit: "A credit card",
+};
+
+function AddSavingsAccount({
+  onCreated,
+}: {
+  onCreated: (created: { id: string; slug: string; name: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function add() {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    const created = await createSavingsAccount(name);
+    setSaving(false);
+    if (!created) {
+      setError("Could not add that account.");
+      return;
+    }
+    setName("");
+    onCreated(created);
+  }
+
+  return (
+    <div className="mt-3">
+      <label className="font-body text-xs text-[var(--text-secondary)]">Name the account</label>
+      <div className="mt-1 flex gap-2">
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Travel fund"
+          className="min-w-0 flex-1 rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+        <button
+          type="button"
+          onClick={() => void add()}
+          disabled={saving || !name.trim()}
+          className="shrink-0 rounded-lg bg-[var(--emerald)] px-3 py-2 font-display text-xs font-semibold text-white disabled:opacity-60"
+        >
+          {saving ? "Adding…" : "Add"}
+        </button>
+      </div>
+      {error && <p className="mt-1 font-body text-xs text-[var(--error)]">{error}</p>}
+    </div>
+  );
+}
+
+function TripFunding({
+  goal,
+  reading,
+  accounts,
+  selectedAccounts,
+  selectedPlans,
+  onPatch,
+}: {
+  goal: GoalRow;
+  reading: Extract<GoalReading, { goalClass: "balance" }>;
+  accounts: GoalAccount[];
+  selectedAccounts: string[];
+  selectedPlans: string[];
+  onPatch: (updates: Partial<GoalRow>) => void;
+}) {
+  const savingsAccounts = accountsForGoal("balance", accounts, { trip: true, funding: "set_aside" });
+  const cards = accountsForGoal("debt", accounts);
+  const monthLabel = reading.tripMonth ? formatMonthLabel(`${reading.tripMonth}-01`) : null;
+
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="font-body text-xs text-[var(--text-secondary)]">How is this trip paid for?</p>
+      <div className="grid grid-cols-1 gap-1">
+        {(Object.keys(FUNDING_LABELS) as FundingMethod[]).map((method) => (
+          <button
+            key={method}
+            type="button"
+            onClick={() => onPatch({ funding_method: method })}
+            className={cn(
+              "rounded-lg px-3 py-2 text-left font-body text-sm",
+              reading.fundingMethod === method
+                ? "bg-[var(--emerald)] text-white"
+                : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+            )}
+          >
+            {FUNDING_LABELS[method]}
+          </button>
+        ))}
+      </div>
+      {(reading.fundingMethod === "set_aside" || reading.fundingMethod === "existing") && (
+        <>
+          {reading.current != null && reading.target != null ? (
+            <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+              {formatMoney(reading.current)} of {formatMoney(reading.target)} is in the account on the latest check-in.
+            </p>
+          ) : (
+            <p className="font-body text-xs text-[var(--text-muted)]">
+              The next net-worth check-in sets the balance this goal reads.
+            </p>
+          )}
+          {savingsAccounts.length === 0 && (
+            <p className="font-body text-xs text-[var(--text-muted)]">No savings account is on Net Worth yet.</p>
+          )}
+          <AccountChecks
+            label="Which savings account?"
+            accounts={savingsAccounts}
+            selected={selectedAccounts}
+            onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
+          />
+          {reading.fundingMethod === "set_aside" && (
+            <AddSavingsAccount
+              onCreated={(created) =>
+                onPatch({
+                  funding_method: "set_aside",
+                  linked_account_ids: [...selectedAccounts, created.id],
+                  linked_plan_categories: [...selectedPlans, created.slug],
+                })
+              }
+            />
+          )}
+          {reading.fundingMethod === "set_aside" && selectedPlans.length > 0 && (
+            <p className="font-body text-xs text-[var(--text-secondary)]">
+              {formatMoney(reading.loggedThisMonth)} logged to that savings line this month. The balance above is the check-in, not this log.
+            </p>
+          )}
+        </>
+      )}
+      {reading.fundingMethod === "cash_flow" && (
+        <CashOrCard
+          goal={goal}
+          reading={reading}
+          monthLabel={monthLabel}
+          onPatch={onPatch}
+        />
+      )}
+      {reading.fundingMethod === "credit" && (
+        <>
+          <CashOrCard goal={goal} reading={reading} monthLabel={monthLabel} onPatch={onPatch} />
+          {cards.length === 0 && (
+            <p className="font-body text-xs text-[var(--text-muted)]">Add the card or line on Net Worth. This goal reads that balance.</p>
+          )}
+          <AccountChecks
+            label="Which card or line?"
+            accounts={cards}
+            selected={selectedAccounts}
+            onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
+          />
+          <PayoffMonths
+            value={goal.payoff_months ?? null}
+            onSave={(months) => onPatch({ payoff_months: months })}
+          />
+          {reading.cardIncrease != null && reading.cardStillOwed != null && (
+            <p className="font-body text-xs text-[var(--text-secondary)]">
+              {formatMoney(reading.cardIncrease)} was added on that card. {formatMoney(reading.cardStillOwed)} of that is still owed.
+              {reading.payoffMonths != null ? ` The payoff is entered as ${reading.payoffMonths} months.` : ""}
+            </p>
+          )}
+          {reading.cardIncrease == null && !reading.beforeTrip && reading.tripMonth != null && selectedAccounts.length > 0 && (
+            <p className="font-body text-xs text-[var(--text-muted)]">
+              The check-in in that month shows what was added to this card.
+            </p>
+          )}
+        </>
+      )}
+      {reading.bar != null && <Meter bar={reading.bar} />}
+    </div>
+  );
+}
+
+function CashOrCard({
+  goal,
+  reading,
+  monthLabel,
+  onPatch,
+}: {
+  goal: GoalRow;
+  reading: Extract<GoalReading, { goalClass: "balance" }>;
+  monthLabel: string | null;
+  onPatch: (updates: Partial<GoalRow>) => void;
+}) {
+  if (reading.tripMonth == null) {
+    return (
+      <div>
+        <label className="font-body text-xs text-[var(--text-secondary)]">Month of the trip</label>
+        <input
+          type="date"
+          value={goal.target_date ?? ""}
+          onChange={(event) => onPatch({ target_date: event.target.value || null })}
+          aria-label="Month of the trip"
+          className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      {reading.beforeTrip && monthLabel && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          Watching {monthLabel}. Spending that month is compared with the trip amount.
+        </p>
+      )}
+      {!reading.beforeTrip && reading.tripSpend != null && monthLabel && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          {formatMoney(reading.tripSpend)} logged to Travel in {monthLabel}.
+          {reading.target != null ? ` The trip amount is ${formatMoney(reading.target)}.` : ""}
+        </p>
+      )}
+      {reading.fundingMethod === "cash_flow" && reading.creditChange != null && reading.creditChange > 0 && (
+        <p className="font-body text-xs text-[var(--text-secondary)]">
+          Balances owed are {formatMoney(reading.creditChange)} higher than the check-in before that month.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PayoffMonths({ value, onSave }: { value: number | null; onSave: (months: number) => void }) {
+  const [text, setText] = useState(value != null ? String(value) : "");
+  return (
+    <div>
+      <label className="font-body text-xs text-[var(--text-secondary)]">How many months is the payoff planned over?</label>
+      <input
+        inputMode="numeric"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onBlur={() => {
+          const months = Number(text);
+          if (Number.isInteger(months) && months >= 1 && months <= 120) onSave(months);
+        }}
+        className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+      />
+    </div>
+  );
+}
+
 function ReadingView({
   goal,
   reading,
@@ -538,7 +827,7 @@ function ReadingView({
   goal: GoalRow;
   reading: GoalReading;
   accounts: GoalAccount[];
-  savingsChoices: { slug: string; label: string }[];
+  savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
   onPatch: (updates: Partial<GoalRow>) => void;
   onSaveAge: (age: number) => void;
 }) {
@@ -628,8 +917,8 @@ function ReadingView({
         )}
         {reading.balance == null && (
           <AccountChecks
-            label="Attach an account if the savings sit somewhere else."
-            accounts={assets}
+            label="Attach a retirement account if the savings sit somewhere else."
+            accounts={accountsForGoal("retirement_age", accounts)}
             selected={selectedAccounts}
             onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
           />
@@ -721,7 +1010,21 @@ function ReadingView({
     );
   }
 
+  if (reading.goalClass === "balance" && reading.trip) {
+    return (
+      <TripFunding
+        goal={goal}
+        reading={reading}
+        accounts={accounts}
+        selectedAccounts={selectedAccounts}
+        selectedPlans={selectedPlans}
+        onPatch={onPatch}
+      />
+    );
+  }
+
   if (reading.goalClass === "balance") {
+    const savingsAccounts = accountsForGoal("balance", accounts);
     return (
       <div className="mt-3 space-y-1">
         {reading.current != null && reading.target != null ? (
@@ -733,30 +1036,33 @@ function ReadingView({
         ) : (
           <p className="font-body text-xs text-[var(--text-muted)]">Set an amount to measure this.</p>
         )}
-        {reading.needsAccount && assets.length === 0 && (
-          <p className="font-body text-xs text-[var(--text-muted)]">Add an account on Net Worth. This goal reads that balance.</p>
+        {reading.needsAccount && savingsAccounts.length === 0 && (
+          <p className="font-body text-xs text-[var(--text-muted)]">Add a savings account on Net Worth. This goal reads that balance.</p>
         )}
         {reading.needsAccount && (
           <AccountChecks
-            label="Which account holds this?"
-            accounts={assets}
+            label="Which savings account holds this?"
+            accounts={savingsAccounts}
             selected={selectedAccounts}
             onToggle={(key) => onPatch({ linked_account_ids: toggleId(selectedAccounts, key) })}
           />
         )}
+        {reading.needsPlanLine && savingsChoices.length === 0 && (
+          <p className="font-body text-xs text-[var(--text-muted)]">No savings line is on the plan.</p>
+        )}
         {reading.needsPlanLine && (
           <PlanChecks
-            label="Which plan line feeds it?"
+            label="Which savings line feeds it?"
             choices={savingsChoices}
             selected={selectedPlans}
             onToggle={(slug) => onPatch({ linked_plan_categories: toggleId(selectedPlans, slug) })}
           />
         )}
-        {!reading.needsPlanLine && (
+        {!reading.needsPlanLine && selectedPlans.length > 0 && (
           <p className="font-body text-xs text-[var(--text-secondary)]">
             {reading.loggedThisMonth > 0
-              ? `${formatMoney(reading.loggedThisMonth)} logged to that plan line this month.`
-              : "Nothing logged to that plan line this month."}
+              ? `${formatMoney(reading.loggedThisMonth)} logged to that savings line this month.`
+              : "Nothing logged to that savings line this month."}
           </p>
         )}
         {reading.bar != null && <Meter bar={reading.bar} />}
@@ -812,7 +1118,7 @@ function GoalCard({
   goal: GoalRow;
   reading: GoalReading;
   accounts: GoalAccount[];
-  savingsChoices: { slug: string; label: string }[];
+  savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
   onPatch: (updates: Partial<GoalRow>) => void;
   onSaveAge: (age: number) => void;
   onEdit?: () => void;
@@ -939,7 +1245,7 @@ function GoalForm({
 }: {
   initial: GoalRow | null;
   accounts: GoalAccount[];
-  planChoices: { slug: string; label: string }[];
+  planChoices: { slug: string; label: string; kind: CategoryKind }[];
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
@@ -959,6 +1265,10 @@ function GoalForm({
   const [classTouched, setClassTouched] = useState(Boolean(initial?.tracking_class));
   const [linkedAccounts, setLinkedAccounts] = useState<string[]>(initial?.linked_account_ids ?? []);
   const [linkedPlans, setLinkedPlans] = useState<string[]>(initial?.linked_plan_categories ?? []);
+  const [addedAccounts, setAddedAccounts] = useState<GoalAccount[]>([]);
+  const [addedSlugs, setAddedSlugs] = useState<string[]>([]);
+  const [fundingMethod, setFundingMethod] = useState<FundingMethod | "">(fundingMethodOf(initial?.funding_method) ?? "");
+  const [payoffMonths, setPayoffMonths] = useState(initial?.payoff_months != null ? String(initial.payoff_months) : "");
   const [targetAmount, setTargetAmount] = useState(
     initial?.target_amount != null ? String(initial.target_amount) : "",
   );
@@ -974,9 +1284,20 @@ function GoalForm({
   const [priority, setPriority] = useState<GoalPriority>(initial?.priority ?? "medium");
   const [saving, setSaving] = useState(false);
 
+  const trip = isTripGoal({ name, goal_type: goalType }) && trackingClass === "balance";
+  const funding = fundingMethodOf(fundingMethod);
+  const accountChoices = [
+    ...accountsForGoal(trackingClass, accounts, { trip, funding }),
+    ...addedAccounts,
+  ].filter((account, index, list) => list.findIndex((item) => item.key === account.key) === index);
+  const lineChoices = linesForGoal(trackingClass, planChoices, trip);
+  const allowedLines = new Set([...lineChoices.map((line) => line.slug), ...addedSlugs]);
+  const keepPlans = !trip ? trackingClass === "balance" : funding === "set_aside";
+
   async function submit() {
     if (!name.trim()) return;
     setSaving(true);
+    const months = Number(payoffMonths);
     const payload = {
       ...goalDraftToPayload({
         name,
@@ -990,8 +1311,10 @@ function GoalForm({
       }),
       current_amount: Number(currentAmount) || 0,
       tracking_class: trackingClass,
-      linked_account_ids: linkedAccounts,
-      linked_plan_categories: linkedPlans,
+      linked_account_ids: linkedAccounts.filter((key) => accountChoices.some((account) => account.key === key)),
+      linked_plan_categories: keepPlans ? linkedPlans.filter((slug) => allowedLines.has(slug)) : [],
+      funding_method: trip ? funding : null,
+      payoff_months: trip && funding === "credit" && Number.isInteger(months) && months >= 1 && months <= 120 ? months : null,
       source: initial ? undefined : ("manual" as const),
     };
     if (initial) {
@@ -1143,42 +1466,91 @@ function GoalForm({
             className="mb-3 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
           />
         )}
-        {trackingClass !== "note" && (
+        {trip && (
+          <div className="mb-4">
+            <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">How is this trip paid for?</p>
+            <div className="mt-2 grid grid-cols-1 gap-1">
+              {(Object.keys(FUNDING_LABELS) as FundingMethod[]).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setFundingMethod(method)}
+                  className={cn(
+                    "rounded-lg px-3 py-2 text-left font-body text-sm",
+                    fundingMethod === method ? "bg-[var(--emerald)] text-white" : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+                  )}
+                >
+                  {FUNDING_LABELS[method]}
+                </button>
+              ))}
+            </div>
+            {funding === "credit" && (
+              <div className="mt-3">
+                <label className="font-body text-xs text-[var(--text-secondary)]">How many months is the payoff planned over?</label>
+                <input
+                  inputMode="numeric"
+                  value={payoffMonths}
+                  onChange={(event) => setPayoffMonths(event.target.value)}
+                  className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
+        {trackingClass === "debt" && accountChoices.length === 0 && (
+          <p className="mb-4 font-body text-xs text-[var(--text-muted)]">Add the loan or card on Net Worth. This goal reads that balance.</p>
+        )}
+        {accountChoices.length > 0 && (
           <div className="mb-4">
             <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">
-              {trackingClass === "debt" ? "Loan or mortgage" : "Accounts to watch"}
+              {trackingClass === "debt" || funding === "credit" ? "Loan or card" : "Accounts to watch"}
             </p>
             <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
-              {accounts
-                .filter((account) => (trackingClass === "debt" ? account.side === "debt" : account.side === "asset"))
-                .map((account) => (
-                  <label key={account.key} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
-                    <input
-                      type="checkbox"
-                      checked={linkedAccounts.includes(account.key)}
-                      onChange={() =>
-                        setLinkedAccounts((current) =>
-                          current.includes(account.key)
-                            ? current.filter((key) => key !== account.key)
-                            : [...current, account.key],
-                        )
-                      }
-                      className="size-4 accent-[var(--emerald)]"
-                    />
-                    <span className="min-w-0 break-words">{account.name}</span>
-                  </label>
-                ))}
-              {accounts.length === 0 && (
-                <p className="font-body text-xs text-[var(--text-muted)]">Add a net-worth check-in to attach an account.</p>
-              )}
+              {accountChoices.map((account) => (
+                <label key={account.key} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={linkedAccounts.includes(account.key)}
+                    onChange={() =>
+                      setLinkedAccounts((current) =>
+                        current.includes(account.key)
+                          ? current.filter((key) => key !== account.key)
+                          : [...current, account.key],
+                      )
+                    }
+                    className="size-4 accent-[var(--emerald)]"
+                  />
+                  <span className="min-w-0 break-words">{account.name}</span>
+                </label>
+              ))}
             </div>
           </div>
         )}
-        {(trackingClass === "balance" || trackingClass === "debt") && planChoices.length > 0 && (
+        {(trackingClass === "balance" && (!trip || funding === "set_aside")) && (
+          <AddSavingsAccount
+            onCreated={(created) => {
+              setAddedAccounts((current) => [
+                ...current,
+                {
+                  key: created.id,
+                  name: created.name,
+                  value: 0,
+                  side: "asset",
+                  accountType: "Bank-Account",
+                  bucket: "investment",
+                },
+              ]);
+              setAddedSlugs((current) => [...current, created.slug]);
+              setLinkedAccounts((current) => [...current, created.id]);
+              setLinkedPlans((current) => [...current, created.slug]);
+            }}
+          />
+        )}
+        {lineChoices.length > 0 && (
           <div className="mb-4">
-            <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Plan lines to count</p>
+            <p className="font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Savings lines to count</p>
             <div className="mt-2 max-h-36 space-y-1 overflow-y-auto">
-              {planChoices.map((choice) => (
+              {lineChoices.map((choice) => (
                 <label key={choice.slug} className="flex min-w-0 items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
                   <input
                     type="checkbox"
@@ -1197,6 +1569,9 @@ function GoalForm({
               ))}
             </div>
           </div>
+        )}
+        {trackingClass === "balance" && !trip && lineChoices.length === 0 && (
+          <p className="mb-4 font-body text-xs text-[var(--text-muted)]">No savings line is on the plan.</p>
         )}
         <p className="mb-2 font-body text-xs uppercase tracking-wider text-[var(--text-muted)]">Priority</p>
         <div className="mb-5 flex gap-2">

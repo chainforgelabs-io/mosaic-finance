@@ -57,14 +57,25 @@ export async function saveHoldings(formData: {
       holdings: holdingsJson,
       total_value: totalValue,
       source: "manual" as const,
+      ...(account.accountName?.trim() ? { display_name: account.accountName.trim() } : {}),
     };
     const keepId = isUuid(account.id) && existingIds.has(account.id);
     if (keepId) {
-      const { error: updateError } = await supabase
+      let { error: updateError } = await supabase
         .from("investment_holdings")
         .update(payload)
         .eq("id", account.id)
         .eq("user_id", user.id);
+      if (updateError && /display_name/i.test(updateError.message)) {
+        const withoutName = { ...payload };
+        delete withoutName.display_name;
+        const retry = await supabase
+          .from("investment_holdings")
+          .update(withoutName)
+          .eq("id", account.id)
+          .eq("user_id", user.id);
+        updateError = retry.error;
+      }
       if (updateError) {
         console.error("[saveHoldings] update investment_holdings:", updateError);
         return { error: "Failed to save holdings. Please try again." };
@@ -74,11 +85,21 @@ export async function saveHoldings(formData: {
     }
 
     const insertId = isUuid(account.id) ? account.id : crypto.randomUUID();
-    const { error: insertError } = await supabase.from("investment_holdings").insert({
+    let { error: insertError } = await supabase.from("investment_holdings").insert({
       id: insertId,
       user_id: user.id,
       ...payload,
     });
+    if (insertError && /display_name/i.test(insertError.message)) {
+      const withoutName = { ...payload };
+      delete withoutName.display_name;
+      const retry = await supabase.from("investment_holdings").insert({
+        id: insertId,
+        user_id: user.id,
+        ...withoutName,
+      });
+      insertError = retry.error;
+    }
     if (insertError) {
       console.error("[saveHoldings] insert investment_holdings:", insertError);
       return { error: "Failed to save holdings. Please try again." };
