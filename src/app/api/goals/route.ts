@@ -55,6 +55,10 @@ function withoutLinkColumns<T extends Record<string, unknown>>(row: T, message: 
 const patchSchema = createSchema.partial().extend({
   id: z.string().uuid().optional(),
   reviewAll: z.boolean().optional(),
+  // Replace the create defaults. A partial update must not rewrite priority, status, or source.
+  priority: z.enum(GOAL_PRIORITIES).optional(),
+  status: z.enum(GOAL_STATUSES).optional(),
+  source: z.enum(["onboarding", "fact_find", "manual"]).optional(),
 });
 
 export async function GET() {

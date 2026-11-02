@@ -202,6 +202,7 @@ export default function GoalsPage() {
   const [today, setToday] = useState("");
   const [savingsChoices, setSavingsChoices] = useState<{ slug: string; label: string; kind: CategoryKind }[]>([]);
   const [planChoices, setPlanChoices] = useState<{ slug: string; label: string; kind: CategoryKind }[]>([]);
+  const [choiceErrors, setChoiceErrors] = useState<Record<string, string>>({});
   const baselineTried = useRef(new Set<string>());
 
   const applyPage = useCallback((data: GoalPageData) => {
@@ -269,17 +270,33 @@ export default function GoalsPage() {
   const archived = goals.filter((g) => g.status === "archived");
 
   async function patch(id: string, updates: Partial<GoalRow>) {
+    setGoals((current) => current.map((goal) => (goal.id === id ? { ...goal, ...updates } : goal)));
+    if (updates.funding_method) {
+      setChoiceErrors((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
     const res = await fetch("/api/goals", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ id, ...updates }),
     });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    if (!res.ok) {
+      if (updates.funding_method) {
+        setChoiceErrors((current) => ({ ...current, [id]: "That choice did not save." }));
+      }
       await load();
+      return;
     }
+    const json = await res.json();
+    if (updates.funding_method && json.goal?.funding_method !== updates.funding_method) {
+      setChoiceErrors((current) => ({ ...current, [id]: "That choice did not save." }));
+    }
+    if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
+    await load();
   }
 
   function factsFor(goal: GoalRow): GoalFacts {
@@ -394,6 +411,7 @@ export default function GoalsPage() {
                       savingsChoices={savingsChoices}
                       onPatch={(updates) => patch(g.id, updates)}
                       onSaveAge={saveAge}
+                      choiceError={choiceErrors[g.id]}
                       onEdit={() => {
                         setEditing(g);
                         setShowForm(true);
@@ -638,6 +656,7 @@ function TripFunding({
   selectedAccounts,
   selectedPlans,
   onPatch,
+  choiceError,
 }: {
   goal: GoalRow;
   reading: Extract<GoalReading, { goalClass: "balance" }>;
@@ -645,6 +664,7 @@ function TripFunding({
   selectedAccounts: string[];
   selectedPlans: string[];
   onPatch: (updates: Partial<GoalRow>) => void;
+  choiceError?: string;
 }) {
   const savingsAccounts = accountsForGoal("balance", accounts, { trip: true, funding: "set_aside" });
   const cards = accountsForGoal("debt", accounts);
@@ -660,16 +680,17 @@ function TripFunding({
             type="button"
             onClick={() => onPatch({ funding_method: method })}
             className={cn(
-              "rounded-lg px-3 py-2 text-left font-body text-sm",
+              "cursor-pointer rounded-lg px-3 py-2 text-left font-body text-sm transition-colors",
               reading.fundingMethod === method
-                ? "bg-[var(--emerald)] text-white"
-                : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+                ? "bg-[var(--emerald)] text-white hover:bg-[var(--emerald-dark)]"
+                : "bg-[var(--warm-100)] text-[var(--text-secondary)] hover:bg-[var(--warm-200)]",
             )}
           >
             {FUNDING_LABELS[method]}
           </button>
         ))}
       </div>
+      {choiceError && <p className="font-body text-xs text-[var(--error)]">{choiceError}</p>}
       {(reading.fundingMethod === "set_aside" || reading.fundingMethod === "existing") && (
         <>
           {reading.current != null && reading.target != null ? (
@@ -823,6 +844,7 @@ function ReadingView({
   savingsChoices,
   onPatch,
   onSaveAge,
+  choiceError,
 }: {
   goal: GoalRow;
   reading: GoalReading;
@@ -830,6 +852,7 @@ function ReadingView({
   savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
   onPatch: (updates: Partial<GoalRow>) => void;
   onSaveAge: (age: number) => void;
+  choiceError?: string;
 }) {
   const [ageValue, setAgeValue] = useState("");
   const assets = accounts.filter((account) => account.side === "asset");
@@ -1019,6 +1042,7 @@ function ReadingView({
         selectedAccounts={selectedAccounts}
         selectedPlans={selectedPlans}
         onPatch={onPatch}
+        choiceError={choiceError}
       />
     );
   }
@@ -1110,6 +1134,7 @@ function GoalCard({
   savingsChoices,
   onPatch,
   onSaveAge,
+  choiceError,
   onEdit,
   onAchieve,
   onArchive,
@@ -1121,6 +1146,7 @@ function GoalCard({
   savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
   onPatch: (updates: Partial<GoalRow>) => void;
   onSaveAge: (age: number) => void;
+  choiceError?: string;
   onEdit?: () => void;
   onAchieve?: () => void;
   onArchive?: () => void;
@@ -1169,6 +1195,7 @@ function GoalCard({
         savingsChoices={savingsChoices}
         onPatch={onPatch}
         onSaveAge={onSaveAge}
+        choiceError={choiceError}
       />
       {goal.target_age != null && goal.status === "active" && reading.goalClass !== "retirement_age" && (
         <p className="mt-2 font-body text-xs text-[var(--text-muted)]">Target age {goal.target_age}</p>
@@ -1476,8 +1503,10 @@ function GoalForm({
                   type="button"
                   onClick={() => setFundingMethod(method)}
                   className={cn(
-                    "rounded-lg px-3 py-2 text-left font-body text-sm",
-                    fundingMethod === method ? "bg-[var(--emerald)] text-white" : "bg-[var(--warm-100)] text-[var(--text-secondary)]",
+                    "cursor-pointer rounded-lg px-3 py-2 text-left font-body text-sm transition-colors",
+                    fundingMethod === method
+                      ? "bg-[var(--emerald)] text-white hover:bg-[var(--emerald-dark)]"
+                      : "bg-[var(--warm-100)] text-[var(--text-secondary)] hover:bg-[var(--warm-200)]",
                   )}
                 >
                   {FUNDING_LABELS[method]}
