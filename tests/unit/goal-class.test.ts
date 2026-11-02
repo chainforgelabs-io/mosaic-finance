@@ -149,9 +149,7 @@ describe("goal reading", () => {
     expect(reading.tracked).toBe(3800);
     expect(reading.budgetSource).toBe("plan");
     expect(reading.monthComplete).toBe(false);
-    expect(reading.day).toBe(1);
-    expect(reading.days).toBe(30);
-    expect(reading.pace).toBe(Math.round(4200 / 30));
+    expect(monthShare("2026-11-01")).toEqual({ day: 1, days: 30, complete: false });
   });
 
   it("compares cost of living with the full plan only on the last day", () => {
@@ -169,7 +167,6 @@ describe("goal reading", () => {
     if (reading.goalClass !== "cost_of_living") throw new Error("expected cost of living");
     expect(monthShare("2026-11-30").complete).toBe(true);
     expect(reading.monthComplete).toBe(true);
-    expect(reading.pace).toBe(4200);
     expect(monthShare("2026-02-28")).toEqual({ day: 28, days: 28, complete: true });
   });
 });

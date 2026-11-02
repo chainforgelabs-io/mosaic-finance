@@ -695,16 +695,12 @@ function ReadingView({
           : gap < 0
             ? `${formatMoney(Math.abs(gap))} over ${against}`
             : `Matches ${against}`;
-    const shareLabel =
-      reading.budgetSource === "entered"
-        ? `The amount you set for ${reading.day} of ${reading.days} days is about ${formatMoney(reading.pace)}.`
-        : `The plan for ${reading.day} of ${reading.days} days is about ${formatMoney(reading.pace)}.`;
     const moneyLine =
       reading.budget == null
         ? null
         : reading.monthComplete && fullMonth != null
           ? `${formatMoney(reading.tracked)} logged this month. ${fullMonth}.`
-          : `${formatMoney(reading.tracked)} logged this month. ${shareLabel}`;
+          : `${formatMoney(reading.tracked)} logged this month.`;
     const examplePrompt =
       reading.exampleMonthly == null
         ? "Enter the monthly spending you want to stay near."
