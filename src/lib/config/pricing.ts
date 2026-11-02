@@ -14,7 +14,7 @@ export const TIER_LABELS: Record<Tier, string> = {
 
 export const TIER_PROMISE: Record<Tier, string> = {
   pulse: "See where you stand — and stay consistent.",
-  progress: "Know exactly what to do next.",
+  progress: "A clear picture of where you stand.",
   mastery: "Don't just know — do it, with people who are doing it too.",
 };
 

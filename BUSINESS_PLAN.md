@@ -52,7 +52,7 @@ move along this ladder (e.g. Progress $17 → $26), never to arbitrary amounts.
 |---|---|---|---|
 | **Monthly** | $0 | **$17** (founding: **$8** locked for life, first 200) | **$44** |
 | **Annual** | $0 | **$170** (founding: **$80**) | **$350** |
-| **Core promise** | See where you stand — and stay consistent. | Know exactly what to do next. | Don't just know — do it, with people who are doing it too. |
+| **Core promise** | See where you stand — and stay consistent. | A clear picture of where you stand. | Don't just know — do it, with people who are doing it too. |
 | Tracking, budgets, net worth, holdings (manual), goals | ✅ | ✅ | ✅ |
 | Full gamification, live Financial Health Score | ✅ | ✅ | ✅ |
 | Canadian calculators, newsletter | ✅ | ✅ | ✅ |

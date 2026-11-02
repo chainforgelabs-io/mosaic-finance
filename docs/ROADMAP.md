@@ -233,7 +233,6 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) still describes signup → onboarding → fact-find. Regex already allows `/dashboard`.
 - Savings / emergency / debt score components ignore tracked spending until Phase 1B.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
-- `TIER_PROMISE.progress` reads "Know exactly what to do next." (shared by pricing and settings). Borderline advice framing; owner to confirm replacement wording before an agent edits it.
 - Guarantee refund scope: public copy and settings say "we refund your first payment." For annual that is the full $170 / $80; for monthly it is one month. **Decision needed** if the owner wants full-period refund on monthly.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
 - Uncommitted local work (lookup guides, plan schema) is not part of this roadmap.
