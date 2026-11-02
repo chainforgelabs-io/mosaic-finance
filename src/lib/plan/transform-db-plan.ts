@@ -66,8 +66,8 @@ function buildSections(raw: any): PlanSection[] {
 
     sections.push({
       id: "financial_health_diagnostic",
-      title: "Financial Health Diagnostic",
-      subtitle: "A comprehensive snapshot of your current financial position",
+      title: "Where things stand",
+      subtitle: "The balances and cash figures in this report",
       status: "ai_generated",
       summary: d.gap_analysis ?? "",
       cards,
@@ -78,24 +78,24 @@ function buildSections(raw: any): PlanSection[] {
 
   if (r) {
     const cards = [
-      card("Retirement Number", r.retirement_number),
-      card("Current Trajectory", r.current_trajectory),
-      card("Monthly Savings Required", r.monthly_savings_required),
-      card("Est. CPP Monthly", r.cpp_estimated_monthly),
+      card("Retirement figure", r.retirement_number),
+      card("Projection today", r.current_trajectory),
+      card("Monthly amount in the projection", r.monthly_savings_required),
+      card("CPP estimate, monthly", r.cpp_estimated_monthly),
     ].filter(Boolean) as FinancialCardData[];
 
     sections.push({
       id: "retirement_readiness",
-      title: "Retirement Readiness",
-      subtitle: "Your path to financial independence and retirement security",
+      title: "Retirement figures",
+      subtitle: "How the retirement numbers in this report were built",
       status: "ai_generated",
       summary: r.gap_analysis ?? "",
       cards,
       prose: proseLines(
-        labeledProse("RRSP Strategy", r.rrsp_strategy),
-        labeledProse("TFSA Strategy", r.tfsa_strategy),
-        r.fhsa_eligible && labeledProse("FHSA Strategy", r.fhsa_strategy),
-        labeledProse("Gap Analysis", r.gap_analysis),
+        labeledProse("RRSP", r.rrsp_strategy),
+        labeledProse("TFSA", r.tfsa_strategy),
+        r.fhsa_eligible && labeledProse("FHSA", r.fhsa_strategy),
+        labeledProse("The difference", r.gap_analysis),
       ),
       actionItems: actionItems(r, "ret"),
     });
@@ -118,12 +118,12 @@ function buildSections(raw: any): PlanSection[] {
     sections.push({
       id: "investment_portfolio_blueprint",
       title: "Accounts and asset classes",
-      subtitle: "An educational look at asset-class mix and example funds",
+      subtitle: "An example of how asset classes can be mixed. Not a mix for these accounts.",
       status: "ai_generated",
       summary: ipb.current_portfolio_assessment ?? "",
       cards: allocCards,
       prose: proseLines(
-        labeledProse("Current portfolio", ipb.current_portfolio_assessment),
+        labeledProse("What is on file", ipb.current_portfolio_assessment),
         labeledProse("How registered accounts are taxed", ipb.account_location_strategy),
         "This explains how account types are taxed. It does not say where money should move.",
         labeledProse("What rebalancing means", ipb.rebalancing_schedule),
@@ -137,24 +137,24 @@ function buildSections(raw: any): PlanSection[] {
 
   if (ter) {
     const cards = [
-      card("Annual Tax Savings", ter.estimated_annual_tax_savings),
-      card("RRSP Contribution", ter.rrsp_contribution_recommendation),
+      card("Tax difference in the example", ter.estimated_annual_tax_savings),
+      card("RRSP amount in the example", ter.rrsp_contribution_recommendation),
     ].filter(Boolean) as FinancialCardData[];
 
     sections.push({
       id: "tax_efficiency_review",
-      title: "Tax Efficiency Review",
-      subtitle: "Maximizing your after-tax returns through smart strategy",
+      title: "How the accounts are taxed",
+      subtitle: "A plain look at RRSP, TFSA, and FHSA",
       status: "ai_generated",
       summary: "",
       cards,
       prose: proseLines(
-        labeledProse("RRSP Room Analysis", ter.rrsp_room_analysis),
-        labeledProse("TFSA Strategy", ter.tfsa_strategy),
-        labeledProse("FHSA Analysis", ter.fhsa_analysis),
-        labeledProse("Provincial Considerations", ter.provincial_tax_considerations),
-        labeledProse("Tax-Loss Harvesting", ter.tax_loss_harvesting_opportunities),
-        labeledProse("Income Splitting", ter.income_splitting_opportunities),
+        labeledProse("RRSP room", ter.rrsp_room_analysis),
+        labeledProse("TFSA", ter.tfsa_strategy),
+        labeledProse("FHSA", ter.fhsa_analysis),
+        labeledProse("Your province", ter.provincial_tax_considerations),
+        labeledProse("Selling at a loss, for tax", ter.tax_loss_harvesting_opportunities),
+        labeledProse("Splitting income", ter.income_splitting_opportunities),
       ),
       actionItems: actionItems(ter, "ter"),
     });
@@ -171,7 +171,7 @@ function buildSections(raw: any): PlanSection[] {
     const tables: ComparisonTable[] = [];
     if (avalanche.payoff_months != null || snowball.payoff_months != null) {
       tables.push({
-        title: "Debt Repayment Comparison",
+        title: "The two methods",
         headers: ["Method", "Total Interest Paid", "Payoff Timeline"],
         rows: [
           { label: "Avalanche", values: [avalanche.total_interest_paid != null ? fmtFull(avalanche.total_interest_paid) : "—", avalanche.payoff_months != null ? `${avalanche.payoff_months} months` : "—"] },
@@ -198,9 +198,9 @@ function buildSections(raw: any): PlanSection[] {
 
   if (ica) {
     const cards = [
-      card("Life Insurance Need", ica.life_insurance_need),
-      card("Current Coverage", ica.current_coverage),
-      card("Coverage Gap", ica.life_insurance_gap),
+      card("Calculated life coverage", ica.life_insurance_need),
+      card("Coverage on file", ica.current_coverage),
+      card("Difference", ica.life_insurance_gap),
     ].filter(Boolean) as FinancialCardData[];
 
     const coverageRecs: CoverageRec[] = ((ica.coverage_recommendations ?? []) as any[]).map((rec: any) => ({
@@ -211,8 +211,8 @@ function buildSections(raw: any): PlanSection[] {
 
     sections.push({
       id: "insurance_coverage_audit",
-      title: "Insurance Coverage Audit",
-      subtitle: "Identifying gaps in your financial protection",
+      title: "Insurance on file",
+      subtitle: "Coverage on file, next to a calculated figure",
       status: "ai_generated",
       summary: "",
       cards,
@@ -228,8 +228,8 @@ function buildSections(raw: any): PlanSection[] {
   if (mcr) {
     sections.push({
       id: "market_context_report",
-      title: "Market Context Report",
-      subtitle: "Current market environment relevant to your portfolio",
+      title: "Markets around this report",
+      subtitle: "What was going on in markets when this report was written",
       status: "ai_generated",
       summary: "",
       cards: [],
@@ -247,7 +247,7 @@ function buildSections(raw: any): PlanSection[] {
 
   if (lfr) {
     const cards = [
-      card("Financial Independence Number", lfr.financial_independence_number),
+      card("Independence figure", lfr.financial_independence_number),
       { label: "Target Age", value: String(lfr.financial_independence_target_age ?? "--") },
     ].filter(Boolean) as FinancialCardData[];
 

@@ -3,6 +3,9 @@ import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import { sanitizeInvestmentSection } from '@/lib/plan/sanitize-investment-section';
 
+/** Letter width minus the left and right print margins, at 96px per inch. */
+const PDF_CONTENT_WIDTH_PX = 720;
+
 async function launchBrowser() {
   const minimalArgs = [
     '--no-sandbox',
@@ -17,7 +20,7 @@ async function launchBrowser() {
     const puppeteerFull = await import('puppeteer');
     return puppeteerFull.default.launch({
       headless: true,
-      defaultViewport: { width: 1280, height: 720 },
+      defaultViewport: { width: PDF_CONTENT_WIDTH_PX, height: 960 },
       args: minimalArgs,
       timeout: 60_000,
       protocolTimeout: 60_000,
@@ -25,7 +28,7 @@ async function launchBrowser() {
   }
   return puppeteerCore.launch({
     args: [...chromium.args, ...minimalArgs],
-    defaultViewport: { width: 1280, height: 720 },
+    defaultViewport: { width: PDF_CONTENT_WIDTH_PX, height: 960 },
     executablePath: await chromium.executablePath(
       path.join(process.cwd(), 'node_modules/@sparticuz/chromium/bin'),
     ),
@@ -53,6 +56,7 @@ export async function generatePDF(
 
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(60_000);
+  await page.emulateMediaType('print');
   await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 
   const headerText = options?.draft
@@ -64,7 +68,7 @@ export async function generatePDF(
   const pdf = await page.pdf({
     format: 'Letter',
     printBackground: true,
-    margin: { top: '1in', bottom: '1in', left: '1in', right: '1in' },
+    margin: { top: '0.7in', bottom: '0.7in', left: '0.5in', right: '0.5in' },
     displayHeaderFooter: true,
     headerTemplate: `<div style="font-size:9px;font-family:Arial;width:100%;text-align:center;color:${options?.draft ? '#991b1b' : '#666'};">${headerText}</div>`,
     footerTemplate: `<div style="font-size:8px;font-family:Arial;width:100%;padding:0 60px;display:flex;justify-content:space-between;color:${options?.draft ? '#991b1b' : '#999'};">
@@ -135,9 +139,10 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { margin: 1in; size: Letter; }
+  @page { margin: 0; size: Letter; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a202c; line-height: 1.55; font-size: 11px; orphans: 3; widows: 3; }
+  html, body { width: ${PDF_CONTENT_WIDTH_PX}px; max-width: 100%; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a202c; line-height: 1.55; font-size: 11px; orphans: 3; widows: 3; overflow-wrap: break-word; }
 
   .cover { height: 9in; background: #0f1923; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; }
   .cover::before { content: ''; position: absolute; top: -40%; right: -20%; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(201,170,113,0.08) 0%, transparent 70%); }
@@ -158,16 +163,16 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   .sh p { font-size: 11px; color: #9ca3af; margin-top: 3px; letter-spacing: 0.2px; }
 
   h3 { page-break-after: avoid; }
-  .kpi-row { display: flex; gap: 14px; margin: 16px 0; page-break-inside: avoid; page-break-after: avoid; }
-  .kpi { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; position: relative; overflow: hidden; }
+  .kpi-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; width: 100%; page-break-inside: avoid; page-break-after: avoid; }
+  .kpi { flex: 1 1 0; min-width: 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; position: relative; }
   .kpi::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 0 2px 2px 0; }
   .kpi-green::before { background: #10b981; }
   .kpi-gold::before { background: #c9aa71; }
   .kpi-blue::before { background: #3b82f6; }
   .kpi-red::before { background: #ef4444; }
   .kpi-purple::before { background: #8b5cf6; }
-  .kpi .kl { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; }
-  .kpi .kv { font-size: 22px; font-weight: 800; color: #0f1923; margin-top: 3px; }
+  .kpi .kl { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; line-height: 1.3; }
+  .kpi .kv { font-size: 18px; font-weight: 800; color: #0f1923; margin-top: 3px; overflow-wrap: anywhere; }
   .kpi .ku { font-size: 10px; color: #9ca3af; font-weight: 400; }
 
   .score-ring { width: 100px; height: 100px; border-radius: 50%; background: conic-gradient(#10b981 0deg, #10b981 calc(var(--pct) * 3.6deg), #e5e7eb calc(var(--pct) * 3.6deg)); display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; }
@@ -177,6 +182,12 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   .prose-block strong { color: #0f1923; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 3px; }
   .prose-block p { font-size: 11px; color: #374151; line-height: 1.6; }
 
+  .mix-bar { display: flex; width: 100%; height: 22px; border-radius: 6px; overflow: hidden; background: #f3f4f6; }
+  .mix-seg { height: 100%; }
+  .mix-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+  .mix-key { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #374151; }
+  .mix-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .mix-pct { font-weight: 700; color: #0f1923; }
   .bar-chart { margin: 12px 0; page-break-inside: avoid; }
   .bar-row { display: flex; align-items: center; margin-bottom: 8px; }
   .bar-label { width: 130px; font-size: 10px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0; }
@@ -187,7 +198,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   .progress-bar { height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; margin: 6px 0; }
   .progress-fill { height: 100%; border-radius: 4px; }
 
-  .tbl { width: 100%; border-collapse: separate; border-spacing: 0; margin: 12px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; page-break-inside: avoid; }
+  .tbl { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; margin: 12px 0; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; page-break-inside: avoid; }
   .tbl th { background: #0f1923; color: white; padding: 8px 12px; text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
   .tbl td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; font-size: 11px; color: #374151; }
   .tbl tr:last-child td { border-bottom: none; }
@@ -217,12 +228,14 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   .disclaimer { margin-top: 24px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 9px; color: #92400e; line-height: 1.5; }
 
-  .exec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; page-break-inside: avoid; }
+  .exec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; page-break-inside: avoid; }
   .exec-metric { text-align: center; padding: 16px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
   .exec-metric .em-val { font-size: 24px; font-weight: 800; color: #0f1923; }
   .exec-metric .em-label { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; page-break-inside: avoid; }
+  .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 12px 0; page-break-inside: avoid; }
+  .split { display: flex; align-items: center; gap: 20px; width: 100%; min-width: 0; }
+  .split > * { min-width: 0; }
 </style>
 </head>
 <body>
@@ -243,22 +256,22 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#c9aa71;"></div>
-    <h2>Executive Summary</h2>
-    <p>Your financial health at a glance</p>
+    <h2>At a glance</h2>
+    <p>The main figures in this report</p>
   </div>
 
-  <div style="display:flex;align-items:center;gap:32px;margin-bottom:24px;">
-    <div style="text-align:center;">
+  <div class="split" style="margin-bottom:24px;">
+    <div style="text-align:center;flex-shrink:0;">
       <div class="score-ring" style="--pct:${fhd.financial_health_score ?? 0}">
         <div class="score-ring-inner">${fhd.financial_health_score ?? '—'}</div>
       </div>
       <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Health Score</div>
     </div>
-    <div style="flex:1;">
+    <div style="flex:1;min-width:0;">
       <div class="exec-grid">
         <div class="exec-metric"><div class="em-val">$${fmt(fhd.net_worth)}</div><div class="em-label">Net Worth</div></div>
         <div class="exec-metric"><div class="em-val">$${fmt(fhd.cash_flow_monthly)}</div><div class="em-label">Monthly Cash Flow</div></div>
-        <div class="exec-metric"><div class="em-val">${retPct}%</div><div class="em-label">Retirement Ready</div></div>
+        <div class="exec-metric"><div class="em-val">${retPct}%</div><div class="em-label">Share of the retirement figure</div></div>
         <div class="exec-metric"><div class="em-val">$${fmt(dep.total_debt)}</div><div class="em-label">Total Debt</div></div>
       </div>
     </div>
@@ -266,20 +279,20 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${topActions.length > 0 ? `
   <div class="insight-card">
-    <h4>Priority Actions</h4>
+    <h4>Notes from this report</h4>
     ${topActions.map((a, i) => `<p style="margin-bottom:6px;">
       <span style="color:#c9aa71;font-weight:700;">${i + 1}.</span> ${a}
     </p>`).join('')}
   </div>` : ''}
 
   <div style="margin-top:20px;">
-    <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:8px;">Retirement Progress</div>
+    <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;font-weight:600;margin-bottom:8px;">Retirement figure, so far</div>
     <div class="progress-bar" style="height:14px;">
       <div class="progress-fill" style="width:${Math.min(retPct, 100)}%;background:${retPct >= 80 ? '#10b981' : retPct >= 50 ? '#f59e0b' : '#ef4444'};"></div>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:4px;">
-      <span>Current: $${fmt(rr.current_trajectory)}</span>
-      <span>Target: $${fmt(rr.retirement_number)}</span>
+      <span>Projection: $${fmt(rr.current_trajectory)}</span>
+      <span>Figure: $${fmt(rr.retirement_number)}</span>
     </div>
   </div>
 </div>
@@ -288,8 +301,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#10b981;"></div>
-    <h2>Financial Health Diagnostic</h2>
-    <p>A comprehensive snapshot of your current financial position</p>
+    <h2>Where things stand</h2>
+    <p>The balances and cash figures in this report</p>
   </div>
 
   <div class="kpi-row">
@@ -301,14 +314,14 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${(fhd.emergency_fund_months as number) != null ? `
   <div style="margin:12px 0 20px;">
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">Emergency Fund Progress (Target: 6 months)</div>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">Emergency fund, next to a common 6-month reference</div>
     <div class="progress-bar">
       <div class="progress-fill" style="width:${Math.min((Number(fhd.emergency_fund_months) / 6) * 100, 100)}%;background:${Number(fhd.emergency_fund_months) >= 6 ? '#10b981' : Number(fhd.emergency_fund_months) >= 3 ? '#f59e0b' : '#ef4444'};"></div>
     </div>
   </div>` : ''}
 
   ${(fhd.key_findings as string[])?.length > 0 ? `
-  <h3 style="font-size:13px;margin-top:20px;">Key Findings</h3>
+  <h3 style="font-size:13px;margin-top:20px;">What stands out</h3>
   <div class="action-list">
     ${(fhd.key_findings as string[]).map((f) => `<div class="ai"><div class="ai-icon" style="background:#10b981;">✓</div><div class="ai-text">${f}</div></div>`).join('')}
   </div>` : ''}
@@ -326,34 +339,34 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#3b82f6;"></div>
-    <h2>Retirement Readiness Analysis</h2>
-    <p>Your path to financial independence and retirement security</p>
+    <h2>Retirement figures</h2>
+    <p>How the retirement numbers in this report were built</p>
   </div>
 
-  <div style="display:flex;gap:24px;align-items:center;margin-bottom:20px;">
+  <div class="split" style="margin-bottom:20px;">
     <div style="text-align:center;flex-shrink:0;">
       <div class="score-ring" style="--pct:${retPct};width:100px;height:100px;">
         <div class="score-ring-inner" style="width:80px;height:80px;font-size:22px;">${retPct}%</div>
       </div>
-      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">Readiness</div>
+      <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;margin-top:4px;">Share of the figure</div>
     </div>
     <div style="flex:1;">
       <div class="kpi-row" style="margin:0;">
-        <div class="kpi kpi-blue"><div class="kl">Retirement Number</div><div class="kv">$${fmt(rr.retirement_number)}</div></div>
-        <div class="kpi kpi-green"><div class="kl">Current Trajectory</div><div class="kv">$${fmt(rr.current_trajectory)}</div></div>
+        <div class="kpi kpi-blue"><div class="kl">Retirement figure</div><div class="kv">$${fmt(rr.retirement_number)}</div></div>
+        <div class="kpi kpi-green"><div class="kl">Projection today</div><div class="kv">$${fmt(rr.current_trajectory)}</div></div>
       </div>
     </div>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-gold"><div class="kl">Monthly Savings Required</div><div class="kv">$${fmt(rr.monthly_savings_required)}</div></div>
-    <div class="kpi kpi-purple"><div class="kl">Estimated CPP (Monthly)</div><div class="kv">$${fmt(rr.cpp_estimated_monthly)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">Monthly amount in the projection</div><div class="kv">$${fmt(rr.monthly_savings_required)}</div></div>
+    <div class="kpi kpi-purple"><div class="kl">CPP estimate, monthly</div><div class="kv">$${fmt(rr.cpp_estimated_monthly)}</div></div>
   </div>
 
-  ${rr.rrsp_strategy ? `<div class="prose-block"><strong>RRSP Strategy</strong><p>${rr.rrsp_strategy}</p></div>` : ''}
-  ${rr.tfsa_strategy ? `<div class="prose-block"><strong>TFSA Strategy</strong><p>${rr.tfsa_strategy}</p></div>` : ''}
-  ${rr.fhsa_eligible && rr.fhsa_strategy ? `<div class="prose-block"><strong>FHSA Strategy</strong><p>${rr.fhsa_strategy}</p></div>` : ''}
-  ${rr.gap_analysis ? `<div class="insight-card"><h4>Gap Analysis</h4><p>${rr.gap_analysis}</p></div>` : ''}
+  ${rr.rrsp_strategy ? `<div class="prose-block"><strong>RRSP</strong><p>${rr.rrsp_strategy}</p></div>` : ''}
+  ${rr.tfsa_strategy ? `<div class="prose-block"><strong>TFSA</strong><p>${rr.tfsa_strategy}</p></div>` : ''}
+  ${rr.fhsa_eligible && rr.fhsa_strategy ? `<div class="prose-block"><strong>FHSA</strong><p>${rr.fhsa_strategy}</p></div>` : ''}
+  ${rr.gap_analysis ? `<div class="insight-card"><h4>The difference</h4><p>${rr.gap_analysis}</p></div>` : ''}
 
   ${(rr.action_items as string[])?.length > 0 ? `
   <div class="action-section">
@@ -369,20 +382,24 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   <div class="sh">
     <div class="sh-accent" style="background:#8b5cf6;"></div>
     <h2>Accounts and asset classes</h2>
-    <p>An educational look at asset-class mix and example funds</p>
+    <p>An example of how asset classes can be mixed. Not a mix for these accounts.</p>
   </div>
 
-  ${ipb.current_portfolio_assessment ? `<div class="prose-block"><strong>Current Assessment</strong><p>${ipb.current_portfolio_assessment}</p></div>` : ''}
+  ${ipb.current_portfolio_assessment ? `<div class="prose-block"><strong>What is on file</strong><p>${ipb.current_portfolio_assessment}</p></div>` : ''}
 
-  <h3 style="font-size:13px;">Illustrative asset-class mix</h3>
-  <div class="bar-chart">
+  <h3 style="font-size:13px;">One example mix</h3>
+  <p style="font-size:11px;color:#6b7280;margin:0 0 8px;">The slices add to 100. This is an example, not a mix for these accounts.</p>
+  <div class="mix-bar">
+    ${Object.entries(alloc).map(([key, val]) => {
+      const color = allocColors[key] ?? '#c9aa71';
+      return `<div class="mix-seg" style="width:${val}%;background:${color};"></div>`;
+    }).join('')}
+  </div>
+  <div class="mix-legend">
     ${Object.entries(alloc).map(([key, val]) => {
       const color = allocColors[key] ?? '#c9aa71';
       const label = key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-      return `<div class="bar-row">
-        <div class="bar-label">${label}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${val}%;background:${color};">${val}%</div></div>
-      </div>`;
+      return `<div class="mix-key"><span class="mix-swatch" style="background:${color};"></span><span>${label}</span><span class="mix-pct">${val}%</span></div>`;
     }).join('')}
   </div>
 
@@ -413,21 +430,21 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#f59e0b;"></div>
-    <h2>Tax Efficiency Review</h2>
-    <p>Maximizing your after-tax returns through smart account strategy</p>
+    <h2>How the accounts are taxed</h2>
+    <p>A plain look at RRSP, TFSA, and FHSA</p>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-green"><div class="kl">Estimated Annual Tax Savings</div><div class="kv">$${fmt(ter.estimated_annual_tax_savings)}</div></div>
-    <div class="kpi kpi-gold"><div class="kl">RRSP Contribution</div><div class="kv">$${fmt(ter.rrsp_contribution_recommendation)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Tax difference in the example</div><div class="kv">$${fmt(ter.estimated_annual_tax_savings)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">RRSP amount in the example</div><div class="kv">$${fmt(ter.rrsp_contribution_recommendation)}</div></div>
   </div>
 
-  ${ter.rrsp_room_analysis ? `<div class="prose-block"><strong>RRSP Room Analysis</strong><p>${ter.rrsp_room_analysis}</p></div>` : ''}
-  ${ter.tfsa_strategy ? `<div class="prose-block"><strong>TFSA Strategy</strong><p>${ter.tfsa_strategy}</p></div>` : ''}
-  ${ter.fhsa_analysis ? `<div class="prose-block"><strong>FHSA Analysis</strong><p>${ter.fhsa_analysis}</p></div>` : ''}
-  ${ter.provincial_tax_considerations ? `<div class="prose-block"><strong>Provincial Considerations</strong><p>${ter.provincial_tax_considerations}</p></div>` : ''}
-  ${ter.tax_loss_harvesting_opportunities ? `<div class="prose-block"><strong>Tax-Loss Harvesting</strong><p>${ter.tax_loss_harvesting_opportunities}</p></div>` : ''}
-  ${ter.income_splitting_opportunities ? `<div class="prose-block"><strong>Income Splitting</strong><p>${ter.income_splitting_opportunities}</p></div>` : ''}
+  ${ter.rrsp_room_analysis ? `<div class="prose-block"><strong>RRSP room</strong><p>${ter.rrsp_room_analysis}</p></div>` : ''}
+  ${ter.tfsa_strategy ? `<div class="prose-block"><strong>TFSA</strong><p>${ter.tfsa_strategy}</p></div>` : ''}
+  ${ter.fhsa_analysis ? `<div class="prose-block"><strong>FHSA</strong><p>${ter.fhsa_analysis}</p></div>` : ''}
+  ${ter.provincial_tax_considerations ? `<div class="prose-block"><strong>Your province</strong><p>${ter.provincial_tax_considerations}</p></div>` : ''}
+  ${ter.tax_loss_harvesting_opportunities ? `<div class="prose-block"><strong>Selling at a loss, for tax</strong><p>${ter.tax_loss_harvesting_opportunities}</p></div>` : ''}
+  ${ter.income_splitting_opportunities ? `<div class="prose-block"><strong>Splitting income</strong><p>${ter.income_splitting_opportunities}</p></div>` : ''}
 
   ${(ter.action_items as string[])?.length > 0 ? `
   <div class="action-section">
@@ -453,11 +470,11 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 
   ${dep.recommendation_rationale ? `<div class="insight-card"><h4>How the two methods differ</h4><p>${dep.recommendation_rationale}</p></div>` : ''}
 
-  <h3 style="font-size:13px;">Method Comparison</h3>
+  <h3 style="font-size:13px;">The two methods</h3>
   <table class="tbl">
-    <tr><th>Method</th><th>Total Interest</th><th>Timeline</th><th>Strategy</th></tr>
-    <tr><td style="font-weight:700;">Avalanche</td><td>$${fmt(avalanche.total_interest_paid)}</td><td>${avalanche.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Highest interest first — minimizes cost</td></tr>
-    <tr><td style="font-weight:700;">Snowball</td><td>$${fmt(snowball.total_interest_paid)}</td><td>${snowball.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Smallest balance first — builds momentum</td></tr>
+    <tr><th>Method</th><th>Total Interest</th><th>Timeline</th><th>How it works</th></tr>
+    <tr><td style="font-weight:700;">Avalanche</td><td>$${fmt(avalanche.total_interest_paid)}</td><td>${avalanche.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Pays the higher interest rate first. This lowers the interest in the math.</td></tr>
+    <tr><td style="font-weight:700;">Snowball</td><td>$${fmt(snowball.total_interest_paid)}</td><td>${snowball.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Pays the smallest balance first. The interest in the math is often higher.</td></tr>
   </table>
 
   ${Number(avalanche.total_interest_paid) > 0 && Number(snowball.total_interest_paid) > 0 ? (() => {
@@ -465,13 +482,13 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     const snInt = Number(snowball.total_interest_paid);
     const maxInt = Math.max(avInt, snInt);
     return `<div style="margin:16px 0;">
-      <div style="font-size:10px;color:#9ca3af;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Total Interest Comparison</div>
-      <div class="bar-row"><div class="bar-label">Avalanche</div><div class="bar-track"><div class="bar-fill" style="width:${(avInt/maxInt)*100}%;background:#10b981;">$${fmt(avInt)}</div></div></div>
-      <div class="bar-row"><div class="bar-label">Snowball</div><div class="bar-track"><div class="bar-fill" style="width:${(snInt/maxInt)*100}%;background:#f59e0b;">$${fmt(snInt)}</div></div></div>
+      <div style="font-size:10px;color:#9ca3af;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Interest in the math</div>
+      <div class="bar-row"><div class="bar-label">Avalanche</div><div class="bar-track"><div class="bar-fill" style="width:${(avInt/maxInt)*100}%;background:#10b981;"></div></div><div class="bar-val">$${fmt(avInt)}</div></div>
+      <div class="bar-row"><div class="bar-label">Snowball</div><div class="bar-track"><div class="bar-fill" style="width:${(snInt/maxInt)*100}%;background:#f59e0b;"></div></div><div class="bar-val">$${fmt(snInt)}</div></div>
     </div>`;
   })() : ''}
 
-  ${dep.refinancing_analysis ? `<div class="prose-block"><strong>Refinancing Analysis</strong><p>${dep.refinancing_analysis}</p></div>` : ''}
+  ${dep.refinancing_analysis ? `<div class="prose-block"><strong>Refinancing</strong><p>${dep.refinancing_analysis}</p></div>` : ''}
 
   ${(dep.action_items as string[])?.length > 0 ? `
   <div class="action-section">
@@ -486,19 +503,19 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#ec4899;"></div>
-    <h2>Insurance Coverage Audit</h2>
-    <p>Identifying gaps in your financial protection</p>
+    <h2>Insurance on file</h2>
+    <p>Coverage on file, next to a calculated figure</p>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-blue"><div class="kl">Life Insurance Need</div><div class="kv">$${fmt(ica.life_insurance_need)}</div></div>
-    <div class="kpi kpi-green"><div class="kl">Current Coverage</div><div class="kv">$${fmt(ica.current_coverage)}</div></div>
-    <div class="kpi kpi-red"><div class="kl">Coverage Gap</div><div class="kv">$${fmt(ica.life_insurance_gap)}</div></div>
+    <div class="kpi kpi-blue"><div class="kl">Calculated life coverage</div><div class="kv">$${fmt(ica.life_insurance_need)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Coverage on file</div><div class="kv">$${fmt(ica.current_coverage)}</div></div>
+    <div class="kpi kpi-red"><div class="kl">Difference</div><div class="kv">$${fmt(ica.life_insurance_gap)}</div></div>
   </div>
 
   ${insNeed > 0 ? `
   <div style="margin:12px 0 20px;">
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">Coverage Level (${insPct}% of recommended)</div>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:4px;">Coverage on file is ${insPct}% of the calculated figure</div>
     <div class="progress-bar" style="height:14px;">
       <div class="progress-fill" style="width:${Math.min(insPct, 100)}%;background:${insPct >= 80 ? '#10b981' : insPct >= 50 ? '#f59e0b' : '#ef4444'};"></div>
     </div>
@@ -508,7 +525,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   ${ica.critical_illness_analysis ? `<div class="prose-block"><strong>Critical Illness</strong><p>${ica.critical_illness_analysis}</p></div>` : ''}
 
   ${coverageRecs.length > 0 ? `
-  <h3 style="font-size:13px;">Coverage Considerations</h3>
+  <h3 style="font-size:13px;">Coverage notes</h3>
   ${coverageRecs.map((rec) => `<div class="cov-card">
     <div class="cov-badge" style="background:${priorityColor(rec.priority)}20;color:${priorityColor(rec.priority)};">${rec.priority}</div>
     <div><strong style="font-size:12px;color:#0f1923;">${rec.type}</strong><p style="font-size:11px;color:#6b7280;margin-top:2px;">${rec.rationale}</p></div>
@@ -527,19 +544,19 @@ function buildReportHTML(plan: Record<string, unknown>): string {
 <div class="page">
   <div class="sh">
     <div class="sh-accent" style="background:#6b7280;"></div>
-    <h2>Market Context Report</h2>
-    <p>Current market environment relevant to your portfolio</p>
+    <h2>Markets around this report</h2>
+    <p>What was going on in markets when this report was written</p>
   </div>
 
-  ${mcr.macro_environment ? `<div class="insight-card"><h4>Macro Environment</h4><p>${mcr.macro_environment}</p></div>` : ''}
+  ${mcr.macro_environment ? `<div class="insight-card"><h4>The big picture</h4><p>${mcr.macro_environment}</p></div>` : ''}
 
   <div class="two-col">
-    ${mcr.canadian_market_context ? `<div class="prose-block" style="margin:0;"><strong>Canadian Market</strong><p>${mcr.canadian_market_context}</p></div>` : ''}
-    ${mcr.rate_environment_impact ? `<div class="prose-block" style="margin:0;"><strong>Rate Environment</strong><p>${mcr.rate_environment_impact}</p></div>` : ''}
+    ${mcr.canadian_market_context ? `<div class="prose-block" style="margin:0;"><strong>Canada</strong><p>${mcr.canadian_market_context}</p></div>` : ''}
+    ${mcr.rate_environment_impact ? `<div class="prose-block" style="margin:0;"><strong>Interest rates</strong><p>${mcr.rate_environment_impact}</p></div>` : ''}
   </div>
   <div class="two-col">
-    ${mcr.portfolio_specific_risks ? `<div class="prose-block" style="margin:0;border-left-color:#ef4444;"><strong>Portfolio Risks</strong><p>${mcr.portfolio_specific_risks}</p></div>` : ''}
-    ${mcr.portfolio_specific_opportunities ? `<div class="prose-block" style="margin:0;border-left-color:#10b981;"><strong>Opportunities</strong><p>${mcr.portfolio_specific_opportunities}</p></div>` : ''}
+    ${mcr.portfolio_specific_risks ? `<div class="prose-block" style="margin:0;border-left-color:#ef4444;"><strong>Risks named here</strong><p>${mcr.portfolio_specific_risks}</p></div>` : ''}
+    ${mcr.portfolio_specific_opportunities ? `<div class="prose-block" style="margin:0;border-left-color:#10b981;"><strong>Openings named here</strong><p>${mcr.portfolio_specific_opportunities}</p></div>` : ''}
   </div>
 
   <div class="disclaimer">${mcr.disclaimer ?? 'This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.'}</div>
@@ -554,7 +571,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-gold"><div class="kl">Financial Independence Number</div><div class="kv">$${fmt(lfr.financial_independence_number)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">Independence figure</div><div class="kv">$${fmt(lfr.financial_independence_number)}</div></div>
     <div class="kpi kpi-blue"><div class="kl">Target Age</div><div class="kv">${lfr.financial_independence_target_age ?? '—'}</div></div>
   </div>
 
@@ -581,7 +598,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     </div>`).join('')}
   </div>` : ''}
 
-  ${lfr.decade_by_decade_summary ? `<div class="insight-card"><h4>Long-Term Outlook</h4><p>${lfr.decade_by_decade_summary}</p></div>` : ''}
+  ${lfr.decade_by_decade_summary ? `<div class="insight-card"><h4>Across the decades</h4><p>${lfr.decade_by_decade_summary}</p></div>` : ''}
 
   ${(lfr.action_items as string[])?.length > 0 ? `
   <div class="action-section">
@@ -592,7 +609,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>` : ''}
 
   <div class="disclaimer">
-    <strong>IMPORTANT DISCLAIMER:</strong> This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes. This Progress Report was generated by Mosaic Finance, an artificial intelligence financial tracking and education tool. It is not a substitute for professional advice from a licensed financial advisor, tax professional, or legal counsel. Past performance of any investment referenced is not indicative of future results. Mosaic Finance is a product of ChainForge Labs. Generated: ${new Date().toISOString()}
+    This is educational information, not financial advice. It is not a substitute for a licensed advisor, a tax professional, or legal counsel. Past results are not a guide to what happens next. Mosaic Finance is a product of ChainForge Labs. Generated: ${new Date().toISOString()}
   </div>
 </div>
 
