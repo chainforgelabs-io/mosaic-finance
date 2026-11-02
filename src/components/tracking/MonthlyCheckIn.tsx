@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { classifyLiability, type LiabilityTerm } from "@/lib/net-worth/tracking";
+import { classifyLiability, formatSnapshotLabel, type LiabilityTerm } from "@/lib/net-worth/tracking";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import type { UnlockItem } from "@/components/tracking/UnlockToast";
@@ -275,7 +275,7 @@ export function MonthlyCheckIn({
               empty="No debts on file."
               items={debts.map((d, i) => ({
                 id: `${i}`,
-                label: d.type,
+                label: formatSnapshotLabel(d.type),
                 value: debtVals[`${i}`] ?? "",
                 secondary: {
                   label: "Credit limit (optional)",

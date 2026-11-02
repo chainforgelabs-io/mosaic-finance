@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CANADA_LIFE_EXPECTANCY_YEARS,
+  accountsFromBreakdown,
   inferGoalClass,
   monthShare,
   readGoal,
@@ -168,6 +169,20 @@ describe("goal reading", () => {
     expect(monthShare("2026-11-30").complete).toBe(true);
     expect(reading.monthComplete).toBe(true);
     expect(monthShare("2026-02-28")).toEqual({ day: 28, days: 28, complete: true });
+  });
+});
+
+describe("debt names", () => {
+  it("uses the same plain name Net Worth shows for a stored key", () => {
+    const accounts = accountsFromBreakdown({
+      investments: [],
+      fixed_assets: [],
+      debts: [
+        { type: "car_loan", value: 18100 },
+        { name: "Residence mortgage", type: "mortgage", value: 200000 },
+      ],
+    });
+    expect(accounts.map((account) => account.name)).toEqual(["Car loan", "Residence mortgage"]);
   });
 });
 

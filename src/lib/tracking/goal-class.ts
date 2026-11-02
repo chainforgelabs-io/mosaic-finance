@@ -1,5 +1,6 @@
 import type { GoalRow, SnapshotBreakdown, SnapshotBreakdownItem } from "@/types/tracking";
 import { addDays, startOfWeekMonday } from "@/lib/tracking/dates";
+import { formatSnapshotLabel } from "@/lib/net-worth/tracking";
 
 export const GOAL_CLASSES = [
   "balance",
@@ -120,14 +121,14 @@ export function accountsFromBreakdown(breakdown: SnapshotBreakdown | null | unde
   return [
     ...assets.map((item) => ({
       key: accountKey(item, "asset"),
-      name: item.name || item.account_type || item.type || "Account",
+      name: formatSnapshotLabel(item.name || item.account_type || item.type || "Account"),
       value: Number(item.value) || 0,
       side: "asset" as const,
       accountType: item.account_type,
     })),
     ...(breakdown.debts ?? []).map((item) => ({
       key: accountKey(item, "debt"),
-      name: item.name || item.account_type || item.type || "Debt",
+      name: formatSnapshotLabel(item.name || item.account_type || item.type || "Debt"),
       value: Number(item.value) || 0,
       side: "debt" as const,
       accountType: item.account_type,
