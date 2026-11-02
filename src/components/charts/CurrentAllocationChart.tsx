@@ -39,14 +39,14 @@ export function CurrentAllocationChart() {
     return (
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
         <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
-          Current Portfolio Mix
+          Your accounts
         </h3>
         <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-          Actual allocation from your accounts
+          How the balances are split across the accounts on file
         </p>
         <div className="flex items-center justify-center h-[170px]">
           <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)] text-center">
-            Upload statements or add holdings<br />to see your current allocation
+            Upload statements or add holdings<br />to see how the balances split
           </p>
         </div>
       </div>
@@ -65,10 +65,10 @@ export function CurrentAllocationChart() {
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
       <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
-        Current Portfolio Mix
+        Your accounts
       </h3>
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-        Actual allocation across your accounts
+        How the balances are split across the accounts on file
       </p>
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
         <div className="w-[170px] h-[170px] shrink-0">

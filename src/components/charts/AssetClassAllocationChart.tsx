@@ -89,7 +89,7 @@ export function AssetClassAllocationChart({ accounts }: { accounts: AccountRow[]
         By Asset Class
       </h3>
       <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-        Estimated mix from ticker mapping &amp; holding names
+        A guess at the asset classes in the holdings you entered, from the ticker and the name
       </p>
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
         <div className="w-[170px] h-[170px] shrink-0">

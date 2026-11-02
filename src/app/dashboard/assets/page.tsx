@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
 import { usePlanStore } from "@/stores/plan-store";
-import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocationChart";
 import { CurrentAllocationChart } from "@/components/charts/CurrentAllocationChart";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
@@ -32,12 +31,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { presentGoalName } from "@/lib/tracking/categories";
+import { assembleGoalHistory, goalSummaryLines, readGoal, startingDebts } from "@/lib/tracking/goal-class";
+import { spendingFactsFromTransactions, type SpendingFacts } from "@/lib/tracking/goal-spending";
 import Link from "next/link";
 import { HoldingsEditor } from "@/components/tracking/HoldingsEditor";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
-import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
+import { addDays, addMonths, formatMonthLabel, monthKey, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
 import { planOverview } from "@/lib/tracking/budget-plan";
 import { fetchPlan } from "@/lib/tracking/plan-client";
 import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
@@ -61,6 +62,45 @@ interface AccountRow {
   total_value: number;
   source: string;
   created_at: string;
+}
+
+function measuredGoalLines(input: {
+  goal: GoalRow;
+  today: string;
+  age: number | null;
+  exampleMonthly: number | null;
+  planExpense: number | null;
+  spend: SpendingFacts;
+  snapshots: NetWorthSnapshotRow[];
+  holdings: { id: string; account_type: string; display_name?: string | null; total_value: number }[];
+  debts: unknown;
+  fixedAssets: { category: string; is_primary_residence?: boolean | null }[];
+}): string[] {
+  const assembled = assembleGoalHistory({
+    today: input.today,
+    snapshots: input.snapshots,
+    holdings: input.holdings,
+    debts: input.debts,
+    fixedAssets: input.fixedAssets,
+    applyLive: true,
+  });
+  const latest = assembled.history[assembled.history.length - 1]?.accounts ?? [];
+  const reading = readGoal(input.goal, {
+    today: input.today,
+    age: input.age,
+    exampleMonthly: input.exampleMonthly,
+    planExpense: input.planExpense,
+    monthExpense: input.spend.monthExpense,
+    expenseDates: input.spend.expenseDates,
+    latest,
+    history: assembled.history,
+    startDebts: startingDebts(assembled.history, input.goal.created_at),
+    loggedByCategory: input.spend.loggedByCategory,
+    spendByMonthCategory: input.spend.spendByMonthCategory,
+    hasPrimaryResidence: assembled.hasPrimaryResidence,
+    hasRentalProperty: assembled.hasRentalProperty,
+  });
+  return goalSummaryLines(input.goal, reading, latest);
 }
 
 function accountLabel(account: { account_type: string; display_name?: string | null }): string {
@@ -625,7 +665,7 @@ function FixedAssetCard({
 /* ---------- Main Page ---------- */
 
 export default function AssetsPage() {
-  const { rawPlanData, planStatus, plan, user, setUser } = usePlanStore();
+  const { rawPlanData, planStatus, user, setUser } = usePlanStore();
   const [holdings, setHoldings] = useState<AccountRow[]>([]);
   const [profile, setProfile] = useState<FinancialProfile | null>(null);
   const [fixedAssets, setFixedAssets] = useState<FixedAsset[]>([]);
@@ -640,6 +680,14 @@ export default function AssetsPage() {
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
   const [planEntries, setPlanEntries] = useState<BudgetPlanEntry[]>([]);
   const [trackedGoals, setTrackedGoals] = useState<GoalRow[]>([]);
+  const [goalAge, setGoalAge] = useState<number | null>(null);
+  const [goalMonthly, setGoalMonthly] = useState<number | null>(null);
+  const [spendFacts, setSpendFacts] = useState<SpendingFacts>({
+    loggedByCategory: {},
+    spendByMonthCategory: {},
+    expenseDates: [],
+    monthExpense: 0,
+  });
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [holdingsOpen, setHoldingsOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
@@ -692,6 +740,21 @@ export default function AssetsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         if (json?.goals) setTrackedGoals(json.goals as GoalRow[]);
+        const age = json?.context?.age;
+        const monthly = json?.context?.monthlyExpenses;
+        setGoalAge(age != null && Number.isFinite(Number(age)) ? Number(age) : null);
+        setGoalMonthly(monthly != null && Number.isFinite(Number(monthly)) ? Number(monthly) : null);
+      })
+      .catch(() => undefined);
+    const today = todayIso();
+    const month = startOfMonth(today);
+    const weekStart = addDays(startOfWeekMonday(today), -21);
+    const rangeStart = addMonths(month, -12);
+    const spendStart = weekStart < rangeStart ? weekStart : rangeStart;
+    void fetch(`/api/transactions?start=${spendStart}&end=${today}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        setSpendFacts(spendingFactsFromTransactions(json?.transactions, today));
       })
       .catch(() => undefined);
     void fetch("/api/setup/status", { credentials: "include" })
@@ -1067,7 +1130,7 @@ export default function AssetsPage() {
         )}
 
         {/* ALLOCATION CHARTS */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           <div className="space-y-3">
             <div className="flex rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] p-1">
               <button
@@ -1101,24 +1164,6 @@ export default function AssetsPage() {
               <AssetClassAllocationChart accounts={holdings} />
             )}
           </div>
-          {planStatus === "generating" && !plan ? (
-            <div className="rounded-lg border border-[var(--warm-200)] bg-white p-6">
-              <h3 className="mb-1 font-display text-base font-semibold text-[var(--text-primary)]">
-                Illustrative mix
-              </h3>
-              <p className="mb-4 font-body text-xs text-[var(--text-muted)]">
-                Filled in from your Progress Report
-              </p>
-              <div className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--warm-200)] bg-[var(--warm-50)]/50 px-4 py-8">
-                <p className="font-body text-sm font-medium text-[var(--text-secondary)]">Generating…</p>
-                <p className="mt-1 text-center font-body text-xs text-[var(--text-muted)]">
-                  Should take about 5 minutes after onboarding
-                </p>
-              </div>
-            </div>
-          ) : (
-            <AssetAllocationChart />
-          )}
         </div>
 
         {/* ACCOUNT SUMMARY */}
@@ -1511,35 +1556,41 @@ export default function AssetsPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {(trackedGoals.length > 0 ? trackedGoals.filter((goal) => goal.status === "active") : []).map((goal) => {
-                const target = Number(goal.target_amount) || 0;
-                const debtGoal = goal.goal_type === "debt_payoff" && totalDebt > 0 && target > 0;
-                const paidDown = debtGoal ? Math.max(target - totalDebt, 0) : Number(goal.current_amount) || 0;
+                const today = todayIso();
+                const month = today.slice(0, 7);
+                let planExpenseSum = 0;
+                let planExpenseRows = 0;
+                for (const entry of planEntries) {
+                  if (entry.kind === "expense" && entry.month.slice(0, 7) === month) {
+                    planExpenseSum += Number(entry.amount) || 0;
+                    planExpenseRows += 1;
+                  }
+                }
+                const planExpense = planExpenseRows > 0 ? planExpenseSum : null;
+                const lines = measuredGoalLines({
+                  goal,
+                  today,
+                  age: goalAge,
+                  exampleMonthly: planExpense ?? goalMonthly ?? profile?.monthly_expenses ?? null,
+                  planExpense,
+                  spend: spendFacts,
+                  snapshots,
+                  holdings,
+                  debts: profile?.major_debts,
+                  fixedAssets,
+                });
                 return (
                   <div key={goal.id} className="bg-white border border-[var(--warm-200)] rounded-lg p-5">
                     <p className="font-[family-name:var(--font-display)] font-semibold text-sm text-[var(--text-primary)] mb-2">
                       {presentGoalName(goal.name)}
                     </p>
-                    {goal.amount_unknown ? (
-                      <p className="font-body text-xs text-[var(--text-secondary)]">
-                        Not sure of the amount — looking to find out what this will cost
-                      </p>
-                    ) : debtGoal ? (
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-body text-xs text-[var(--text-muted)]">Paid down</p>
-                          <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(paidDown)}</p>
-                        </div>
-                        <div>
-                          <p className="font-body text-xs text-[var(--text-muted)]">Still owed</p>
-                          <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(totalDebt)}</p>
-                        </div>
-                      </div>
-                    ) : target > 0 ? (
-                      <div>
-                        <p className="font-body text-xs text-[var(--text-muted)]">Target</p>
-                        <p className="font-body text-sm font-semibold tabular-nums text-[var(--text-primary)]">{fmt(target)}</p>
-                      </div>
-                    ) : null}
+                    <div className="space-y-1">
+                      {lines.map((line) => (
+                        <p key={line} className="font-body text-xs text-[var(--text-secondary)]">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                 );
               })}

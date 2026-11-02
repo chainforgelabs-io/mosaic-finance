@@ -14,7 +14,7 @@ import {
   type GoalPriority,
   type GoalType,
 } from "@/lib/tracking/categories";
-import { isSavings, transactionKind } from "@/lib/tracking/cash-capture";
+import { spendingFactsFromTransactions } from "@/lib/tracking/goal-spending";
 import { addCreditSource } from "@/lib/tracking/add-credit-source";
 import { createSavingsAccount } from "@/lib/tracking/create-savings-account";
 import { addDays, addMonths, formatMonthLabel, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
@@ -23,8 +23,7 @@ import {
   GOAL_CLASS_LABELS,
   GOAL_CLASSES,
   accountsForGoal,
-  accountsFromBreakdown,
-  accountsFromDebts,
+  assembleGoalHistory,
   OMIT_HOME_MORTGAGE,
   OMIT_RENTAL_MORTGAGE,
   fundingMethodOf,
@@ -32,7 +31,6 @@ import {
   inferGoalClass,
   isTripGoal,
   linesForGoal,
-  mergeMissingAccounts,
   readGoal,
   startingDebts,
   type FundingMethod,
@@ -43,7 +41,6 @@ import {
 } from "@/lib/tracking/goal-class";
 import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import { formatMoney } from "@/lib/tracking/format";
-import { formatSnapshotLabel } from "@/lib/net-worth/tracking";
 import { cn } from "@/lib/utils";
 import type { GoalRow, SnapshotBreakdown } from "@/types/tracking";
 
@@ -145,88 +142,36 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
     age = json.context?.age != null ? Number(json.context.age) : null;
     profileMonthly = json.context?.monthlyExpenses != null ? Number(json.context.monthlyExpenses) : null;
   }
-  let history: GoalPageData["history"] = [];
-  let hasPrimaryResidence = false;
-  let hasRentalProperty = false;
+  let snaps: { snapshot_date?: string; breakdown?: SnapshotBreakdown }[] = [];
   if (snapRes.ok) {
     const json = await snapRes.json();
-    const snaps = (json.snapshots ?? []) as { snapshot_date?: string; breakdown?: SnapshotBreakdown }[];
-    history = snaps
-      .map((snap) => ({
-        date: String(snap.snapshot_date ?? ""),
-        accounts: accountsFromBreakdown(snap.breakdown),
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    snaps = (json.snapshots ?? []) as { snapshot_date?: string; breakdown?: SnapshotBreakdown }[];
   }
+  let assembled = assembleGoalHistory({ today, snapshots: snaps });
   if (holdRes.ok) {
     try {
       const json = await holdRes.json();
-      const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null; holdings?: unknown; fixedAssets?: unknown }).financialProfile : null;
-      const fixedAssets = json && typeof json === "object" && Array.isArray((json as { fixedAssets?: unknown }).fixedAssets)
-        ? (json as { fixedAssets: unknown[] }).fixedAssets
-        : [];
-      for (const asset of fixedAssets) {
-        if (!asset || typeof asset !== "object") continue;
-        const row = asset as { category?: unknown; is_primary_residence?: unknown };
-        if (row.category !== "real_estate") continue;
-        if (row.is_primary_residence === true) hasPrimaryResidence = true;
-        else hasRentalProperty = true;
-      }
-      const liveDebts = accountsFromDebts(profile?.major_debts);
-      const holdingRows = json && typeof json === "object" && Array.isArray((json as { holdings?: unknown }).holdings)
-        ? ((json as { holdings: unknown[] }).holdings)
-        : [];
-      const live: GoalAccount[] = holdingRows.flatMap((row) => {
-        if (!row || typeof row !== "object") return [];
-        const holding = row as { id?: unknown; account_type?: unknown; display_name?: unknown; total_value?: unknown };
-        const key = typeof holding.id === "string" ? holding.id : "";
-        if (!key) return [];
-        const named = typeof holding.display_name === "string" ? holding.display_name.trim() : "";
-        const typeName = typeof holding.account_type === "string" ? holding.account_type : "";
-        return [{
-          key,
-          name: formatSnapshotLabel(named || typeName || "Account"),
-          value: Number(holding.total_value) || 0,
-          side: "asset" as const,
-          accountType: typeName || undefined,
-          bucket: "investment" as const,
-        }];
+      const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null }).financialProfile : null;
+      assembled = assembleGoalHistory({
+        today,
+        snapshots: snaps,
+        holdings: json && typeof json === "object" ? (json as { holdings?: unknown }).holdings : [],
+        debts: profile?.major_debts,
+        fixedAssets: json && typeof json === "object" ? (json as { fixedAssets?: unknown }).fixedAssets : [],
+        applyLive: true,
       });
-      const liveAccounts = [...live, ...liveDebts];
-      if (history.length === 0) {
-        history = [{ date: today, accounts: liveAccounts }];
-      } else {
-        const last = history[history.length - 1];
-        history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, liveAccounts) }];
-      }
     } catch {
       // A bad holdings payload should not blank the goals already read from check-ins.
     }
   }
-  const loggedByCategory: Record<string, number> = {};
-  const spendByMonthCategory: Record<string, number> = {};
-  const expenseDates: string[] = [];
-  let monthExpense = 0;
-  if (txnRes.ok) {
-    const json = await txnRes.json();
-    const txns = json && Array.isArray(json.transactions) ? json.transactions : [];
-    for (const txn of txns) {
-      if (!txn || typeof txn !== "object") continue;
-      const date = String(txn.txn_date ?? "");
-      const amount = Number(txn.amount) || 0;
-      if (isSavings(txn) && txn.category && date >= month) {
-        loggedByCategory[txn.category] = (loggedByCategory[txn.category] ?? 0) + amount;
-      }
-      if (transactionKind(txn) === "expense") {
-        if (txn.category) {
-          const key = `${date.slice(0, 7)}:${txn.category}`;
-          spendByMonthCategory[key] = (spendByMonthCategory[key] ?? 0) + amount;
-        }
-        if (date >= month) monthExpense += amount;
-        if (date >= weekStart) expenseDates.push(date);
-      }
-    }
-  }
+  const history = assembled.history;
+  const hasPrimaryResidence = assembled.hasPrimaryResidence;
+  const hasRentalProperty = assembled.hasRentalProperty;
+  const spent = spendingFactsFromTransactions(
+    txnRes.ok ? ((await txnRes.json()) as { transactions?: unknown }).transactions : [],
+    today,
+  );
+  const { loggedByCategory, spendByMonthCategory, expenseDates, monthExpense } = spent;
   const monthKey = month.slice(0, 7);
   const planChoices = new Map<string, { slug: string; label: string; kind: CategoryKind }>();
   let planExpenseSum = 0;

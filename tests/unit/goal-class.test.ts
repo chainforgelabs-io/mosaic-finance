@@ -3,6 +3,7 @@ import { savingsSlug } from "@/lib/tracking/create-savings-account";
 import {
   CANADA_LIFE_EXPECTANCY_YEARS,
   accountsForGoal,
+  goalSummaryLines,
   accountsFromBreakdown,
   accountsFromDebts,
   cardPaydown,
@@ -77,6 +78,7 @@ describe("goal reading", () => {
     if (reading.goalClass !== "debt") return;
     expect(reading.paidDown).toBe(2000);
     expect(reading.stillOwed).toBe(9200);
+    expect(goalSummaryLines({ target_age: null, linked_account_ids: [] }, reading)[0]).toContain("paid down");
     expect(reading.rows).toHaveLength(2);
     expect(reading.bar).toBeCloseTo((2000 / 11200) * 100);
     expect(reading.title).toBe("Pay off Consumer debt");
@@ -212,6 +214,10 @@ describe("goal reading", () => {
     expect(reading.balance).toBe(54200);
     expect(reading.gap).toBe(reading.spendingTotal! - 54200);
     expect(reading.bar).toBeNull();
+    const lines = goalSummaryLines({ target_age: 60, linked_account_ids: [] }, reading);
+    expect(lines.join(" ")).toContain("years from now");
+    expect(lines.join(" ")).toContain("apart in today's dollars");
+    expect(lines.join(" ").toLowerCase()).not.toContain("not sure");
   });
 
   it("counts weeks logged and the month against the plan", () => {
@@ -234,6 +240,10 @@ describe("goal reading", () => {
     expect(reading.budgetSource).toBe("plan");
     expect(reading.monthComplete).toBe(false);
     expect(monthShare("2026-11-01")).toEqual({ day: 1, days: 30, complete: false });
+    const lines = goalSummaryLines({ target_age: null, linked_account_ids: [] }, reading);
+    expect(lines[0]).toContain("Logged");
+    expect(lines.join(" ")).toContain("logged this month");
+    expect(lines.join(" ").toLowerCase()).not.toContain("not sure");
   });
 
   it("compares cost of living with the full plan only on the last day", () => {

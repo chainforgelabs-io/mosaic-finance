@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
 import { isTrialActive } from "@/lib/entitlements";
 import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
@@ -13,15 +13,11 @@ import { ClubCard } from "@/components/app/ClubCard";
 import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { PendingReviewBanner } from "@/components/app/PendingReviewBanner";
 import { PlanStaleBanner } from "@/components/app/PlanStaleBanner";
-import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
-import { RetirementProgressBar } from "@/components/charts/RetirementProgressBar";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
 import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
-import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
 import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { lineSeries } from "@/lib/net-worth/tracking";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
-import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import { TrackingLoop } from "@/components/app/TrackingLoop";
 import { SetupChecklist } from "@/components/app/SetupChecklist";
@@ -39,30 +35,29 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+let cachedNow = 0;
+
+function subscribeMinute(onChange: () => void) {
+  const id = setInterval(() => {
+    cachedNow = Date.now();
+    onChange();
+  }, 60_000);
+  return () => clearInterval(id);
+}
+
+function snapshotNow() {
+  if (cachedNow === 0 && typeof window !== "undefined") cachedNow = Date.now();
+  return cachedNow;
+}
+
 const GENERATING_CHART_PLACEHOLDERS = [
   {
-    title: "Retirement Income Sources",
-    subtitle: "Estimated monthly income at retirement",
-  },
-  {
-    title: "Retirement Readiness",
-    subtitle: "Current trajectory vs. target retirement number",
-  },
-  {
-    title: "Debt Breakdown",
-    subtitle: "Balances and payoff strategy",
-  },
-  {
-    title: "Illustrative mix",
-    subtitle: "Example asset-class mix from your Progress Report",
-  },
-  {
-    title: "Net Worth Trajectory",
-    subtitle: "Projected milestones by age",
+    title: "Debt balances",
+    subtitle: "Balances on file in this report",
   },
   {
     title: "Health Score Breakdown",
-    subtitle: "Performance across financial dimensions",
+    subtitle: "How the score is put together",
   },
 ] as const;
 
@@ -278,22 +273,10 @@ function DashboardGenerating() {
       <PrePlanKPIStrip data={prePlanData} />
       <MotivationStrip />
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {GENERATING_CHART_PLACEHOLDERS.slice(0, 2).map((c) => (
-            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {GENERATING_CHART_PLACEHOLDERS.slice(2, 4).map((c) => (
-            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {GENERATING_CHART_PLACEHOLDERS.slice(4, 6).map((c) => (
-            <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {GENERATING_CHART_PLACEHOLDERS.map((c) => (
+          <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
+        ))}
       </div>
 
       {prePlanData && (
@@ -620,22 +603,10 @@ const chartRowClass =
 
 function ChartGrid() {
   return (
-    <>
-      <div className={`${chartRowClass} min-h-[240px]`}>
-        <RetirementIncomeChart />
-        <RetirementProgressBar />
-      </div>
-
-      <div className={chartRowClass}>
-        <DebtBreakdownChart />
-        <AssetAllocationChart />
-      </div>
-
-      <div className={chartRowClass}>
-        <NetWorthTimeline />
-        <ScoreBreakdownChart />
-      </div>
-    </>
+    <div className={chartRowClass}>
+      <DebtBreakdownChart />
+      <ScoreBreakdownChart />
+    </div>
   );
 }
 
@@ -698,16 +669,17 @@ function DashboardPending() {
 
 function DashboardDelivered() {
   const { plan, marketContext } = usePlanStore();
+  const now = useSyncExternalStore(subscribeMinute, snapshotNow, () => 0);
 
   if (!plan) return null;
 
   const daysSinceDelivery = plan.deliveredAt
-    ? Math.floor((Date.now() - new Date(plan.deliveredAt).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.floor((now - new Date(plan.deliveredAt).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
 
   return (
     <div className="space-y-8">
-      {daysSinceDelivery <= 7 && (
+      {now > 0 && daysSinceDelivery <= 7 && (
         <ApprovalStatusBanner status="delivered" planId={plan.id} />
       )}
 

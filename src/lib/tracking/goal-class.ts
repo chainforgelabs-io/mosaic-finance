@@ -1,5 +1,6 @@
 import type { GoalRow, SnapshotBreakdown, SnapshotBreakdownItem } from "@/types/tracking";
-import { addDays, startOfWeekMonday } from "@/lib/tracking/dates";
+import { addDays, formatMonthLabel, startOfWeekMonday } from "@/lib/tracking/dates";
+import { formatMoney } from "@/lib/tracking/format";
 import { formatSnapshotLabel } from "@/lib/net-worth/tracking";
 
 export const GOAL_CLASSES = [
@@ -265,6 +266,66 @@ export function cardPaydown(input: { before: number; added: number; now: number 
   const increase = Math.max(0, input.added - input.before);
   const stillOwed = Math.min(increase, Math.max(0, input.now - input.before));
   return { increase, stillOwed };
+}
+
+/** Check-ins plus the live holdings and debts, in the same order the Goals page uses. */
+export function assembleGoalHistory(input: {
+  today: string;
+  snapshots?: { snapshot_date?: string | null; breakdown?: SnapshotBreakdown | null }[] | null;
+  holdings?: unknown;
+  debts?: unknown;
+  fixedAssets?: unknown;
+  /** When false, only the saved check-ins are returned. */
+  applyLive?: boolean;
+}): { history: DatedAccounts[]; hasPrimaryResidence: boolean; hasRentalProperty: boolean } {
+  const snaps = Array.isArray(input.snapshots) ? input.snapshots : [];
+  let history: DatedAccounts[] = snaps
+    .map((snap) => ({
+      date: String(snap?.snapshot_date ?? ""),
+      accounts: accountsFromBreakdown(snap?.breakdown),
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!input.applyLive) {
+    return { history, hasPrimaryResidence: false, hasRentalProperty: false };
+  }
+
+  let hasPrimaryResidence = false;
+  let hasRentalProperty = false;
+  const fixedAssets = Array.isArray(input.fixedAssets) ? input.fixedAssets : [];
+  for (const asset of fixedAssets) {
+    if (!asset || typeof asset !== "object") continue;
+    const row = asset as { category?: unknown; is_primary_residence?: unknown };
+    if (row.category !== "real_estate") continue;
+    if (row.is_primary_residence === true) hasPrimaryResidence = true;
+    else hasRentalProperty = true;
+  }
+
+  const holdingRows = Array.isArray(input.holdings) ? input.holdings : [];
+  const live: GoalAccount[] = holdingRows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const holding = row as { id?: unknown; account_type?: unknown; display_name?: unknown; total_value?: unknown };
+    const key = typeof holding.id === "string" ? holding.id : "";
+    if (!key) return [];
+    const named = typeof holding.display_name === "string" ? holding.display_name.trim() : "";
+    const typeName = typeof holding.account_type === "string" ? holding.account_type : "";
+    return [{
+      key,
+      name: formatSnapshotLabel(named || typeName || "Account"),
+      value: Number(holding.total_value) || 0,
+      side: "asset" as const,
+      accountType: typeName || undefined,
+      bucket: "investment" as const,
+    }];
+  });
+  const liveAccounts = [...live, ...accountsFromDebts(input.debts)];
+  if (history.length === 0) {
+    history = [{ date: input.today, accounts: liveAccounts }];
+  } else {
+    const last = history[history.length - 1];
+    history = [...history.slice(0, -1), { ...last, accounts: mergeMissingAccounts(last.accounts, liveAccounts) }];
+  }
+  return { history, hasPrimaryResidence, hasRentalProperty };
 }
 
 /** Live accounts that are not already on the latest check-in. */
@@ -698,4 +759,121 @@ export function readGoal(goal: GoalInput, facts: GoalFacts): GoalReading {
     cardIncrease,
     cardStillOwed,
   };
+}
+
+function linkedAccountNames(accounts: GoalAccount[], selected: string[]): string {
+  const wanted = new Set(selected);
+  return accounts
+    .filter((account) => account && wanted.has(account.key))
+    .map((account) => account.name.trim() || "Account")
+    .join(", ");
+}
+
+/** The same short lines the Goals page shows, for other screens that list the goal. */
+export function goalSummaryLines(
+  goal: Pick<GoalRow, "target_age" | "linked_account_ids">,
+  reading: GoalReading,
+  accounts: GoalAccount[] = [],
+): string[] {
+  if (reading.goalClass === "retirement_age") {
+    const lines: string[] = [];
+    if (reading.needsAge) {
+      lines.push(`Add your age to count the years until ${goal.target_age ?? "retirement"}.`);
+    } else if (reading.yearsUntil === 0) {
+      lines.push("This is the retirement age.");
+    } else if (reading.yearsUntil != null && reading.yearsUntil > 0) {
+      lines.push(`${reading.yearsUntil} ${reading.yearsUntil === 1 ? "year" : "years"} from now.`);
+    } else if (reading.yearsUntil != null) {
+      const ago = Math.abs(reading.yearsUntil);
+      lines.push(`Age ${goal.target_age} was ${ago} ${ago === 1 ? "year" : "years"} ago.`);
+    }
+    if (reading.spendingTotal != null && reading.balance != null) {
+      lines.push(`${formatMoney(reading.spendingTotal)} of spending, ${formatMoney(reading.balance)} in retirement accounts.`);
+    }
+    if (reading.gap != null && reading.gap > 0) lines.push(`${formatMoney(reading.gap)} apart in today's dollars.`);
+    if (reading.gap === 0) lines.push("The two amounts match in today's dollars.");
+    if (reading.gap != null && reading.gap < 0) {
+      lines.push(`${formatMoney(Math.abs(reading.gap))} above that spending, in today's dollars.`);
+    }
+    if (reading.gap == null && reading.yearsUntil != null && reading.monthlyNeed == null) {
+      lines.push("A monthly spending amount is set in Edit.");
+    }
+    if (reading.gap == null && reading.balance == null && !reading.needsAge) {
+      lines.push("No retirement account is on the latest net-worth check-in.");
+    }
+    lines.push("No investment growth is assumed. 82 is a general Canadian life expectancy at birth, not a forecast for you.");
+    return lines;
+  }
+
+  if (reading.goalClass === "retirement_income") {
+    const lines = [
+      reading.annual != null ? `${formatMoney(reading.annual)} a year on file` : "Retirement income on file",
+    ];
+    if (reading.balance != null) {
+      lines.push(`${formatMoney(reading.balance)} is on the latest check-in in retirement accounts.`);
+    }
+    return lines;
+  }
+
+  if (reading.goalClass === "debt") {
+    if (!reading.hasDebts) return ["Add your loans and cards on Net Worth. This goal reads those balances."];
+    const lines = [`${formatMoney(reading.paidDown)} paid down · ${formatMoney(reading.stillOwed)} still owed`];
+    if (reading.atStart) lines.push("These balances are the start. The next check-in shows what has been paid down.");
+    return lines;
+  }
+
+  if (reading.goalClass === "cost_of_living") {
+    const lines = [`Logged ${reading.weeksLogged} of the last ${reading.weekWindow} weeks.`];
+    if (reading.budget == null) return lines;
+    const against = reading.budgetSource === "entered" ? "the monthly amount you set" : "the plan";
+    const gap = reading.budget - reading.tracked;
+    const fullMonth =
+      gap > 0 ? `${formatMoney(gap)} under ${against}` : gap < 0 ? `${formatMoney(Math.abs(gap))} over ${against}` : `Matches ${against}`;
+    lines.push(
+      reading.monthComplete
+        ? `${formatMoney(reading.tracked)} logged this month. ${fullMonth}.`
+        : `${formatMoney(reading.tracked)} logged this month.`,
+    );
+    return lines;
+  }
+
+  if (reading.goalClass === "balance" && reading.trip) {
+    const selected = Array.isArray(goal.linked_account_ids) ? goal.linked_account_ids : [];
+    const named = linkedAccountNames(accounts, selected);
+    const months = reading.payoffMonths;
+    const monthWord = months == null ? null : months === 1 ? "1 month" : `${months} months`;
+    const lines: string[] = [];
+    if ((reading.fundingMethod === "set_aside" || reading.fundingMethod === "existing") && reading.current != null && reading.target != null) {
+      lines.push(`${formatMoney(reading.current)} of ${formatMoney(reading.target)} is in the account on the latest check-in.`);
+    } else if (reading.target != null) {
+      lines.push(`${formatMoney(reading.target)} target`);
+    }
+    if (reading.fundingMethod === "credit") {
+      lines.push(named ? (monthWord ? `Paid with ${named}, over ${monthWord}.` : `Paid with ${named}.`) : monthWord ? `A credit card, over ${monthWord}.` : "A credit card.");
+    } else if (reading.fundingMethod === "set_aside") {
+      lines.push(named ? `Set aside in ${named}.` : "A savings account set aside for it.");
+    } else if (reading.fundingMethod === "existing") {
+      lines.push(named ? `Already on file in ${named}.` : "Savings already on file.");
+    } else if (reading.fundingMethod === "cash_flow") {
+      lines.push("General cash flow.");
+    }
+    const monthLabel = reading.tripMonth ? formatMonthLabel(`${reading.tripMonth}-01`) : null;
+    if (reading.beforeTrip && monthLabel && reading.fundingMethod === "credit") {
+      lines.push(`Watching ${monthLabel}. Nothing is added to the card until that month.`);
+    } else if (reading.beforeTrip && monthLabel && reading.fundingMethod === "cash_flow") {
+      lines.push(`Watching ${monthLabel}. Spending that month is compared with the trip amount.`);
+    } else if (reading.beforeTrip && monthLabel) {
+      lines.push(`The trip is in ${monthLabel}.`);
+    }
+    return lines.length > 0 ? lines : ["How this trip is paid for is set in Edit."];
+  }
+
+  if (reading.goalClass === "balance") {
+    if (reading.current != null && reading.target != null) return [`${formatMoney(reading.current)} of ${formatMoney(reading.target)}`];
+    if (reading.target != null) return [`${formatMoney(reading.target)} target`];
+    return ["Set an amount to measure this."];
+  }
+
+  if (reading.current != null && reading.target != null) return [`${formatMoney(reading.current)} of ${formatMoney(reading.target)}`];
+  return ["Attach an account or set an amount to measure this."];
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { usePlanStore } from "@/stores/plan-store";
-import { formatDebtRecommendedMethod } from "@/lib/debt-method-labels";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
 
 const COLORS = ["#ef4444", "#f59e0b", "#6366f1", "#64748b", "#ec4899"];
@@ -39,12 +38,6 @@ export function DebtBreakdownChart() {
   const avalanche = debtPlan.avalanche_method as Record<string, unknown> | undefined;
   const order = (avalanche?.order as string[]) ?? [];
   const totalDebt = (debtPlan.total_debt as number) ?? 0;
-  const payoffMonths = (avalanche?.payoff_months as number) ?? 0;
-  const totalInterest = (avalanche?.total_interest_paid as number) ?? 0;
-  const rawMethod = (debtPlan.recommended_method as string) ?? "avalanche";
-  const colonIdx = rawMethod.indexOf(":");
-  const methodLabel = formatDebtRecommendedMethod(rawMethod);
-  const methodDescription = colonIdx > 0 ? rawMethod.slice(colonIdx + 1).trim() : "";
 
   const debts = order.map(parseDebtString).filter((d) => d.amount > 0);
   if (debts.length === 0) return null;
@@ -53,22 +46,12 @@ export function DebtBreakdownChart() {
 
   return (
     <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)]">
-          Debt Breakdown
-        </h3>
-        <span className="font-[family-name:var(--font-body)] text-xs font-medium text-white bg-[var(--emerald)] px-2 py-0.5 rounded-full whitespace-nowrap">
-          {methodLabel}
-        </span>
-      </div>
-      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-2">
-        Total: {fmtCompact(totalDebt)} &middot; Payoff: {payoffMonths} months &middot; Interest: {fmtCompact(totalInterest)}
+      <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
+        Debt balances
+      </h3>
+      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
+        Balances on file in this report. Total: {fmtCompact(totalDebt)}.
       </p>
-      {methodDescription && (
-        <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] mb-4 leading-relaxed">
-          {methodDescription}
-        </p>
-      )}
 
       <div className="h-[160px]">
         <ResponsiveContainer width="100%" height="100%" minWidth={0}>

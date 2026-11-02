@@ -224,6 +224,29 @@ function ProfileTab() {
   );
 }
 
+function guaranteeProgress(guarantee: {
+  eligible: boolean;
+  weeksLogged: number;
+  snapshots: number;
+  scoreDelta: number | null;
+}): string {
+  const weeks = Math.min(guarantee.weeksLogged, 13);
+  const snapshots =
+    guarantee.snapshots > 3
+      ? `You have saved ${guarantee.snapshots} monthly snapshots. The guarantee asks for 3.`
+      : `You have saved ${guarantee.snapshots} of the 3 monthly snapshots.`;
+  let score = "";
+  if (guarantee.scoreDelta != null && guarantee.scoreDelta > 0) {
+    score = ` The Financial Health Score is up ${guarantee.scoreDelta} in this window.`;
+  } else if (guarantee.scoreDelta != null && guarantee.scoreDelta < 0) {
+    score = ` The Financial Health Score is down ${Math.abs(guarantee.scoreDelta)} in this window.`;
+  } else if (guarantee.scoreDelta === 0) {
+    score = " The Financial Health Score is unchanged in this window.";
+  }
+  const refund = guarantee.eligible ? " You can request a refund of the first payment." : "";
+  return `You have logged ${weeks} of the 13 weeks. ${snapshots}${score}${refund}`;
+}
+
 // ─── Subscription Tab ─────────────────────────────────────────────
 
 function getTierFeatures(
@@ -573,7 +596,13 @@ function SubscriptionTabInner() {
                     type="button"
                     disabled={billingBusy}
                     onClick={() => void handleTierChange(tier)}
-                    className={`${subscribeDuringTrial ? "mt-2" : "mt-4"} w-full py-2 rounded-lg border border-[var(--emerald)] text-[var(--emerald)] font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-[var(--emerald)] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className={`${subscribeDuringTrial ? "mt-2" : "mt-4"} w-full py-2 rounded-lg font-[family-name:var(--font-display)] text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      subscribeDuringTrial ||
+                      tierFeatures.findIndex((item) => item.tier === tier) >
+                        tierFeatures.findIndex((item) => item.tier === shownTier)
+                        ? "bg-[var(--emerald)] text-white hover:bg-[var(--emerald-dark)]"
+                        : "border border-[var(--emerald)] text-[var(--emerald)] hover:bg-[var(--emerald)] hover:text-white"
+                    }`}
                   >
                     {subscribeDuringTrial
                       ? "Subscribe"
@@ -593,7 +622,11 @@ function SubscriptionTabInner() {
         type="button"
         disabled={billingBusy}
         onClick={() => void handleManageBilling()}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--emerald)] text-white font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--emerald-dark)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-[family-name:var(--font-display)] font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+          currentTier === "pulse"
+            ? "border border-[var(--warm-200)] bg-white text-[var(--text-secondary)] hover:border-[var(--emerald)] hover:text-[var(--emerald)]"
+            : "bg-[var(--emerald)] text-white hover:bg-[var(--emerald-dark)]"
+        }`}
       >
         <ExternalLink className="w-4 h-4" />
         {billingBusy ? "Opening…" : "Manage Billing"}
@@ -607,15 +640,8 @@ function SubscriptionTabInner() {
           <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
             {GUARANTEE_SHORT}
           </p>
-          <p className="mt-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-muted)]">
-            {Math.min(guarantee.weeksLogged, 13)}/13 weeks logged ·{" "}
-            {guarantee.snapshots > 3
-              ? `${guarantee.snapshots} snapshots · 3 required`
-              : `${guarantee.snapshots}/3 snapshots`}
-            {guarantee.scoreDelta != null
-              ? ` · score ${guarantee.scoreDelta >= 0 ? "+" : ""}${guarantee.scoreDelta}`
-              : ""}
-            {guarantee.eligible ? " · Eligible to request a refund" : ""}
+          <p className="mt-3 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+            {guaranteeProgress(guarantee)}
           </p>
         </div>
       )}
@@ -1119,7 +1145,7 @@ function SettingsPageInner() {
       <div className="max-w-[680px]">
         {/* Tabs */}
         <div className="mb-8 border-b border-[var(--warm-200)]">
-          <div className="flex gap-1">
+          <div className="grid grid-cols-2 sm:flex sm:gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1127,14 +1153,14 @@ function SettingsPageInner() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 px-1 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-xs font-medium sm:gap-2 sm:px-3 sm:text-sm ${
+                className={`flex items-center justify-center gap-1.5 whitespace-nowrap px-2 py-3 -mb-px border-b-2 transition-colors font-[family-name:var(--font-display)] text-sm font-medium sm:flex-1 sm:gap-2 sm:px-3 ${
                   isActive
                     ? "border-[var(--emerald)] text-[var(--emerald)]"
                     : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
                 }`}
               >
-                <Icon className="hidden h-4 w-4 shrink-0 sm:block" />
-                <span className="truncate">{tab.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                {tab.label}
               </button>
             );
           })}

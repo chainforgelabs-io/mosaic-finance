@@ -5,12 +5,7 @@ import { usePlanStore } from "@/stores/plan-store";
 import { PlanSectionComponent } from "@/components/app/PlanSectionComponent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HealthScore } from "@/components/app/HealthScore";
-import { FinancialCard } from "@/components/app/FinancialCard";
-import { RetirementIncomeChart } from "@/components/charts/RetirementIncomeChart";
-import { RetirementProgressBar } from "@/components/charts/RetirementProgressBar";
 import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
-import { AssetAllocationChart } from "@/components/charts/AssetAllocationChart";
-import { NetWorthTimeline } from "@/components/charts/NetWorthTimeline";
 import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
 import {
   Check,
@@ -141,106 +136,23 @@ function PlanNone() {
 
 /* ---------- Plan KPI Strip (planning-focused, dark hero) ---------- */
 
-function fmtPlanKpi(n: number | null | undefined): string {
-  if (n == null) return "--";
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
-}
-
-function ProgressRing({ pct, size = 100, stroke = 8 }: { pct: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (Math.min(pct, 100) / 100) * circ;
-  const color = pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
-
-  return (
-    <svg width={size} height={size} className="shrink-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke={color} strokeWidth={stroke} strokeLinecap="round"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        style={{ transform: "rotate(-90deg)", transformOrigin: "50% 50%", transition: "stroke-dashoffset 0.8s ease" }}
-      />
-      <text x="50%" y="50%" textAnchor="middle" dominantBaseline="central"
-        className="font-[family-name:var(--font-display)]" fill="white" fontSize={size * 0.26} fontWeight={700}>
-        {pct}%
-      </text>
-    </svg>
-  );
-}
-
-function DarkMetric({ label, value, unit, accent }: { label: string; value: string; unit?: string; accent?: string }) {
-  return (
-    <div className="flex flex-col items-center text-center px-3 py-2">
-      <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/50 mb-1.5">
-        {label}
-      </p>
-      <div className="flex items-baseline gap-1">
-        <span className="font-[family-name:var(--font-display)] text-[26px] font-bold tabular-nums" style={{ color: accent ?? "#c9aa71" }}>
-          {value}
-        </span>
-        {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/40">{unit}</span>}
-      </div>
-    </div>
-  );
-}
-
 function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
-  const rawPlanData = usePlanStore((s) => s.rawPlanData);
-  const ret = rawPlanData?.retirement_readiness as Record<string, unknown> | undefined;
-  const tax = rawPlanData?.tax_efficiency_review as Record<string, unknown> | undefined;
-  const debt = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
-  const ins = rawPlanData?.insurance_coverage_audit as Record<string, unknown> | undefined;
-  const avalanche = debt?.avalanche_method as Record<string, unknown> | undefined;
-
-  const retTarget = (ret?.retirement_number as number) ?? 0;
-  const retCurrent = (ret?.current_trajectory as number) ?? 0;
-  const retPct = retTarget > 0 ? Math.round((retCurrent / retTarget) * 100) : null;
-  const savingsTarget = (ret?.monthly_savings_required as number) ?? null;
-  const taxSavings = (tax?.estimated_annual_tax_savings as number) ?? null;
-  const payoffMonths = (avalanche?.payoff_months as number) ?? null;
-  const insuranceGap = (ins?.life_insurance_gap as number) ?? null;
-
   return (
     <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
-      <div className="flex flex-col md:flex-row items-center gap-8">
-        {/* Left: Health Score + Retirement Ring */}
-        <div className="flex items-center gap-6 shrink-0">
-          {plan.healthScore > 0 && (
-            <div className="flex flex-col items-center">
-              <HealthScore score={plan.healthScore} size="lg" />
-              <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
-                Health Score
-              </p>
-              <p className="font-body text-[10px] text-white/40">In this report</p>
-            </div>
-          )}
-          {retPct != null && (
-            <div className="flex flex-col items-center">
-              <ProgressRing pct={retPct} size={96} stroke={7} />
-              <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
-                Retirement Ready
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Vertical separator */}
-        <div className="hidden md:block w-px h-20 bg-white/10" />
-
-        {/* Right: Metric strip */}
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
-          <DarkMetric label="Savings Target" value={savingsTarget != null ? fmtPlanKpi(savingsTarget) : "--"} unit={savingsTarget != null ? "/mo" : undefined} />
-          <DarkMetric label="Tax Savings" value={taxSavings != null ? fmtPlanKpi(taxSavings) : "--"} unit={taxSavings != null ? "/yr" : undefined} accent="#818cf8" />
-          <DarkMetric label="Debt Payoff" value={payoffMonths != null ? String(payoffMonths) : "--"} unit={payoffMonths != null ? "mo" : undefined} accent={payoffMonths != null && payoffMonths <= 24 ? "#10b981" : "#f59e0b"} />
-          <DarkMetric label="Insurance Gap" value={insuranceGap != null ? fmtPlanKpi(insuranceGap) : "--"} accent={insuranceGap != null && insuranceGap > 0 ? "#ef4444" : "#10b981"} />
-        </div>
+      <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
+        {plan.healthScore > 0 && (
+          <div className="flex shrink-0 flex-col items-center">
+            <HealthScore score={plan.healthScore} size="lg" />
+            <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
+              Health Score
+            </p>
+            <p className="font-body text-[10px] text-white/40">In this report</p>
+          </div>
+        )}
+        <p className="font-body text-sm leading-relaxed text-white/70">
+          The sections below explain the figures in this report. They describe what was entered. They are not a target, a mix for these accounts, or a savings instruction. Today&apos;s score and net worth are on the dashboard.
+        </p>
       </div>
-      <p className="mt-3 text-center font-body text-xs text-white/50">
-        Figures in this strip are from this report. Today&apos;s score and net worth are on the dashboard.
-      </p>
     </div>
   );
 }
@@ -249,20 +161,10 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
 
 function PlanCharts() {
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RetirementIncomeChart />
-        <RetirementProgressBar />
-      </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2">
-        <DebtBreakdownChart />
-        <AssetAllocationChart />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NetWorthTimeline />
-        <ScoreBreakdownChart />
-      </div>
-    </>
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2">
+      <DebtBreakdownChart />
+      <ScoreBreakdownChart />
+    </div>
   );
 }
 
