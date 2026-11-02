@@ -816,7 +816,9 @@ function TripFunding({
           {reading.cardIncrease != null && reading.cardStillOwed != null && (
             <p className="font-body text-xs text-[var(--text-secondary)]">
               {formatMoney(reading.cardIncrease)} was added on that card. {formatMoney(reading.cardStillOwed)} of that is still owed.
-              {reading.payoffMonths != null ? ` The payoff is entered as ${reading.payoffMonths} months.` : ""}
+              {reading.payoffMonths != null
+                ? ` You plan to pay this off over ${reading.payoffMonths} ${reading.payoffMonths === 1 ? "month" : "months"}.`
+                : ""}
             </p>
           )}
           {reading.cardIncrease == null && !reading.beforeTrip && reading.tripMonth != null && selectedAccounts.length > 0 && (
@@ -882,9 +884,11 @@ function PayoffMonths({ value, onSave }: { value: number | null; onSave: (months
   const [text, setText] = useState(value != null ? String(value) : "");
   return (
     <div>
-      <label className="font-body text-xs text-[var(--text-secondary)]">How many months is the payoff planned over?</label>
+      <label className="font-body text-xs text-[var(--text-secondary)]">How long do you plan to pay this off?</label>
       <input
         inputMode="numeric"
+        placeholder="Months"
+        aria-label="How long do you plan to pay this off, in months"
         value={text}
         onChange={(event) => setText(event.target.value)}
         onBlur={() => {
@@ -1575,9 +1579,11 @@ function GoalForm({
             </div>
             {funding === "credit" && (
               <div className="mt-3">
-                <label className="font-body text-xs text-[var(--text-secondary)]">How many months is the payoff planned over?</label>
+                <label className="font-body text-xs text-[var(--text-secondary)]">How long do you plan to pay this off?</label>
                 <input
                   inputMode="numeric"
+                  placeholder="Months"
+                  aria-label="How long do you plan to pay this off, in months"
                   value={payoffMonths}
                   onChange={(event) => setPayoffMonths(event.target.value)}
                   className="mt-1 w-full min-w-0 max-w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
