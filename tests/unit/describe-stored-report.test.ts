@@ -113,6 +113,20 @@ describe("stored report copy", () => {
     const note = decades?.tables?.[0]?.rows[0]?.values[1];
     expect(note).toBe("—");
   });
+
+  it("keeps abbreviations whole and drops a growth-oriented strategy line", () => {
+    expect(descriptiveText(
+      "Contributions are deducted at a high marginal rate (approx. 40% combined). The cash figure is on file.",
+    )).toBe("Contributions are deducted at a high marginal rate (approx. 40% combined). The cash figure is on file.");
+
+    expect(descriptiveText(
+      "Income on file differs ($1 vs. $2), and the difference could be explored. The cash figure is on file.",
+    )).toBe("The cash figure is on file.");
+
+    expect(descriptiveText(
+      "A long horizon is often cited as supporting growth-oriented strategies. Balances on file are cash.",
+    )).toBe("Balances on file are cash.");
+  });
 });
 
 describe("plan generation prompt observations", () => {
@@ -136,5 +150,6 @@ describe("plan generation prompt observations", () => {
     expect(prompt).toContain("worth reviewing");
     expect(prompt).toContain("Do not name a balance or a rate");
     expect(prompt).toContain("closing insurance gaps");
+    expect(prompt).toContain("growth-oriented strategies");
   });
 });

@@ -10,7 +10,31 @@ const INSTRUCTION_START =
   /^(?:please\s+)?(?:track|review|explore|consider|confirm|request|monitor|revisit|coordinate|recognize|build|clarify|close|reassess|check|ask|model|direct|allocate|prioriti[sz]e|evaluate|adjust)\b/i;
 
 const ADVICE_PHRASE =
-  /\b(?:you should|we recommend|worth (?:exploring|checking|reviewing)|consider modeling|close the gap|could be explored|may not align|personalized projection|accelerat\w*|specific attention|adjust(?:ing)? (?:the |your |a )?savings|evaluate progress|gap persists|this gap|the gap|a gap\b|shortfall|prioriti[sz]\w*|higher-rate|higher rate debt|tackling|verify with a professional)\b/i;
+  /\b(?:you should|we recommend|worth (?:exploring|checking|reviewing)|consider modeling|close the gap|could be explored|may not align|personalized projection|accelerat\w*|specific attention|adjust(?:ing)? (?:the |your |a )?savings|evaluate progress|gap persists|this gap|the gap|a gap\b|shortfall|prioriti[sz]\w*|higher-rate|higher rate debt|tackling|verify with a professional|growth-oriented)\b/i;
+
+/** A period in these abbreviations is not the end of a sentence. */
+const ABBREVIATION =
+  /(?:^|[\s(])(?:vs|approx|e\.g|i\.e|mr|mrs|ms|dr|st|jr|sr|inc|ltd|etc|fig|no|u\.s|u\.k)$/i;
+
+function sentenceParts(text: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char !== "." && char !== "!" && char !== "?") continue;
+    const next = text[i + 1];
+    if (next != null && !/\s/.test(next)) continue;
+    if (char === "." && ABBREVIATION.test(text.slice(start, i))) continue;
+    const sentence = text.slice(start, i + 1).trim();
+    if (sentence) parts.push(sentence);
+    start = i + 1;
+    while (start < text.length && /\s/.test(text[start])) start += 1;
+    i = start - 1;
+  }
+  const rest = text.slice(start).trim();
+  if (rest) parts.push(rest);
+  return parts;
+}
 
 const ASSUMPTION =
   /\b(?:\d+(?:\.\d+)?\s*%[^.]{0,48}\breturn\b|assuming\b[^.]{0,48}\breturn\b|nominal return|expected return|mathematically optimal|insurance gaps?|coverage gaps?|life insurance gaps?|potential gap of|estimated gap|gap of roughly|gap of about|closing insurance)\b/i;
@@ -30,10 +54,7 @@ export function isInstruction(text: string): boolean {
 }
 
 export function descriptiveText(text: string): string {
-  const kept = text
-    .split(/(?<=[.!?])\s+/)
-    .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length > 0 && !isInstruction(sentence));
+  const kept = sentenceParts(text).filter((sentence) => sentence.length > 0 && !isInstruction(sentence));
   return kept.join(" ").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
