@@ -1,6 +1,52 @@
 import { createServerClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse, type NextRequest } from 'next/server';
 import { isDeferredDashboardPath } from '@/lib/config/launch-surface';
+import { resolveEntitlements } from '@/lib/entitlements';
+import { authLandingPath } from '@/lib/onboarding/paths';
+
+/** Same landing rule as sign-in. A finished account goes to the dashboard, not the profile form. */
+async function landingPath(supabase: SupabaseClient, userId: string): Promise<string> {
+  const [profileRes, factFindRes, riskRes, holdingsRes, planRes] = await Promise.all([
+    supabase
+      .from('user_profiles')
+      .select('age, employment_type, role, subscription_tier, trial_ends_at')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('conversation_sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('session_type', 'fact-find')
+      .eq('status', 'completed')
+      .limit(1)
+      .single(),
+    supabase.from('risk_profiles').select('id').eq('user_id', userId).limit(1).single(),
+    supabase.from('investment_holdings').select('id').eq('user_id', userId).limit(1).single(),
+    supabase
+      .from('financial_plans')
+      .select('id')
+      .eq('user_id', userId)
+      .neq('status', 'superseded')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const profile = profileRes.data;
+  return authLandingPath({
+    profileComplete: !!(profile?.age && profile?.employment_type),
+    factFindComplete: !!factFindRes.data,
+    riskProfileComplete: !!riskRes.data,
+    holdingsExist: !!holdingsRes.data,
+    planExists: !!planRes.data,
+    isAdmin: profile?.role === 'admin',
+    reportEntitled: resolveEntitlements({
+      subscription_tier: profile?.subscription_tier,
+      trial_ends_at: profile?.trial_ends_at,
+    }).canUseCharlie,
+  });
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -46,18 +92,17 @@ export async function updateSession(request: NextRequest) {
   const isServerAction = request.headers.has('next-action');
 
   if (user && isAuthRoute && !isServerAction) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
+    const landing = await landingPath(supabase, user.id);
+    const explicit = request.nextUrl.searchParams.get('redirectTo');
+    const explicitAllowed =
+      !!explicit &&
+      explicit.startsWith('/') &&
+      !explicit.startsWith('//') &&
+      !landing.startsWith('/onboarding') &&
+      ['/dashboard', '/onboarding', '/admin'].some((prefix) => explicit.startsWith(prefix));
     const url = request.nextUrl.clone();
-    if (profile?.role === 'admin') {
-      url.pathname = '/admin/approval-queue';
-    } else {
-      url.pathname = '/onboarding';
-    }
+    url.pathname = explicitAllowed ? explicit : landing;
+    url.search = '';
     return NextResponse.redirect(url);
   }
 

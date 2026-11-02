@@ -123,6 +123,7 @@ export default function OnboardingProfilePage() {
     setCurrentStep("profile");
 
     async function checkAndResume() {
+      let leaving = false;
       try {
         const [progress, profile] = await Promise.all([
           getOnboardingProgress(),
@@ -134,6 +135,7 @@ export default function OnboardingProfilePage() {
           if (progress.factFindComplete) completeStep("fact-find");
           if (progress.riskProfileComplete) completeStep("risk-profile");
           if (progress.holdingsExist) completeStep("holdings");
+          leaving = true;
           router.replace(progress.resumePath);
           return;
         }
@@ -159,7 +161,7 @@ export default function OnboardingProfilePage() {
       } catch {
         // If progress check fails, just show the profile form
       } finally {
-        setCheckingProgress(false);
+        if (!leaving) setCheckingProgress(false);
       }
     }
 
