@@ -25,6 +25,8 @@ import {
   accountsForGoal,
   accountsFromBreakdown,
   accountsFromDebts,
+  OMIT_HOME_MORTGAGE,
+  OMIT_RENTAL_MORTGAGE,
   fundingMethodOf,
   goalClassOf,
   inferGoalClass,
@@ -113,6 +115,8 @@ interface GoalPageData {
   expenseDates: string[];
   monthExpense: number;
   planExpense: number | null;
+  hasPrimaryResidence: boolean;
+  hasRentalProperty: boolean;
   savingsChoices: { slug: string; label: string; kind: CategoryKind }[];
   planChoices: { slug: string; label: string; kind: CategoryKind }[];
 }
@@ -142,6 +146,8 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
     profileMonthly = json.context?.monthlyExpenses != null ? Number(json.context.monthlyExpenses) : null;
   }
   let history: GoalPageData["history"] = [];
+  let hasPrimaryResidence = false;
+  let hasRentalProperty = false;
   if (snapRes.ok) {
     const json = await snapRes.json();
     const snaps = (json.snapshots ?? []) as { snapshot_date?: string; breakdown?: SnapshotBreakdown }[];
@@ -155,7 +161,17 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
   if (holdRes.ok) {
     try {
       const json = await holdRes.json();
-      const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null; holdings?: unknown }).financialProfile : null;
+      const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null; holdings?: unknown; fixedAssets?: unknown }).financialProfile : null;
+      const fixedAssets = json && typeof json === "object" && Array.isArray((json as { fixedAssets?: unknown }).fixedAssets)
+        ? (json as { fixedAssets: unknown[] }).fixedAssets
+        : [];
+      for (const asset of fixedAssets) {
+        if (!asset || typeof asset !== "object") continue;
+        const row = asset as { category?: unknown; is_primary_residence?: unknown };
+        if (row.category !== "real_estate") continue;
+        if (row.is_primary_residence === true) hasPrimaryResidence = true;
+        else hasRentalProperty = true;
+      }
       const liveDebts = accountsFromDebts(profile?.major_debts);
       const holdingRows = json && typeof json === "object" && Array.isArray((json as { holdings?: unknown }).holdings)
         ? ((json as { holdings: unknown[] }).holdings)
@@ -245,6 +261,8 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
     expenseDates,
     monthExpense,
     planExpense: planExpenseRows > 0 ? planExpenseSum : null,
+    hasPrimaryResidence,
+    hasRentalProperty,
     savingsChoices: choices.filter((choice) => choice.kind === "savings" && choice.slug !== "debt_principal"),
     planChoices: choices,
   };
@@ -263,6 +281,8 @@ export default function GoalsPage() {
   const [expenseDates, setExpenseDates] = useState<string[]>([]);
   const [monthExpense, setMonthExpense] = useState(0);
   const [planExpense, setPlanExpense] = useState<number | null>(null);
+  const [hasPrimaryResidence, setHasPrimaryResidence] = useState(false);
+  const [hasRentalProperty, setHasRentalProperty] = useState(false);
   const [profileMonthly, setProfileMonthly] = useState<number | null>(null);
   const [age, setAge] = useState<number | null>(null);
   const [today, setToday] = useState("");
@@ -279,6 +299,8 @@ export default function GoalsPage() {
     setExpenseDates(data.expenseDates);
     setMonthExpense(data.monthExpense);
     setPlanExpense(data.planExpense);
+    setHasPrimaryResidence(data.hasPrimaryResidence);
+    setHasRentalProperty(data.hasRentalProperty);
     setProfileMonthly(data.profileMonthly);
     setAge(data.age);
     setToday(data.today);
@@ -377,6 +399,8 @@ export default function GoalsPage() {
       startDebts: startingDebts(history, goal.created_at),
       loggedByCategory,
       spendByMonthCategory,
+      hasPrimaryResidence,
+      hasRentalProperty,
     };
   }
 
@@ -1079,7 +1103,7 @@ function ReadingView({
   }
 
   if (reading.goalClass === "debt") {
-    if (!reading.hasDebts) {
+    if (!reading.hasDebts && !reading.showHomeMortgage && !reading.showRentalMortgage) {
       return (
         <p className="mt-3 font-body text-xs text-[var(--text-muted)]">
           Add your loans and cards on Net Worth. This goal reads those balances.
@@ -1088,10 +1112,14 @@ function ReadingView({
     }
     return (
       <div className="mt-3 space-y-2">
-        <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
-          {formatMoney(reading.paidDown)} paid down · {formatMoney(reading.stillOwed)} still owed
-        </p>
-        {reading.atStart && (
+        {reading.hasDebts ? (
+          <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
+            {formatMoney(reading.paidDown)} paid down · {formatMoney(reading.stillOwed)} still owed
+          </p>
+        ) : (
+          <p className="font-body text-xs text-[var(--text-muted)]">No debts are included in this goal.</p>
+        )}
+        {reading.atStart && reading.hasDebts && (
           <p className="font-body text-xs text-[var(--text-muted)]">
             These balances are the start. The next check-in shows what has been paid down.
           </p>
@@ -1103,6 +1131,28 @@ function ReadingView({
             </li>
           ))}
         </ul>
+        {reading.showHomeMortgage && (
+          <label className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={reading.includeHome}
+              onChange={() => onPatch({ linked_account_ids: toggleId(selectedAccounts, OMIT_HOME_MORTGAGE) })}
+              className="size-4 accent-[var(--emerald)]"
+            />
+            Include mortgage
+          </label>
+        )}
+        {reading.showRentalMortgage && (
+          <label className="flex items-center gap-2 font-body text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={reading.includeRental}
+              onChange={() => onPatch({ linked_account_ids: toggleId(selectedAccounts, OMIT_RENTAL_MORTGAGE) })}
+              className="size-4 accent-[var(--emerald)]"
+            />
+            Include rental mortgage
+          </label>
+        )}
         {reading.bar != null && <Meter bar={reading.bar} />}
       </div>
     );
@@ -1272,7 +1322,9 @@ function GoalCard({
           <p className="font-body text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
             {GOAL_CLASS_LABELS[reading.goalClass]}
           </p>
-          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">{presentGoalName(typeof goal.name === "string" ? goal.name : "Goal")}</h3>
+          <h3 className="font-display text-base font-semibold text-[var(--text-primary)]">
+            {reading.goalClass === "debt" ? reading.title : presentGoalName(typeof goal.name === "string" ? goal.name : "Goal")}
+          </h3>
           {(goal.source === "fact_find" || goal.source === "onboarding") && (
             <p className="mt-1 font-body text-xs text-[var(--text-muted)]">
               From your onboarding session — change this if it isn&apos;t quite right.
@@ -1431,7 +1483,9 @@ function GoalForm({
   const accountChoices = [
     ...accountsForGoal(trackingClass, accounts, { trip, funding }),
     ...addedAccounts,
-  ].filter((account, index, list) => list.findIndex((item) => item.key === account.key) === index);
+  ]
+    .filter((account, index, list) => list.findIndex((item) => item.key === account.key) === index)
+    .filter((account) => trackingClass !== "debt" || account.side !== "debt" || account.value > 0);
   const lineChoices = linesForGoal(trackingClass, planChoices, trip);
   const allowedLines = new Set([...lineChoices.map((line) => line.slug), ...addedSlugs]);
   const keepPlans = !trip ? trackingClass === "balance" : funding === "set_aside";
@@ -1456,7 +1510,10 @@ function GoalForm({
       }),
       current_amount: Number(currentAmount) || 0,
       tracking_class: trackingClass,
-      linked_account_ids: linkedAccounts.filter((key) => accountChoices.some((account) => account.key === key)),
+      linked_account_ids: [
+        ...linkedAccounts.filter((key) => accountChoices.some((account) => account.key === key)),
+        ...idList(initial?.linked_account_ids).filter((key) => key === OMIT_HOME_MORTGAGE || key === OMIT_RENTAL_MORTGAGE),
+      ],
       linked_plan_categories: keepPlans ? linkedPlans.filter((slug) => allowedLines.has(slug)) : [],
       funding_method: trip ? funding : null,
       payoff_months: trip && funding === "credit" && Number.isInteger(months) && months >= 1 && months <= 120 ? months : null,

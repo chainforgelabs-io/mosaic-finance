@@ -6,7 +6,10 @@ import {
   accountsFromBreakdown,
   accountsFromDebts,
   cardPaydown,
+  classifyDebtRoles,
+  debtGoalTitle,
   inferGoalClass,
+  OMIT_HOME_MORTGAGE,
   linesForGoal,
   mergeMissingAccounts,
   monthShare,
@@ -76,6 +79,78 @@ describe("goal reading", () => {
     expect(reading.stillOwed).toBe(9200);
     expect(reading.rows).toHaveLength(2);
     expect(reading.bar).toBeCloseTo((2000 / 11200) * 100);
+    expect(reading.title).toBe("Pay off Consumer debt");
+  });
+
+  it("hides a debt that has never had a balance and names what remains", () => {
+    const reading = readGoal(
+      {
+        name: "Pay off debt",
+        goal_type: "debt_payoff",
+        target_amount: null,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        baseline_balances: { "car-1": 18100, "home-1": 200000, "amex-1": 0 },
+      },
+      {
+        ...emptyFacts,
+        hasPrimaryResidence: true,
+        latest: [
+          { key: "car-1", name: "Car loan", value: 17560, side: "debt" },
+          { key: "home-1", name: "Mortgage", value: 199800, side: "debt" },
+          { key: "amex-1", name: "Amex", value: 0, side: "debt" },
+        ],
+      },
+    );
+    if (reading.goalClass !== "debt") throw new Error("expected debt");
+    expect(reading.rows.map((row) => row.name)).toEqual(["Car loan", "Mortgage"]);
+    expect(reading.title).toBe("All Debt");
+    expect(reading.showHomeMortgage).toBe(true);
+    expect(reading.includeHome).toBe(true);
+  });
+
+  it("drops the residence mortgage when the goal leaves it out", () => {
+    const reading = readGoal(
+      {
+        name: "Pay off debt",
+        goal_type: "debt_payoff",
+        target_amount: null,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: false,
+        linked_account_ids: [OMIT_HOME_MORTGAGE],
+        baseline_balances: { "car-1": 18100, "home-1": 200000 },
+      },
+      {
+        ...emptyFacts,
+        hasPrimaryResidence: true,
+        latest: [
+          { key: "car-1", name: "Car loan", value: 17560, side: "debt" },
+          { key: "home-1", name: "Mortgage", value: 199800, side: "debt" },
+        ],
+      },
+    );
+    if (reading.goalClass !== "debt") throw new Error("expected debt");
+    expect(reading.rows.map((row) => row.name)).toEqual(["Car loan"]);
+    expect(reading.title).toBe("Pay off Consumer debt");
+    expect(reading.includeHome).toBe(false);
+    expect(reading.stillOwed).toBe(17560);
+  });
+
+  it("names a student loan on its own and a rental mortgage beside other debts", () => {
+    expect(debtGoalTitle([{ name: "Student loan", role: "student" }])).toBe("Pay off Student Loan(s)");
+    expect(
+      debtGoalTitle([
+        { name: "Car loan", role: "car" },
+        { name: "Rental mortgage", role: "rental_mortgage" },
+      ]),
+    ).toBe("Pay off Car loan and rental mortgage");
+    expect(classifyDebtRoles(["Mortgage"], { hasRentalProperty: true })).toEqual(["rental_mortgage"]);
+    expect(classifyDebtRoles(["Mortgage", "Rental mortgage"], { hasPrimaryResidence: true, hasRentalProperty: true })).toEqual([
+      "home_mortgage",
+      "rental_mortgage",
+    ]);
   });
 
   it("does not treat a typed zero as savings progress", () => {

@@ -333,6 +333,85 @@ export interface DebtRow {
   now: number;
 }
 
+export const OMIT_HOME_MORTGAGE = "omit:home-mortgage";
+export const OMIT_RENTAL_MORTGAGE = "omit:rental-mortgage";
+
+export type DebtRole = "home_mortgage" | "rental_mortgage" | "student" | "car" | "card" | "other";
+
+export function debtHasValue(start: number, now: number): boolean {
+  return start > 0 || now > 0;
+}
+
+function isMortgageName(name: string): boolean {
+  return /\bmortgage\b/i.test(name);
+}
+
+/** A mortgage tied to a rental when the name says so, or when the only property is a rental. Extra mortgages beside a residence are rentals. */
+export function classifyDebtRoles(
+  names: string[],
+  flags: { hasPrimaryResidence?: boolean; hasRentalProperty?: boolean },
+): DebtRole[] {
+  const home = flags.hasPrimaryResidence === true;
+  const rental = flags.hasRentalProperty === true;
+  const roles: DebtRole[] = names.map((name) => {
+    const text = name.toLowerCase();
+    if (/student/.test(text)) return "student";
+    if (/\b(car|auto|vehicle)\b/.test(text)) return "car";
+    if (/credit card|\bvisa\b|\bmastercard\b|\bamex\b|american express/.test(text)) return "card";
+    return "other";
+  });
+  const mortgageIndexes = names.flatMap((name, index) => (isMortgageName(name) ? [index] : []));
+  const rentalNamed = mortgageIndexes.filter((index) => /rental|investment property/.test(names[index].toLowerCase()));
+  const plain = mortgageIndexes.filter((index) => !rentalNamed.includes(index));
+  for (const index of rentalNamed) roles[index] = "rental_mortgage";
+  if (!home && rental) {
+    for (const index of plain) roles[index] = "rental_mortgage";
+  } else if (home && rental && plain.length > 1) {
+    roles[plain[0]] = "home_mortgage";
+    for (const index of plain.slice(1)) roles[index] = "rental_mortgage";
+  } else {
+    for (const index of plain) roles[index] = "home_mortgage";
+  }
+  return roles;
+}
+
+function singleDebtTitle(role: DebtRole, names: string[]): string {
+  if (role === "student") return "Pay off Student Loan(s)";
+  if (role === "car") return "Pay off Car loan";
+  if (role === "card") return "Pay off Credit card";
+  if (role === "other" && names.length === 1) return `Pay off ${names[0]}`;
+  return "Pay off Consumer debt";
+}
+
+/** Title for the debts included in the goal. A residence mortgage makes it all debt. Leaving that mortgage out makes the rest consumer debt. */
+export function debtGoalTitle(
+  rows: { name: string; role: DebtRole }[],
+  options?: { homeMortgageExcluded?: boolean },
+): string {
+  const roles = [...new Set(rows.map((row) => row.role))];
+  if (roles.includes("home_mortgage")) return "All Debt";
+  const rest = roles.filter((role) => role !== "rental_mortgage");
+  const hasRental = roles.includes("rental_mortgage");
+  if (options?.homeMortgageExcluded && rows.length > 0) {
+    if (rest.length === 1 && rest[0] === "student" && !hasRental) return "Pay off Student Loan(s)";
+    if (hasRental && rest.length === 0) return "Pay off Rental mortgage";
+    if (hasRental) return "Pay off Consumer debt and rental mortgage";
+    return "Pay off Consumer debt";
+  }
+  if (hasRental && rest.length === 0) return "Pay off Rental mortgage";
+  if (hasRental && rest.length === 1) {
+    const names = rows.filter((row) => row.role === rest[0]).map((row) => row.name);
+    return `${singleDebtTitle(rest[0], names)} and rental mortgage`;
+  }
+  if (hasRental) return "Pay off Consumer debt and rental mortgage";
+  if (rest.length === 1) {
+    const names = [...new Set(rows.filter((row) => row.role === rest[0]).map((row) => row.name))];
+    return singleDebtTitle(rest[0], names);
+  }
+  if (rest.length > 1) return "Pay off Consumer debt";
+  return "Pay off debt";
+}
+
 export interface GoalFacts {
   today: string;
   age: number | null;
@@ -347,6 +426,10 @@ export interface GoalFacts {
   history: DatedAccounts[];
   /** Debts on the check-in when the goal began. Ignored once the goal has a saved baseline. */
   startDebts: GoalAccount[];
+  /** A primary residence is on Net Worth. Used to tell a home mortgage from a rental mortgage. */
+  hasPrimaryResidence?: boolean;
+  /** A real-estate asset other than the primary residence. */
+  hasRentalProperty?: boolean;
   loggedByCategory: Record<string, number>;
   /** Expense totals keyed by `YYYY-MM:category`. */
   spendByMonthCategory: Record<string, number>;
@@ -397,6 +480,11 @@ export type GoalReading =
       stillOwed: number;
       hasDebts: boolean;
       atStart: boolean;
+      title: string;
+      showHomeMortgage: boolean;
+      showRentalMortgage: boolean;
+      includeHome: boolean;
+      includeRental: boolean;
     }
   | {
       goalClass: "balance";
@@ -492,18 +580,42 @@ export function readGoal(goal: GoalInput, facts: GoalFacts): GoalReading {
     for (const account of facts.startDebts) names.set(account.key, account.name);
     for (const account of nowList) names.set(account.key, account.name);
     const keys = [...new Set([...startMap.keys(), ...nowMap.keys()])];
-    const rows: DebtRow[] = keys.map((key) => ({
-      key,
-      name: names.get(key) ?? "Debt",
-      start: startMap.get(key) ?? 0,
-      now: nowMap.get(key)?.value ?? 0,
-    }));
+    const valued = keys
+      .map((key) => ({
+        key,
+        name: names.get(key) ?? "Debt",
+        start: startMap.get(key) ?? 0,
+        now: nowMap.get(key)?.value ?? 0,
+      }))
+      .filter((row) => debtHasValue(row.start, row.now));
+    const roles = classifyDebtRoles(valued.map((row) => row.name), facts);
+    const tagged = valued.map((row, index) => ({ ...row, role: roles[index] }));
+    const includeHome = !links.includes(OMIT_HOME_MORTGAGE);
+    const includeRental = !links.includes(OMIT_RENTAL_MORTGAGE);
+    const rows = tagged.filter((row) => {
+      if (row.role === "home_mortgage" && !includeHome) return false;
+      if (row.role === "rental_mortgage" && !includeRental) return false;
+      return true;
+    });
     const paidDown = rows.reduce((sum, row) => sum + Math.max(0, row.start - row.now), 0);
     const stillOwed = rows.reduce((sum, row) => sum + row.now, 0);
     const startTotal = rows.reduce((sum, row) => sum + row.start, 0);
     const atStart = startTotal > 0 && rows.every((row) => row.now === row.start);
     const bar = startTotal > 0 && !atStart ? Math.min(100, (paidDown / startTotal) * 100) : null;
-    return { goalClass, bar, rows, paidDown, stillOwed, hasDebts: rows.length > 0, atStart };
+    return {
+      goalClass,
+      bar,
+      rows,
+      paidDown,
+      stillOwed,
+      hasDebts: rows.length > 0,
+      atStart,
+      title: debtGoalTitle(rows, { homeMortgageExcluded: tagged.some((row) => row.role === "home_mortgage") && !includeHome }),
+      showHomeMortgage: tagged.some((row) => row.role === "home_mortgage"),
+      showRentalMortgage: tagged.some((row) => row.role === "rental_mortgage"),
+      includeHome,
+      includeRental,
+    };
   }
 
   if (goalClass === "cost_of_living") {
