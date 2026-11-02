@@ -151,6 +151,14 @@ export function startingDebts(history: DatedAccounts[], goalCreatedAt: string): 
 }
 
 /** How many of the last `window` weeks, including this one, have a spending date. */
+export function monthShare(today: string): { day: number; days: number; complete: boolean } {
+  const [year, month, day] = today.split("-").map(Number);
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const safeDay = Number.isFinite(day) && day > 0 ? day : 1;
+  const safeDays = Number.isFinite(days) && days > 0 ? days : 30;
+  return { day: Math.min(safeDay, safeDays), days: safeDays, complete: safeDay >= safeDays };
+}
+
 export function weeksWithSpending(dates: string[], today: string, window = 4): number {
   const weeks = new Set(dates.map((date) => startOfWeekMonday(date)));
   const start = startOfWeekMonday(today);
@@ -255,6 +263,13 @@ export type GoalReading =
       tracked: number;
       budget: number | null;
       budgetSource: "plan" | "entered" | null;
+      /** Day of the month and length of the month, from facts.today. */
+      day: number;
+      days: number;
+      /** True on the last day, when the comparison is against the full month. */
+      monthComplete: boolean;
+      /** Budget for the days so far. Null until a monthly amount exists. */
+      pace: number | null;
       exampleMonthly: number | null;
       exampleFromPlan: boolean;
     }
@@ -337,16 +352,22 @@ export function readGoal(goal: GoalInput, facts: GoalFacts): GoalReading {
   if (goalClass === "cost_of_living") {
     const plan = facts.planExpense != null && facts.planExpense > 0 ? facts.planExpense : null;
     const entered = goal.monthly_need != null && goal.monthly_need > 0 ? goal.monthly_need : null;
+    const budget = plan ?? entered;
+    const share = monthShare(facts.today);
     return {
       goalClass,
       bar: null,
       weeksLogged: weeksWithSpending(facts.expenseDates, facts.today, 4),
       weekWindow: 4,
       tracked: facts.monthExpense,
-      budget: plan ?? entered,
+      budget,
       budgetSource: plan != null ? "plan" : entered != null ? "entered" : null,
       exampleMonthly: facts.exampleMonthly,
       exampleFromPlan: plan != null,
+      day: share.day,
+      days: share.days,
+      monthComplete: share.complete,
+      pace: budget != null ? Math.round((budget * share.day) / share.days) : null,
     };
   }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CANADA_LIFE_EXPECTANCY_YEARS,
   inferGoalClass,
+  monthShare,
   readGoal,
   startingDebts,
   weeksWithSpending,
@@ -147,6 +148,29 @@ describe("goal reading", () => {
     expect(reading.budget).toBe(4200);
     expect(reading.tracked).toBe(3800);
     expect(reading.budgetSource).toBe("plan");
+    expect(reading.monthComplete).toBe(false);
+    expect(reading.day).toBe(1);
+    expect(reading.days).toBe(30);
+    expect(reading.pace).toBe(Math.round(4200 / 30));
+  });
+
+  it("compares cost of living with the full plan only on the last day", () => {
+    const reading = readGoal(
+      {
+        name: "Maintain cost of living",
+        goal_type: "other",
+        target_amount: null,
+        current_amount: 0,
+        target_age: null,
+        amount_unknown: true,
+      },
+      { ...emptyFacts, today: "2026-11-30" },
+    );
+    if (reading.goalClass !== "cost_of_living") throw new Error("expected cost of living");
+    expect(monthShare("2026-11-30").complete).toBe(true);
+    expect(reading.monthComplete).toBe(true);
+    expect(reading.pace).toBe(4200);
+    expect(monthShare("2026-02-28")).toEqual({ day: 28, days: 28, complete: true });
   });
 });
 

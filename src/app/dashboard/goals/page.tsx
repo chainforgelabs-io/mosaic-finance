@@ -685,9 +685,9 @@ function ReadingView({
   }
 
   if (reading.goalClass === "cost_of_living") {
-    const gap = reading.budget != null ? reading.budget - reading.tracked : null;
     const against = reading.budgetSource === "entered" ? "the monthly amount you set" : "the plan";
-    const variance =
+    const gap = reading.budget != null ? reading.budget - reading.tracked : null;
+    const fullMonth =
       gap == null
         ? null
         : gap > 0
@@ -695,6 +695,16 @@ function ReadingView({
           : gap < 0
             ? `${formatMoney(Math.abs(gap))} over ${against}`
             : `Matches ${against}`;
+    const shareLabel =
+      reading.budgetSource === "entered"
+        ? `The amount you set for ${reading.day} of ${reading.days} days is about ${formatMoney(reading.pace)}.`
+        : `The plan for ${reading.day} of ${reading.days} days is about ${formatMoney(reading.pace)}.`;
+    const moneyLine =
+      reading.budget == null
+        ? null
+        : reading.monthComplete && fullMonth != null
+          ? `${formatMoney(reading.tracked)} logged this month. ${fullMonth}.`
+          : `${formatMoney(reading.tracked)} logged this month. ${shareLabel}`;
     const examplePrompt =
       reading.exampleMonthly == null
         ? "Enter the monthly spending you want to stay near."
@@ -706,10 +716,8 @@ function ReadingView({
         <p className="font-display text-sm font-semibold text-[var(--text-primary)]">
           Logged {reading.weeksLogged} of the last {reading.weekWindow} weeks.
         </p>
-        {variance != null ? (
-          <p className="font-body text-xs text-[var(--text-secondary)]">
-            {formatMoney(reading.tracked)} logged this month. {variance}.
-          </p>
+        {moneyLine != null ? (
+          <p className="font-body text-xs text-[var(--text-secondary)]">{moneyLine}</p>
         ) : (
           <AmountPrompt example={reading.exampleMonthly} prompt={examplePrompt} onSave={(amount) => onPatch({ monthly_need: amount })} />
         )}
