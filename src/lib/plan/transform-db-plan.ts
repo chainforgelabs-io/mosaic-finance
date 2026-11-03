@@ -79,7 +79,7 @@ function buildSections(raw: any): PlanSection[] {
     sections.push({
       id: "financial_health_diagnostic",
       title: "Where things stand",
-      subtitle: "The balances and cash figures in this report",
+      subtitle: "The balances and cash figures in this report. Net worth here is the figure from the day it was generated, so it can differ from the live number on Net Worth.",
       status: "ai_generated",
       summary: d.gap_analysis ?? "",
       cards,

@@ -150,7 +150,7 @@ function PlanKPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanSto
           </div>
         )}
         <p className="font-body text-sm leading-relaxed text-white/70">
-          The sections below explain the figures in this report. They describe what was entered. They are not a target, a mix for these accounts, or a savings instruction. Today&apos;s score and net worth are on the dashboard.
+          The sections below explain the figures in this report. They describe what was entered. They are not a target, a mix for these accounts, or a savings instruction. Today&apos;s score and net worth are on the dashboard. Net worth in this report is the figure from the day it was generated. It can differ from the live number on Net Worth.
         </p>
       </div>
     </div>

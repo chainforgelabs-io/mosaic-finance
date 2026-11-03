@@ -142,8 +142,30 @@ const REFUND_REVERSAL = /\b(refund reversal|reversal of (a )?refund)\b/i;
 const MERCHANT_REFUND =
   /\b(refund|refunded|merchant credit|purchase return|returned item|rebate|cash\s?back|price adjustment)\b|\breturn\b/i;
 const CREDIT_SUFFIX = /\b(?:CR|CREDIT)\s*$/i;
-const DEPOSIT_HINT = /\b(direct deposit|deposit from|deposit)\b/i;
-const SECURITY_DEPOSIT = /\bsecurity deposit\b/i;
+const GOVERNMENT_DEPOSIT = /\b(?:government|govt)\s+deposit\b/i;
+const BANK_CHANNEL_DEPOSIT = /\b(?:direct deposit|mobile deposit|atm deposit|branch deposit)\b/i;
+const DEPOSIT_FROM = /\bdeposit from\b/i;
+const DEPOSIT_FILLER = new Set([
+  "deposit",
+  "deposits",
+  "bank",
+  "funds",
+  "fund",
+  "cash",
+  "credit",
+  "debit",
+  "misc",
+  "miscellaneous",
+  "transaction",
+  "txn",
+  "the",
+  "and",
+  "for",
+  "from",
+  "to",
+  "a",
+  "of",
+]);
 const SUMMARY_LINE =
   /\b(opening balance|closing balance|previous balance|new balance|statement balance|credit limit|minimum payment|payment due|total purchases|total payments|total credits|total fees|total debits)\b|^(balance|total)$/i;
 
@@ -151,7 +173,7 @@ const SUMMARY_LINE =
 export function isMerchantRefund(description: string): boolean {
   if (REFUND_REVERSAL.test(description)) return false;
   if (/\bcredit card\b/i.test(description)) return false;
-  if (/\b(government|govt)\s+deposit\b/i.test(description)) return false;
+  if (GOVERNMENT_DEPOSIT.test(description)) return false;
   return MERCHANT_REFUND.test(description) || CREDIT_SUFFIX.test(description);
 }
 
@@ -170,15 +192,36 @@ function slugFromLabel(raw: unknown): string | null {
   return /^[a-z][a-z0-9_]{0,39}$/.test(slug) ? slug : null;
 }
 
+function isIncomeDeposit(description: string): boolean {
+  return (
+    PAY_HINT.test(description) ||
+    BENEFIT_HINT.test(description) ||
+    GOVERNMENT_DEPOSIT.test(description) ||
+    BANK_CHANNEL_DEPOSIT.test(description)
+  );
+}
+
+/** A named deposit paid out, such as a booking or a vendor hold. A plain "deposit" stays as parsed. */
+function isOneOffDeposit(description: string): boolean {
+  if (!/\bdeposit\b/i.test(description)) return false;
+  if (isIncomeDeposit(description) || DEPOSIT_FROM.test(description)) return false;
+  const words = description
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2 && !DEPOSIT_FILLER.has(word));
+  return words.length > 0;
+}
+
 function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
   if (role === "savings") return role;
   if (TAX_REMITTANCE.test(description)) return "purchase";
   if (REFUND_REVERSAL.test(description)) return "purchase";
   if (role === "card_payment") return role;
-  if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
   if (isMerchantRefund(description)) return "transfer";
-  if (PAY_HINT.test(description) || BENEFIT_HINT.test(description) || DEPOSIT_HINT.test(description)) {
-    return "income";
+  if (isIncomeDeposit(description)) return "income";
+  if (isOneOffDeposit(description)) {
+    if (role === "transfer" || role === "fee" || role === "interest") return role;
+    return "purchase";
   }
   return role;
 }
@@ -214,6 +257,11 @@ function categoryForRole(
     if (BENEFIT_HINT.test(description)) return "ei";
     if (PAY_HINT.test(description)) return "paycheque";
     return slugFromLabel(raw) ?? "paycheque";
+  }
+  if (role === "purchase" && isOneOffDeposit(description)) {
+    const slug = slugFromLabel(raw);
+    if (slug && isSpendingCategory(slug)) return slug;
+    return "other";
   }
   const slug = slugFromLabel(raw);
   if (!slug) return "other";

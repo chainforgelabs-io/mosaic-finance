@@ -153,6 +153,48 @@ describe("normalizeStatementItems", () => {
     expect(resolvedLineRole(row ?? { description: "" })).toBe("income");
   });
 
+  it("keeps a named deposit paid out as spending", () => {
+    const [paid, plain, received, mobile] = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-08-02",
+          amount: 500,
+          description: "Booking deposit",
+          line_role: "income",
+          suggested_category: "income",
+        },
+        {
+          txn_date: "2026-08-03",
+          amount: 200,
+          description: "DEPOSIT",
+          line_role: "income",
+          suggested_category: "paycheque",
+        },
+        {
+          txn_date: "2026-08-04",
+          amount: 300,
+          description: "Deposit from savings",
+          line_role: "transfer",
+          suggested_category: "other",
+        },
+        {
+          txn_date: "2026-08-05",
+          amount: 150,
+          description: "Mobile deposit",
+          line_role: "purchase",
+          suggested_category: "other",
+        },
+      ],
+      "debit",
+    );
+    expect(paid?.line_role).toBe("purchase");
+    expect(paid?.suggested_category).toBe("other");
+    expect(resolvedLineRole(paid ?? { description: "" })).toBe("purchase");
+    expect(plain?.line_role).toBe("income");
+    expect(received?.line_role).toBe("transfer");
+    expect(mobile?.line_role).toBe("income");
+  });
+
   it("keeps a GST remittance as spending", () => {
     const [row] = normalizeStatementItems(
       [

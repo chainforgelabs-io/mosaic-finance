@@ -273,6 +273,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
         <div class="exec-metric"><div class="em-val">${retPct}%</div><div class="em-label">Share of the retirement figure</div></div>
         <div class="exec-metric"><div class="em-val">${fmt(dep.total_debt)}</div><div class="em-label">Total Debt</div></div>
       </div>
+      <p style="margin-top:8px;font-size:11px;color:#6b7280;">Net worth in this report is the figure from the day it was generated. It can differ from the live number on Net Worth.</p>
     </div>
   </div>
 
@@ -301,7 +302,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   <div class="sh">
     <div class="sh-accent" style="background:#10b981;"></div>
     <h2>Where things stand</h2>
-    <p>The balances and cash figures in this report</p>
+    <p>The balances and cash figures in this report. Net worth here is the figure from the day it was generated, so it can differ from the live number on Net Worth.</p>
   </div>
 
   <div class="kpi-row">
