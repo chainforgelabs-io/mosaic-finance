@@ -13,7 +13,7 @@ import { trialEndsAtIso } from "@/lib/config/launch-surface";
 const profileInsertSchema = signUpSchema.pick({ alias: true, province: true });
 
 /** Production reset links must not fall back to a developer machine. */
-export function publicAppUrl(): string {
+function publicAppUrl(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? "";
   const local = !configured || /localhost|127\.0\.0\.1/i.test(configured);
   if (!local) return configured;
