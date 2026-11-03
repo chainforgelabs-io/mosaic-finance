@@ -127,6 +127,31 @@ describe("stored report copy", () => {
       "A long horizon is often cited as supporting growth-oriented strategies. Balances on file are cash.",
     )).toBe("Balances on file are cash.");
   });
+
+  it("drops a mid-sentence coordination task and a holdings review line", () => {
+    expect(descriptiveText(
+      "Target date is on file; coordinate a pension start with a withdrawal strategy.",
+    )).toBe("");
+
+    expect(descriptiveText(
+      "Home equity is a large share of the picture. Concentration could be a factor if the underlying holdings aren't reviewed.",
+    )).toBe("Home equity is a large share of the picture.");
+
+    const plan = describeStoredReport({
+      lifetime_financial_roadmap: {
+        net_worth_milestones: [
+          { age: 60, target_net_worth: 1000, key_actions: "Target date is on file; coordinate a pension start with a withdrawal strategy." },
+        ],
+      },
+      investment_portfolio_blueprint: {
+        current_portfolio_assessment: "Home equity is a large share of the picture. Concentration could be a factor if the underlying holdings aren't reviewed.",
+      },
+    });
+    const roadmap = plan.lifetime_financial_roadmap as { net_worth_milestones: Array<{ key_actions?: string }> };
+    expect(roadmap.net_worth_milestones[0].key_actions).toBeUndefined();
+    const holdings = plan.investment_portfolio_blueprint as { current_portfolio_assessment: string };
+    expect(holdings.current_portfolio_assessment).toBe("Home equity is a large share of the picture.");
+  });
 });
 
 describe("plan generation prompt observations", () => {

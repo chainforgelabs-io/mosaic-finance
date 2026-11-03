@@ -10,7 +10,7 @@ const INSTRUCTION_START =
   /^(?:please\s+)?(?:track|review|explore|consider|confirm|request|monitor|revisit|coordinate|recognize|build|clarify|close|reassess|check|ask|model|direct|allocate|prioriti[sz]e|evaluate|adjust)\b/i;
 
 const ADVICE_PHRASE =
-  /\b(?:you should|we recommend|worth (?:exploring|checking|reviewing)|consider modeling|close the gap|could be explored|may not align|personalized projection|accelerat\w*|specific attention|adjust(?:ing)? (?:the |your |a )?savings|evaluate progress|gap persists|this gap|the gap|a gap\b|shortfall|prioriti[sz]\w*|higher-rate|higher rate debt|tackling|verify with a professional|growth-oriented)\b/i;
+  /\b(?:you should|we recommend|worth (?:exploring|checking|reviewing)|consider modeling|close the gap|could be explored|may not align|personalized projection|accelerat\w*|specific attention|adjust(?:ing)? (?:the |your |a )?savings|evaluate progress|gap persists|this gap|the gap|a gap\b|shortfall|prioriti[sz]\w*|higher-rate|higher rate debt|tackling|verify with a professional|growth-oriented|coordinate|withdrawal strategy|could be a factor|aren'?t reviewed|isn'?t reviewed|not reviewed)\b/i;
 
 /** A period in these abbreviations is not the end of a sentence. */
 const ABBREVIATION =

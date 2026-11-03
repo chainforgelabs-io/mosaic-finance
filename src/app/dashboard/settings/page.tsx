@@ -713,6 +713,8 @@ function PrivacyTab() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleExportData = async () => {
     setExporting(true);
@@ -737,13 +739,26 @@ function PrivacyTab() {
     }
   };
 
-  const handleDeleteData = () => {
-    if (deleteConfirmText === "DELETE") {
-      window.alert(
-        "All data would be deleted. Wire to DELETE /api/user/data for Supabase cascade deletion."
-      );
-      setShowDeleteModal(false);
-      setDeleteConfirmText("");
+  const handleDeleteData = async () => {
+    if (deleteConfirmText !== "DELETE" || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/user/data", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      if (!res.ok) {
+        setDeleteError("Could not delete your data. Try again.");
+        return;
+      }
+      window.location.href = "/login";
+    } catch {
+      setDeleteError("Could not delete your data. Try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -840,8 +855,8 @@ function PrivacyTab() {
               </h3>
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-4">
-              This will permanently delete your profile, conversations, Progress
-              Reports, and all associated data. This action cannot be undone.
+              This permanently deletes the account and the records stored for it, then signs you out.
+              This cannot be undone.
             </p>
             <div className="mb-4">
               <label className="block font-[family-name:var(--font-body)] text-sm font-medium text-[var(--text-primary)] mb-1.5">
@@ -855,19 +870,23 @@ function PrivacyTab() {
                 className="w-full px-4 py-2.5 rounded-lg border border-[var(--warm-200)] bg-white font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--error)] focus:border-transparent transition-shadow"
               />
             </div>
+            {deleteError && (
+              <p className="mb-4 font-[family-name:var(--font-body)] text-sm text-[var(--error)]">{deleteError}</p>
+            )}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 rounded-lg border border-[var(--warm-200)] text-[var(--text-secondary)] font-[family-name:var(--font-display)] text-sm font-medium hover:bg-[var(--warm-50)] transition-colors"
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg border border-[var(--warm-200)] text-[var(--text-secondary)] font-[family-name:var(--font-display)] text-sm font-medium hover:bg-[var(--warm-50)] transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
-                onClick={handleDeleteData}
-                disabled={deleteConfirmText !== "DELETE"}
+                onClick={() => void handleDeleteData()}
+                disabled={deleteConfirmText !== "DELETE" || deleting}
                 className="px-4 py-2 rounded-lg bg-[var(--error)] text-white font-[family-name:var(--font-display)] text-sm font-semibold hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Permanently Delete
+                {deleting ? "Deleting…" : "Permanently Delete"}
               </button>
             </div>
           </div>
