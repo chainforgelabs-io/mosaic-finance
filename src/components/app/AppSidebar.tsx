@@ -143,6 +143,7 @@ export function AppSidebar({
   ];
 
   async function handleSignOut() {
+    if (!window.confirm("Sign out of Mosaic?")) return;
     await fetch("/api/auth/signout", { method: "POST" });
     router.push("/login");
   }
@@ -166,6 +167,7 @@ export function AppSidebar({
             mobile && "min-h-11 flex-col justify-center gap-0.5 px-2 py-2",
           )}
           title="Available after your Progress Report is ready"
+          aria-label={item.label}
         >
           <item.icon className="size-[18px] text-[var(--text-muted)]" />
           <span className="font-display text-sm font-medium text-[var(--text-muted)] md:max-lg:hidden max-md:text-xs">
@@ -180,6 +182,7 @@ export function AppSidebar({
         key={item.label}
         href={item.href}
         data-tour={item.tour}
+        aria-label={item.label}
         onClick={() => setMoreOpen(false)}
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
@@ -324,6 +327,7 @@ export function AppSidebar({
               <button
                 type="button"
                 onClick={handleSignOut}
+                aria-label="Sign Out"
                 className="mt-2 flex items-center gap-3 rounded-lg px-3 py-3 text-[var(--text-muted)]"
               >
                 <LogOut className="size-5" />
@@ -368,7 +372,9 @@ export function AppSidebar({
         )}
         <button
           onClick={handleSignOut}
-          className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 font-display text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-white/5 hover:text-white md:max-lg:justify-center"
+          aria-label="Sign Out"
+          title="Sign Out"
+          className="mt-3 flex w-full items-center gap-2 rounded-lg px-2 py-2 font-display text-xs font-medium text-[var(--text-muted)] transition-colors hover:bg-white/5 hover:text-white md:max-lg:justify-center md:max-lg:min-h-11"
         >
           <LogOut className="size-3.5" />
           <span className="md:max-lg:hidden">Sign Out</span>

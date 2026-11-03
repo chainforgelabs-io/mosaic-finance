@@ -6,6 +6,7 @@ import { Loader2, RefreshCw, X } from "lucide-react";
 type StalenessPayload = {
   stale: boolean;
   generating?: boolean;
+  canRegenerate?: boolean;
   dataChangedAt: string | null;
   planUpdatedAt: string | null;
   planStatus: string | null;
@@ -84,14 +85,16 @@ export function PlanStaleBanner() {
           </button>
         </div>
         <p className="mt-1 font-body text-[13px] text-[var(--text-secondary)]">
-          It looks newer than your last Progress Report. Regenerate to refresh
-          your report with the latest numbers.
+          {staleness.canRegenerate === false
+            ? "The numbers on Net Worth are newer than this Progress Report. The report stays as it was generated."
+            : "It looks newer than your last Progress Report. Regenerate to refresh your report with the latest numbers."}
         </p>
         {error && (
           <p className="mt-2 font-body text-[13px] text-[var(--error)]">
             {error}
           </p>
         )}
+        {staleness.canRegenerate !== false && (
         <button
           type="button"
           onClick={handleRegenerate}
@@ -105,6 +108,7 @@ export function PlanStaleBanner() {
           )}
           {loading ? "Starting…" : "Regenerate report"}
         </button>
+        )}
       </div>
     </div>
   );

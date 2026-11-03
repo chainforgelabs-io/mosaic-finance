@@ -135,7 +135,9 @@ export function dedupeSpendingItems(items: ParsedSpendingItem[]): ParsedSpending
 const LINE_ROLES = ["purchase", "income", "card_payment", "transfer", "fee", "interest", "savings"] as const;
 
 const PAY_HINT = /\b(payroll|paycheque|paycheck|pay dep|direct deposit)\b/i;
-const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst)\b|\bei\b/i;
+const BENEFIT_HINT = /\b(employment insurance|maternity|mat leave|canada child|ccb|gst\/hst credit|gst credit|hst credit)\b|\bei\b/i;
+const TAX_REMITTANCE =
+  /\b(?:gst\/hst|gst|hst)\b[^.\n]{0,40}\b(?:remit\w*|payments?|paid|payable|instal?ments?)\b|\b(?:remit\w*|tax payment)\b[^.\n]{0,40}\b(?:gst\/hst|gst|hst)\b/i;
 const REFUND_REVERSAL = /\b(refund reversal|reversal of (a )?refund)\b/i;
 const MERCHANT_REFUND =
   /\b(refund|refunded|merchant credit|purchase return|returned item|rebate|cash\s?back|price adjustment)\b|\breturn\b/i;
@@ -170,6 +172,7 @@ function slugFromLabel(raw: unknown): string | null {
 
 function refineRole(description: string, role: (typeof LINE_ROLES)[number]): (typeof LINE_ROLES)[number] {
   if (role === "savings") return role;
+  if (TAX_REMITTANCE.test(description)) return "purchase";
   if (REFUND_REVERSAL.test(description)) return "purchase";
   if (role === "card_payment") return role;
   if (SECURITY_DEPOSIT.test(description) && role !== "income") return role;
@@ -262,6 +265,45 @@ export interface ExistingSpend {
   category: string;
   description: string | null;
   note: string | null;
+  direction?: "in" | "out" | null;
+  line_role?: string | null;
+}
+
+const GENERIC_MATCH_WORDS = new Set([
+  "transfer",
+  "etransfer",
+  "e",
+  "payment",
+  "payments",
+  "deposit",
+  "from",
+  "the",
+  "and",
+  "for",
+  "acct",
+  "account",
+]);
+
+/** Opposite legs of one transfer ("from" vs "to") are not the same line. */
+function transferLeg(description: string): "in" | "out" | null {
+  const inbound = /\b(?:e-?transfer|payment|transfer|deposit)\s+from\b/i.test(description);
+  const outbound = /\b(?:e-?transfer|payment|transfer)\s+to\b|\b(?:sent to|withdrawal to)\b/i.test(description);
+  if (inbound && !outbound) return "in";
+  if (outbound && !inbound) return "out";
+  return null;
+}
+
+function flowHint(
+  description: string,
+  direction?: string | null,
+  lineRole?: string | null,
+): "in" | "out" | null {
+  const leg = transferLeg(description);
+  if (leg) return leg;
+  if (direction === "in" || direction === "out") return direction;
+  if (lineRole === "income") return "in";
+  if (lineRole === "purchase" || lineRole === "fee" || lineRole === "interest") return "out";
+  return null;
 }
 
 function cents(amount: number): number {
@@ -273,7 +315,7 @@ function words(value: string): Set<string> {
     value
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter((word) => word.length > 2),
+      .filter((word) => word.length > 2 && !GENERIC_MATCH_WORDS.has(word)),
   );
 }
 
@@ -308,11 +350,18 @@ export function matchUploadDuplicates<
   return incoming.map((item) => {
     if (!item.txn_date) return { ...item, duplicateOf: null, duplicateAction: "add" as const };
     const itemCents = cents(item.amount);
+    const incomingFlow = flowHint(
+      item.description,
+      "direction" in item ? (item as { direction?: string | null }).direction : undefined,
+      "line_role" in item ? (item as { line_role?: string | null }).line_role : undefined,
+    );
     const candidates = existing.filter(
       (row) => !used.has(row.id) && row.txn_date === item.txn_date && cents(row.amount) === itemCents,
     );
     let best: { row: ExistingSpend; score: number } | null = null;
     for (const row of candidates) {
+      const existingFlow = flowHint(row.description ?? "", row.direction, row.line_role);
+      if (incomingFlow && existingFlow && incomingFlow !== existingFlow) continue;
       const words = descriptionScore(item.description, row.description);
       const bothDescribed = Boolean(item.description.trim() && row.description?.trim());
       if (bothDescribed && words === 0) continue;

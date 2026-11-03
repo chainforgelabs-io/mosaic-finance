@@ -64,18 +64,19 @@ const GENERATING_CHART_PLACEHOLDERS = [
 function fmtSnapshotValue(n: number | null, prefix = "$"): string {
   if (n == null) return "--";
   if (prefix === "$") {
-    if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(n) >= 1_000) return `$${Math.round(n).toLocaleString()}`;
-    return `$${n.toLocaleString()}`;
+    const abs = Math.abs(n);
+    const body =
+      abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? Math.round(abs).toLocaleString() : abs.toLocaleString();
+    return n < 0 ? `-$${body}` : `$${body}`;
   }
   return String(n);
 }
 
 function fmtKpi(n: number | null | undefined): string {
   if (n == null) return "--";
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
+  const abs = Math.abs(n);
+  const body = abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(0)}K` : abs.toLocaleString();
+  return n < 0 ? `-$${body}` : `$${body}`;
 }
 
 function DashGlassCard({ label, value, unit, accent, note }: { label: string; value: string; unit?: string; accent?: string; note?: string }) {

@@ -17,6 +17,7 @@ import {
 import type { FinancialPlan, PlanStatus, NotificationPreferences } from "@/types";
 import { transformDbPlanToFinancialPlan } from "@/lib/plan/transform-db-plan";
 import { normalizeTier } from "@/lib/entitlements";
+import { insertUserProfileAfterSignUp } from "@/lib/actions/auth";
 
 function applyLatestPlanFromDb(
   dbPlan: { id: string; status: string; plan_data: unknown; created_at: string } | null | undefined,
@@ -94,43 +95,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               .single()
           : withReminder;
 
-      if (profile) {
-        const rawProvince = profile.province ?? "";
-        const rawEmployment = profile.employment_type ?? "";
-        const rawFamily = profile.family_structure ?? "";
-        const rawNotifs = profile.notification_preferences as
+      let resolved = profile;
+      if (!resolved) {
+        const meta = authUser.user_metadata ?? {};
+        const alias = typeof meta.alias === "string" ? meta.alias : "";
+        const province = typeof meta.province === "string" ? meta.province : "";
+        if (alias && province) {
+          await insertUserProfileAfterSignUp({ alias, province }).catch(() => undefined);
+          const again = await supabase.from("user_profiles").select(profileSelect).eq("id", authUser.id).single();
+          resolved = again.data ?? null;
+        }
+      }
+
+      if (resolved) {
+        const rawProvince = resolved.province ?? "";
+        const rawEmployment = resolved.employment_type ?? "";
+        const rawFamily = resolved.family_structure ?? "";
+        const rawNotifs = resolved.notification_preferences as
           | Partial<NotificationPreferences>
           | null
           | undefined;
 
         setUser({
           id: authUser.id,
-          alias: profile.alias ?? authUser.user_metadata?.alias ?? "User",
-          tier: normalizeTier(profile.subscription_tier),
-          trialEndsAt: profile.trial_ends_at ?? undefined,
-          isFoundingMember: profile.is_founding_member ?? undefined,
-          academyAccess: profile.academy_access ?? undefined,
+          alias: resolved.alias ?? authUser.user_metadata?.alias ?? "User",
+          tier: normalizeTier(resolved.subscription_tier),
+          trialEndsAt: resolved.trial_ends_at ?? undefined,
+          isFoundingMember: resolved.is_founding_member ?? undefined,
+          academyAccess: resolved.academy_access ?? undefined,
           subscriptionInterval:
-            profile.subscription_interval === "annual" ||
-            profile.subscription_interval === "monthly"
-              ? profile.subscription_interval
+            resolved.subscription_interval === "annual" ||
+            resolved.subscription_interval === "monthly"
+              ? resolved.subscription_interval
               : undefined,
-          age: profile.age ?? undefined,
+          age: resolved.age ?? undefined,
           province: (PROVINCE_CODE_TO_NAME[rawProvince] ?? rawProvince) || undefined,
           employmentType: (EMPLOYMENT_DB_TO_DISPLAY[rawEmployment] ?? rawEmployment) || undefined,
           familyStructure: (FAMILY_DB_TO_DISPLAY[rawFamily] ?? rawFamily) || undefined,
           role:
-            profile.role === "admin"
-              ? profile.role
+            resolved.role === "admin"
+              ? resolved.role
               : "user",
           notificationPreferences: {
             ...DEFAULT_NOTIFICATION_PREFERENCES,
             ...rawNotifs,
           },
           netWorthReminderDay:
-            "net_worth_reminder_day" in profile &&
-            typeof profile.net_worth_reminder_day === "number"
-              ? profile.net_worth_reminder_day
+            "net_worth_reminder_day" in resolved &&
+            typeof resolved.net_worth_reminder_day === "number"
+              ? resolved.net_worth_reminder_day
               : undefined,
         });
       } else {

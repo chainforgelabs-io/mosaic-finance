@@ -10,14 +10,25 @@ import type {
 import { describeStoredReport } from "@/lib/plan/describe-stored-report";
 import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
 
+function signedDollars(n: number, absFormatted: string): string {
+  return n < 0 ? `-$${absFormatted}` : `$${absFormatted}`;
+}
+
 function fmt(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
+  const abs = Math.abs(n);
+  const body =
+    abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(0)}K` : abs.toLocaleString();
+  return signedDollars(n, body);
 }
 
 function fmtFull(n: number): string {
-  return `$${n.toLocaleString("en-CA")}`;
+  return signedDollars(n, Math.abs(n).toLocaleString("en-CA"));
+}
+
+function payoffTimeline(months: unknown): string {
+  const n = Number(months);
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  return `${n} months`;
 }
 
 function card(label: string, value: unknown, unit?: string): FinancialCardData | null {
@@ -175,8 +186,8 @@ function buildSections(raw: any): PlanSection[] {
         title: "The two methods",
         headers: ["Method", "Total Interest Paid", "Payoff Timeline"],
         rows: [
-          { label: "Avalanche", values: [avalanche.total_interest_paid != null ? fmtFull(avalanche.total_interest_paid) : "—", avalanche.payoff_months != null ? `${avalanche.payoff_months} months` : "—"] },
-          { label: "Snowball", values: [snowball.total_interest_paid != null ? fmtFull(snowball.total_interest_paid) : "—", snowball.payoff_months != null ? `${snowball.payoff_months} months` : "—"] },
+          { label: "Avalanche", values: [avalanche.total_interest_paid != null ? fmtFull(avalanche.total_interest_paid) : "—", payoffTimeline(avalanche.payoff_months)] },
+          { label: "Snowball", values: [snowball.total_interest_paid != null ? fmtFull(snowball.total_interest_paid) : "—", payoffTimeline(snowball.payoff_months)] },
         ],
       });
     }

@@ -290,7 +290,7 @@ export function ImportExpenses({
         </ul>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-[var(--warm-200)] bg-white md:left-14 lg:left-60">
+      <div className="fixed bottom-24 left-0 right-0 z-30 border-t border-[var(--warm-200)] bg-white md:bottom-0 md:left-14 lg:left-60">
         <div className="mx-auto flex w-full max-w-[1080px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div>
             <p className="font-body text-sm text-[var(--text-primary)]">

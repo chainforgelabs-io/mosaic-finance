@@ -84,8 +84,15 @@ export async function generatePDF(
 
 function fmt(n: unknown): string {
   const num = Number(n);
-  if (Number.isNaN(num)) return String(n ?? '—');
-  return num.toLocaleString('en-CA');
+  if (!Number.isFinite(num)) return '—';
+  const body = Math.abs(num).toLocaleString('en-CA');
+  return num < 0 ? `-$${body}` : `$${body}`;
+}
+
+function payoffTimeline(months: unknown): string {
+  const n = Number(months);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  return `${n} months`;
 }
 
 function buildReportHTML(plan: Record<string, unknown>): string {
@@ -261,10 +268,10 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     </div>
     <div style="flex:1;min-width:0;">
       <div class="exec-grid">
-        <div class="exec-metric"><div class="em-val">$${fmt(fhd.net_worth)}</div><div class="em-label">Net Worth</div></div>
-        <div class="exec-metric"><div class="em-val">$${fmt(fhd.cash_flow_monthly)}</div><div class="em-label">Monthly Cash Flow</div></div>
+        <div class="exec-metric"><div class="em-val">${fmt(fhd.net_worth)}</div><div class="em-label">Net Worth</div></div>
+        <div class="exec-metric"><div class="em-val">${fmt(fhd.cash_flow_monthly)}</div><div class="em-label">Monthly Cash Flow</div></div>
         <div class="exec-metric"><div class="em-val">${retPct}%</div><div class="em-label">Share of the retirement figure</div></div>
-        <div class="exec-metric"><div class="em-val">$${fmt(dep.total_debt)}</div><div class="em-label">Total Debt</div></div>
+        <div class="exec-metric"><div class="em-val">${fmt(dep.total_debt)}</div><div class="em-label">Total Debt</div></div>
       </div>
     </div>
   </div>
@@ -283,8 +290,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
       <div class="progress-fill" style="width:${Math.min(retPct, 100)}%;background:${retPct >= 80 ? '#10b981' : retPct >= 50 ? '#f59e0b' : '#ef4444'};"></div>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-top:4px;">
-      <span>Projection: $${fmt(rr.current_trajectory)}</span>
-      <span>Figure: $${fmt(rr.retirement_number)}</span>
+      <span>Projection: ${fmt(rr.current_trajectory)}</span>
+      <span>Figure: ${fmt(rr.retirement_number)}</span>
     </div>
   </div>
 </div>
@@ -298,8 +305,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-green"><div class="kl">Net Worth</div><div class="kv">$${fmt(fhd.net_worth)}</div></div>
-    <div class="kpi kpi-blue"><div class="kl">Monthly Cash Flow</div><div class="kv">$${fmt(fhd.cash_flow_monthly)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Net Worth</div><div class="kv">${fmt(fhd.net_worth)}</div></div>
+    <div class="kpi kpi-blue"><div class="kl">Monthly Cash Flow</div><div class="kv">${fmt(fhd.cash_flow_monthly)}</div></div>
     <div class="kpi kpi-gold"><div class="kl">Savings Rate</div><div class="kv">${fhd.savings_rate_percent ?? '—'}%</div></div>
     <div class="kpi kpi-purple"><div class="kl">Emergency Fund</div><div class="kv">${fhd.emergency_fund_months ?? '—'} <span class="ku">months</span></div></div>
   </div>
@@ -344,15 +351,15 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     </div>
     <div style="flex:1;">
       <div class="kpi-row" style="margin:0;">
-        <div class="kpi kpi-blue"><div class="kl">Retirement figure</div><div class="kv">$${fmt(rr.retirement_number)}</div></div>
-        <div class="kpi kpi-green"><div class="kl">Projection today</div><div class="kv">$${fmt(rr.current_trajectory)}</div></div>
+        <div class="kpi kpi-blue"><div class="kl">Retirement figure</div><div class="kv">${fmt(rr.retirement_number)}</div></div>
+        <div class="kpi kpi-green"><div class="kl">Projection today</div><div class="kv">${fmt(rr.current_trajectory)}</div></div>
       </div>
     </div>
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-gold"><div class="kl">Monthly amount in the projection</div><div class="kv">$${fmt(rr.monthly_savings_required)}</div></div>
-    <div class="kpi kpi-purple"><div class="kl">CPP estimate, monthly</div><div class="kv">$${fmt(rr.cpp_estimated_monthly)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">Monthly amount in the projection</div><div class="kv">${fmt(rr.monthly_savings_required)}</div></div>
+    <div class="kpi kpi-purple"><div class="kl">CPP estimate, monthly</div><div class="kv">${fmt(rr.cpp_estimated_monthly)}</div></div>
   </div>
 
   ${rr.rrsp_strategy ? `<div class="prose-block"><strong>RRSP</strong><p>${rr.rrsp_strategy}</p></div>` : ''}
@@ -427,8 +434,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-green"><div class="kl">Tax difference in the example</div><div class="kv">$${fmt(ter.estimated_annual_tax_savings)}</div></div>
-    <div class="kpi kpi-gold"><div class="kl">RRSP amount in the example</div><div class="kv">$${fmt(ter.rrsp_contribution_recommendation)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Tax difference in the example</div><div class="kv">${fmt(ter.estimated_annual_tax_savings)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">RRSP amount in the example</div><div class="kv">${fmt(ter.rrsp_contribution_recommendation)}</div></div>
   </div>
 
   ${ter.rrsp_room_analysis ? `<div class="prose-block"><strong>RRSP room</strong><p>${ter.rrsp_room_analysis}</p></div>` : ''}
@@ -456,8 +463,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-red"><div class="kl">Total Debt</div><div class="kv">$${fmt(dep.total_debt)}</div></div>
-    <div class="kpi kpi-green"><div class="kl">Payoff Timeline</div><div class="kv">${avalanche.payoff_months ?? snowball.payoff_months ?? '—'} <span class="ku">months</span></div></div>
+    <div class="kpi kpi-red"><div class="kl">Total Debt</div><div class="kv">${fmt(dep.total_debt)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Payoff Timeline</div><div class="kv">${payoffTimeline(avalanche.payoff_months ?? snowball.payoff_months)}</div></div>
   </div>
 
   ${dep.recommendation_rationale ? `<div class="insight-card"><h4>How the two methods differ</h4><p>${dep.recommendation_rationale}</p></div>` : ''}
@@ -465,8 +472,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   <h3 style="font-size:13px;">The two methods</h3>
   <table class="tbl">
     <tr><th>Method</th><th>Total Interest</th><th>Timeline</th><th>How it works</th></tr>
-    <tr><td style="font-weight:700;">Avalanche</td><td>$${fmt(avalanche.total_interest_paid)}</td><td>${avalanche.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Pays the higher interest rate first. This lowers the interest in the math.</td></tr>
-    <tr><td style="font-weight:700;">Snowball</td><td>$${fmt(snowball.total_interest_paid)}</td><td>${snowball.payoff_months ?? '—'} months</td><td style="font-size:11px;color:#6b7280;">Pays the smallest balance first. The interest in the math is often higher.</td></tr>
+    <tr><td style="font-weight:700;">Avalanche</td><td>${fmt(avalanche.total_interest_paid)}</td><td>${payoffTimeline(avalanche.payoff_months)}</td><td style="font-size:11px;color:#6b7280;">Pays the higher interest rate first. This lowers the interest in the math.</td></tr>
+    <tr><td style="font-weight:700;">Snowball</td><td>${fmt(snowball.total_interest_paid)}</td><td>${payoffTimeline(snowball.payoff_months)}</td><td style="font-size:11px;color:#6b7280;">Pays the smallest balance first. The interest in the math is often higher.</td></tr>
   </table>
 
   ${Number(avalanche.total_interest_paid) > 0 && Number(snowball.total_interest_paid) > 0 ? (() => {
@@ -475,8 +482,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     const maxInt = Math.max(avInt, snInt);
     return `<div style="margin:16px 0;">
       <div style="font-size:10px;color:#9ca3af;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.04em;">Interest in the math</div>
-      <div class="bar-row"><div class="bar-label">Avalanche</div><div class="bar-track"><div class="bar-fill" style="width:${(avInt/maxInt)*100}%;background:#10b981;"></div></div><div class="bar-val">$${fmt(avInt)}</div></div>
-      <div class="bar-row"><div class="bar-label">Snowball</div><div class="bar-track"><div class="bar-fill" style="width:${(snInt/maxInt)*100}%;background:#f59e0b;"></div></div><div class="bar-val">$${fmt(snInt)}</div></div>
+      <div class="bar-row"><div class="bar-label">Avalanche</div><div class="bar-track"><div class="bar-fill" style="width:${(avInt/maxInt)*100}%;background:#10b981;"></div></div><div class="bar-val">${fmt(avInt)}</div></div>
+      <div class="bar-row"><div class="bar-label">Snowball</div><div class="bar-track"><div class="bar-fill" style="width:${(snInt/maxInt)*100}%;background:#f59e0b;"></div></div><div class="bar-val">${fmt(snInt)}</div></div>
     </div>`;
   })() : ''}
 
@@ -500,8 +507,8 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-blue"><div class="kl">Calculated life coverage</div><div class="kv">$${fmt(ica.life_insurance_need)}</div></div>
-    <div class="kpi kpi-green"><div class="kl">Coverage on file</div><div class="kv">$${fmt(ica.current_coverage)}</div></div>
+    <div class="kpi kpi-blue"><div class="kl">Calculated life coverage</div><div class="kv">${fmt(ica.life_insurance_need)}</div></div>
+    <div class="kpi kpi-green"><div class="kl">Coverage on file</div><div class="kv">${fmt(ica.current_coverage)}</div></div>
   </div>
 
   ${ica.disability_insurance_analysis ? `<div class="prose-block"><strong>Disability Insurance</strong><p>${ica.disability_insurance_analysis}</p></div>` : ''}
@@ -554,7 +561,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
   </div>
 
   <div class="kpi-row">
-    <div class="kpi kpi-gold"><div class="kl">Independence figure</div><div class="kv">$${fmt(lfr.financial_independence_number)}</div></div>
+    <div class="kpi kpi-gold"><div class="kl">Independence figure</div><div class="kv">${fmt(lfr.financial_independence_number)}</div></div>
     <div class="kpi kpi-blue"><div class="kl">Target Age</div><div class="kv">${lfr.financial_independence_target_age ?? '—'}</div></div>
   </div>
 
@@ -576,7 +583,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     ${milestones.map((m) => `<div class="tl-item">
       <div class="tl-dot"></div>
       <div class="tl-age">Age ${m.age}</div>
-      <div class="tl-val">$${fmt(m.target_net_worth)}</div>
+      <div class="tl-val">${fmt(m.target_net_worth)}</div>
       <div class="tl-desc">${m.key_actions ?? ''}</div>
     </div>`).join('')}
   </div>` : ''}

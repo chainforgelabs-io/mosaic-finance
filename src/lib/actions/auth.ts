@@ -12,6 +12,15 @@ import { trialEndsAtIso } from "@/lib/config/launch-surface";
 
 const profileInsertSchema = signUpSchema.pick({ alias: true, province: true });
 
+/** Production reset links must not fall back to a developer machine. */
+export function publicAppUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "") ?? "";
+  const local = !configured || /localhost|127\.0\.0\.1/i.test(configured);
+  if (!local) return configured;
+  if (process.env.NODE_ENV === "development") return configured || "http://localhost:3000";
+  return "https://mosaicfinance.ai";
+}
+
 export type AuthResult = {
   error?: string;
   redirectTo?: string;
@@ -43,16 +52,29 @@ export async function insertUserProfileAfterSignUp(formData: {
   }
 
   const trialEndsAt = trialEndsAtIso();
+  const province = PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province;
   const { error: profileError } = await supabase.from("user_profiles").insert({
     id: user.id,
     alias: parsed.data.alias,
-    province: PROVINCE_CODE_MAP[parsed.data.province] ?? parsed.data.province,
+    province,
     subscription_tier: "pulse",
     trial_ends_at: trialEndsAt,
     email: user.email ?? null,
   });
 
-  if (profileError && profileError.code !== "23505") {
+  if (profileError?.code === "23505") {
+    const { error: updateError } = await supabase
+      .from("user_profiles")
+      .update({
+        alias: parsed.data.alias,
+        province,
+        email: user.email ?? null,
+      })
+      .eq("id", user.id);
+    if (updateError) {
+      return { error: "Account created but profile setup failed. Please sign in." };
+    }
+  } else if (profileError) {
     return { error: "Account created but profile setup failed. Please sign in." };
   }
 
@@ -74,7 +96,7 @@ export async function signInWithGoogle(): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: `${publicAppUrl()}/auth/callback`,
     },
   });
 
@@ -98,7 +120,7 @@ export async function resetPassword(formData: {
   }
 
   const supabase = await createClient();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = publicAppUrl();
 
   const { error } = await supabase.auth.resetPasswordForEmail(
     parsed.data.email,

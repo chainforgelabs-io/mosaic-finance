@@ -152,6 +152,23 @@ describe("normalizeStatementItems", () => {
     expect(row?.line_role).toBe("income");
     expect(resolvedLineRole(row ?? { description: "" })).toBe("income");
   });
+
+  it("keeps a GST remittance as spending", () => {
+    const [row] = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-08-15",
+          amount: 420,
+          description: "GST/HST REMITTANCE",
+          line_role: "income",
+          suggested_category: "other",
+        },
+      ],
+      "debit",
+    );
+    expect(row?.line_role).toBe("purchase");
+    expect(resolvedLineRole(row ?? { description: "" })).toBe("purchase");
+  });
 });
 
 describe("dedupeSpendingItems", () => {
@@ -277,6 +294,33 @@ describe("upload duplicates", () => {
     );
     expect(row?.duplicateOf?.id).toBe("a");
     expect(row?.duplicateAction).toBe("skip");
+  });
+
+  it("does not treat an opposite transfer as a duplicate", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-09-02",
+          amount: 600,
+          description: "E-TRANSFER FROM SAVINGS",
+          suggested_category: "other",
+          line_role: "transfer",
+        },
+      ],
+      [
+        {
+          id: "out",
+          txn_date: "2026-09-02",
+          amount: 600,
+          category: "other",
+          description: "E-TRANSFER TO SAVINGS",
+          note: null,
+          line_role: "transfer",
+        },
+      ],
+    );
+    expect(row?.duplicateOf).toBeNull();
+    expect(row?.duplicateAction).toBe("add");
   });
 
   it("leaves a different amount alone", () => {

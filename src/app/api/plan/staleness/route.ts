@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { captureAPIError } from "@/lib/sentry";
+import { countUsageThisMonth, loadProfileEntitlements } from "@/lib/entitlements";
 
 function parseTs(s: string | null | undefined): Date | null {
   if (!s) return null;
@@ -154,9 +155,17 @@ export async function GET() {
       dataChangedAt != null &&
       dataChangedAt.getTime() > planUpdatedAt.getTime();
 
+    const entitlements = await loadProfileEntitlements(user.id);
+    let canRegenerate = entitlements.canGenerateReport;
+    if (canRegenerate && entitlements.reportRegenCap != null) {
+      const reports = await countUsageThisMonth(user.id, "report");
+      if (reports >= entitlements.reportRegenCap) canRegenerate = false;
+    }
+
     return NextResponse.json({
       stale,
       generating: false,
+      canRegenerate,
       dataChangedAt: dataChangedAt?.toISOString() ?? null,
       planUpdatedAt: planUpdatedAt?.toISOString() ?? null,
       planStatus: planRow.status,

@@ -14,6 +14,7 @@ import {
   FHSA_MAX_CARRYFORWARD,
   RRSP_CONTRIBUTION_RATE,
   RRSP_MAX_LIMIT_2025,
+  RRSP_MAX_LIMIT_2026,
   TFSA_ANNUAL_LIMIT_2025,
   VALID_ACCOUNT_TYPES,
 } from '@/lib/calculations/canadian-accounts';
@@ -187,9 +188,9 @@ describe('RRSP Logic', () => {
       expect(room).toBeCloseTo(17100, 0);
     });
 
-    it('caps at annual maximum', () => {
+    it('caps at the 2026 dollar maximum', () => {
       const room = calculateRRSPContributionRoom(500000);
-      expect(room).toBe(RRSP_MAX_LIMIT_2025);
+      expect(room).toBe(RRSP_MAX_LIMIT_2026);
     });
 
     it('adds unused carry-forward room', () => {
@@ -219,6 +220,10 @@ describe('RRSP Logic', () => {
 
     it('2025 max limit is $32,490', () => {
       expect(RRSP_MAX_LIMIT_2025).toBe(32490);
+    });
+
+    it('2026 max limit is $33,810', () => {
+      expect(RRSP_MAX_LIMIT_2026).toBe(33810);
     });
   });
 });

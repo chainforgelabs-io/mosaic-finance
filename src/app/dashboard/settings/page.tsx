@@ -711,11 +711,30 @@ function SubscriptionTab() {
 function PrivacyTab() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
-  const handleExportData = () => {
-    window.alert(
-      "Data export would trigger here. Wire to GET /api/user/export for real data export."
-    );
+  const handleExportData = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/user/export", { credentials: "include" });
+      if (!res.ok) {
+        setExportError("Could not export your data. Try again.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "mosaic-data-export.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError("Could not export your data. Try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleDeleteData = () => {
@@ -779,12 +798,16 @@ function PrivacyTab() {
 
       <div className="flex flex-wrap gap-3">
         <button
-          onClick={handleExportData}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--warm-200)] bg-white text-[var(--text-primary)] font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--warm-50)] transition-colors"
+          onClick={() => void handleExportData()}
+          disabled={exporting}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--warm-200)] bg-white text-[var(--text-primary)] font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-[var(--warm-50)] transition-colors disabled:opacity-50"
         >
           <Download className="w-4 h-4" />
-          Export My Data
+          {exporting ? "Preparing your export…" : "Export My Data"}
         </button>
+        {exportError && (
+          <p className="w-full font-[family-name:var(--font-body)] text-sm text-[var(--error)]">{exportError}</p>
+        )}
         <button
           onClick={() => setShowDeleteModal(true)}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--error)] text-[var(--error)] font-[family-name:var(--font-display)] font-semibold text-sm hover:bg-red-50 transition-colors"

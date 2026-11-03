@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CalculatorNumberField, TaxPicture, moneyCad } from "@/components/marketing/calculator-field";
 import { CalculatorShell } from "@/components/marketing/calculator-shell";
 import {
-  RRSP_MAX_LIMIT_2025,
+  RRSP_MAX_LIMIT_2026,
   TFSA_ANNUAL_LIMIT_2025,
   calculateRRSPContributionRoom,
   calculateTFSARoom,
@@ -52,7 +52,7 @@ export default function RrspVsTfsaPage({ embedded = false }: { embedded?: boolea
             <p className="font-body text-xs leading-snug text-text-muted">RRSP room in this illustration</p>
             <p className="mt-2 break-words font-display text-2xl font-bold tabular-nums">{moneyCad(rrsp)}</p>
             <p className="mt-2 font-body text-xs leading-relaxed text-text-muted">
-              18% of last year&apos;s earned income, up to {moneyCad(RRSP_MAX_LIMIT_2025)}, plus room
+              18% of last year&apos;s earned income, up to {moneyCad(RRSP_MAX_LIMIT_2026)} for 2026, plus room
               carried in, minus the pension adjustment.
             </p>
           </div>

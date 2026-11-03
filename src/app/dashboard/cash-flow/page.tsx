@@ -559,6 +559,8 @@ export default function CashFlowPage() {
               category: txn.category,
               description: txn.description,
               note: txn.note,
+              direction: txn.direction ?? null,
+              line_role: txn.line_role ?? null,
             }));
         } else {
           duplicateCheckFailed = true;

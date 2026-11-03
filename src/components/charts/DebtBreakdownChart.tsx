@@ -12,21 +12,25 @@ interface ParsedDebt {
 }
 
 function parseDebtString(s: string): ParsedDebt {
-  const nameMatch = s.match(/^([^(]+)/);
   const amountMatch = s.match(/\$([0-9,]+)/);
-  const rateMatch = s.match(/([\d.]+%)/);
+  const rateMatch = s.match(/([\d.]+)\s*%/);
+  const name = s
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/[-–—]?\s*\$[0-9,].*$/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return {
-    name: nameMatch?.[1]?.trim() ?? s,
+    name: name || s.trim(),
     amount: amountMatch ? parseInt(amountMatch[1].replace(/,/g, ""), 10) : 0,
-    rate: rateMatch?.[1] ?? "",
+    rate: rateMatch?.[1] ? `${rateMatch[1]}%` : "",
   };
 }
 
 function fmtCompact(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(n)) return "--";
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toLocaleString()}`;
+  const abs = Math.abs(n);
+  const body = abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(1)}K` : abs.toLocaleString();
+  return n < 0 ? `-$${body}` : `$${body}`;
 }
 
 export function DebtBreakdownChart() {

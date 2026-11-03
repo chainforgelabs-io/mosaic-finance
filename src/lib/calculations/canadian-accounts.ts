@@ -12,6 +12,8 @@ export const FHSA_MAX_CARRYFORWARD = 8_000;
 
 export const RRSP_CONTRIBUTION_RATE = 0.18;
 export const RRSP_MAX_LIMIT_2025 = 32_490;
+/** CRA dollar limit for the 2026 tax year. */
+export const RRSP_MAX_LIMIT_2026 = 33_810;
 
 export interface FHSAEligibility {
   eligible: boolean;
@@ -145,7 +147,7 @@ export function calculateRRSPContributionRoom(
 ): number {
   const earnedRoom = Math.min(
     previousYearIncome * RRSP_CONTRIBUTION_RATE,
-    RRSP_MAX_LIMIT_2025,
+    RRSP_MAX_LIMIT_2026,
   );
   return Math.max(0, earnedRoom - pensionAdjustment + unusedRoom);
 }

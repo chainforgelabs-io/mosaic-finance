@@ -11,6 +11,22 @@ import { createClient } from "@/lib/supabase/client";
 import { signUpSchema, PROVINCES, type SignUpFormData } from "@/lib/schemas/auth";
 import { TRIAL_COPY } from "@/lib/config/launch-surface";
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -33,17 +49,29 @@ export default function SignUpPage() {
   async function onSubmit(data: SignUpFormData) {
     setServerError(null);
     const supabase = createClient();
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin}/auth/callback`,
-        data: {
-          alias: data.alias,
-          province: data.province,
-        },
-      },
-    });
+    let authData: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"];
+    let authError: Awaited<ReturnType<typeof supabase.auth.signUp>>["error"];
+    try {
+      const signedUp = await withTimeout(
+        supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              alias: data.alias,
+              province: data.province,
+            },
+          },
+        }),
+        20_000,
+      );
+      authData = signedUp.data;
+      authError = signedUp.error;
+    } catch {
+      setServerError("Signup is taking too long. Wait a moment, then try again. If an account was created, sign in.");
+      return;
+    }
 
     if (authError) {
       setServerError(authError.message);
@@ -57,10 +85,19 @@ export default function SignUpPage() {
       return;
     }
 
-    const result = await insertUserProfileAfterSignUp({
-      alias: data.alias,
-      province: data.province,
-    });
+    let result: Awaited<ReturnType<typeof insertUserProfileAfterSignUp>>;
+    try {
+      result = await withTimeout(
+        insertUserProfileAfterSignUp({
+          alias: data.alias,
+          province: data.province,
+        }),
+        15_000,
+      );
+    } catch {
+      setServerError("Your account was created, but setup did not finish. Sign in to continue.");
+      return;
+    }
     if (result?.error) {
       setServerError(result.error);
       return;

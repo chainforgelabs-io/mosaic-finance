@@ -139,16 +139,21 @@ interface FixedAsset {
 
 /* ---------- Helpers ---------- */
 
+function signedDollars(n: number, absFormatted: string): string {
+  return n < 0 ? `-$${absFormatted}` : `$${absFormatted}`;
+}
+
 function fmt(n: number | null | undefined): string {
   if (n == null) return "--";
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n.toLocaleString()}`;
+  const abs = Math.abs(n);
+  const body = abs >= 1_000_000 ? `${(abs / 1_000_000).toFixed(1)}M` : abs >= 1_000 ? `${(abs / 1_000).toFixed(0)}K` : abs.toLocaleString();
+  return signedDollars(n, body);
 }
 
 function fmtFull(n: number | null | undefined): string {
   if (n == null) return "--";
-  return `$${n.toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const body = Math.abs(n).toLocaleString("en-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return signedDollars(n, body);
 }
 
 const ACCOUNT_LABELS: Record<string, string> = {
@@ -1462,7 +1467,7 @@ export default function AssetsPage() {
                   </tfoot>
                 </table>
                 </div>
-                {avalanche?.payoff_months != null && (
+                {avalanche && Number(avalanche.payoff_months) > 0 && (
                   <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
                     <p className="font-[family-name:var(--font-body)] text-sm text-[var(--emerald-dark)]">
                       An illustration: about {String(avalanche.payoff_months)} months if extra payments go to the highest rate first. This is not a payment instruction.
