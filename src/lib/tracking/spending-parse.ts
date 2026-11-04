@@ -172,9 +172,20 @@ const SUMMARY_LINE =
 /** A merchant credit or return. It is not pay and it is not a new purchase. */
 export function isMerchantRefund(description: string): boolean {
   if (REFUND_REVERSAL.test(description)) return false;
-  if (/\bcredit card\b/i.test(description)) return false;
   if (GOVERNMENT_DEPOSIT.test(description)) return false;
-  return MERCHANT_REFUND.test(description) || CREDIT_SUFFIX.test(description);
+  if (BENEFIT_HINT.test(description)) return false;
+  if (MERCHANT_REFUND.test(description)) return true;
+  const payment =
+    /\b(payment|pymt|autopay)\b/i.test(description) ||
+    /\bcredit card\b/i.test(description) ||
+    /\bline of credit\b/i.test(description) ||
+    /\bcredit union\b/i.test(description);
+  if (payment) return false;
+  if (CREDIT_SUFFIX.test(description) || /\bCR\b/.test(description)) return true;
+  if (/\bcredit\b/i.test(description) && !/\bcredit\s+(card|limit|available|balance)\b/i.test(description)) {
+    return true;
+  }
+  return false;
 }
 
 export function isSummaryLine(description: string): boolean {
@@ -250,7 +261,7 @@ function categoryForRole(
   raw: unknown,
   description: string,
 ): string {
-  if (isMerchantRefund(description)) return "refund";
+  if (isMerchantRefund(description) || slugFromLabel(raw) === "refund") return "refund";
   if (role === "card_payment") return "debt_payments";
   if (role === "transfer") return "other";
   if (role === "income") {

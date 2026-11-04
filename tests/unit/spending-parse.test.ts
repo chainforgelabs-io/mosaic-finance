@@ -1,7 +1,7 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 import { pdfPageChunks } from "@/lib/tracking/pdf-chunks";
-import { countsTowardSpend } from "@/lib/tracking/cash-capture";
+import { countsTowardSpend, transactionKind } from "@/lib/tracking/cash-capture";
 import { PAGE_CUTOFF_NOTE } from "@/lib/tracking/reader-notes";
 import {
   claudeText,
@@ -134,6 +134,80 @@ describe("normalizeStatementItems", () => {
         description: "STORE RETURN",
       }),
     ).toBe("refund");
+  });
+
+  it("treats a card credit mark and a bank refund as refunds, not spending or income", () => {
+    const rows = normalizeStatementItems(
+      [
+        {
+          txn_date: "2026-11-03",
+          amount: 18.99,
+          description: "CR AMAZON MARKETPLACE 4412",
+          line_role: "transfer",
+          suggested_category: "other",
+        },
+        {
+          txn_date: "2026-11-03",
+          amount: 156,
+          description: "SHOPPERS DRUG MART CREDIT",
+          line_role: "purchase",
+          suggested_category: "shopping",
+        },
+        {
+          txn_date: "2026-11-03",
+          amount: 75,
+          description: "AMAZON",
+          line_role: "transfer",
+          suggested_category: "refund",
+        },
+        {
+          txn_date: "2026-11-03",
+          amount: 40,
+          description: "Merchant refund",
+          line_role: "income",
+          suggested_category: "other",
+        },
+        {
+          txn_date: "2026-11-03",
+          amount: 200,
+          description: "PAYMENT TO LINE OF CREDIT",
+          line_role: "transfer",
+          suggested_category: "other",
+        },
+        {
+          txn_date: "2026-11-03",
+          amount: 50,
+          description: "GST CREDIT",
+          line_role: "income",
+          suggested_category: "ei",
+        },
+      ],
+      "credit",
+    );
+    expect(rows.map((row) => [row.description, row.line_role, row.suggested_category])).toEqual([
+      ["CR AMAZON MARKETPLACE 4412", "transfer", "refund"],
+      ["SHOPPERS DRUG MART CREDIT", "transfer", "refund"],
+      ["AMAZON", "transfer", "refund"],
+      ["Merchant refund", "transfer", "refund"],
+      ["PAYMENT TO LINE OF CREDIT", "transfer", "other"],
+      ["GST CREDIT", "income", "ei"],
+    ]);
+    for (const description of [
+      "CR AMAZON MARKETPLACE 4412",
+      "SHOPPERS DRUG MART CREDIT",
+      "AMAZON",
+      "Merchant refund",
+    ]) {
+      const txn = {
+        direction: "in" as const,
+        line_role: "transfer",
+        category: "refund",
+        description,
+      };
+      expect(resolvedLineRole(txn)).toBe("refund");
+      expect(countsTowardSpend(txn)).toBe(false);
+      expect(transactionKind(txn)).toBe("neutral");
+    }
   });
 
   it("keeps a government deposit as income", () => {
