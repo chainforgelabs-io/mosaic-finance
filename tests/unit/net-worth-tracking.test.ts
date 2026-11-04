@@ -352,14 +352,23 @@ describe("snapshotMonths and monthsSinceLastSnapshot", () => {
 describe("first snapshot note", () => {
   it("does not mention Charlie when nothing came from a conversation", () => {
     expect(cameFromConversation({ hasPlan: false, holdingSources: ["manual"], goalSources: [] })).toBe(false);
-    expect(firstSnapshotNote(false)).toBe(
+    expect(firstSnapshotNote({ fromConversation: false, hasFigures: false })).toBe(
       "Nothing is on file yet. Add what you own and what you owe, then save your first snapshot.",
     );
+  });
+
+  it("does not say the page is empty once the person has entered a balance", () => {
+    const note = firstSnapshotNote({ fromConversation: false, hasFigures: true });
+    expect(note).toBe("Check these balances, then save your first snapshot.");
+    expect(note).not.toContain("Charlie");
+    expect(note).not.toContain("Nothing is on file");
   });
 
   it("keeps the Charlie note when a plan or fact-find supplied the figures", () => {
     expect(cameFromConversation({ hasPlan: true, holdingSources: [], goalSources: [] })).toBe(true);
     expect(cameFromConversation({ hasPlan: false, holdingSources: ["fact_find"], goalSources: ["manual"] })).toBe(true);
-    expect(firstSnapshotNote(true)).toContain("conversation with Charlie");
+    expect(firstSnapshotNote({ fromConversation: true, hasFigures: true })).toContain(
+      "conversation with Charlie",
+    );
   });
 });

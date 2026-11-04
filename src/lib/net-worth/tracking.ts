@@ -492,9 +492,15 @@ export function cameFromConversation(input: {
   );
 }
 
-export function firstSnapshotNote(fromConversation: boolean): string {
-  if (fromConversation) {
+export function firstSnapshotNote(input: {
+  fromConversation: boolean;
+  hasFigures: boolean;
+}): string {
+  if (input.fromConversation) {
     return "These came from your conversation with Charlie. Check them and save your first snapshot.";
+  }
+  if (input.hasFigures) {
+    return "Check these balances, then save your first snapshot.";
   }
   return "Nothing is on file yet. Add what you own and what you owe, then save your first snapshot.";
 }

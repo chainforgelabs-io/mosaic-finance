@@ -1153,7 +1153,14 @@ export default function AssetsPage() {
         {snapshots.length === 0 && (
           <div className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-body text-sm text-[var(--text-secondary)]">
-              {firstSnapshotNote(fromConversation)}
+              {firstSnapshotNote({
+                fromConversation,
+                hasFigures:
+                  holdings.length > 0 ||
+                  fixedAssets.length > 0 ||
+                  hasProfileDebts ||
+                  parsedDebts.length > 0,
+              })}
             </p>
             <button
               type="button"
