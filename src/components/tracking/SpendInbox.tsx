@@ -8,9 +8,11 @@ import type { TransactionRow } from "@/types/tracking";
 export function SpendInbox({
   items,
   onAssign,
+  onRemove,
 }: {
   items: TransactionRow[];
   onAssign: (id: string, category: string) => void;
+  onRemove: (id: string) => Promise<void>;
 }) {
   if (items.length === 0) return null;
 
@@ -35,6 +37,20 @@ export function SpendInbox({
               </p>
             </div>
             <p className="mt-0.5 font-body text-[11px] text-[var(--text-muted)]">{txn.txn_date}</p>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!window.confirm("Remove this entry?")) return;
+                  void onRemove(txn.id).catch(() => {
+                    window.alert("Could not remove this entry.");
+                  });
+                }}
+                className="phone-hit shrink-0 rounded-md px-2 font-display text-xs font-semibold text-[var(--error)]"
+              >
+                Remove
+              </button>
+            </div>
             <div className="mt-2 flex gap-1.5 overflow-x-auto">
               {KEYPAD_CATEGORIES.map((category) => (
                 <button

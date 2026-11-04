@@ -315,6 +315,7 @@ export interface ExistingSpend {
   note: string | null;
   direction?: "in" | "out" | null;
   line_role?: string | null;
+  instrument?: "credit" | "debit" | null;
 }
 
 const GENERIC_MATCH_WORDS = new Set([
@@ -367,21 +368,26 @@ function words(value: string): Set<string> {
   );
 }
 
-function descriptionScore(incoming: string, existing: string | null): number {
-  if (!existing?.trim() || !incoming.trim()) return 0;
+function sameMerchant(incoming: string, existing: string | null): boolean {
   const left = words(incoming);
-  const right = words(existing);
-  let shared = 0;
-  for (const word of left) {
-    if (right.has(word)) shared += 1;
+  const right = words(existing ?? "");
+  if (left.size === 0 || right.size === 0) return false;
+  const [shorter, longer] = left.size <= right.size ? [left, right] : [right, left];
+  for (const word of shorter) {
+    if (!longer.has(word)) return false;
   }
-  return shared > 0 ? 3 : 0;
+  return true;
+}
+
+function instrumentOf(value: unknown): "credit" | "debit" | null {
+  return value === "credit" || value === "debit" ? value : null;
 }
 
 /**
  * A statement line matches a logged line when the date, amount, and merchant agree.
- * A different description is a different line, even when it is the only one that day
- * at that amount. Each logged row can match only one incoming line.
+ * A blank description is not a match. Sharing one name while the other words differ
+ * is not a match. A card line and a bank line are not the same charge.
+ * Each logged row can match only one incoming line.
  */
 export function matchUploadDuplicates<
   T extends {
@@ -410,10 +416,14 @@ export function matchUploadDuplicates<
     for (const row of candidates) {
       const existingFlow = flowHint(row.description ?? "", row.direction, row.line_role);
       if (incomingFlow && existingFlow && incomingFlow !== existingFlow) continue;
-      const words = descriptionScore(item.description, row.description);
-      const bothDescribed = Boolean(item.description.trim() && row.description?.trim());
-      if (bothDescribed && words === 0) continue;
-      const score = (row.category === item.suggested_category ? 2 : 0) + words;
+      const incomingInstrument = instrumentOf(
+        "instrument" in item ? (item as { instrument?: unknown }).instrument : undefined,
+      );
+      const existingInstrument = instrumentOf(row.instrument);
+      if (incomingInstrument && existingInstrument && incomingInstrument !== existingInstrument) continue;
+      if (!sameMerchant(item.description, row.description)) continue;
+      const shared = words(item.description).size;
+      const score = (row.category === item.suggested_category ? 2 : 0) + shared;
       if (!best || score > best.score) best = { row, score };
     }
     if (!best) return { ...item, duplicateOf: null, duplicateAction: "add" as const };

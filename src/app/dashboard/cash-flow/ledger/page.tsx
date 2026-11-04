@@ -186,6 +186,13 @@ export default function LedgerPage() {
     reload();
   }
 
+  async function handleDelete(id: string) {
+    const res = await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
+    if (!res.ok) throw new Error("Could not remove this entry.");
+    setEditing(null);
+    reload();
+  }
+
   function addCategory(slug: string) {
     const next = [...new Set([...loadCustomCategories(), slug])];
     localStorage.setItem(CUSTOM_CATEGORY_KEY, JSON.stringify(next));
@@ -359,6 +366,7 @@ export default function LedgerPage() {
           onAddCategory={addCategory}
           onClose={() => setEditing(null)}
           onSave={(payload) => handleEdit(editing.id, payload)}
+          onDelete={() => handleDelete(editing.id)}
         />
       )}
     </div>

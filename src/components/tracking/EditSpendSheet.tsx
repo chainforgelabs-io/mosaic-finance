@@ -149,6 +149,7 @@ export function EditSpendSheet({
   onAddCategory,
   onClose,
   onSave,
+  onDelete,
 }: {
   txn: TransactionRow;
   extras: string[];
@@ -161,6 +162,7 @@ export function EditSpendSheet({
     description: string;
     note?: string;
   }) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }) {
   const [amount, setAmount] = useState(String(txn.amount));
   const [category, setCategory] = useState(txn.category);
@@ -168,6 +170,7 @@ export function EditSpendSheet({
   const [description, setDescription] = useState(txn.description ?? "");
   const [note, setNote] = useState(txn.note ?? "");
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const kind = transactionKind(txn);
 
@@ -265,11 +268,30 @@ export function EditSpendSheet({
         <button
           type="button"
           onClick={submit}
-          disabled={saving}
+          disabled={saving || removing}
           className="w-full rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white hover:bg-[var(--emerald-dark)] disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save"}
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            disabled={saving || removing}
+            onClick={() => {
+              if (!window.confirm("Remove this entry?")) return;
+              setRemoving(true);
+              setSaveError(null);
+              void onDelete()
+                .catch((error: unknown) => {
+                  setSaveError(error instanceof Error ? error.message : "Could not remove this entry.");
+                  setRemoving(false);
+                });
+            }}
+            className="mt-2 w-full rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold text-[var(--error)] hover:bg-red-50 disabled:opacity-60"
+          >
+            {removing ? "Removing…" : "Remove entry"}
+          </button>
+        )}
       </div>
     </div>
   );

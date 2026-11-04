@@ -451,7 +451,8 @@ export default function CashFlowPage() {
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
+    const res = await fetch(`/api/transactions?id=${id}`, { method: "DELETE", credentials: "include" });
+    if (!res.ok) throw new Error("Could not remove this entry.");
     await reload();
   }
 
@@ -561,6 +562,7 @@ export default function CashFlowPage() {
               note: txn.note,
               direction: txn.direction ?? null,
               line_role: txn.line_role ?? null,
+              instrument: txn.instrument === "credit" || txn.instrument === "debit" ? txn.instrument : null,
             }));
         } else {
           duplicateCheckFailed = true;
@@ -1065,7 +1067,7 @@ export default function CashFlowPage() {
         onAddCategory={addCategory}
         onSave={handleCapture}
       />
-      <SpendInbox items={inboxItems} onAssign={assignCategory} />
+      <SpendInbox items={inboxItems} onAssign={assignCategory} onRemove={handleDelete} />
       <RecurringPanel
         items={recurring}
         today={today}
@@ -1586,6 +1588,10 @@ export default function CashFlowPage() {
           onAddCategory={addCategory}
           onClose={() => setEditing(null)}
           onSave={(payload) => handleEdit(editing.id, payload)}
+          onDelete={async () => {
+            await handleDelete(editing.id);
+            setEditing(null);
+          }}
         />
       )}
 

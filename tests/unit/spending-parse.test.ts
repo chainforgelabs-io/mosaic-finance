@@ -365,6 +365,90 @@ describe("upload duplicates", () => {
     expect(row?.duplicateAction).toBe("add");
   });
 
+  it("does not match a blank description or a shared employer name", () => {
+    const payroll = {
+      id: "pay",
+      txn_date: "2026-08-15",
+      amount: 3450,
+      category: "paycheque",
+      description: "Northwind Payroll",
+      note: null,
+      direction: "in" as const,
+      line_role: "income",
+    };
+    const matched = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-08-15",
+          amount: 3450,
+          description: "Northwind Bonus",
+          suggested_category: "paycheque",
+          line_role: "income",
+        },
+        {
+          txn_date: "2026-08-15",
+          amount: 3450,
+          description: "",
+          suggested_category: "paycheque",
+          line_role: "income",
+        },
+        {
+          txn_date: "2026-08-15",
+          amount: 18.99,
+          description: "Streamflix",
+          suggested_category: "subscriptions",
+          instrument: "credit" as const,
+        },
+      ],
+      [
+        payroll,
+        {
+          id: "blank",
+          txn_date: "2026-08-15",
+          amount: 3450,
+          category: "other",
+          description: null,
+          note: null,
+        },
+        {
+          id: "pap",
+          txn_date: "2026-08-15",
+          amount: 18.99,
+          category: "other",
+          description: "Streamflix PAP",
+          note: null,
+          instrument: "debit",
+        },
+      ],
+    );
+    expect(matched.map((row) => row.duplicateOf)).toEqual([null, null, null]);
+  });
+
+  it("still matches the same payroll line on a re-read", () => {
+    const [row] = matchUploadDuplicates(
+      [
+        {
+          txn_date: "2026-08-15",
+          amount: 3450,
+          description: "Northwind Payroll",
+          suggested_category: "paycheque",
+        },
+      ],
+      [
+        {
+          id: "pay",
+          txn_date: "2026-08-15",
+          amount: 3450,
+          category: "paycheque",
+          description: "Northwind Payroll",
+          note: null,
+        },
+      ],
+    );
+    expect(row?.duplicateOf?.id).toBe("pay");
+    expect(row?.duplicateAction).toBe("skip");
+  });
+
   it("leaves a different amount alone", () => {
     const [row] = matchUploadDuplicates(
       [
