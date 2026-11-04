@@ -145,8 +145,8 @@ export default function TermsPage() {
                 in Canadian dollars (CAD)
               </li>
               <li>
-                Paid subscriptions are billed monthly through Stripe and
-                auto-renew unless cancelled
+                Paid subscriptions are billed monthly or annually through
+                Stripe and auto-renew unless cancelled
               </li>
               <li>
                 You may cancel your subscription at any time; access continues

@@ -480,6 +480,25 @@ export function groupComparison(
   };
 }
 
+/** True when a plan, fact-find, or onboarding wrote the figures on Net Worth. */
+export function cameFromConversation(input: {
+  hasPlan: boolean;
+  holdingSources: string[];
+  goalSources: string[];
+}): boolean {
+  if (input.hasPlan) return true;
+  return [...input.holdingSources, ...input.goalSources].some(
+    (source) => source === "fact_find" || source === "onboarding",
+  );
+}
+
+export function firstSnapshotNote(fromConversation: boolean): string {
+  if (fromConversation) {
+    return "These came from your conversation with Charlie. Check them and save your first snapshot.";
+  }
+  return "Nothing is on file yet. Add what you own and what you owe, then save your first snapshot.";
+}
+
 /** Distinct months with a snapshot, newest first, as YYYY-MM. */
 export function snapshotMonths(snapshots: Array<{ snapshot_date: string }>): string[] {
   return [...new Set(snapshots.map((s) => monthKey(s.snapshot_date)))].sort().reverse();

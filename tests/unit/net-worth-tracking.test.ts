@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   availableCreditFor,
+  cameFromConversation,
   classifyLiability,
   enrichBreakdown,
+  firstSnapshotNote,
   formatDiffPct,
   formatSnapshotLabel,
   groupComparison,
@@ -344,5 +346,20 @@ describe("snapshotMonths and monthsSinceLastSnapshot", () => {
     expect(monthsSinceLastSnapshot(all, "2026-03-30")).toBe(0);
     expect(monthsSinceLastSnapshot(all, "2026-05-02")).toBe(2);
     expect(monthsSinceLastSnapshot([], "2026-05-02")).toBeNull();
+  });
+});
+
+describe("first snapshot note", () => {
+  it("does not mention Charlie when nothing came from a conversation", () => {
+    expect(cameFromConversation({ hasPlan: false, holdingSources: ["manual"], goalSources: [] })).toBe(false);
+    expect(firstSnapshotNote(false)).toBe(
+      "Nothing is on file yet. Add what you own and what you owe, then save your first snapshot.",
+    );
+  });
+
+  it("keeps the Charlie note when a plan or fact-find supplied the figures", () => {
+    expect(cameFromConversation({ hasPlan: true, holdingSources: [], goalSources: [] })).toBe(true);
+    expect(cameFromConversation({ hasPlan: false, holdingSources: ["fact_find"], goalSources: ["manual"] })).toBe(true);
+    expect(firstSnapshotNote(true)).toContain("conversation with Charlie");
   });
 });

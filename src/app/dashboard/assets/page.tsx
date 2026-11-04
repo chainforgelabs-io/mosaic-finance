@@ -42,7 +42,14 @@ import { addDays, addMonths, formatMonthLabel, monthKey, startOfMonth, startOfWe
 import { planOverview } from "@/lib/tracking/budget-plan";
 import { fetchPlan } from "@/lib/tracking/plan-client";
 import { FIXED_ASSET_CATEGORIES, type FixedAssetCategory } from "@/lib/assets/categories";
-import { classifyLiability, formatSnapshotLabel, lineSeries, type LiabilityTerm } from "@/lib/net-worth/tracking";
+import {
+  cameFromConversation,
+  classifyLiability,
+  firstSnapshotNote,
+  formatSnapshotLabel,
+  lineSeries,
+  type LiabilityTerm,
+} from "@/lib/net-worth/tracking";
 import type { BudgetPlanEntry, GoalRow, NetWorthSnapshotRow } from "@/types/tracking";
 
 /* ---------- Types ---------- */
@@ -696,6 +703,8 @@ export default function AssetsPage() {
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [holdingsOpen, setHoldingsOpen] = useState(false);
   const [debtOpen, setDebtOpen] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<number | null>(null);
+  const debtFormRef = useRef<HTMLFormElement>(null);
   const [debtName, setDebtName] = useState("");
   const [debtBalance, setDebtBalance] = useState("");
   const [debtRate, setDebtRate] = useState("");
@@ -838,6 +847,33 @@ export default function AssetsPage() {
     await loadData(true);
   }
 
+  function clearDebtForm() {
+    setDebtName("");
+    setDebtBalance("");
+    setDebtRate("");
+    setDebtTerm("long");
+    setEditingDebt(null);
+    setDebtError(null);
+  }
+
+  function openNewDebt() {
+    clearDebtForm();
+    setDebtOpen(true);
+  }
+
+  function openEditDebt(index: number) {
+    const row = profileDebtPayload(profile?.major_debts ?? null)[index];
+    if (!row) return;
+    setEditingDebt(index);
+    setDebtName(row.type);
+    setDebtBalance(String(row.balance));
+    setDebtRate(row.rate != null ? String(row.rate) : "");
+    setDebtTerm(row.term ?? classifyLiability(row.type));
+    setDebtError(null);
+    setDebtOpen(true);
+    requestAnimationFrame(() => debtFormRef.current?.scrollIntoView({ block: "center" }));
+  }
+
   async function handleAddDebt() {
     const name = debtName.trim();
     const balanceRaw = debtBalance.trim();
@@ -855,14 +891,20 @@ export default function AssetsPage() {
     setDebtSaving(true);
     setDebtError(null);
     try {
-      await saveDebtList([
-        ...profileDebtPayload(profile?.major_debts ?? null),
-        { type: name, balance, ...(rate != null ? { rate } : {}), term: debtTerm },
-      ]);
-      setDebtName("");
-      setDebtBalance("");
-      setDebtRate("");
-      setDebtTerm("long");
+      const rows = profileDebtPayload(profile?.major_debts ?? null);
+      const prior = editingDebt != null ? rows[editingDebt] : undefined;
+      const next = {
+        type: name,
+        balance,
+        term: debtTerm,
+        ...(prior?.monthly_payment != null ? { monthly_payment: prior.monthly_payment } : {}),
+        ...(prior?.credit_limit != null ? { credit_limit: prior.credit_limit } : {}),
+        ...(rate != null ? { rate } : {}),
+      };
+      if (prior) rows[editingDebt as number] = next;
+      else rows.push(next);
+      await saveDebtList(rows);
+      clearDebtForm();
       setDebtOpen(false);
     } catch (err) {
       setDebtError(err instanceof Error ? err.message : "Could not save that liability.");
@@ -929,6 +971,11 @@ export default function AssetsPage() {
   const manualDebts = hasProfileDebts
     ? (profile?.major_debts ?? []).map((d, index) => ({ ...d, index }))
     : [];
+  const fromConversation = cameFromConversation({
+    hasPlan: Boolean(rawPlanData),
+    holdingSources: holdings.map((row) => row.source),
+    goalSources: trackedGoals.map((goal) => goal.source),
+  });
   const totalDebt = recordedDebt(profileDebtTotal, planDebtNum);
   const liveNetWorth = totalAssets - totalDebt;
   const netWorth =
@@ -1106,7 +1153,7 @@ export default function AssetsPage() {
         {snapshots.length === 0 && (
           <div className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="font-body text-sm text-[var(--text-secondary)]">
-              These came from your conversation with Charlie. Check them and save your first snapshot.
+              {firstSnapshotNote(fromConversation)}
             </p>
             <button
               type="button"
@@ -1308,7 +1355,14 @@ export default function AssetsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => { setDebtOpen((open) => !open); setDebtError(null); }}
+                onClick={() => {
+                  if (debtOpen && editingDebt == null) {
+                    setDebtOpen(false);
+                    setDebtError(null);
+                    return;
+                  }
+                  openNewDebt();
+                }}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[var(--warm-200)] bg-white px-3 py-1.5 font-display text-xs font-semibold text-[var(--text-primary)]"
               >
                 <Plus className="size-3.5" />
@@ -1317,6 +1371,7 @@ export default function AssetsPage() {
             </div>
             {debtOpen && (
               <form
+                ref={debtFormRef}
                 className="mb-4 grid gap-3 rounded-lg border border-[var(--warm-200)] bg-white p-4 sm:grid-cols-4"
                 onSubmit={(e) => { e.preventDefault(); void handleAddDebt(); }}
               >
@@ -1369,7 +1424,7 @@ export default function AssetsPage() {
                     disabled={debtSaving}
                     className="w-full rounded-full bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white disabled:opacity-50"
                   >
-                    {debtSaving ? "Saving…" : "Save liability"}
+                    {debtSaving ? "Saving…" : editingDebt != null ? "Save changes" : "Save liability"}
                   </button>
                 </div>
                 {debtError && (
@@ -1407,6 +1462,9 @@ export default function AssetsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         <p className="font-display text-sm font-semibold tabular-nums">{fmtFull(d.amount)}</p>
+                        <button type="button" onClick={() => openEditDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
+                          Edit
+                        </button>
                         <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
                           Remove
                         </button>
@@ -1442,6 +1500,9 @@ export default function AssetsPage() {
                         <td className="py-2.5 font-[family-name:var(--font-body)] text-sm text-[var(--text-primary)]">
                           <div className="flex flex-wrap items-center gap-3">
                             <span>{formatSnapshotLabel(d.type)}</span>
+                            <button type="button" onClick={() => openEditDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
+                              Edit
+                            </button>
                             <button type="button" onClick={() => void handleRemoveDebt(d.index)} className="font-body text-xs text-[var(--text-muted)] underline">
                               Remove
                             </button>
