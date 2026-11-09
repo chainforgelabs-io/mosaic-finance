@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
@@ -139,5 +139,45 @@ export function ConversationBubble({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Quiet line above the composer once Charlie usage is close to the monthly
+ * allowance. Hidden the rest of the time. Refetches when a turn finishes.
+ */
+export function CharlieUsageNotice({ busy = false }: { busy?: boolean }) {
+  const [notice, setNotice] = useState<string | null>(null);
+  const wasBusy = useRef(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/conversation/usage");
+      if (!res.ok) return;
+      const data = (await res.json()) as { notice?: unknown };
+      setNotice(typeof data.notice === "string" && data.notice.length > 0 ? data.notice : null);
+    } catch {
+      /* The chat still works if the notice cannot load. */
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (wasBusy.current && !busy) void load();
+    wasBusy.current = busy;
+  }, [busy, load]);
+
+  if (!notice) return null;
+
+  return (
+    <p
+      role="status"
+      className="mx-auto max-w-[720px] px-4 pt-2.5 text-center font-body text-[12px] leading-relaxed text-[var(--text-muted)]"
+    >
+      {notice}
+    </p>
   );
 }

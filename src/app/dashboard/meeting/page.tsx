@@ -14,6 +14,7 @@ import {
 import {
   CharlieChatHeader,
   CharlieChatSurface,
+  CharlieUsageNotice,
   ConversationBubble,
   charlieInputClass,
   charlieSendClass,
@@ -234,6 +235,7 @@ export default function MeetingPage() {
     return (
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-[640px]">
+          <CharlieUsageNotice />
           <div className="mb-8 text-center">
             <div className="mb-4 flex justify-center">
               <div className="flex size-14 items-center justify-center rounded-2xl bg-[var(--emerald)]/10">
@@ -368,6 +370,7 @@ export default function MeetingPage() {
 
       {/* Input */}
       <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
+        <CharlieUsageNotice busy={isStreaming || isStarting} />
         <div className="mx-auto flex min-w-0 max-w-[720px] items-end gap-3 px-4 py-3">
           <textarea
             ref={textareaRef}

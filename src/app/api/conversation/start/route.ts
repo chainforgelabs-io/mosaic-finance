@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { ConversationStartSchema } from '@/lib/validators/conversation';
 import { captureAPIError } from '@/lib/sentry';
 import {
+  charlieMessageUsageNotice,
   countConversationsThisMonth,
   entitlementDenied,
   ENTITLEMENT_COPY,
@@ -72,7 +73,13 @@ export async function POST(req: NextRequest) {
     ) {
       const started = await countConversationsThisMonth(user.id);
       if (started >= entitlements.charlieSoftCap.limit) {
-        return entitlementDenied('charlie_cap', ENTITLEMENT_COPY.charlieCap);
+        return entitlementDenied(
+          'charlie_cap',
+          charlieMessageUsageNotice(
+            entitlements.charlieSoftCap.limit,
+            entitlements.charlieSoftCap.limit,
+          ) ?? ENTITLEMENT_COPY.charlieCap,
+        );
       }
     }
 

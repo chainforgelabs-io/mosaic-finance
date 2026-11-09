@@ -12,6 +12,7 @@ import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
 import { buildClientSnapshot } from '@/lib/conversation/snapshot';
 import {
+  charlieMessageUsageNotice,
   countUsageThisMonth,
   ENTITLEMENT_COPY,
   loadProfileEntitlements,
@@ -107,10 +108,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let messagesUsed = 0;
   let overCap = false;
   if (entitlements.charlieSoftCap?.kind === 'messages') {
-    const used = await countUsageThisMonth(user.id, 'message');
-    overCap = used >= entitlements.charlieSoftCap.limit;
+    messagesUsed = await countUsageThisMonth(user.id, 'message');
+    overCap = messagesUsed >= entitlements.charlieSoftCap.limit;
   }
 
   const { data: session } = await supabase
@@ -132,7 +134,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (overCap) {
-    const friendly = ENTITLEMENT_COPY.charlieCap;
+    const friendly =
+      charlieMessageUsageNotice(
+        messagesUsed,
+        entitlements.charlieSoftCap?.limit ?? messagesUsed,
+      ) ??
+      ENTITLEMENT_COPY.charlieCap;
     if (sanitizedMessage) {
       await supabase.from('conversation_messages').insert({
         session_id: sessionId,

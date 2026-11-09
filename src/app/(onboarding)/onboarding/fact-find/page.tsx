@@ -9,6 +9,7 @@ import { MosaicLogo } from "@/components/app/MosaicLogo";
 import {
   CharlieChatHeader,
   CharlieChatSurface,
+  CharlieUsageNotice,
   ConversationBubble,
   charlieInputClass,
   fitCharlieInput,
@@ -940,6 +941,7 @@ function FactFindConversation() {
 
                 {!sessionComplete && (
                   <div className="shrink-0 border-t border-[var(--warm-200)] bg-white">
+                    <CharlieUsageNotice busy={isStreaming || isUploadingFile} />
                     {pendingFile && (
                       <div className="mx-auto flex max-w-[720px] items-center gap-2 px-4 pt-3">
                         <div className="flex items-center gap-2 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] px-3 py-1.5">

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isTrialActive, normalizeTier, resolveEntitlements, signupTrialMissing } from "@/lib/entitlements";
+import {
+  charlieMessageUsageNotice,
+  isTrialActive,
+  normalizeTier,
+  resolveEntitlements,
+  signupTrialMissing,
+} from "@/lib/entitlements";
 
 describe("normalizeTier", () => {
   it("maps legacy names", () => {
@@ -56,7 +62,7 @@ describe("resolveEntitlements", () => {
   it("caps Progress report regen at 1", () => {
     const e = resolveEntitlements({ subscription_tier: "progress" });
     expect(e.reportRegenCap).toBe(1);
-    expect(e.charlieSoftCap).toEqual({ kind: "messages", limit: 100 });
+    expect(e.charlieSoftCap).toEqual({ kind: "messages", limit: 200 });
   });
 });
 
@@ -81,6 +87,37 @@ describe("signupTrialMissing", () => {
         stripe_subscription_id: "sub_123",
       }),
     ).toBe(false);
+  });
+});
+
+describe("charlieMessageUsageNotice", () => {
+  const now = new Date("2026-11-08T12:00:00Z");
+
+  it("stays quiet until 80 percent of the allowance is used", () => {
+    expect(charlieMessageUsageNotice(159, 200, now)).toBeNull();
+    expect(charlieMessageUsageNotice(0, 200, now)).toBeNull();
+  });
+
+  it("names a percent and the reset day without the allowance size", () => {
+    expect(charlieMessageUsageNotice(160, 200, now)).toBe(
+      "You've used 80% of Charlie this month. It resets December 1.",
+    );
+    expect(charlieMessageUsageNotice(160, 200, now)).not.toMatch(/200/);
+  });
+
+  it("switches to a remaining count for the last few messages", () => {
+    expect(charlieMessageUsageNotice(195, 200, now)).toBe(
+      "5 messages remaining until December 1.",
+    );
+    expect(charlieMessageUsageNotice(199, 200, now)).toBe(
+      "1 message remaining until December 1.",
+    );
+  });
+
+  it("states the limit and the reset once the allowance is gone", () => {
+    expect(charlieMessageUsageNotice(200, 200, now)).toBe(
+      "You've reached Charlie's limit for this month. It resets December 1.",
+    );
   });
 });
 

@@ -7,6 +7,7 @@ import { FinancialCard } from "@/components/app/FinancialCard";
 import {
   CharlieChatHeader,
   CharlieChatSurface,
+  CharlieUsageNotice,
   ConversationBubble,
   TypingIndicator,
   charlieInputClass,
@@ -336,6 +337,7 @@ function ConversationPanel({
           </button>
         )}
 
+        <CharlieUsageNotice busy={isStreaming} />
         <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}

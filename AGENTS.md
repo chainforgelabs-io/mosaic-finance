@@ -91,7 +91,7 @@ Every price sits on a ladder where the digit sum reduces to 8. Never introduce a
 | Gated feature | Progress | Mastery |
 |---|---|---|
 | Fact-find, Progress Report, monthly regeneration | ✅ | ✅ |
-| Charlie | soft cap ~100 messages/month | "unlimited," soft cap ~100 conversations/month |
+| Charlie | silent cap of 200 messages/month. Do not publish the number. In-chat notice only when approaching | "unlimited," soft cap ~100 conversations/month |
 | Statement / receipt parsing | ✅ | ✅ |
 | Priority generation, quarterly guided reviews, tax year-end pack | — | ✅ |
 | Money Club | — | ✅ |

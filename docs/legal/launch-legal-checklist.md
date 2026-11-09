@@ -75,7 +75,7 @@ Current pages exist and read like a product draft (effective April 1 2026, "Chai
 - [ ] **30-day refund** of the first payment, no questions (`REFUND_WINDOW_COPY`). Current ToS does not mention it.
 - [ ] **Consistency Guarantee**, worded exactly as `src/lib/config/offer.ts` `GUARANTEE_LONG`: *"Log your spending each week and complete your monthly net-worth snapshot for 90 days. If your Financial Health Score hasn't improved by the end, we refund your first payment. The Score measures tracking consistency, not investment returns."* The refund is the **first payment** only (one month on monthly, the full year on annual). Eligibility is computed in `src/lib/health-score/guarantee.ts` and exposed at `/api/guarantee/status`. Never condition on returns, savings, or "following action steps."
 - [ ] Billing: monthly **and annual** (current ToS says "billed monthly" only). Auto-renew, cancel anytime with access through period end, 30 days' notice of price changes (existing founding members are price-locked).
-- [ ] Soft caps: Charlie ~100 messages/month on Progress. Disclose as fair-use rather than as a hard entitlement.
+- [ ] Soft caps: Charlie has a silent monthly message cap on Progress. Disclose as fair-use rather than as a hard entitlement. Do not publish the number.
 - [ ] AI-generated content: may be wrong; user responsible for decisions; Anthropic named as processor.
 - [ ] Account deletion and data export as actual features (§2.3), not just promises.
 - [ ] Negative-option billing rules: Ontario CPA and the federal Competition Act require clear disclosure before auto-renewal; a reminder before an annual renewal is good practice.

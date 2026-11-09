@@ -154,7 +154,7 @@ If we do not want to deliver a thing (bank sync, insurance review, moving money)
 |---|---|---|
 | Pulse (decoy / downsell / free forever) | Tracking, budgets, net worth, manual holdings, goals, live Score, streaks, calculators | $0 |
 | 7-day reverse trial | Full Progress, no card | $0 then ask |
-| Progress (volume tier) | Fact-find, 8-section Progress Report + PDF, Charlie (~100 messages/month, silent cap), statement/receipt parsing, monthly regen | $17 / $170; founding $8 / $80 |
+| Progress (volume tier) | Fact-find, 8-section Progress Report + PDF, Charlie (included; silent monthly cap, never printed), statement/receipt parsing, monthly regen | $17 / $170; founding $8 / $80 |
 | Mastery (anchor, hidden) | Club, quarterly check-ins, priority, tax pack; Academy on annual | $44 / $350 |
 | Academy standalone (later) | Courses in the same Club | $26 / $260 |
 

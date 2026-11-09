@@ -32,6 +32,30 @@ export interface Entitlements {
   reportRegenCap: number | null;
 }
 
+/** Progress and trial Charlie replies per calendar month. Not shown in product copy. */
+export const PROGRESS_CHARLIE_MESSAGE_CAP = 200;
+
+/** Notice appears once this share of the monthly allowance is used. */
+const CHARLIE_APPROACH_RATIO = 0.8;
+
+/** Claude switches to a remaining-count once only a handful of messages are left. */
+const CHARLIE_REMAINING_NOTICE_AT = 5;
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
 const LEGACY_TIER: Record<string, Tier> = {
   snapshot: "pulse",
   plan: "progress",
@@ -77,7 +101,7 @@ export function resolveEntitlements(
     charlieSoftCap: mastery
       ? { kind: "conversations", limit: 100 }
       : paid
-        ? { kind: "messages", limit: 100 }
+        ? { kind: "messages", limit: PROGRESS_CHARLIE_MESSAGE_CAP }
         : null,
     reportRegenCap: mastery ? null : paid ? 1 : 0,
   };
@@ -104,10 +128,43 @@ export const ENTITLEMENT_COPY = {
   checkIn: "Quarterly guided check-ins are included with Mastery.",
   club: "The Mosaic Money Club is included with Mastery.",
   charlieCap:
-    "You've used a lot of Charlie this month. We'll keep the conversation going.",
+    "You've reached Charlie's limit for this month.",
   reportCap:
     "Your Progress Report for this month is already in. It refreshes again next month on Progress.",
 } as const;
+
+/** First day of next month in UTC, matching the usage counter. */
+export function charlieUsageResetLabel(now = new Date()): string {
+  const reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return `${MONTHS[reset.getUTCMonth()]} ${reset.getUTCDate()}`;
+}
+
+/**
+ * In-chat notice only. Null until the user is close, so the allowance is never
+ * announced up front. Wording follows Claude: a percent, then a remaining count,
+ * then a reset line at the limit. The allowance size is not included.
+ */
+export function charlieMessageUsageNotice(
+  used: number,
+  limit: number,
+  now = new Date(),
+): string | null {
+  if (limit <= 0 || used <= 0) return null;
+  const remaining = Math.max(0, limit - used);
+  const reset = charlieUsageResetLabel(now);
+  if (remaining === 0) {
+    return `You've reached Charlie's limit for this month. It resets ${reset}.`;
+  }
+  if (remaining <= CHARLIE_REMAINING_NOTICE_AT) {
+    const noun = remaining === 1 ? "message" : "messages";
+    return `${remaining} ${noun} remaining until ${reset}.`;
+  }
+  if (used / limit >= CHARLIE_APPROACH_RATIO) {
+    const pct = Math.floor((used / limit) * 100);
+    return `You've used ${pct}% of Charlie this month. It resets ${reset}.`;
+  }
+  return null;
+}
 
 function startOfMonthIso(now = new Date()): string {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();

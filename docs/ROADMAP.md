@@ -249,3 +249,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 |---|---|
 | 2026-10-11 | Created. Folded [BUSINESS_PLAN.md](../BUSINESS_PLAN.md) and [BUSINESS_TODO.md](../BUSINESS_TODO.md). Phase 1b checklist moved to [qa/full-test-run.md](./qa/full-test-run.md). Stage: 0→1, pre-Stage I money model. |
 | 2026-10-12 | Phase 0 owner items confirmed: migrations 027/028 applied, live Stripe prices + env set, crons registered, Resend domain verified. Webhook endpoint still to confirm in Stripe. Phase 1A shipped (PR #13). |
+| 2026-11-08 | Owner: Progress Charlie allowance is 200 messages/month, sized to break even on the $8 founding price. Do not publish the number. In-chat notice only when approaching, then at the limit. |
