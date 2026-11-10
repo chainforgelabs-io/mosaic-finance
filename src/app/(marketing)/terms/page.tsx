@@ -22,7 +22,15 @@ export default function TermsPage() {
             Clear terms, no surprises.
           </h1>
           <p className="mt-4 font-body text-base leading-relaxed text-text-inverse/60">
-            Effective April 1, 2026 &middot; Last updated April 3, 2026
+            Effective November 10, 2026 &middot; Last updated November 10, 2026
+          </p>
+          <p className="mt-3">
+            <a
+              href="/terms/fr"
+              className="font-body text-sm text-emerald underline underline-offset-2 hover:text-emerald-dark"
+            >
+              Français
+            </a>
           </p>
         </div>
       </section>
@@ -81,8 +89,10 @@ export default function TermsPage() {
                 account credentials
               </li>
               <li>
-                You interact with Mosaic Finance using a self-chosen alias —
-                we do not require your legal name
+                You interact with Mosaic Finance using a self-chosen alias. We
+                do not ask you to type your legal name. If you sign in with
+                Google, Google may send a display name and photo to the login
+                system. We use that only to sign you in.
               </li>
               <li>
                 You agree to provide accurate financial information to the
@@ -90,18 +100,20 @@ export default function TermsPage() {
                 on the accuracy of your inputs
               </li>
               <li>
-                You may delete your account and all associated data at any
-                time from your settings page
+                You may delete your account from the settings page. If a paid
+                subscription is still active, cancel it in billing settings
+                first, or email us and we will cancel it. Details are in the
+                Privacy Policy.
               </li>
             </ul>
           </Block>
 
           <Block title="5. Privacy &amp; Data">
             <p>
-              We take your privacy seriously. We never collect your legal name,
-              Social Insurance Number, bank credentials, or government ID.
-              Your data is stored in Canada, encrypted, and never sold to third
-              parties.
+              We do not ask for your Social Insurance Number, bank login, or
+              government ID. Your account records are stored in Canada. Some
+              processing happens outside Canada, as the Privacy Policy
+              explains. We do not sell your information.
             </p>
             <p>
               For full details, see our{" "}
@@ -135,32 +147,76 @@ export default function TermsPage() {
                 based on the content of your Progress Report. Speak with a
                 licensed financial advisor before implementing any changes
               </li>
+              <li>
+                Charlie is included with Progress and during the trial. Fair
+                use applies so the service stays available. We do not publish a
+                message count. If you are close to the limit, Charlie says so
+                in the conversation. The limit resets at the start of the next
+                calendar month (UTC).
+              </li>
+              <li>
+                The Financial Health Score and the Progress Report are produced
+                automatically from what you enter. They do not approve or deny
+                credit, insurance, or an account. Questions about them go to{" "}
+                <a
+                  href="mailto:hello@mosaicfinance.ai"
+                  className="text-emerald underline underline-offset-2 hover:text-emerald-dark"
+                >
+                  hello@mosaicfinance.ai
+                </a>
+                .
+              </li>
             </ul>
           </Block>
 
           <Block title="7. Subscriptions &amp; Payment">
-            <ul>
-              <li>
-                Mosaic Finance offers free and paid subscription tiers, priced
-                in Canadian dollars (CAD)
-              </li>
-              <li>
-                Paid subscriptions are billed monthly or annually through
-                Stripe and auto-renew unless cancelled
-              </li>
-              <li>
-                You may cancel your subscription at any time; access continues
-                until the end of your current billing period
-              </li>
-              <li>
-                We reserve the right to change pricing with 30 days&rsquo;
-                notice to existing subscribers
-              </li>
-              <li>
-                We do not collect or store your payment card information —
-                all payment processing is handled by Stripe
-              </li>
-            </ul>
+            <p>
+              Prices are in Canadian dollars and are shown again at checkout
+              before you pay. Pulse is free. Progress is $17 a month or $170 a
+              year. Founding Progress, for the first 200 members, is $8 a month
+              or $80 a year. A founding price stays locked for as long as that
+              subscription continues. Mastery and Academy are not offered on
+              the public site.
+            </p>
+            <p>
+              A new account includes 7 days of Progress at no charge and
+              without a credit card. When those 7 days end, the account
+              continues on Pulse unless you subscribe. Pulse keeps tracking,
+              budgets, net worth, goals, and the live Financial Health Score.
+            </p>
+            <p>
+              Paid plans are billed monthly or annually through Stripe and
+              renew automatically for the same period unless you cancel before
+              the renewal date. You can cancel from billing settings. Access
+              continues until the end of the period already paid. We do not
+              store your card number. Stripe does.
+            </p>
+            <p>
+              The first payment on a new paid subscription is refundable for
+              30 days. Email{" "}
+              <a
+                href="mailto:hello@mosaicfinance.ai"
+                className="text-emerald underline underline-offset-2 hover:text-emerald-dark"
+              >
+                hello@mosaicfinance.ai
+              </a>
+              . No questions.
+            </p>
+            <p>
+              <strong>Consistency Guarantee.</strong> Log your spending each
+              week and complete your monthly net-worth snapshot for 90 days. If
+              your Financial Health Score hasn&rsquo;t improved by the end, we
+              refund your first payment. The Score measures tracking
+              consistency, not investment returns. The refund is the first
+              payment only: one month on a monthly plan, or the annual amount
+              on an annual plan. It is not conditioned on returns, savings, or
+              following any action list.
+            </p>
+            <p>
+              We may change list prices with 30 days&rsquo; notice by email. A
+              locked founding price does not change. Notice is not a price
+              increase for a period you have already paid.
+            </p>
           </Block>
 
           <Block title="8. Acceptable Use">
@@ -232,10 +288,13 @@ export default function TermsPage() {
 
           <Block title="12. Governing Law">
             <p>
-              These terms are governed by the laws of the Province of
-              Saskatchewan and the federal laws of Canada applicable therein.
-              Any disputes arising from these terms or the Service will be
-              resolved in the courts of Saskatchewan.
+              These terms are governed by the laws of Saskatchewan and the
+              federal laws of Canada. If you live in a province whose consumer
+              protection law gives you rights that cannot be waived, those
+              rights still apply, including any right to sue in your own
+              province. A consumer who lives in Quebec may bring a claim in
+              Quebec. Nothing here waives a right to participate in a class
+              action where the law does not allow that waiver.
             </p>
           </Block>
 

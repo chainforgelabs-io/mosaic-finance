@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy — Mosaic Finance",
   description:
-    "How Mosaic Finance protects your privacy. We never collect your legal name, SIN, bank credentials, or government ID.",
+    "How Mosaic Finance handles your information. We do not ask for your SIN, bank login, or government ID.",
 };
 
 export default function PrivacyPage() {
@@ -22,7 +22,15 @@ export default function PrivacyPage() {
             Your data stays yours.
           </h1>
           <p className="mt-4 font-body text-base leading-relaxed text-text-inverse/60">
-            Effective April 1, 2026 &middot; Last updated April 3, 2026
+            Effective November 10, 2026 &middot; Last updated November 10, 2026
+          </p>
+          <p className="mt-3">
+            <a
+              href="/privacy/fr"
+              className="font-body text-sm text-emerald underline underline-offset-2 hover:text-emerald-dark"
+            >
+              Français
+            </a>
           </p>
         </div>
       </section>
@@ -46,7 +54,13 @@ export default function PrivacyPage() {
               stored:
             </p>
             <ul>
-              <li>Your legal name or government-issued identification</li>
+              <li>
+                A legal name typed into Mosaic. If you sign in with Google,
+                Google may send a display name and photo to the login system.
+                We use that only to sign you in, and we do not put it on your
+                Progress Report.
+              </li>
+              <li>Government-issued identification</li>
               <li>Social Insurance Number (SIN)</li>
               <li>Bank account numbers, login credentials, or access tokens</li>
               <li>Credit card numbers (payments are processed securely by Stripe — we never see or store your card details)</li>
@@ -81,7 +95,16 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong>Account credentials:</strong> email address and
-                password (or Google OAuth) for authentication only
+                password, or Google sign-in, for authentication
+              </li>
+              <li>
+                <strong>What you track:</strong> transactions, budgets, goals,
+                net-worth snapshots, holdings, and uploaded statements or
+                receipts if you choose to upload them
+              </li>
+              <li>
+                <strong>The Score:</strong> your Financial Health Score and its
+                history, calculated from the information on file
               </li>
             </ul>
           </Block>
@@ -103,9 +126,9 @@ export default function PrivacyPage() {
           <Block title="Data Storage &amp; Security">
             <ul>
               <li>
-                All data is stored in Canada (Supabase hosted in{" "}
-                <code>ca-central-1</code>, Montreal) and served from Canadian
-                infrastructure (Vercel, Montreal region)
+                Account records are stored in Canada (Supabase in{" "}
+                <code>ca-central-1</code>, Montreal) and the app is served from
+                Canada (Vercel, Montreal)
               </li>
               <li>Data is encrypted in transit (TLS) and at rest</li>
               <li>
@@ -113,10 +136,15 @@ export default function PrivacyPage() {
                 policies — you can only access your own data
               </li>
               <li>
-                Payment processing is handled entirely by Stripe. We never
-                receive, process, or store your payment card information
+                We never receive or store your payment card number. Stripe does.
               </li>
             </ul>
+            <p>
+              Some service providers process information outside Canada. That
+              includes the contents of a Charlie conversation and the figures
+              needed to write a Progress Report, which are sent to Anthropic.
+              The companies and what they receive are listed below.
+            </p>
           </Block>
 
           <Block title="Third-Party Services">
@@ -127,27 +155,36 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li>
-                <strong>Supabase</strong> — authentication and database hosting
-                (Canada)
+                <strong>Supabase</strong> — authentication, database, and file
+                storage in Canada (AWS ca-central-1)
               </li>
               <li>
-                <strong>Anthropic (Claude)</strong> — AI Progress Report generation
-                (conversational data is sent for processing; not used to train
-                models)
+                <strong>Vercel</strong> — application hosting in Montreal
               </li>
               <li>
-                <strong>Stripe</strong> — payment processing (PCI-DSS
-                compliant; we never handle card data)
+                <strong>Anthropic (Claude)</strong> — in the United States.
+                Conversations and the financial figures needed for a Progress
+                Report or a Charlie reply are sent for processing. We do not
+                permit that content to be used to train Anthropic&rsquo;s
+                models.
               </li>
               <li>
-                <strong>Resend</strong> — transactional email delivery
+                <strong>Stripe</strong> — in the United States. Payment
+                processing and invoices. We never handle the card number.
               </li>
               <li>
-                <strong>Vercel</strong> — application hosting (Montreal region)
+                <strong>Resend</strong> — in the United States. Email we send
+                you, including the address it goes to.
               </li>
               <li>
-                <strong>Sentry</strong> — error monitoring (no personal
-                financial data is sent; only technical error context)
+                <strong>Sentry</strong> — in the United States. Error reports,
+                and a sample of session replays used to diagnose failures. Page
+                text is masked. We do not intentionally send dollar amounts,
+                account numbers, or chat content.
+              </li>
+              <li>
+                <strong>Upstash</strong> — rate-limit counters. Not your
+                financial profile or chat.
               </li>
             </ul>
             <p>
@@ -160,24 +197,72 @@ export default function PrivacyPage() {
             <p>You have the right to:</p>
             <ul>
               <li>
-                <strong>Export your data</strong> — request a full copy of all
-                data we hold about you
+                <strong>Access and export</strong> — download a JSON file from
+                Settings with your profile, tracked finances, conversations,
+                and Progress Reports. For a copy of an uploaded statement file,
+                email us.
               </li>
               <li>
-                <strong>Delete your data</strong> — permanently delete your
-                account and all associated data at any time from your settings
-                page
+                <strong>Correction</strong> — edit what you entered, or email us
+                and we will correct it
+              </li>
+              <li>
+                <strong>Delete</strong> — delete the account from Settings. That
+                removes the Mosaic account, the records listed in the export,
+                and uploaded files we store for you. If a paid subscription is
+                still active, cancel it in billing settings first, or email us
+                and we will cancel it. Stripe may keep invoices as the payment
+                record.
               </li>
               <li>
                 <strong>Withdraw consent</strong> — stop using the service and
-                request deletion at any time
+                ask us to delete the account
               </li>
               <li>
-                <strong>Opt out of communications</strong> — manage your
-                notification preferences in settings or unsubscribe from any
-                email
+                <strong>Marketing email</strong> — separate from receipts and
+                service email. Unsubscribe in the message or in settings.
+              </li>
+              <li>
+                <strong>A complaint</strong> — write to us first. You may also
+                contact the Office of the Privacy Commissioner of Canada. If
+                you live in Quebec, you may contact the Commission
+                d&rsquo;accès à l&rsquo;information du Québec.
               </li>
             </ul>
+          </Block>
+
+          <Block title="Automated results">
+            <p>
+              The Financial Health Score and the Progress Report are produced
+              automatically from information you provide and from what you
+              track. They are educational. They do not approve or deny credit,
+              insurance, coverage, or an account. To ask about a result, email{" "}
+              <a
+                href="mailto:hello@mosaicfinance.ai"
+                className="text-emerald underline underline-offset-2 hover:text-emerald-dark"
+              >
+                hello@mosaicfinance.ai
+              </a>
+              .
+            </p>
+          </Block>
+
+          <Block title="How long we keep information">
+            <ul>
+              <li>Account information: until you delete the account, or until we delete it at your request</li>
+              <li>Waitlist email: until you unsubscribe or ask us to delete it</li>
+              <li>Payment invoices: kept by Stripe as the billing record</li>
+              <li>Charlie usage counts (tokens and message counts, not the text): deleted with the account</li>
+            </ul>
+          </Block>
+
+          <Block title="If something goes wrong">
+            <p>
+              If a breach creates a real risk of significant harm, we will
+              notify the people affected and the Office of the Privacy
+              Commissioner of Canada, and the Quebec commission when Quebec law
+              requires it. We keep a record of confidentiality incidents.
+            </p>
           </Block>
 
           <Block title="Cookies &amp; Analytics">
@@ -190,8 +275,9 @@ export default function PrivacyPage() {
 
           <Block title="Children&rsquo;s Privacy">
             <p>
-              Mosaic Finance is not intended for individuals under the age of
-              18. We do not knowingly collect data from minors.
+              Mosaic Finance is for adults 18 and over. We do not knowingly
+              collect information from anyone under 18. A parent who believes
+              a child has created an account can email us and we will delete it.
             </p>
           </Block>
 
@@ -214,6 +300,10 @@ export default function PrivacyPage() {
                 hello@mosaicfinance.ai
               </a>
               .
+            </p>
+            <p className="mt-3">
+              The person in charge of the protection of personal information
+              is the operator of Mosaic Finance, at the same address.
             </p>
             <p className="mt-2 text-text-muted">
               ChainForge Labs &middot; Saskatoon, Saskatchewan, Canada
