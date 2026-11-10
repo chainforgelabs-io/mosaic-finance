@@ -78,8 +78,10 @@ export function ProblemSection() {
           Spending lives in your head, balances live in six apps, and nobody
           tells you the direction. Without that weekly picture, it is hard to
           know if you are paying down debt, building savings, or drifting.
-          Mosaic is a tracker and education tool — not a substitute for a
-          licensed advisor.
+          Mosaic is a smart tracker for cash flow and net worth — your
+          personal financial operating system for what you spend, what you
+          own, and what you owe. It is an education tool, not a substitute
+          for a licensed advisor.
         </p>
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

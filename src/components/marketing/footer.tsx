@@ -40,9 +40,10 @@ export function Footer() {
 
         <div className="mt-8 border-t border-white/[0.06] pt-6">
           <p className="mx-auto max-w-[900px] text-center font-body text-[11px] leading-relaxed text-text-muted">
-            Mosaic Finance is a financial tracking and education tool. This is
-            educational information, not financial advice. Speak with a licensed
-            financial advisor before implementing any changes.
+            Mosaic Finance is a smart tracker for cash flow and net worth, and
+            an education tool. This is educational information, not financial
+            advice. Speak with a licensed financial advisor before implementing
+            any changes.
           </p>
           <p className="mt-4 text-center">
             <a

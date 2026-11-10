@@ -4,7 +4,13 @@ import { useEffect, useRef } from "react";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
 import { isLaunchLive } from "@/lib/config/launch";
 import { TRIAL_COPY } from "@/lib/config/launch-surface";
-import { GUARANTEE_NAME, GUARANTEE_SHORT, OFFER_NAME, OUTCOME_HEADLINE } from "@/lib/config/offer";
+import {
+  GUARANTEE_NAME,
+  GUARANTEE_SHORT,
+  OFFER_NAME,
+  OUTCOME_HEADLINE,
+  PRODUCT_LINE,
+} from "@/lib/config/offer";
 import Link from "next/link";
 
 export function Hero() {
@@ -63,8 +69,8 @@ export function Hero() {
           data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          Log weekly. Snapshot monthly. Your Financial Health Score shows the
-          direction — educational, not advice.
+          {PRODUCT_LINE} Log weekly. Snapshot monthly. Your Financial Health
+          Score shows the direction — educational, not advice.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">

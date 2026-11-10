@@ -50,3 +50,16 @@ export const OFFER_BONUSES = [
 
 export const OFFER_FOOTNOTE =
   "Educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.";
+
+/** Category line for marketing. Tracking and education, not advice. */
+export const PRODUCT_LINE =
+  "A smart tracker: AI-powered cash flow and net worth for Canadians.";
+
+/**
+ * While every founding seat is still open, do not print "200 of 200".
+ * A lower remaining count is the live counter.
+ */
+export function foundingAvailabilityLabel(remaining: number, cap: number): string {
+  if (cap > 0 && remaining >= cap) return `Only ${cap} available`;
+  return `${remaining} of ${cap} founding spots left`;
+}

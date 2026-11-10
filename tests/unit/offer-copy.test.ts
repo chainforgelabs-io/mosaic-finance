@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  foundingAvailabilityLabel,
   GUARANTEE_ACTIONS,
   GUARANTEE_LONG,
   GUARANTEE_SHORT,
@@ -65,5 +66,15 @@ describe("offer copy compliance", () => {
     const founding = OFFER_BONUSES.find((b) => b.title.includes("Founding"));
     expect(founding?.desc).toContain("$8/mo");
     expect(founding?.desc).toContain("$80/yr");
+  });
+});
+
+describe("foundingAvailabilityLabel", () => {
+  it("hides the full fraction while every seat is still open", () => {
+    expect(foundingAvailabilityLabel(200, 200)).toBe("Only 200 available");
+  });
+
+  it("shows a live count once a seat is claimed", () => {
+    expect(foundingAvailabilityLabel(199, 200)).toBe("199 of 200 founding spots left");
   });
 });

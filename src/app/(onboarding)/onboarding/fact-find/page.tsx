@@ -93,10 +93,11 @@ function ComplianceCard({ onDismiss }: { onDismiss: () => void }) {
               Before we begin
             </h3>
             <p className="mt-1.5 font-body text-[14px] leading-relaxed text-[var(--text-secondary)]">
-              Mosaic Finance is a financial tracking and education tool, not a licensed
-              financial advisor. Charlie helps you understand your finances. This is
-              educational information, not financial advice. Speak with a licensed
-              financial advisor before implementing any changes.
+              Mosaic Finance is a smart tracker for cash flow and net worth, and
+              an education tool, not a licensed financial advisor. Charlie helps
+              you understand your finances. This is educational information, not
+              financial advice. Speak with a licensed financial advisor before
+              implementing any changes.
             </p>
           </div>
         </div>

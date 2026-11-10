@@ -10,7 +10,7 @@ import { GUARANTEE_LONG, GUARANTEE_NAME } from "@/lib/config/offer";
 const ITEMS = [
   {
     q: "Is this financial advice?",
-    a: "No. Mosaic is a financial tracking and education tool. Charlie is your AI money guide. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
+    a: "No. Mosaic is a smart tracker: an AI-powered cash flow and net worth tracker, plus education. Charlie is your AI money guide. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.",
   },
   {
     q: `How does the ${GUARANTEE_NAME} work?`,

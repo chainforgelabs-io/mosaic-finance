@@ -14,7 +14,12 @@ import {
 } from "@/lib/config/pricing";
 import { isLaunchLive } from "@/lib/config/launch";
 import { MASTERY_PUBLIC, PUBLIC_TIERS, TRIAL_COPY } from "@/lib/config/launch-surface";
-import { GUARANTEE_NAME, GUARANTEE_SHORT, REFUND_WINDOW_COPY } from "@/lib/config/offer";
+import {
+  foundingAvailabilityLabel,
+  GUARANTEE_NAME,
+  GUARANTEE_SHORT,
+  REFUND_WINDOW_COPY,
+} from "@/lib/config/offer";
 import type { Tier } from "@/types";
 
 const ALL_TIERS: {
@@ -137,7 +142,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
           </div>
           {founding.open && (
             <p className="shrink-0 rounded-full bg-slate-950 px-4 py-2 text-center font-display text-xs font-semibold text-white">
-              {founding.remaining} of {founding.cap} founding spots left
+              {foundingAvailabilityLabel(founding.remaining, founding.cap)}
             </p>
           )}
         </div>

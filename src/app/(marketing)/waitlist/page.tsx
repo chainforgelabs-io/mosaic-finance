@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { WaitlistPage } from "@/components/marketing/waitlist-page";
 
 export const metadata: Metadata = {
-  title: "Free guide + early access — Mosaic Finance",
+  title: "Smart tracker — Mosaic Finance",
   description:
-    "Still guessing RRSP vs TFSA vs FHSA? Get a free field guide on how the accounts differ, plus early access to gamified financial tracking for Canadians.",
+    "An AI-powered cash flow and net worth tracker. Join the waitlist for early access and a free guide on RRSP, TFSA, and FHSA. Educational information, not financial advice.",
 };
 
 export default function WaitlistRoute() {

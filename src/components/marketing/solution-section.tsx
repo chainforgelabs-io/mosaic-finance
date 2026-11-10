@@ -72,11 +72,20 @@ export function SolutionSection() {
         </p>
         <h2
           data-animate
-          className="mb-16 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
+          className="mb-4 font-display text-[28px] font-bold leading-tight text-text-primary sm:text-[38px]"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
           A weekly loop. Not a one-time document.
         </h2>
+        <p
+          data-animate
+          className="mb-16 max-w-2xl font-body text-[17px] leading-relaxed text-text-secondary"
+          style={{ opacity: 0, transform: "translateY(16px)" }}
+        >
+          Mosaic is a smart tracker: cash flow, budgets, net worth, and one
+          Financial Health Score. On Progress, Charlie explains the picture.
+          Educational information, not financial advice.
+        </p>
 
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
           {/* Timeline */}

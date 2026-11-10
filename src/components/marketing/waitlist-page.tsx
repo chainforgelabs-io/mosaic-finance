@@ -4,7 +4,25 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
-import { isLaunchLive } from "@/lib/config/launch";
+
+const TRACKER_ITEMS = [
+  {
+    title: "Cash flow",
+    desc: "Log spending and set budgets. See the week without connecting a bank.",
+  },
+  {
+    title: "Net worth",
+    desc: "Record what you own and what you owe, then snapshot it once a month.",
+  },
+  {
+    title: "One Financial Health Score",
+    desc: "The Score follows those logs. It measures tracking consistency, not investment returns.",
+  },
+  {
+    title: "Charlie on Progress",
+    desc: "Charlie, your AI money guide, and a Progress Report explain the picture in plain language. Educational information, not advice.",
+  },
+];
 
 const GUIDE_ITEMS = [
   {
@@ -22,10 +40,10 @@ const GUIDE_ITEMS = [
 ];
 
 const TRUST_CHIPS = [
+  "Smart tracker",
+  "Cash flow and net worth",
   "Canadian-specific",
-  "Education-first",
   "Privacy-first",
-  isLaunchLive() ? "Founding Progress $8/mo" : "$17/mo at launch",
 ];
 
 function GuideLeadForm() {
@@ -103,7 +121,7 @@ function GuideLeadForm() {
               Sending…
             </>
           ) : (
-            "Get the free guide"
+            "Join the waitlist"
           )}
         </button>
       </form>
@@ -133,21 +151,23 @@ export function WaitlistPage() {
       >
         <div className="mx-auto max-w-[720px] text-center">
           <p className="mb-4 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
-            Free guide + early access
+            Smart tracker for Canadians
           </p>
           <h1 className="mb-6 font-display text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em] text-white sm:text-[40px] lg:text-[44px]">
-            Still guessing whether to use your RRSP, TFSA, or FHSA?
+            An AI-powered cash flow and net worth tracker
           </h1>
           <p className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-slate-400 sm:text-lg">
-            Get a plain-language primer on how these accounts differ — free,
-            instantly — plus early access to Mosaic when we launch. Educational
+            Mosaic is a smart tracker — a personal financial operating system
+            for what you spend, what you own, and what you owe. One Financial
+            Health Score shows whether the week moved the right way. Join the
+            waitlist and get a free guide on RRSP, TFSA, and FHSA. Educational
             information, not financial advice.
           </p>
           <div className="flex justify-center">
             <GuideLeadForm />
           </div>
           <p className="mt-6 font-body text-[13px] text-slate-500">
-            Instant PDF delivery · No credit card · Unsubscribe anytime
+            Includes the free account guide · No credit card · Unsubscribe anytime
           </p>
         </div>
       </section>
@@ -156,10 +176,10 @@ export function WaitlistPage() {
       <section className="border-t border-white/[0.06] px-6 py-12 sm:py-16">
         <div className="mx-auto max-w-[640px] rounded-2xl border border-white/[0.08] bg-slate-900/50 px-6 py-8 sm:px-8 sm:py-10">
           <p className="mb-6 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
-            Inside the guide
+            What the tracker does
           </p>
           <ul className="space-y-6">
-            {GUIDE_ITEMS.map((item) => (
+            {TRACKER_ITEMS.map((item) => (
               <li key={item.title} className="flex gap-3">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald" aria-hidden />
                 <div>
@@ -176,22 +196,29 @@ export function WaitlistPage() {
         </div>
       </section>
 
-      {/* Early access */}
       <section className="border-t border-white/[0.06] px-6 py-16 sm:py-20">
-        <div className="mx-auto max-w-[720px] text-center">
-          <p className="mb-4 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
-            What you&apos;re getting early access to
+        <div className="mx-auto max-w-[720px]">
+          <p className="mb-4 text-center font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
+            Free with the waitlist
           </p>
-          <h2 className="mb-6 font-display text-[26px] font-bold leading-tight text-white sm:text-[32px]">
-            AI-powered financial tracking for Canadians
+          <h2 className="mb-8 text-center font-display text-[26px] font-bold leading-tight text-white sm:text-[32px]">
+            A plain-language guide to RRSP, TFSA, and FHSA
           </h2>
-          <p className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-slate-400">
-            Mosaic is a net worth dashboard and Progress Report — investment
-            education, tax context, retirement trajectory — through a
-            conversation, not a form. Educational information, not financial
-            advice. Speak with a licensed financial advisor before implementing
-            any changes.
-          </p>
+          <ul className="mx-auto mb-10 max-w-[640px] space-y-6">
+            {GUIDE_ITEMS.map((item) => (
+              <li key={item.title} className="flex gap-3">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald" aria-hidden />
+                <div>
+                  <p className="font-display text-[15px] font-semibold text-white sm:text-base">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 font-body text-sm leading-relaxed text-slate-400">
+                    {item.desc}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
           <div className="mb-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {TRUST_CHIPS.map((label) => (
               <span
@@ -207,8 +234,10 @@ export function WaitlistPage() {
               <span className="font-display font-semibold text-emerald">
                 Founding members
               </span>{" "}
-              get locked-in pricing when we launch. The waitlist is how you get
-              in first.
+              get locked-in pricing when we launch. Only 200 available. The
+              waitlist is how you get in first. Educational information, not
+              financial advice. Speak with a licensed financial advisor before
+              implementing any changes.
             </p>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 const ROWS = [
   {
     title: "Not a robo-advisor",
-    body: "Robo-advisors park your money passively. Mosaic is a tracking dashboard that helps you understand your whole financial picture.",
+    body: "Robo-advisors park your money passively. Mosaic is a smart tracker for cash flow and net worth. It helps you see the whole picture. It does not manage your money.",
   },
   {
     title: "Not a calculator",
@@ -13,7 +13,7 @@ const ROWS = [
   },
   {
     title: "Not financial advice",
-    body: "Mosaic is a tracking and education tool. Charlie teaches you about your options — it is not licensed advice. Speak with a licensed financial advisor before implementing any changes.",
+    body: "Mosaic is a smart tracker and an education tool. Charlie teaches you about your options — it is not licensed advice. Speak with a licensed financial advisor before implementing any changes.",
   },
   {
     title: "Works alongside your advisor",

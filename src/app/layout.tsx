@@ -28,16 +28,16 @@ const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mosaicfinance.ai";
 
 export const metadata: Metadata = {
   metadataBase: new URL(appUrl),
-  title: "Mosaic Finance — Your money, in one weekly score",
+  title: "Mosaic Finance — The smart tracker for cash flow and net worth",
   description:
-    "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Free tracking for Canadians. Educational information, not financial advice.",
+    "An AI-powered cash flow and net worth tracker. Log spending, snapshot what you own and what you owe, and follow one Financial Health Score. Educational information, not financial advice.",
   alternates: {
     canonical: appUrl,
   },
   openGraph: {
-    title: "Mosaic Finance — Your money, in one weekly score",
+    title: "Mosaic Finance — The smart tracker for cash flow and net worth",
     description:
-      "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Educational information, not financial advice.",
+      "An AI-powered cash flow and net worth tracker. Log spending, snapshot what you own and what you owe, and follow one Financial Health Score. Educational information, not financial advice.",
     url: appUrl,
     siteName: "Mosaic Finance",
     locale: "en_CA",
@@ -51,9 +51,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Mosaic Finance — Your money, in one weekly score",
+    title: "Mosaic Finance — The smart tracker for cash flow and net worth",
     description:
-      "Log weekly. Snapshot monthly. Your Financial Health Score shows the direction. Educational information, not financial advice.",
+      "An AI-powered cash flow and net worth tracker. Log spending, snapshot what you own and what you owe, and follow one Financial Health Score. Educational information, not financial advice.",
     images: ["/logos/MosaicEmblemLogo.png"],
   },
   manifest: "/manifest.webmanifest",
