@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { resolveFactFindCashFlow } from '@/lib/tracking/fact-find-cash-flow';
+import { seedFactFindCashFlow } from '@/lib/tracking/seed-fact-find-cash-flow';
 import { upsertGoalsFromExtracted } from '@/lib/tracking/sync-goals';
 
 function optionalNumber(value: unknown): number | undefined {
@@ -58,6 +60,12 @@ function sanitizeFactFindBody(raw: unknown): unknown {
     });
   }
 
+  const trustLines = Array.isArray(body.cash_flow_lines);
+  const picture = resolveFactFindCashFlow(body, { trustLines });
+  body.cash_flow_lines = picture.lines;
+  if (picture.monthly_expenses != null) body.monthly_expenses = picture.monthly_expenses;
+  if (picture.monthly_savings != null) body.monthly_savings = picture.monthly_savings;
+
   return body;
 }
 
@@ -77,6 +85,13 @@ const GoalSchema = z.object({
   priority: z.string().optional(),
 });
 
+const CashFlowLineSchema = z.object({
+  kind: z.enum(["income", "expense", "savings"]),
+  category: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+  label: z.string().trim().min(1).max(60),
+  monthly_amount: z.number().positive(),
+});
+
 const BodySchema = z.object({
   annual_income: z.number().optional(),
   household_total_income: z.number().optional(),
@@ -86,6 +101,7 @@ const BodySchema = z.object({
   retirement_target_age: z.number().optional(),
   debts: z.array(DebtSchema).optional(),
   goals: z.array(GoalSchema).optional(),
+  cash_flow_lines: z.array(CashFlowLineSchema).max(80).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -184,6 +200,12 @@ export async function POST(req: NextRequest) {
       'fact_find',
       d.retirement_target_age ?? null,
     );
+  }
+
+  const seeded = await seedFactFindCashFlow(supabase, user.id, d.cash_flow_lines ?? []);
+  if (!seeded.ok) {
+    console.error('[financial-profile] cash-flow seed failed', seeded.error);
+    return NextResponse.json({ error: seeded.error }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

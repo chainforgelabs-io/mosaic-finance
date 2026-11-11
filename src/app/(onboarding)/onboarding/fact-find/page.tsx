@@ -24,6 +24,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { shouldExcludeFromInvestmentHoldings } from "@/lib/schemas/holdings";
 import { cashValueAssetsFromFactFind } from "@/lib/assets/life-insurance-cash-value";
+import { CATEGORY_KIND_LABELS, type CategoryKind } from "@/lib/tracking/categories";
+import { resolveFactFindCashFlow, type CashFlowLine } from "@/lib/tracking/fact-find-cash-flow";
 
 
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
@@ -222,24 +224,104 @@ function formatSummaryAsBullets(summary: Record<string, unknown>): string[] {
   return bullets;
 }
 
+function CashFlowReport({
+  lines,
+  onChange,
+}: {
+  lines: CashFlowLine[];
+  onChange: (lines: CashFlowLine[]) => void;
+}) {
+  const kinds: CategoryKind[] = ["income", "expense", "savings"];
+  return (
+    <div className="mb-6 space-y-4">
+      <div>
+        <h4 className="font-display text-[15px] font-semibold text-[var(--text-primary)]">
+          Your monthly picture, from what you told Charlie
+        </h4>
+        <p className="mt-1 font-body text-[13px] leading-relaxed text-[var(--text-secondary)]">
+          These amounts fill Cash Flow. Change a number if it is off. You can add a category
+          later when a new one shows up.
+        </p>
+      </div>
+      {kinds.map((kind) => {
+        const group = lines.filter((line) => line.kind === kind);
+        if (group.length === 0) return null;
+        const total = group.reduce((sum, line) => sum + (Number(line.monthly_amount) || 0), 0);
+        return (
+          <div key={kind}>
+            <div className="mb-2 flex items-baseline justify-between gap-3">
+              <h5 className="font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                {CATEGORY_KIND_LABELS[kind]}
+              </h5>
+              <span className="font-body text-[13px] font-semibold tabular-nums text-[var(--text-primary)]">
+                ${Math.round(total).toLocaleString("en-CA")}/mo
+              </span>
+            </div>
+            <ul className="space-y-2">
+              {group.map((line) => (
+                <li key={`${line.kind}-${line.category}`} className="flex items-center justify-between gap-3">
+                  <label
+                    htmlFor={`cf-${line.kind}-${line.category}`}
+                    className="font-body text-[14px] text-[var(--text-primary)]"
+                  >
+                    {line.label}
+                  </label>
+                  <input
+                    id={`cf-${line.kind}-${line.category}`}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="1"
+                    value={line.monthly_amount === 0 ? "" : line.monthly_amount}
+                    onChange={(event) => {
+                      const raw = event.target.value;
+                      const amount = raw.trim() === "" ? 0 : Number(raw);
+                      onChange(
+                        lines.map((row) =>
+                          row.kind === line.kind && row.category === line.category
+                            ? {
+                                ...row,
+                                monthly_amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+                              }
+                            : row,
+                        ),
+                      );
+                    }}
+                    className="w-28 rounded-lg border border-[var(--warm-200)] px-3 py-1.5 text-right font-body text-[14px] tabular-nums text-[var(--text-primary)]"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function SummaryCard({
   summary,
   onConfirm,
   onCorrect,
   isSubmitting,
+  submitError,
 }: {
   summary: Record<string, unknown>;
-  onConfirm: () => void;
+  onConfirm: (lines: CashFlowLine[]) => void;
   onCorrect: () => void;
   isSubmitting: boolean;
+  submitError: string | null;
 }) {
+  const [lines, setLines] = useState(() => resolveFactFindCashFlow(summary).lines);
   const formatValue = (value: unknown): string => {
     if (Array.isArray(value)) return value.join(", ");
     if (typeof value === "object" && value !== null) return JSON.stringify(value);
     return String(value ?? "—");
   };
 
-  const bullets = formatSummaryAsBullets(summary);
+  const bullets = formatSummaryAsBullets(summary).filter(
+    (line) => lines.length === 0 || !line.startsWith("**Monthly:**"),
+  );
   const displayFields: { key: string; label: string }[] = [
     { key: "annual_income", label: "Annual Income" },
     { key: "monthly_expenses", label: "Monthly Expenses" },
@@ -280,6 +362,7 @@ function SummaryCard({
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         {displayFields.map(({ key, label }) => {
+          if (lines.length > 0 && (key === "monthly_expenses")) return null;
           const value = summary[key];
           if (value === undefined || value === null) return null;
           return (
@@ -298,9 +381,15 @@ function SummaryCard({
         })}
       </div>
 
+      {lines.length > 0 && <CashFlowReport lines={lines} onChange={setLines} />}
+
+      {submitError && (
+        <p className="mb-3 font-body text-sm text-[var(--error)]">{submitError}</p>
+      )}
+
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
-          onClick={onConfirm}
+          onClick={() => onConfirm(lines.filter((line) => line.monthly_amount > 0))}
           disabled={isSubmitting}
           className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-60"
         >
@@ -352,6 +441,7 @@ function FactFindConversation() {
   const [inputValue, setInputValue] = useState("");
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isPreparingAssessment, setIsPreparingAssessment] = useState(false);
@@ -690,11 +780,13 @@ function FactFindConversation() {
     fitCharlieInput(e.target, 120);
   };
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (confirmedLines: CashFlowLine[]) => {
     setIsSubmitting(true);
+    setSubmitError(null);
 
     if (summaryData && typeof summaryData === "object") {
       const data = summaryData as Record<string, unknown>;
+      data.cash_flow_lines = confirmedLines;
 
       if (Array.isArray(data.investment_accounts)) {
         type InvAcc = {
@@ -823,10 +915,15 @@ function FactFindConversation() {
           body: JSON.stringify(data),
         });
         if (!res.ok) {
-          console.warn("[fact-find] Failed to persist financial profile");
+          setSubmitError("Could not save your monthly picture. Try again.");
+          setIsSubmitting(false);
+          return;
         }
       } catch (e) {
         console.warn("[fact-find] financial-profile request failed", e);
+        setSubmitError("Could not save your monthly picture. Try again.");
+        setIsSubmitting(false);
+        return;
       }
     }
 
@@ -930,9 +1027,10 @@ function FactFindConversation() {
                     {sessionComplete && summaryData && (
                       <SummaryCard
                         summary={summaryData as unknown as Record<string, unknown>}
-                        onConfirm={handleConfirm}
+                        onConfirm={(lines) => void handleConfirm(lines)}
                         onCorrect={handleCorrect}
                         isSubmitting={isSubmitting}
+                        submitError={submitError}
                       />
                     )}
 
