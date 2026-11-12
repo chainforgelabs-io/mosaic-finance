@@ -40,7 +40,7 @@ export default function FhsaCalculatorPage({ embedded = false }: { embedded?: bo
   });
 
   return (
-    <CalculatorShell embedded={embedded} title="FHSA contribution room">
+    <CalculatorShell embedded={embedded} source="calculator-fhsa" title="FHSA contribution room">
       <div className="space-y-5">
         <CalculatorNumberField label="Age" value={age} onValue={setAge} />
         <label className="flex items-start gap-3 font-body text-sm leading-snug text-text-secondary">

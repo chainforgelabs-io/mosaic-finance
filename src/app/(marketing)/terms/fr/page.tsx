@@ -189,8 +189,8 @@ export default function TermsFrPage() {
               <strong>Garantie de constance.</strong> Inscrivez vos dépenses
               chaque semaine et faites votre portrait de valeur nette chaque
               mois pendant 90 jours. Si votre pointage de santé financière
-              ne s&rsquo;est pas amélioré à la fin, nous remboursons votre
-              premier paiement. Le pointage mesure la constance du suivi, pas
+              ne s&rsquo;est pas amélioré à la fin, nous remboursons ce
+              premier prélèvement, mensuel ou annuel. Le pointage mesure la constance du suivi, pas
               le rendement des placements. Le remboursement vise seulement le
               premier paiement : un mois sur un forfait mensuel, ou le montant
               annuel sur un forfait annuel. Il ne dépend pas des rendements, de

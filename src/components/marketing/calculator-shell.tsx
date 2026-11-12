@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { EmailGuideForm } from "@/components/marketing/email-guide-form";
 import { isLaunchLive } from "@/lib/config/launch";
 
 export function CalculatorShell({
   title,
   children,
+  source,
   embedded = false,
 }: {
   title: string;
   children: React.ReactNode;
+  source: string;
   embedded?: boolean;
 }) {
   const cta = isLaunchLive() ? "/signup" : "/waitlist";
@@ -24,6 +27,7 @@ export function CalculatorShell({
           Educational estimates using published CRA-style limits. Not tax advice.
         </p>
         <div className="mt-8">{children}</div>
+        <EmailGuideForm source={source} />
       </div>
     );
   }
@@ -39,6 +43,7 @@ export function CalculatorShell({
           Educational estimates using published CRA-style limits. Not tax advice.
         </p>
         <div className="mt-8">{children}</div>
+        <EmailGuideForm source={source} />
         <div className="mt-10 rounded-xl border border-warm-200 bg-warm-50 p-6">
           <p className="font-display text-sm font-semibold">Want this against your numbers?</p>
           <p className="mt-1 font-body text-sm text-text-secondary">

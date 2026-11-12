@@ -243,7 +243,7 @@ function guaranteeProgress(guarantee: {
   } else if (guarantee.scoreDelta === 0) {
     score = " The Financial Health Score is unchanged in this window.";
   }
-  const refund = guarantee.eligible ? " You can request a refund of the first payment." : "";
+  const refund = guarantee.eligible ? " You can request a refund of that first charge." : "";
   return `You have logged ${weeks} of the 13 weeks. ${snapshots}${score}${refund}`;
 }
 

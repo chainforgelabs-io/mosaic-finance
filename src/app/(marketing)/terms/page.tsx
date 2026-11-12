@@ -206,7 +206,7 @@ export default function TermsPage() {
               <strong>Consistency Guarantee.</strong> Log your spending each
               week and complete your monthly net-worth snapshot for 90 days. If
               your Financial Health Score hasn&rsquo;t improved by the end, we
-              refund your first payment. The Score measures tracking
+              refund that first charge, monthly or annual. The Score measures tracking
               consistency, not investment returns. The refund is the first
               payment only: one month on a monthly plan, or the annual amount
               on an annual plan. It is not conditioned on returns, savings, or

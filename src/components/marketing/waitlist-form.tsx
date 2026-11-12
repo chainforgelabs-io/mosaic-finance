@@ -4,6 +4,8 @@ import { useState, type FormEvent } from "react";
 import { PROVINCES } from "@/lib/constants/provinces";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import { NotesOptIn } from "@/components/marketing/notes-opt-in";
+import { waitlistSource } from "@/lib/marketing/waitlist-source";
 
 export type WaitlistFormVariant = "hero" | "section" | "page";
 
@@ -21,6 +23,7 @@ export function WaitlistForm({
 }) {
   const [email, setEmail] = useState("");
   const [province, setProvince] = useState("");
+  const [notes, setNotes] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "duplicate" | "error"
   >("idle");
@@ -37,8 +40,8 @@ export function WaitlistForm({
         body: JSON.stringify({
           email,
           province: province || undefined,
-          source,
-          newsletter_opt_in: true,
+          source: waitlistSource(source, new URLSearchParams(window.location.search).get("utm_source")),
+          newsletter_opt_in: notes,
         }),
       });
       const data = (await res.json()) as {
@@ -151,6 +154,14 @@ export function WaitlistForm({
               "Join the waitlist"
             )}
         </button>
+        <div className="sm:col-span-2">
+          <NotesOptIn
+            id={`waitlist-notes-${source}`}
+            checked={notes}
+            onChange={setNotes}
+            tone="dark"
+          />
+        </div>
       </form>
 
       {status === "error" && errorMessage && (

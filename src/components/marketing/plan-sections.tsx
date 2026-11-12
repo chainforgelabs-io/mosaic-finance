@@ -8,7 +8,6 @@ import {
   DollarSign,
   Building,
   Shield,
-  Newspaper,
   Map,
 } from "lucide-react";
 
@@ -42,11 +41,6 @@ const SECTIONS = [
     icon: Shield,
     title: "Coverage Snapshot",
     desc: "A checklist of common protection types to review with a licensed advisor — not a product recommendation.",
-  },
-  {
-    icon: Newspaper,
-    title: "Market Context",
-    desc: "Weekly macro commentary to help you understand the news — educational, not a prediction or trade idea.",
   },
   {
     icon: Map,

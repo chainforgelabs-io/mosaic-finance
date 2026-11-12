@@ -51,6 +51,7 @@ describe("offer copy compliance", () => {
       expect(text).toMatch(/snapshot/i);
       expect(text).toMatch(/90 days/);
       expect(text).toMatch(/Financial Health Score/);
+      expect(text).toMatch(/that first charge, monthly or annual/);
     }
   });
 
@@ -70,11 +71,14 @@ describe("offer copy compliance", () => {
 });
 
 describe("foundingAvailabilityLabel", () => {
-  it("hides the full fraction while every seat is still open", () => {
+  it("hides the fraction until 100 spots are claimed", () => {
     expect(foundingAvailabilityLabel(200, 200)).toBe("Only 200 available");
+    expect(foundingAvailabilityLabel(199, 200)).toBe("Only 200 available");
+    expect(foundingAvailabilityLabel(101, 200)).toBe("Only 200 available");
   });
 
-  it("shows a live count once a seat is claimed", () => {
-    expect(foundingAvailabilityLabel(199, 200)).toBe("199 of 200 founding spots left");
+  it("shows spots left once 100 seats are claimed", () => {
+    expect(foundingAvailabilityLabel(100, 200)).toBe("100 of 200 founding spots left");
+    expect(foundingAvailabilityLabel(85, 200)).toBe("85 of 200 founding spots left");
   });
 });

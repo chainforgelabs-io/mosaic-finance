@@ -101,7 +101,7 @@ export function Nav({
                   href={startHref}
                   className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
                 >
-                  {isLaunchLive() ? "Start free" : "Get Started"}
+                  {isLaunchLive() ? "Start free" : "Join the waitlist"}
                 </a>
               </>
             )}
@@ -115,7 +115,7 @@ export function Nav({
               href={startHref}
               className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-emerald px-3.5 py-2 font-display text-xs font-semibold leading-none text-white"
             >
-              {isLaunchLive() ? "Start free" : "Get Started"}
+              {isLaunchLive() ? "Start free" : "Join the waitlist"}
             </a>
             <button
               type="button"

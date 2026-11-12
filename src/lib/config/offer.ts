@@ -18,11 +18,11 @@ export const GUARANTEE_NAME = "Consistency Guarantee";
 
 /** One sentence. Safe to show anywhere. */
 export const GUARANTEE_SHORT =
-  "Log weekly and snapshot monthly for 90 days. If your Financial Health Score hasn't improved, we refund your first payment.";
+  "Log weekly and snapshot monthly for 90 days. If your Financial Health Score hasn't improved, we refund that first charge, monthly or annual.";
 
 /** Longer form for the offer section and FAQ. */
 export const GUARANTEE_LONG =
-  "Log your spending each week and complete your monthly net-worth snapshot for 90 days. If your Financial Health Score hasn't improved by the end, we refund your first payment. The Score measures tracking consistency, not investment returns.";
+  "Log your spending each week and complete your monthly net-worth snapshot for 90 days. If your Financial Health Score hasn't improved by the end, we refund that first charge, monthly or annual. The Score measures tracking consistency, not investment returns.";
 
 export const REFUND_WINDOW_COPY = "First payment refundable for 30 days, no questions.";
 
@@ -59,7 +59,11 @@ export const PRODUCT_LINE =
  * While every founding seat is still open, do not print "200 of 200".
  * A lower remaining count is the live counter.
  */
+/** Claimed seats before the public fraction is worth showing. */
+export const FOUNDING_COUNT_AFTER = 100;
+
 export function foundingAvailabilityLabel(remaining: number, cap: number): string {
-  if (cap > 0 && remaining >= cap) return `Only ${cap} available`;
+  const claimed = Math.max(0, cap - remaining);
+  if (claimed < FOUNDING_COUNT_AFTER) return `Only ${cap} available`;
   return `${remaining} of ${cap} founding spots left`;
 }

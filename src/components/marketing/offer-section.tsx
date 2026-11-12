@@ -69,9 +69,9 @@ export function OfferSection() {
           className="mb-12 max-w-2xl font-body text-[17px] leading-relaxed text-text-muted"
           style={{ opacity: 0, transform: "translateY(16px)" }}
         >
-          Three small habits, ninety days, one Score that tells you the
-          direction. Tracking is free forever. Progress adds Charlie and the
-          Progress Report, with a {TRIAL_COPY.hyphen} trial and no card to start.
+          Log weekly. Snapshot monthly. One Score. Tracking is free forever.
+          Progress adds Charlie and the Progress Report, with a {TRIAL_COPY.hyphen}{" "}
+          trial and no card to start.
         </p>
 
         <div className="grid gap-6 lg:grid-cols-3">

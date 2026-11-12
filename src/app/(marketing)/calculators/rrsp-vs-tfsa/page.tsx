@@ -24,7 +24,7 @@ export default function RrspVsTfsaPage({ embedded = false }: { embedded?: boolea
   const tfsa = calculateTFSARoom(yearTurnedEighteen, tfsaContributed);
 
   return (
-    <CalculatorShell embedded={embedded} title="RRSP vs TFSA room (illustrative)">
+    <CalculatorShell embedded={embedded} source="calculator-rrsp-tfsa" title="RRSP vs TFSA room (illustrative)">
       <div className="space-y-5">
         <CalculatorNumberField label="Last year's earned income" value={income} onValue={setIncome} />
         <CalculatorNumberField label="Age" value={age} onValue={setAge} />

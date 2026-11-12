@@ -39,12 +39,12 @@ export const TIER_FEATURES: Record<Tier, string[]> = {
   pulse: [
     "Spending tracker, budgets, net worth, and goals",
     "Live Financial Health Score + streaks",
-    "Canadian calculators and newsletter",
+    "Canadian calculators",
     `${TRIAL_COPY.hyphen} reverse trial of Progress — no credit card`,
   ],
   progress: [
     "Everything in Pulse",
-    "Full conversational fact-find",
+    "A guided money check-in",
     "8-section Progress Report + PDF, monthly refresh",
     "Charlie, your AI money guide, included",
     "Statement and receipt parsing",

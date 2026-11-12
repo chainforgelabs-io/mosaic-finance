@@ -6,11 +6,11 @@ Gamified financial tracking and education for Canadians — weekly spending logs
 
 ## Overview
 
-Most retail money apps are either calculators or chatbots. Mosaic sits in between: free tracking (spending, budgets, net worth, holdings, goals) drives a live Financial Health Score, and a structured, multi-session AI interview builds the picture that Claude turns into a multi-section Progress Report (tax accounts, retirement trajectory, debt, insurance, investment education) grounded in Canadian rules (RRSP, TFSA, FHSA, CPP/OAS, provincial nuance).
+Most retail money apps are either calculators or chatbots. Mosaic sits in between: free tracking (spending, budgets, net worth, holdings, goals) drives a live Financial Health Score. A guided money check-in builds the picture that becomes an educational Progress Report, grounded in Canadian rules (RRSP, TFSA, FHSA, CPP/OAS, provincial nuance).
 
 Progress Reports deliver instantly. Charlie is an AI money guide — not a licensed advisor. Every report and conversation reminds users: this is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.
 
-Out of scope by design: SIN collection, brokerage custody, trade execution, and licensed financial advice. Market context, signal research exports, and newsletter automation are adjacent surfaces shipped in the same codebase and are not part of the launch surface.
+Out of scope by design: SIN collection, brokerage custody, trade execution, and licensed financial advice.
 
 ## Stack
 
@@ -20,23 +20,21 @@ Out of scope by design: SIN collection, brokerage custody, trade execution, and 
 - **AI:** Anthropic Claude (plan / conversation), xAI Grok (web + X search)
 - **Market data:** Finnhub, Financial Modeling Prep, Alpha Vantage
 - **Infra:** Upstash Redis, Resend, Stripe, Puppeteer + `@sparticuz/chromium` (PDF), Sentry, Vercel Analytics
-- **Jobs:** Vercel Cron (newsletter / scans)
+- **Jobs:** Vercel Cron
 - **Tests:** Vitest, Playwright
 
 ## Features
 
-- Conversational onboarding fact-find with session continuity
-- Risk profiling and holdings / fixed-asset capture (including statement upload parsing)
-- Multi-section Progress Report generation with PDF export
-- Optional internal QA queue (does not gate user delivery)
-- Interactive Progress Report walkthrough with follow-up Q&A
-- Market Context hub: quotes, news, social sentiment, AI investor personas
-- Weekly market newsletter via Resend
-- Machine-readable signal / research export API for external consumers
+- Weekly spending log, budgets, net worth, and goals
+- Live Financial Health Score
+- Charlie, an AI money guide, and a guided money check-in
+- Progress Report with PDF export
+- Canadian calculators (FHSA, RRSP vs TFSA, CPP timing)
+- Statement and receipt parsing on Progress
 
 ## Architecture
 
-Next.js owns UI and API routes. Supabase holds user data under RLS; a service-role client is used only where server jobs must bypass user JWT scope. Claude drives conversation and plan sections; Grok supplies real-time search for market commentary. Redis caches market payloads and rate-limits hot endpoints. Stripe gates subscription tiers. See `ARCHITECTURE.md` for the decision log and schema overview; see `docs/export-api.md` for the export contract.
+Next.js owns UI and API routes. Supabase holds user data under RLS; a service-role client is used only where server jobs must bypass user JWT scope. Claude drives the money check-in and the Progress Report. Stripe gates subscription tiers. See `ARCHITECTURE.md` for the decision log and schema overview.
 
 ```
 src/

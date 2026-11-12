@@ -246,7 +246,7 @@ export function PricingSection({ ctaHref = "/waitlist" }: { ctaHref?: string } =
                       : "border border-slate-950 text-slate-950 hover:bg-slate-950 hover:text-white"
                 }`}
               >
-                {TIER_CTA[tier.id]}
+                {isLaunchLive() ? TIER_CTA[tier.id] : "Join the waitlist"}
               </Link>
             </div>
           ))}

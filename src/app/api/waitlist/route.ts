@@ -1,9 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { captureAPIError } from '@/lib/sentry';
 import { PROVINCES } from '@/lib/constants/provinces';
 import { sendWaitlistWelcomeEmail } from '@/lib/resend/client';
+
+/** Public count only. Emails stay on the server. */
+export async function GET() {
+  try {
+    const supabase = createServiceClient();
+    const { count, error } = await supabase
+      .from('waitlist_signups')
+      .select('id', { count: 'exact', head: true });
+    if (error) {
+      captureAPIError(error, { route: 'waitlist', step: 'count' });
+      return NextResponse.json({ count: null });
+    }
+    return NextResponse.json({ count: count ?? 0 });
+  } catch (err) {
+    captureAPIError(err, { route: 'waitlist', step: 'count' });
+    return NextResponse.json({ count: null });
+  }
+}
 
 const WaitlistSchema = z.object({
   email: z.string().email().max(320),

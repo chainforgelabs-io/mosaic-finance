@@ -4,6 +4,9 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { NotesOptIn } from "@/components/marketing/notes-opt-in";
+import { WaitlistCount } from "@/components/marketing/waitlist-count";
+import { waitlistSource } from "@/lib/marketing/waitlist-source";
 
 const TRACKER_ITEMS = [
   {
@@ -48,6 +51,7 @@ const TRUST_CHIPS = [
 
 function GuideLeadForm() {
   const [email, setEmail] = useState("");
+  const [notes, setNotes] = useState(false);
   const [status, setStatus] = useState<
     "idle" | "submitting" | "success" | "duplicate" | "error"
   >("idle");
@@ -61,7 +65,11 @@ function GuideLeadForm() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "guide", newsletter_opt_in: true }),
+        body: JSON.stringify({
+          email,
+          source: waitlistSource("guide", new URLSearchParams(window.location.search).get("utm_source")),
+          newsletter_opt_in: notes,
+        }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -87,8 +95,8 @@ function GuideLeadForm() {
         </p>
         <p className="mt-2 font-body text-sm leading-relaxed text-text-muted">
           {status === "duplicate"
-            ? "You\u2019re already signed up \u2014 we\u2019ll send the guide and early access updates to your email."
-            : "We\u2019ll send your PDF shortly and keep you posted on Mosaic."}
+            ? "You\u2019re already on the list. We\u2019ll send the guide to your email."
+            : "The guide is in your inbox, and you\u2019re on the list."}
         </p>
       </div>
     );
@@ -121,10 +129,13 @@ function GuideLeadForm() {
               Sending…
             </>
           ) : (
-            "Join the waitlist"
+            "Send the guide"
           )}
         </button>
       </form>
+      <div className="mt-3 text-left">
+        <NotesOptIn id="guide-notes" checked={notes} onChange={setNotes} tone="dark" />
+      </div>
       {status === "error" && errorMessage && (
         <p className="mt-3 text-center font-body text-sm text-red-400 sm:text-left" role="alert">
           {errorMessage}
@@ -166,8 +177,9 @@ export function WaitlistPage() {
           <div className="flex justify-center">
             <GuideLeadForm />
           </div>
-          <p className="mt-6 font-body text-[13px] text-slate-500">
-            Includes the free account guide · No credit card · Unsubscribe anytime
+          <WaitlistCount className="mt-4 font-body text-[13px] text-slate-400" />
+          <p className="mt-3 font-body text-[13px] text-slate-500">
+            The guide arrives by email · No credit card
           </p>
         </div>
       </section>

@@ -21,7 +21,7 @@ export default function CppTimingPage({ embedded = false }: { embedded?: boolean
   const monthly = Math.round(annual / 12);
 
   return (
-    <CalculatorShell embedded={embedded} title="CPP at 60 vs 65 vs 70">
+    <CalculatorShell embedded={embedded} source="calculator-cpp" title="CPP at 60 vs 65 vs 70">
       <div className="space-y-5">
         <CalculatorNumberField
           label="Estimated CPP at 65 (annual)"

@@ -12,6 +12,7 @@ import {
   PRODUCT_LINE,
 } from "@/lib/config/offer";
 import Link from "next/link";
+import { WaitlistCount } from "@/components/marketing/waitlist-count";
 
 export function Hero() {
   const ref = useRef<HTMLDivElement>(null);
@@ -67,10 +68,17 @@ export function Hero() {
 
         <p
           data-animate
+          className="mb-4 font-display text-sm font-semibold tracking-wide text-white sm:text-base"
+        >
+          Log weekly. Snapshot monthly. One Score.
+        </p>
+
+        <p
+          data-animate
           className="mx-auto mb-10 max-w-[560px] font-body text-base leading-relaxed text-text-muted sm:text-lg"
         >
-          {PRODUCT_LINE} Log weekly. Snapshot monthly. Your Financial Health
-          Score shows the direction — educational, not advice.
+          {PRODUCT_LINE} Your Financial Health Score shows the direction —
+          educational, not advice.
         </p>
 
         <div data-animate className="mx-auto w-full max-w-[520px]">
@@ -103,6 +111,15 @@ export function Hero() {
         <p data-animate className="mt-6 font-body text-[13px] text-text-muted">
           Free to track · No card · Canadian data residency
         </p>
+        <div data-animate className="mt-3">
+          <WaitlistCount className="font-body text-[13px] text-text-muted" />
+          <Link
+            href="/waitlist"
+            className="mt-2 inline-block font-display text-sm font-semibold text-white/80 underline-offset-4 hover:text-white hover:underline"
+          >
+            Free RRSP, TFSA, and FHSA guide
+          </Link>
+        </div>
       </div>
     </section>
   );

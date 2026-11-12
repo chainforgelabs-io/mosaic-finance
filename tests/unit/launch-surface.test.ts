@@ -42,6 +42,9 @@ describe("launch surface", () => {
 
   it("keeps statement parsing on Progress and drops Mastery from public copy", () => {
     expect(TIER_FEATURES.progress.join(" ")).toMatch(/Statement and receipt parsing/i);
+    expect(TIER_FEATURES.progress.join(" ")).toMatch(/guided money check-in/i);
+    expect(TIER_FEATURES.progress.join(" ")).not.toMatch(/fact-find/i);
+    expect(TIER_FEATURES.pulse.join(" ")).not.toMatch(/newsletter/i);
     expect(TIER_FEATURES.pulse.join(" ")).toContain(TRIAL_COPY.hyphen);
     expect(ENTITLEMENT_COPY.charlie).toContain(TRIAL_COPY.hyphen);
     expect(ENTITLEMENT_COPY.charlie).not.toMatch(/Mastery/);

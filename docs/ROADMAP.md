@@ -233,7 +233,7 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) still describes signup → onboarding → fact-find. Regex already allows `/dashboard`.
 - Savings / emergency / debt score components ignore tracked spending until Phase 1B.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
-- Guarantee refund scope: public copy and settings say "we refund your first payment." For annual that is the full $170 / $80; for monthly it is one month. **Decision needed** if the owner wants full-period refund on monthly.
+- Guarantee refund scope: public copy says "that first charge, monthly or annual." Annual is the annual charge ($170 or founding $80). Monthly is one month. Owner confirmed this wording 2026-11-11.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
 - Uncommitted local work (lookup guides, plan schema) is not part of this roadmap.
 - Settings "Export My Data" / "Delete All My Data" are `alert()` stubs ([src/app/dashboard/settings/page.tsx](../src/app/dashboard/settings/page.tsx)); 22 of 23 FKs to `user_profiles` lack `ON DELETE CASCADE`. Waits for the owner decision in [legal/launch-legal-checklist.md](./legal/launch-legal-checklist.md) §2.3.
