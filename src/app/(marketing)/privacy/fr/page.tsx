@@ -155,6 +155,12 @@ export default function PrivacyFrPage() {
                 conversations.
               </li>
               <li><strong>Upstash</strong> — compteurs de limite de débit, pas votre profil financier ni vos conversations.</li>
+              <li>
+                <strong>PostHog</strong> — aux États-Unis. Événements produit
+                (inscription, journal de la semaine), avec un identifiant et
+                des comptes seulement. Pas de montants, de noms, d&rsquo;adresses
+                courriel, ni de texte saisi.
+              </li>
             </ul>
           </Block>
 

@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculateDerivedHealthScore } from "@/lib/calculations/health-score";
+import { moneyForHealthScore, snapshotCash } from "@/lib/health-score/from-tracking";
 import {
   computeMonthlyStreak,
   computeWeeklyStreak,
   loggingActivityDates,
 } from "@/lib/gamification/streaks";
+import { addDays } from "@/lib/tracking/dates";
 
 export async function recordDerivedHealthScore(
   supabase: SupabaseClient,
@@ -29,7 +31,7 @@ export async function recordDerivedHealthScore(
       .maybeSingle(),
     supabase
       .from("net_worth_snapshots")
-      .select("net_worth, snapshot_date")
+      .select("net_worth, snapshot_date, debts_total, breakdown")
       .eq("user_id", userId)
       .order("snapshot_date", { ascending: false })
       .limit(12),
@@ -65,6 +67,43 @@ export async function recordDerivedHealthScore(
 
   const today = new Date().toISOString().slice(0, 10);
   const snapList = snapshots ?? [];
+  const windowStart = addDays(today, -29);
+  const { data: moneyTxns } = await supabase
+    .from("transactions")
+    .select("txn_date, amount, source, line_role, direction, category, description")
+    .eq("user_id", userId)
+    .gte("txn_date", windowStart)
+    .lte("txn_date", today);
+
+  const latest = snapList[0] as
+    | { debts_total?: number | null; breakdown?: unknown; net_worth?: number | null }
+    | undefined;
+  const tracked = moneyForHealthScore({
+    today,
+    transactions: (moneyTxns ?? []) as {
+      txn_date: string;
+      amount: number;
+      source?: string | null;
+      line_role?: string | null;
+      direction?: string | null;
+      category?: string | null;
+      description?: string | null;
+    }[],
+    snapshot: latest
+      ? {
+          debtsTotal: latest.debts_total != null ? Number(latest.debts_total) : null,
+          cash: snapshotCash(latest.breakdown),
+        }
+      : null,
+    factFind: {
+      annualIncome: financial?.annual_income != null ? Number(financial.annual_income) : null,
+      monthlyExpenses: financial?.monthly_expenses != null ? Number(financial.monthly_expenses) : null,
+      monthlySavings: financial?.monthly_savings != null ? Number(financial.monthly_savings) : null,
+      emergencyFundMonths:
+        financial?.emergency_fund_months != null ? Number(financial.emergency_fund_months) : null,
+      totalDebt: debts.length ? totalDebt : null,
+    },
+  });
   const { current: monthlyStreak } = computeMonthlyStreak(
     snapList.map((s) => String(s.snapshot_date)),
     today,
@@ -79,16 +118,11 @@ export async function recordDerivedHealthScore(
   );
 
   const result = calculateDerivedHealthScore({
-    annualIncome: financial?.annual_income != null ? Number(financial.annual_income) : null,
-    monthlyExpenses:
-      financial?.monthly_expenses != null ? Number(financial.monthly_expenses) : null,
-    monthlySavings:
-      financial?.monthly_savings != null ? Number(financial.monthly_savings) : null,
-    emergencyFundMonths:
-      financial?.emergency_fund_months != null
-        ? Number(financial.emergency_fund_months)
-        : null,
-    totalDebt: debts.length ? totalDebt : null,
+    annualIncome: tracked.annualIncome,
+    monthlyExpenses: tracked.monthlyExpenses,
+    monthlySavings: tracked.monthlySavings,
+    emergencyFundMonths: tracked.emergencyFundMonths,
+    totalDebt: tracked.totalDebt,
     netWorth: snapList[0]?.net_worth != null ? Number(snapList[0].net_worth) : liveNetWorth,
     priorNetWorth: snapList[1]?.net_worth != null ? Number(snapList[1].net_worth) : null,
     weeklyStreak,

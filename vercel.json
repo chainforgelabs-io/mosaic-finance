@@ -59,6 +59,10 @@
     {
       "path": "/api/cron/net-worth-reminder",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-log-reminder",
+      "schedule": "0 18 * * 0"
     }
   ]
 }

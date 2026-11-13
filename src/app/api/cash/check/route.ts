@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { emitLoggingMilestones, planLoggingMilestones } from "@/lib/analytics/capture";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
 import { createClient } from "@/lib/supabase/server";
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
   }
 
   const today = todayIso();
+  const milestones = await planLoggingMilestones(supabase, user.id, today);
   const { data: txns, error: txnError } = await supabase
     .from("transactions")
     .select("txn_date, amount, direction, line_role, instrument, description")
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
     ...(parsed.data.owed_balance != null ? { owed_balance: parsed.data.owed_balance } : {}),
   });
   if (checkError) return NextResponse.json({ error: "Failed to save balance check" }, { status: 500 });
+  await emitLoggingMilestones(user.id, milestones);
 
   const unlocks = await awardForEvent(supabase, user.id);
   await recordDerivedHealthScore(supabase, user.id);

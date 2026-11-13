@@ -95,6 +95,12 @@ export async function POST(req: NextRequest) {
       .select('id')
       .single();
 
+    if (!error && sessionType === "fact-find") {
+      void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
+        captureLoopEvent(user.id, "fact_find_started").catch(() => undefined),
+      );
+    }
+
     if (error) {
       captureAPIError(error, {
         route: 'conversation/start',

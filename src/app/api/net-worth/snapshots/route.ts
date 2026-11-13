@@ -187,6 +187,10 @@ export async function POST(request: Request) {
     snapshot = data;
   }
 
+  void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
+    captureLoopEvent(user.id, "snapshot_saved").catch(() => undefined),
+  );
+
   const filingPast = filed != null && filed.snapshot_month !== monthKey(today);
   const unlocks = filingPast
     ? []

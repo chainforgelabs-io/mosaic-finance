@@ -78,6 +78,12 @@ export async function insertUserProfileAfterSignUp(formData: {
     return { error: "Account created but profile setup failed. Please sign in." };
   }
 
+  if (!profileError) {
+    void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
+      captureLoopEvent(user.id, "signup").catch(() => undefined),
+    );
+  }
+
   if (user.email) {
     void import("@/lib/email/recipients").then(({ markWaitlistConverted }) =>
       markWaitlistConverted(user.email).catch(() => undefined),

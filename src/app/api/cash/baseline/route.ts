@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { emitLoggingMilestones, planLoggingMilestones } from "@/lib/analytics/capture";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
 import { createClient } from "@/lib/supabase/server";
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: "Failed to save repeating items" }, { status: 500 });
   }
 
+  const milestones = await planLoggingMilestones(supabase, user.id, today);
   const { error: baselineError } = await supabase.from("spending_baselines").upsert(
     {
       user_id: user.id,
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
     { onConflict: "user_id" },
   );
   if (baselineError) return NextResponse.json({ error: "Failed to save the monthly picture" }, { status: 500 });
+  await emitLoggingMilestones(user.id, milestones);
 
   const unlocks = rows.length > 0 ? await awardForEvent(supabase, user.id) : [];
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);

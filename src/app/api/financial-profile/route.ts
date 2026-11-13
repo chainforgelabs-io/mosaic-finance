@@ -208,6 +208,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: seeded.error }, { status: 500 });
   }
 
+  if (!existing?.id) {
+    void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
+      captureLoopEvent(user.id, "fact_find_completed").catch(() => undefined),
+    );
+  }
+
   return NextResponse.json({ ok: true });
 }
 

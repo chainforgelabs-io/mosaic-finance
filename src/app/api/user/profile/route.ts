@@ -16,6 +16,7 @@ const NotificationsSchema = z.object({
   education_emails: z.boolean().optional(),
   quarterly_replan: z.boolean().optional(),
   net_worth_reminder: z.boolean().optional(),
+  weekly_log_reminder: z.boolean().optional(),
 });
 
 const PatchBodySchema = z.object({

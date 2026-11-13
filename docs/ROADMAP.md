@@ -52,11 +52,8 @@ The owner is verifying that the app runs correctly. No paying users. Marketing i
 
 **Gaps vs the playbook (code, not ideas):**
 
-- No PostHog events in `src/` (only `@vercel/analytics`). Env keys exist in `.env.example`.
 - No referral code.
 - Consistency Guarantee is grey text in [src/components/marketing/pricing-section.tsx](../src/components/marketing/pricing-section.tsx), not the headline.
-- Score savings / emergency / debt still come from the fact-find profile ([src/lib/health-score/record.ts](../src/lib/health-score/record.ts)), not from tracked data.
-- No weekly "you haven't logged" cron. Existing crons: nurture, education, trial-lifecycle, picks.
 - Marketing below the hero still sells the Progress Report (showcase, How It Works, trust, page `<title>`).
 - September docs ([BUSINESS_PLAN.md](../BUSINESS_PLAN.md), [BUSINESS_TODO.md](../BUSINESS_TODO.md)) are archived. Stale facts in those files: 14-day trial, Mastery shown on marketing, signup → onboarding as the default land.
 
@@ -106,7 +103,7 @@ Canonical offer copy now lives in [src/lib/config/offer.ts](../src/lib/config/of
 
 ### 1B — Score loop (`agent/score-from-tracked-data`)
 
-- [ ] `recordDerivedHealthScore` uses tracked outflow, savings lines, and snapshots when no fact-find exists; fact-find is the fallback, not the source of truth. Design the precedence, then add tests in `tests/unit/health-score.test.ts`.
+- [x] `recordDerivedHealthScore` uses tracked outflow, savings lines, and snapshots; fact-find is the fallback. Tests in `tests/unit/health-score.test.ts`. 2026-11-13 · main
 - [ ] `DashboardGenerating` reuses `TrackingLoop` instead of six "Available after your Progress Report is ready" placeholders ([src/app/dashboard/page.tsx](../src/app/dashboard/page.tsx)).
 - [ ] Quick-log or balance check on the dashboard home so "Log this week" is not a navigation to the 1,800-line cash-flow page.
 - [ ] Update [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) for dashboard-first landing.
@@ -116,12 +113,12 @@ Canonical offer copy now lives in [src/lib/config/offer.ts](../src/lib/config/of
 
 IDs and counts only. No amounts, names, emails, or free-text.
 
-- [ ] PostHog client wrapper. Events: `signup`, `first_log`, `log_week_2`, `snapshot_saved`, `fact_find_started`, `fact_find_completed`, `checkout_started`.
-- [ ] Dashboard or note in this file: week-2 log rate and seconds-to-first-log. Cannot buy ads until week-2 log rate is a real number.
+- [x] PostHog client wrapper. Events: `signup`, `first_log`, `log_week_2`, `snapshot_saved`, `fact_find_started`, `fact_find_completed`, `checkout_started`. No-ops without `NEXT_PUBLIC_POSTHOG_KEY`. 2026-11-13 · main
+- [x] Week-2 log rate = unique `log_week_2` ÷ unique `signup`. Seconds to first log = median of `seconds_since_signup` on `first_log`. Read both in PostHog. Cannot buy ads until week-2 log rate is a real number. 2026-11-13 · main
 
 ### 1D — Weekly reminder (`agent/weekly-log-reminder`)
 
-- [ ] Cron: users who have not logged this week get one reminder. No dollar amounts in the email. Add the route to `vercel.json`.
+- [x] Cron: users who have not logged this week get one reminder. No dollar amounts in the email. Route is in `vercel.json` (`0 18 * * 0` UTC, Sunday). 2026-11-13 · main
 
 ### 1E — Lead magnet CTAs (`agent/lead-magnet-signup`)
 
@@ -231,7 +228,7 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 
 - Pre-existing lint: `window.location.href` assignment in `src/app/(auth)/signup/page.tsx`; `Date.now()` during render in `DashboardDelivered`.
 - [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) still describes signup → onboarding → fact-find. Regex already allows `/dashboard`.
-- Savings / emergency / debt score components ignore tracked spending until Phase 1B.
+- Dashboard home still sends "Log this week" to the long cash-flow page. Quick-log stays in Phase 1B.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
 - Guarantee refund scope: public copy says "that first charge, monthly or annual." Annual is the annual charge ($170 or founding $80). Monthly is one month. Owner confirmed this wording 2026-11-11.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.

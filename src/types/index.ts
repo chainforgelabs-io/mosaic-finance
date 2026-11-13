@@ -22,6 +22,8 @@ export interface NotificationPreferences {
   education_emails: boolean;
   quarterly_replan: boolean;
   net_worth_reminder: boolean;
+  /** Absent means on. Weekly email when this week has no spending log. */
+  weekly_log_reminder?: boolean;
 }
 
 export interface UserProfile {

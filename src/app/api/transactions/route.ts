@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { emitLoggingMilestones, planLoggingMilestones } from "@/lib/analytics/capture";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
 
@@ -89,8 +90,15 @@ export async function POST(req: NextRequest) {
     }),
   );
 
+  const loggedOn = rows
+    .filter((row) => row.source !== "screenshot")
+    .map((row) => row.txn_date)
+    .sort()[0];
+  const milestones = loggedOn ? await planLoggingMilestones(supabase, user.id, loggedOn) : null;
+
   const { data, error } = await supabase.from("transactions").insert(rows).select();
   if (error) return NextResponse.json({ error: "Failed to save transactions" }, { status: 500 });
+  if (milestones) await emitLoggingMilestones(user.id, milestones);
 
   const unlocks = await awardForEvent(supabase, user.id);
   const gamification = await getGamificationSummary(supabase, user.id, unlocks);

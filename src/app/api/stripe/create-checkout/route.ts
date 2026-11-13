@@ -248,6 +248,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
+      captureLoopEvent(user.id, "checkout_started").catch(() => undefined),
+    );
+
     return NextResponse.json({ url: session.url });
   } catch (error) {
     captureAPIError(error, { route: "stripe/create-checkout" });

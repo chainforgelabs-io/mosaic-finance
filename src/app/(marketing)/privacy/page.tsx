@@ -186,6 +186,12 @@ export default function PrivacyPage() {
                 <strong>Upstash</strong> — rate-limit counters. Not your
                 financial profile or chat.
               </li>
+              <li>
+                <strong>PostHog</strong> — in the United States. Product events
+                such as signup and a weekly log, with a user id and counts
+                only. We do not send dollar amounts, names, email addresses, or
+                what you typed.
+              </li>
             </ul>
             <p>
               We do not use any advertising networks, tracking pixels, or

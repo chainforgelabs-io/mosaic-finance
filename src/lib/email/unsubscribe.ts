@@ -98,11 +98,13 @@ function prefsAfterUnsubscribe(
     merged.education_emails = false;
   } else if (list === "reminders") {
     merged.net_worth_reminder = false;
+    merged.weekly_log_reminder = false;
   } else {
     merged.weekly_market = false;
     merged.education_emails = false;
     merged.quarterly_replan = false;
     merged.net_worth_reminder = false;
+    merged.weekly_log_reminder = false;
   }
   return merged;
 }

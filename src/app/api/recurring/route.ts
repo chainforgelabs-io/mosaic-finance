@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { emitLoggingMilestones, planLoggingMilestones } from "@/lib/analytics/capture";
 import { awardForEvent, getGamificationSummary } from "@/lib/gamification/award";
 import { recordDerivedHealthScore } from "@/lib/health-score/record";
 import { createClient } from "@/lib/supabase/server";
@@ -109,6 +110,7 @@ export async function PATCH(req: NextRequest) {
     const nextDate = advanceRecurringDate(String(item.next_date), item.cadence as RecurringCadence);
 
     if (action === "confirm") {
+      const milestones = await planLoggingMilestones(supabase, user.id, String(item.next_date));
       const { error: insertError } = await supabase.from("transactions").insert({
         user_id: user.id,
         txn_date: item.next_date,
@@ -129,6 +131,7 @@ export async function PATCH(req: NextRequest) {
         recurring_item_id: item.id,
       });
       if (insertError) return NextResponse.json({ error: "Failed to post schedule" }, { status: 500 });
+      await emitLoggingMilestones(user.id, milestones);
     }
 
     const { error: updateError } = await supabase

@@ -940,6 +940,7 @@ function NotificationsTab() {
   const [educationEmails, setEducationEmails] = useState(defaults.education_emails);
   const [quarterlyRePlan, setQuarterlyRePlan] = useState(defaults.quarterly_replan);
   const [netWorthReminder, setNetWorthReminder] = useState(defaults.net_worth_reminder);
+  const [weeklyLogReminder, setWeeklyLogReminder] = useState(defaults.weekly_log_reminder !== false);
   const [reminderDay, setReminderDay] = useState(user?.netWorthReminderDay ?? 1);
   const [notifSaving, setNotifSaving] = useState(false);
   const [notifError, setNotifError] = useState<string | null>(null);
@@ -954,6 +955,7 @@ function NotificationsTab() {
     setEducationEmails(p.education_emails);
     setQuarterlyRePlan(p.quarterly_replan);
     setNetWorthReminder(p.net_worth_reminder ?? true);
+    setWeeklyLogReminder(p.weekly_log_reminder !== false);
     setReminderDay(user.netWorthReminderDay ?? 1);
   }, [user?.id]);
 
@@ -977,6 +979,7 @@ function NotificationsTab() {
           setEducationEmails(p.education_emails);
           setQuarterlyRePlan(p.quarterly_replan);
           setNetWorthReminder(p.net_worth_reminder ?? true);
+          setWeeklyLogReminder(p.weekly_log_reminder !== false);
           setNotifError(
             typeof data.error === "string"
               ? data.error
@@ -1043,6 +1046,24 @@ function NotificationsTab() {
           net_worth_reminder: netWorthReminder,
         };
         setEducationEmails(next.education_emails);
+        void persist(next);
+      },
+    },
+    {
+      label: "Weekly spending log",
+      description:
+        "One email on Sunday if this week has no spending log. No amounts in the message.",
+      enabled: weeklyLogReminder,
+      onToggle: () => {
+        const next: NotificationPreferences = {
+          plan_ready: planReady,
+          weekly_market: weeklyMarket,
+          education_emails: educationEmails,
+          quarterly_replan: quarterlyRePlan,
+          net_worth_reminder: netWorthReminder,
+          weekly_log_reminder: !weeklyLogReminder,
+        };
+        setWeeklyLogReminder(next.weekly_log_reminder !== false);
         void persist(next);
       },
     },
