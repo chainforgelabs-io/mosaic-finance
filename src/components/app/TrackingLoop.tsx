@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Flame, Landmark, Loader2, Wallet } from "lucide-react";
 import { HealthScore } from "@/components/app/HealthScore";
+import { QuickLogSheet } from "@/components/app/QuickLogSheet";
 import { outflowTotal, type CashTxn } from "@/lib/tracking/cash-capture";
 import { startOfWeekMonday, todayIso, weekRange } from "@/lib/tracking/dates";
 import { formatMoneyExact } from "@/lib/tracking/format";
@@ -38,6 +39,8 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
   const [guarantee, setGuarantee] = useState<GuaranteeStatus | null>(null);
   const [entry, setEntry] = useState<ReportEntry>({ path: "/onboarding", started: false });
   const [setup, setSetup] = useState<SetupStatus | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,15 +108,11 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   const loggedThisWeek = summary?.loggedThisWeek ?? false;
   const snapshotted = summary?.snapshottedThisMonth ?? false;
-  const primary = !summary || !loggedThisWeek
-    ? { href: "/dashboard/cash-flow", label: "Log this week" }
-    : !snapshotted
-      ? { href: "/dashboard/assets", label: "Update net worth" }
-      : { href: "/dashboard/cash-flow", label: "Add another spend" };
+  const logLabel = !summary || !loggedThisWeek ? "Log this week" : "Add another spend";
 
   const monthLabel = new Date().toLocaleDateString("en-CA", { month: "long" });
   const streak = summary?.weeklyStreak ?? 0;
@@ -153,7 +152,7 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
 
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
             <LoopStat
-              href="/dashboard/cash-flow"
+              onPress={() => setLogOpen(true)}
               icon={Wallet}
               label="Spent this week"
               value={weekSpend == null ? "--" : formatMoneyExact(weekSpend)}
@@ -161,7 +160,7 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
               active={loggedThisWeek}
             />
             <LoopStat
-              href="/dashboard/cash-flow"
+              onPress={() => setLogOpen(true)}
               icon={Flame}
               label="Weekly log"
               value={summary == null ? "--" : streak === 1 ? "1 week" : `${streak} weeks`}
@@ -185,13 +184,24 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
           </div>
         </div>
 
-        <Link
-          href={primary.href}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-[#059669] sm:w-auto"
-        >
-          {primary.label}
-          <ArrowRight className="size-4" />
-        </Link>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            type="button"
+            onClick={() => setLogOpen(true)}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-[#059669] sm:w-auto"
+          >
+            {logLabel}
+            <ArrowRight className="size-4" />
+          </button>
+          {!snapshotted && (
+            <Link
+              href="/dashboard/assets"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--warm-200)] bg-white px-5 py-3 font-display text-sm font-semibold text-[var(--text-primary)] sm:w-auto"
+            >
+              Update net worth
+            </Link>
+          )}
+        </div>
 
         <div className="mt-6 rounded-lg border border-[var(--emerald)]/30 bg-[var(--emerald)]/5 px-4 py-3">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
@@ -237,30 +247,35 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
           <ArrowRight className="size-4" />
         </Link>
       </section>
+      <QuickLogSheet
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        onSaved={() => setRefreshToken((token) => token + 1)}
+      />
     </div>
   );
 }
 
 function LoopStat({
   href,
+  onPress,
   icon: Icon,
   label,
   value,
   detail,
   active,
 }: {
-  href: string;
+  href?: string;
+  onPress?: () => void;
   icon: typeof Wallet;
   label: string;
   value: string;
   detail: string;
   active: boolean;
 }) {
-  return (
-    <Link
-      href={href}
-      className="rounded-lg bg-[var(--warm-50)] px-4 py-3 transition-colors hover:bg-[var(--warm-100)]"
-    >
+  const className = "min-h-11 rounded-lg bg-[var(--warm-50)] px-4 py-3 text-left transition-colors hover:bg-[var(--warm-100)]";
+  const body = (
+    <>
       <div className="flex items-center gap-1.5">
         <Icon className={active ? "size-3.5 text-[var(--emerald)]" : "size-3.5 text-[var(--text-muted)]"} />
         <p className="font-body text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
@@ -271,6 +286,18 @@ function LoopStat({
         {value}
       </p>
       <p className="font-body text-[11px] text-[var(--text-muted)]">{detail}</p>
+    </>
+  );
+  if (onPress) {
+    return (
+      <button type="button" onClick={onPress} className={className}>
+        {body}
+      </button>
+    );
+  }
+  return (
+    <Link href={href ?? "/dashboard"} className={`block ${className}`}>
+      {body}
     </Link>
   );
 }

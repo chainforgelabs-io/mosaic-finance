@@ -50,17 +50,6 @@ function snapshotNow() {
   return cachedNow;
 }
 
-const GENERATING_CHART_PLACEHOLDERS = [
-  {
-    title: "Debt balances",
-    subtitle: "Balances on file in this report",
-  },
-  {
-    title: "Health Score Breakdown",
-    subtitle: "How the score is put together",
-  },
-] as const;
-
 function fmtSnapshotValue(n: number | null, prefix = "$"): string {
   if (n == null) return "--";
   if (prefix === "$") {
@@ -92,31 +81,6 @@ function DashGlassCard({ label, value, unit, accent, note }: { label: string; va
         {unit && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">{unit}</span>}
       </div>
       {note && <p className="mt-1 font-body text-[10px] text-white/40">{note}</p>}
-    </div>
-  );
-}
-
-function ChartPlaceholder({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
-      <h3 className="font-[family-name:var(--font-display)] font-semibold text-base text-[var(--text-primary)] mb-1">
-        {title}
-      </h3>
-      <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-muted)] mb-4">
-        {subtitle}
-      </p>
-      <div
-        className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-[var(--warm-200)] bg-[var(--warm-50)]/50 px-4 py-8"
-        aria-hidden
-      >
-        <Loader2 className="mb-2 size-6 animate-spin text-[var(--emerald)] opacity-70" />
-        <p className="font-[family-name:var(--font-body)] text-center text-xs font-medium text-[var(--text-secondary)]">
-          Generating…
-        </p>
-        <p className="mt-1 font-[family-name:var(--font-body)] text-center text-[11px] text-[var(--text-muted)]">
-          Available after your Progress Report is ready
-        </p>
-      </div>
     </div>
   );
 }
@@ -260,6 +224,9 @@ function PrePlanScore() {
 
 function DashboardGenerating() {
   const prePlanData = usePlanStore((s) => s.prePlanData);
+  const user = usePlanStore((s) => s.user);
+  const reportAvailable =
+    user?.tier === "progress" || user?.tier === "mastery" || isTrialActive(user?.trialEndsAt);
 
   return (
     <div className="space-y-6">
@@ -271,14 +238,9 @@ function DashboardGenerating() {
         </p>
       </div>
 
-      <PrePlanKPIStrip data={prePlanData} />
+      <TrackingLoop reportAvailable={reportAvailable} />
+      <PrePlanKPIStrip data={prePlanData} showScore={false} />
       <MotivationStrip />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {GENERATING_CHART_PLACEHOLDERS.map((c) => (
-          <ChartPlaceholder key={c.title} title={c.title} subtitle={c.subtitle} />
-        ))}
-      </div>
 
       {prePlanData && (
         <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
@@ -684,6 +646,7 @@ function DashboardDelivered() {
         <ApprovalStatusBanner status="delivered" planId={plan.id} />
       )}
 
+      <TrackingLoop reportAvailable />
       <KPIStrip plan={plan} />
       <MotivationStrip />
       <ChartGrid />

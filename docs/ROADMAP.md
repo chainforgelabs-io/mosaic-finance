@@ -104,8 +104,8 @@ Canonical offer copy now lives in [src/lib/config/offer.ts](../src/lib/config/of
 ### 1B — Score loop (`agent/score-from-tracked-data`)
 
 - [x] `recordDerivedHealthScore` uses tracked outflow, savings lines, and snapshots; fact-find is the fallback. Tests in `tests/unit/health-score.test.ts`. 2026-11-13 · main
-- [ ] `DashboardGenerating` reuses `TrackingLoop` instead of six "Available after your Progress Report is ready" placeholders ([src/app/dashboard/page.tsx](../src/app/dashboard/page.tsx)).
-- [ ] Quick-log or balance check on the dashboard home so "Log this week" is not a navigation to the 1,800-line cash-flow page.
+- [x] `DashboardGenerating` reuses `TrackingLoop` instead of "Available after your Progress Report is ready" placeholders ([src/app/dashboard/page.tsx](../src/app/dashboard/page.tsx)). 2026-11-13 · main
+- [x] Quick-log on the dashboard home. "Log this week" opens the keypad on the page, including on a phone. 2026-11-13 · main
 - [ ] Update [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) for dashboard-first landing.
 - [ ] Pre-existing lint: `window.location.href` in signup; `Date.now()` in `DashboardDelivered`. Fix only if this PR already touches those files; otherwise leave in Backlog.
 
@@ -228,7 +228,7 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 
 - Pre-existing lint: `window.location.href` assignment in `src/app/(auth)/signup/page.tsx`; `Date.now()` during render in `DashboardDelivered`.
 - [tests/integration/user-journey.test.ts](../tests/integration/user-journey.test.ts) still describes signup → onboarding → fact-find. Regex already allows `/dashboard`.
-- Dashboard home still sends "Log this week" to the long cash-flow page. Quick-log stays in Phase 1B.
+- Journey test comment still mentions onboarding as the post-auth land. Assertions already allow `/dashboard`.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
 - Guarantee refund scope: public copy says "that first charge, monthly or annual." Annual is the annual charge ($170 or founding $80). Monthly is one month. Owner confirmed this wording 2026-11-11.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
