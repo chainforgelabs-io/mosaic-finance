@@ -95,10 +95,10 @@ export default function TermsFrPage() {
                 dépend de ces renseignements.
               </li>
               <li>
-                Vous pouvez supprimer votre compte dans les paramètres. Si un
-                abonnement payant est encore actif, annulez-le d&rsquo;abord
-                dans la facturation, ou écrivez-nous et nous l&rsquo;annulerons.
-                Les détails sont dans la politique de confidentialité.
+                Vous pouvez supprimer votre compte dans les paramètres. La
+                suppression annule un abonnement payant actif. Stripe conserve
+                les factures comme dossier de paiement. Les détails sont dans
+                la politique de confidentialité.
               </li>
             </ul>
           </Block>

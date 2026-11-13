@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cancelSubscriptionsForDeletion } from "@/lib/account/cancel-subscription";
 import { createServiceClient } from "@/lib/supabase/service";
 
 /**
@@ -47,8 +48,55 @@ async function removeStoragePrefix(supabase: SupabaseClient, prefix: string) {
   if (removed.error) throw new Error("storage");
 }
 
+async function cancelStripeBilling(
+  subscriptionId: string | null,
+  customerId: string | null,
+): Promise<void> {
+  if (!subscriptionId && !customerId) return;
+  const { stripe } = await import("@/lib/stripe/client");
+  await cancelSubscriptionsForDeletion({
+    subscriptionId,
+    customerId,
+    listByCustomer: async (id) => {
+      const found: Array<{ id: string; status: string }> = [];
+      let startingAfter: string | undefined;
+      for (let page = 0; page < 10; page++) {
+        const result = await stripe.subscriptions.list({
+          customer: id,
+          status: "all",
+          limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        for (const subscription of result.data) {
+          found.push({ id: subscription.id, status: subscription.status });
+        }
+        if (!result.has_more || result.data.length === 0) return found;
+        const last = result.data[result.data.length - 1];
+        if (!last) return found;
+        startingAfter = last.id;
+      }
+      throw new Error("stripe");
+    },
+    cancel: async (id) => {
+      await stripe.subscriptions.cancel(id, { prorate: false, invoice_now: false });
+    },
+  });
+}
+
 export async function deleteAccountData(userId: string, email: string | null): Promise<void> {
   const supabase = createServiceClient();
+
+  const { data: profile, error: billingLookupError } = await supabase
+    .from("user_profiles")
+    .select("stripe_subscription_id, stripe_customer_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (billingLookupError) throw new Error("user_profiles");
+
+  await cancelStripeBilling(
+    profile?.stripe_subscription_id ?? null,
+    profile?.stripe_customer_id ?? null,
+  );
 
   await removeStoragePrefix(supabase, `statements/${userId}`);
   await removeStoragePrefix(supabase, `spending/${userId}`);

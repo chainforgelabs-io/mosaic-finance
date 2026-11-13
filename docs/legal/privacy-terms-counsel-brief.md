@@ -83,13 +83,13 @@ No sale, no advertising use, no profiling for third parties, no data brokers. No
 ## 6. Retention, deletion, access — current reality
 
 - **Retention:** no retention schedule and no purge job exists. All data is kept until manually deleted by an administrator.
-- **Deletion:** the settings page shows a "Delete All My Data" button with a typed-confirmation modal, but the handler is a stub (`alert(...)`) — `src/app/dashboard/settings/page.tsx`. No API route exists. Only 1 of 23 foreign keys to `user_profiles(id)` has `ON DELETE CASCADE` (`household_members`), and `user_profiles.id → auth.users(id)` does not cascade, so a naive auth-user delete would fail. **Deletion must be requested by email today and performed by hand.**
-- **Export:** "Export My Data" is likewise a stub. No route exists.
+- **Deletion:** Settings → Delete All My Data calls `DELETE /api/user/data` after the person types DELETE. The handler cancels any live Stripe subscription first (no proration credit). If that cancel fails, nothing is deleted. It then removes uploaded files, app rows, the profile, and the login. The Stripe Customer and invoices stay in Stripe. Rows are deleted explicitly; most foreign keys to `user_profiles` still do not cascade.
+- **Export:** Settings → Export My Data downloads `GET /api/user/export` (profile, tracked finances, score history, achievements, conversations, delivered Progress Reports). Stripe customer and subscription ids are omitted. Uploaded statement files are not in the JSON; the privacy page says to email for a copy.
 - **Access / correction:** profile, province, employment, family structure, and notification preferences are editable in settings. Transactions, goals, holdings, snapshots are editable/deletable individually in the app.
 - **Unsubscribe:** implemented for marketing/education email; transactional email continues while the account exists.
 - **Stripe records:** invoices and receipts live in Stripe; CRA record-keeping (6 years) is met there.
 
-The owner has a code task queued to implement real deletion (cancel Stripe subscription → delete storage objects → cascade-delete rows → delete auth user) and JSON export. Until that ships, the policy must not promise self-serve deletion. Proposed interim wording for counsel to approve: *deletion and export available on request to hello@mosaicfinance.ai, fulfilled within 30 days.*
+Self-serve deletion and export shipped 2026-11-13. The live privacy and terms pages say deletion cancels an active paid subscription and that Stripe keeps invoices. Counsel should still confirm that wording.
 
 ## 7. Where the live pages are already inaccurate (as of 2026-10-13)
 
@@ -99,7 +99,7 @@ The owner has a code task queued to implement real deletion (cancel Stripe subsc
 2. "age range" — the schema stores an integer age.
 3. "Conversation transcripts … used solely to build your Progress Report" — also used for Charlie chat and retained indefinitely.
 4. Third-party list omits Upstash, Google (OAuth), Vercel Analytics, and the planned PostHog; it does not say the processors are in the US.
-5. "Delete your data … from your settings page" and "Export your data" — not implemented (§6).
+5. Delete and export are implemented in Settings (§6). The pages say deletion cancels an active paid subscription and that Stripe keeps invoices. Counsel should confirm that wording.
 6. No privacy officer, no retention periods, no complaint route (OPC/CAI), no breach commitment, no automated-decision notice, no cross-border statement, no French version.
 7. Effective date April 1 2026 predates the current product (tiers, trial, guarantee, uploads all shipped later).
 

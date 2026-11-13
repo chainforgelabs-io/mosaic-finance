@@ -198,9 +198,9 @@ export default function PrivacyPage() {
             <ul>
               <li>
                 <strong>Access and export</strong> — download a JSON file from
-                Settings with your profile, tracked finances, conversations,
-                and Progress Reports. For a copy of an uploaded statement file,
-                email us.
+                Settings with your profile, tracked finances, Financial Health
+                Score history, achievements, conversations, and Progress
+                Reports. For a copy of an uploaded statement file, email us.
               </li>
               <li>
                 <strong>Correction</strong> — edit what you entered, or email us
@@ -209,10 +209,9 @@ export default function PrivacyPage() {
               <li>
                 <strong>Delete</strong> — delete the account from Settings. That
                 removes the Mosaic account, the records listed in the export,
-                and uploaded files we store for you. If a paid subscription is
-                still active, cancel it in billing settings first, or email us
-                and we will cancel it. Stripe may keep invoices as the payment
-                record.
+                and uploaded files we store for you. An active paid subscription
+                is canceled when the account is deleted. Stripe keeps invoices
+                as the payment record.
               </li>
               <li>
                 <strong>Withdraw consent</strong> — stop using the service and

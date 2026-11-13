@@ -162,7 +162,8 @@ export default function PrivacyFrPage() {
             <ul>
               <li>
                 <strong>Accès et exportation</strong> — un fichier JSON dans les
-                paramètres : profil, finances suivies, conversations et rapports
+                paramètres : profil, finances suivies, historique du score de
+                santé financière, accomplissements, conversations et rapports
                 Progress. Pour un relevé téléversé, écrivez-nous.
               </li>
               <li><strong>Rectification</strong> — modifiez ce que vous avez entré, ou écrivez-nous.</li>
@@ -170,9 +171,9 @@ export default function PrivacyFrPage() {
                 <strong>Suppression</strong> — supprimez le compte dans les
                 paramètres. Cela retire le compte Mosaic, les dossiers de
                 l&rsquo;exportation et les fichiers téléversés que nous
-                conservons. Si un abonnement payant est actif, annulez-le
-                d&rsquo;abord, ou écrivez-nous et nous l&rsquo;annulerons.
-                Stripe peut conserver les factures.
+                conservons. Un abonnement payant actif est annulé au moment
+                de la suppression. Stripe conserve les factures comme dossier
+                de paiement.
               </li>
               <li><strong>Retrait du consentement</strong> — cessez d&rsquo;utiliser le service et demandez la suppression.</li>
               <li><strong>Courriels de marketing</strong> — distincts des reçus. Désabonnement dans le message ou dans les paramètres.</li>

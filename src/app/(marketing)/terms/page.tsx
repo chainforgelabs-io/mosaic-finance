@@ -100,10 +100,10 @@ export default function TermsPage() {
                 on the accuracy of your inputs
               </li>
               <li>
-                You may delete your account from the settings page. If a paid
-                subscription is still active, cancel it in billing settings
-                first, or email us and we will cancel it. Details are in the
-                Privacy Policy.
+                You may delete your account from the settings page. Deleting
+                the account cancels an active paid subscription. Stripe keeps
+                invoices as the payment record. Details are in the Privacy
+                Policy.
               </li>
             </ul>
           </Block>

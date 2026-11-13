@@ -77,17 +77,17 @@ Current pages exist and read like a product draft (effective April 1 2026, "Chai
 - [ ] Billing: monthly **and annual** (current ToS says "billed monthly" only). Auto-renew, cancel anytime with access through period end, 30 days' notice of price changes (existing founding members are price-locked).
 - [ ] Soft caps: Charlie has a silent monthly message cap on Progress. Disclose as fair-use rather than as a hard entitlement. Do not publish the number.
 - [ ] AI-generated content: may be wrong; user responsible for decisions; Anthropic named as processor.
-- [ ] Account deletion and data export as actual features (§2.3), not just promises.
+- [x] Account deletion and data export as actual features (§2.3). Deletion cancels a live Stripe subscription first. 2026-11-13
 - [ ] Negative-option billing rules: Ontario CPA and the federal Competition Act require clear disclosure before auto-renewal; a reminder before an annual renewal is good practice.
 
 ### 2.3 Deletion, export, retention — what the policy promises vs. what the code does — **code, owner decision first**
 
 The live privacy policy says: *"Delete your data — permanently delete your account and all associated data at any time from your settings page"* and *"Export your data — request a full copy of all data we hold about you."* The ToS repeats the deletion promise in §4 and §11.
 
-What the code does today (`src/app/dashboard/settings/page.tsx`, data section):
+What the code does today (`src/app/dashboard/settings/page.tsx`, data section), as of 2026-11-13:
 
-- **Export My Data** → `alert("Data export would trigger here. Wire to GET /api/user/export for real data export.")` No route exists.
-- **Delete All My Data** → `alert("All data would be deleted. Wire to DELETE /api/user/data for Supabase cascade deletion.")` No route exists.
+- **Export My Data** downloads `GET /api/user/export`: profile (Stripe ids omitted), tracked finances, Financial Health Score history, achievements, conversations, and delivered Progress Reports. Uploaded statement files are not in the file; the privacy page says to email for a copy.
+- **Delete All My Data** calls `DELETE /api/user/data`. That cancels any live Stripe subscription immediately (`prorate: false`, so no credit note), then deletes storage objects, app rows, the profile, and the login. The Stripe Customer and invoices stay in Stripe. If the cancel fails, the account is not deleted.
 - `user_profiles.id → auth.users(id)` does not cascade, and 22 of the 23 foreign keys to `user_profiles(id)` lack `ON DELETE CASCADE` (only `household_members` has it); deleting the auth user would fail on FK violations.
 - No retention or purge job exists. Conversations, uploads, snapshots, and `ai_usage_events` are kept indefinitely.
 
@@ -188,7 +188,7 @@ Source: Canadian Trademarks Database, [ised-isde.canada.ca/cipo/trademark-search
 | 1 | Entity decision, bank account, Stripe business details + payouts | owner | live flip |
 | 2 | GST/HST decision | owner (+ accountant) | first charge |
 | 3 | Counsel drafts privacy + ToS (EN, FR if QC) | counsel | live flip |
-| 4 | Account deletion + data export actually implemented (owner answers §2.3 questions, then `agent/account-deletion-export`) | owner → agent | live flip |
+| 4 | Account deletion cancels Stripe, then wipes app data; export includes score history and achievements. Counsel still reviews the copy. 2026-11-13 | done in code | counsel copy |
 | 5 | Swap page bodies with counsel text, list strings for compliance review | agent (later PR) | live flip |
 | 6 | Trademark filing decision (optional) | owner | nothing; can follow launch |
 | 7 | Skool / off-repo naming check for "Mosaic Academy" | owner | nothing |

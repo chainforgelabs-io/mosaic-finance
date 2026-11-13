@@ -82,7 +82,7 @@ Owner checklist with status, Stripe steps, and CIPO results: [legal/launch-legal
 
 - [ ] Business entity and business bank account tied to Stripe. **owner** — steps in checklist §1.
 - [ ] Real PIPEDA / Quebec Law 25 privacy policy and ToS on `/privacy` and `/terms`. **counsel** — brief ready; agents do not write this copy. A later PR swaps page bodies.
-- [ ] **Decision needed (data deletion):** `/privacy` and `/terms` promise self-serve account deletion and data export; both settings buttons are stubs and the schema does not cascade. Owner answers checklist §2.3, then `agent/account-deletion-export`.
+- [x] Account deletion cancels an active Stripe subscription before wiping app data, and the JSON export includes score history, achievements, and tracked-finance tables. Uploaded statement files stay available by email. 2026-11-13 · main
 - [x] Remove "portfolio demo" language from [README.md](../README.md) and any public surface before charging. Guarded by `tests/unit/brand-compliance.test.ts`. 2026-10-13 · 530a5db
 - [x] CIPO search for "Mosaic Finance" and "The Money Mosaic". No live mark for either, or for "Mosaic Academy". Closest live risk: MOSAIC INVESTMENT MANAGEMENT (2252103, class 36). Precedent: THE WEALTH MOSAIC refused after BMO opposition (2007). Filing is an owner decision; details in checklist §4. 2026-10-13 · 530a5db
 - [x] Confirm "Mosaic Academy" (never "University"). Repo clean; guarded by `tests/unit/brand-compliance.test.ts`. Owner still to check Skool and off-repo marketing. 2026-10-13 · 530a5db
@@ -236,7 +236,7 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - Guarantee refund scope: public copy says "that first charge, monthly or annual." Annual is the annual charge ($170 or founding $80). Monthly is one month. Owner confirmed this wording 2026-11-11.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
 - Uncommitted local work (lookup guides, plan schema) is not part of this roadmap.
-- Settings "Export My Data" / "Delete All My Data" are `alert()` stubs ([src/app/dashboard/settings/page.tsx](../src/app/dashboard/settings/page.tsx)); 22 of 23 FKs to `user_profiles` lack `ON DELETE CASCADE`. Waits for the owner decision in [legal/launch-legal-checklist.md](./legal/launch-legal-checklist.md) §2.3.
+- Account deletion deletes table-by-table with the service role. Most foreign keys to `user_profiles` still lack `ON DELETE CASCADE`. That is fine for the current delete path.
 - Google OAuth sign-in stores the Google display name and avatar in Supabase Auth metadata; `/privacy` says "we never collect your legal name." Counsel to qualify the claim, or restrict OAuth scopes.
 - Sentry Session Replay is on (`replaysSessionSampleRate: 0.1`) with SDK-default masking only. Confirm masking or disable before launch.
 - `/terms` §7 says "billed monthly"; annual billing is the pricing default. Fix lands with the counsel copy PR, not before.

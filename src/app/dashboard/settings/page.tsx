@@ -856,6 +856,7 @@ function PrivacyTab() {
             </div>
             <p className="font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)] mb-4">
               This permanently deletes the account and the records stored for it, then signs you out.
+              An active paid subscription is canceled. Stripe keeps the invoices.
               This cannot be undone.
             </p>
             <div className="mb-4">

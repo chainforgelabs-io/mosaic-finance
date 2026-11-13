@@ -1,22 +1,7 @@
 import { NextResponse } from "next/server";
+import { EXPORT_TABLES } from "@/lib/account/export-tables";
 import { createClient } from "@/lib/supabase/server";
 import { captureAPIError } from "@/lib/sentry";
-
-const TABLES = [
-  "financial_profiles",
-  "household_members",
-  "goals",
-  "transactions",
-  "recurring_items",
-  "budget_plan_entries",
-  "budget_plan_schedules",
-  "net_worth_snapshots",
-  "investment_holdings",
-  "fixed_assets",
-  "risk_profiles",
-  "conversation_sessions",
-  "conversation_messages",
-] as const;
 
 export async function GET() {
   try {
@@ -44,7 +29,7 @@ export async function GET() {
     }
 
     const rows = await Promise.all(
-      TABLES.map(async (table) => {
+      EXPORT_TABLES.map(async (table) => {
         const { data, error } = await supabase.from(table).select("*").eq("user_id", user.id);
         return [table, error ? { error: "unavailable" } : (data ?? [])] as const;
       }),
