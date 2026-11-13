@@ -264,7 +264,7 @@ function CategoryChip({
         }
         onTap();
       }}
-      className="shrink-0 rounded-full bg-[var(--slate-950)] px-3 py-2 font-display text-sm font-semibold text-white disabled:opacity-50"
+      className="max-w-full whitespace-normal rounded-full bg-[var(--slate-950)] px-3 py-2 text-left font-display text-sm font-semibold text-white disabled:opacity-50"
     >
       {label}
     </button>

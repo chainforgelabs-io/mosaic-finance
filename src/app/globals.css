@@ -172,6 +172,12 @@ h1, h2, h3, h4, h5, h6 {
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 
+  /* The scroll lives on the inner panel so both side radii stay visible. */
+  .phone-sheet > .quick-log-card {
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+
   .phone-sheet input,
   .phone-sheet select {
     max-width: 100%;

@@ -123,7 +123,7 @@ export function QuickLogSheet({
 
   return (
     <div
-      className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="phone-sheet fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="quick-log-title"
@@ -131,7 +131,8 @@ export function QuickLogSheet({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[92dvh] w-full overflow-y-auto overscroll-contain rounded-t-2xl bg-[var(--warm-50)] px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:max-w-md sm:rounded-xl sm:pb-5">
+      <div className="quick-log-card flex max-h-[92dvh] w-full min-w-0 max-w-md flex-col overflow-hidden rounded-2xl bg-[var(--warm-50)]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:pb-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="quick-log-title" className="font-display text-lg font-semibold text-[var(--text-primary)]">
             Log this week
@@ -168,6 +169,7 @@ export function QuickLogSheet({
           </Link>{" "}
           for the full week.
         </p>
+        </div>
       </div>
     </div>
   );
