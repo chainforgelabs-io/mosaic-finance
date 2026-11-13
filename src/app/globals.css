@@ -164,7 +164,7 @@ h1, h2, h3, h4, h5, h6 {
     padding-left: 0;
   }
 
-  .phone-sheet > * {
+  .phone-sheet > *:not(.quick-log-card) {
     max-height: 100%;
     max-width: 100%;
     overflow-x: hidden;
@@ -172,17 +172,31 @@ h1, h2, h3, h4, h5, h6 {
     padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   }
 
-  /* The scroll lives on the inner panel so both side radii stay visible. */
-  .phone-sheet > .quick-log-card {
-    overflow: hidden;
-    padding-bottom: 0;
-  }
-
   .phone-sheet input,
   .phone-sheet select {
     max-width: 100%;
     min-width: 0;
   }
+}
+
+/* Inset the week-log card on both sides so the scrollbar cannot square off the right radius. */
+.phone-sheet:has(> .quick-log-card) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow: clip;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.phone-sheet > .quick-log-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 28rem;
+  min-width: 0;
+  margin-inline: auto;
+  border-radius: 1rem;
+  overflow: clip;
 }
 
 @media (prefers-reduced-motion: reduce) {
