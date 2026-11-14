@@ -4,6 +4,7 @@ import { ProblemSection } from "@/components/marketing/problem-section";
 import { ShowcaseSection } from "@/components/marketing/showcase-section";
 import { PlanSections } from "@/components/marketing/plan-sections";
 import { SolutionSection } from "@/components/marketing/solution-section";
+import { TrackingPictureSection } from "@/components/marketing/tracking-picture-section";
 import { AlwaysAvailableSection } from "@/components/marketing/always-available-section";
 import { PositioningSection } from "@/components/marketing/positioning-section";
 import { TrustSection } from "@/components/marketing/trust-section";
@@ -22,6 +23,7 @@ export default function MarketingPage() {
       <Hero />
       <ProblemSection />
       <SolutionSection />
+      <TrackingPictureSection />
       <ShowcaseSection />
       <PlanSections />
       <AlwaysAvailableSection />

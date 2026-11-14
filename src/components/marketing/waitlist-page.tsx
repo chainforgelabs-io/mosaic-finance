@@ -6,6 +6,7 @@ import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
 import { LoopDemo } from "@/components/marketing/loop-demo";
 import { NotesOptIn } from "@/components/marketing/notes-opt-in";
+import { TrackingPictureSection } from "@/components/marketing/tracking-picture-section";
 import { WaitlistCount } from "@/components/marketing/waitlist-count";
 import { waitlistSource } from "@/lib/marketing/waitlist-source";
 
@@ -211,6 +212,8 @@ export function WaitlistPage() {
           <LoopDemo tone="dark" className="order-1 lg:order-2" />
         </div>
       </section>
+
+      <TrackingPictureSection tone="dark" />
 
       <section className="border-t border-white/[0.06] px-6 py-16 sm:py-20">
         <div className="mx-auto max-w-[720px]">

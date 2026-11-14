@@ -2,13 +2,22 @@ import {
   calculateDerivedHealthScore,
   type HealthScoreInputs,
 } from "@/lib/calculations/health-score";
+import { GUARANTEE_ACTIONS } from "@/lib/config/offer";
+import {
+  createDemoTimeline,
+  DEMO_CONTROLS,
+  DEMO_DURATION_MS,
+  DEMO_STILL_AT_MS,
+  type DemoBaseState,
+  type DemoKeyframe,
+  type DemoStep,
+} from "@/lib/marketing/demo-timeline";
 import { amountFromDigits } from "@/lib/tracking/cash-capture";
 
 /**
- * Timeline for the marketing loop demo (homepage How It Works, waitlist page).
+ * Timeline for the weekly loop demo (homepage How It Works, waitlist page).
  *
- * The demo is an illustration, never a user's data. Every frame is a pure
- * function of time, so the component only has to ask "what is on screen at t".
+ * The demo is an illustration, never a user's data.
  *
  * Compliance: the Score on screen comes from the real Health Score maths, and
  * the only inputs that change are the weekly log streak and the monthly
@@ -50,15 +59,12 @@ export const LOOP_DEMO_SCORES = [
 export const LOOP_DEMO_DIGITS = "4250";
 export const LOOP_DEMO_SPEND = amountFromDigits(LOOP_DEMO_DIGITS);
 
-export const LOOP_DEMO_DURATION_MS = 14_000;
-/** A frame from the settled end of the loop, shown when motion is reduced. */
-export const LOOP_DEMO_STILL_AT_MS = 12_000;
+export const LOOP_DEMO_DURATION_MS = DEMO_DURATION_MS;
+export const LOOP_DEMO_STILL_AT_MS = DEMO_STILL_AT_MS;
 
 export type LoopDemoPress = "log" | "category" | "snapshot";
 
-export interface LoopDemoFrame {
-  /** Which of the three loop steps the caption names. */
-  step: 0 | 1 | 2;
+interface LoopDemoState extends DemoBaseState {
   pressed: LoopDemoPress | null;
   pressedKey: string | null;
   sheetOpen: boolean;
@@ -67,14 +73,13 @@ export interface LoopDemoFrame {
   snapshotSaved: boolean;
   /** How many of the two habits the Score has caught up with. */
   scoreStage: 0 | 1 | 2;
-  /** True while the screen is faded out so the loop restarts unseen. */
-  resetting: boolean;
+}
+
+export interface LoopDemoFrame extends LoopDemoState {
   score: number;
   weeks: number;
   spent: number;
 }
-
-type LoopDemoState = Omit<LoopDemoFrame, "score" | "weeks" | "spent">;
 
 const INITIAL: LoopDemoState = {
   step: 0,
@@ -88,10 +93,7 @@ const INITIAL: LoopDemoState = {
   resetting: false,
 };
 
-interface Keyframe {
-  at: number;
-  set: Partial<LoopDemoState>;
-}
+type Keyframe = DemoKeyframe<LoopDemoState>;
 
 const FIRST_KEY_AT = 2_500;
 const KEY_GAP = 450;
@@ -121,45 +123,36 @@ const SCRIPT: Keyframe[] = [
   { at: 8_500, set: { scoreStage: 2 } },
   // 3. Watch the Score.
   { at: 9_300, set: { step: 2 } },
-  // Fade out, rewind while hidden, and the next loop fades back in.
-  { at: 12_800, set: { resetting: true } },
-  { at: 13_300, set: { ...INITIAL, resetting: true } },
 ];
 
-const KEYFRAMES = [...SCRIPT].sort((a, b) => a.at - b.at);
-
-/** Every time the picture changes, in order. Zero is the loop restart. */
-export const LOOP_DEMO_CHANGE_TIMES: readonly number[] = [
-  0,
-  ...new Set(KEYFRAMES.map((keyframe) => keyframe.at)),
-];
-
-function wrap(timeMs: number): number {
-  const t = timeMs % LOOP_DEMO_DURATION_MS;
-  return t < 0 ? t + LOOP_DEMO_DURATION_MS : t;
-}
-
-export function loopDemoFrame(timeMs: number): LoopDemoFrame {
-  const t = wrap(timeMs);
-  let state = INITIAL;
-  for (const keyframe of KEYFRAMES) {
-    if (keyframe.at > t) break;
-    state = { ...state, ...keyframe.set };
-  }
-  return {
+export const LOOP_DEMO_TIMELINE = createDemoTimeline<LoopDemoState, LoopDemoFrame>({
+  initial: INITIAL,
+  keyframes: SCRIPT,
+  derive: (state) => ({
     ...state,
     score: LOOP_DEMO_SCORES[state.scoreStage],
     weeks: LOOP_DEMO_WEEKS_BEFORE + (state.logged ? 1 : 0),
     spent: state.logged ? LOOP_DEMO_SPEND : 0,
-  };
+  }),
+});
+
+/** Every time the picture changes, in order. Zero is the loop restart. */
+export const LOOP_DEMO_CHANGE_TIMES = LOOP_DEMO_TIMELINE.changeTimes;
+
+export function loopDemoFrame(timeMs: number): LoopDemoFrame {
+  return LOOP_DEMO_TIMELINE.frameAt(timeMs);
 }
 
 /** Milliseconds from `timeMs` until the picture next changes. Always positive. */
 export function msUntilLoopDemoChange(timeMs: number): number {
-  const t = wrap(timeMs);
-  const next = LOOP_DEMO_CHANGE_TIMES.find((at) => at > t) ?? LOOP_DEMO_DURATION_MS;
-  return next - t;
+  return LOOP_DEMO_TIMELINE.msUntilChange(timeMs);
 }
+
+/** The caption under the phone reuses the Guarantee's three actions, word for word. */
+export const LOOP_DEMO_STEPS: readonly DemoStep[] = GUARANTEE_ACTIONS.map((action) => ({
+  label: action.label,
+  detail: action.cadence,
+}));
 
 /** Copy that exists only in the demo. Screen labels reuse the app's own wording. */
 export const LOOP_DEMO_ALT =
@@ -168,7 +161,4 @@ export const LOOP_DEMO_ALT =
 export const LOOP_DEMO_NOTE =
   "Illustration. The Score measures tracking consistency, not investment returns.";
 
-export const LOOP_DEMO_CONTROLS = {
-  pause: "Pause demo",
-  play: "Play demo",
-} as const;
+export const LOOP_DEMO_CONTROLS = DEMO_CONTROLS;

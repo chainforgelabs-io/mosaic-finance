@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowRight, Delete, Flame, Landmark, Pause, Play, Wallet, X } from "lucide-react";
+import { ArrowRight, Delete, Flame, Landmark, Wallet, X } from "lucide-react";
 import { getScoreColor } from "@/components/app/HealthScore";
-import { GUARANTEE_ACTIONS } from "@/lib/config/offer";
+import { DemoBackdrop, DemoShell } from "@/components/marketing/demo-shell";
 import {
   LOOP_DEMO_ALT,
-  LOOP_DEMO_CONTROLS,
-  LOOP_DEMO_DURATION_MS,
   LOOP_DEMO_NOTE,
-  LOOP_DEMO_STILL_AT_MS,
-  loopDemoFrame,
-  msUntilLoopDemoChange,
+  LOOP_DEMO_STEPS,
+  LOOP_DEMO_TIMELINE,
   type LoopDemoFrame,
 } from "@/lib/marketing/loop-demo";
 import { formatAmountInput } from "@/lib/tracking/cash-capture";
 import { SPENDING_CATEGORY_LABELS } from "@/lib/tracking/categories";
 import { formatMoneyExact } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
-
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-const STILL_FRAME = loopDemoFrame(LOOP_DEMO_STILL_AT_MS);
 
 const PAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"] as const;
 const MODES = ["Out", "In", "Save"] as const;
@@ -30,54 +23,9 @@ const CHIPS = [
   SPENDING_CATEGORY_LABELS.health,
 ] as const;
 
-function subscribeReducedMotion(onChange: () => void) {
-  const query = window.matchMedia(REDUCED_MOTION);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeReducedMotion,
-    () => window.matchMedia(REDUCED_MOTION).matches,
-    () => false,
-  );
-}
-
-/** Steps the frame at each change in the timeline, and keeps its place when paused. */
-function useLoopDemoFrame(running: boolean): LoopDemoFrame {
-  const [frame, setFrame] = useState(() => loopDemoFrame(0));
-  const elapsedRef = useRef(0);
-
-  useEffect(() => {
-    if (!running) return;
-    const startedAt = performance.now() - elapsedRef.current;
-    const elapsed = () => (performance.now() - startedAt) % LOOP_DEMO_DURATION_MS;
-    let timer = 0;
-
-    const schedule = () => {
-      timer = window.setTimeout(() => {
-        const now = elapsed();
-        elapsedRef.current = now;
-        setFrame(loopDemoFrame(now));
-        schedule();
-      }, msUntilLoopDemoChange(elapsed()));
-    };
-    schedule();
-
-    return () => {
-      window.clearTimeout(timer);
-      elapsedRef.current = elapsed();
-    };
-  }, [running]);
-
-  return frame;
-}
-
 /**
  * Looping illustration of the weekly loop: log a spend, snapshot net worth,
- * watch the Score. Not a user's data. Pauses off screen and on request, and
- * shows one still frame when the visitor prefers reduced motion.
+ * watch the Score. Not a user's data.
  */
 export function LoopDemo({
   tone = "light",
@@ -86,112 +34,23 @@ export function LoopDemo({
   tone?: "light" | "dark";
   className?: string;
 }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    // Wait until most of the phone is on screen so nobody joins mid-keypad.
-    const observer = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { threshold: 0.4 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const live = useLoopDemoFrame(inView && !paused && !reducedMotion);
-  const frame = reducedMotion ? STILL_FRAME : live;
-  const action = GUARANTEE_ACTIONS[frame.step];
-  const onDark = tone === "dark";
-
   return (
-    <div ref={rootRef} className={cn("flex flex-col items-center", className)}>
-      <div role="img" aria-label={LOOP_DEMO_ALT}>
-        <div
-          aria-hidden="true"
-          className="w-[288px] select-none rounded-[2.25rem] bg-slate-900 p-2 shadow-2xl ring-1 ring-white/15"
-        >
-          <div className="relative h-[436px] overflow-hidden rounded-[1.75rem] bg-warm-50">
-            <div
-              className={cn(
-                "h-full transition-opacity duration-300",
-                frame.resetting ? "opacity-0" : "opacity-100",
-              )}
-            >
-              <DemoDashboard frame={frame} />
-              <div
-                className={cn(
-                  "absolute inset-0 bg-black/40 transition-opacity duration-300",
-                  frame.sheetOpen ? "opacity-100" : "opacity-0",
-                )}
-              />
-              <DemoSheet frame={frame} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div aria-hidden="true" className="mt-5 flex h-11 flex-col items-center gap-2">
-        <div className="flex items-center gap-1.5">
-          {GUARANTEE_ACTIONS.map((item, index) => (
-            <span
-              key={item.label}
-              className={cn(
-                "h-1.5 rounded-full transition-all duration-300",
-                index === frame.step
-                  ? "w-6 bg-emerald"
-                  : onDark
-                    ? "w-1.5 bg-white/20"
-                    : "w-1.5 bg-warm-200",
-              )}
-            />
-          ))}
-        </div>
-        <p
-          key={action.label}
-          className={cn(
-            "font-display text-sm font-semibold",
-            onDark ? "text-white" : "text-text-primary",
-          )}
-          style={{ animation: "fade-up 300ms ease-out" }}
-        >
-          {action.label}{" "}
-          <span className={cn("font-body font-normal", onDark ? "text-slate-400" : "text-text-secondary")}>
-            {action.cadence}
-          </span>
-        </p>
-      </div>
-
-      <div className="mt-3 flex max-w-[288px] items-start gap-2.5">
-        {!reducedMotion && (
-          <button
-            type="button"
-            onClick={() => setPaused((value) => !value)}
-            aria-label={paused ? LOOP_DEMO_CONTROLS.play : LOOP_DEMO_CONTROLS.pause}
-            className={cn(
-              "inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
-              onDark
-                ? "border-white/15 text-slate-300 hover:border-white/40 hover:text-white"
-                : "border-warm-200 text-text-secondary hover:border-emerald hover:text-emerald",
-            )}
-          >
-            {paused ? <Play className="size-3.5" aria-hidden /> : <Pause className="size-3.5" aria-hidden />}
-          </button>
-        )}
-        <p
-          className={cn(
-            "pt-1.5 font-body text-[11px] leading-relaxed",
-            onDark ? "text-slate-500" : "text-text-muted",
-          )}
-        >
-          {LOOP_DEMO_NOTE}
-        </p>
-      </div>
-    </div>
+    <DemoShell
+      timeline={LOOP_DEMO_TIMELINE}
+      steps={LOOP_DEMO_STEPS}
+      alt={LOOP_DEMO_ALT}
+      note={LOOP_DEMO_NOTE}
+      tone={tone}
+      className={className}
+    >
+      {(frame) => (
+        <>
+          <DemoDashboard frame={frame} />
+          <DemoBackdrop open={frame.sheetOpen} />
+          <DemoSheet frame={frame} />
+        </>
+      )}
+    </DemoShell>
   );
 }
 
