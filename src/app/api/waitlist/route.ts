@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { captureAPIError } from '@/lib/sentry';
 import { PROVINCES } from '@/lib/constants/provinces';
 import { sendWaitlistWelcomeEmail } from '@/lib/resend/client';
+import { publicWaitlistCount } from '@/lib/marketing/waitlist-count';
 
 /** Public count only. Emails stay on the server. */
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
       captureAPIError(error, { route: 'waitlist', step: 'count' });
       return NextResponse.json({ count: null });
     }
-    return NextResponse.json({ count: count ?? 0 });
+    return NextResponse.json({ count: publicWaitlistCount(count ?? 0) });
   } catch (err) {
     captureAPIError(err, { route: 'waitlist', step: 'count' });
     return NextResponse.json({ count: null });

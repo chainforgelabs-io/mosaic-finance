@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { publicWaitlistCount } from "@/lib/marketing/waitlist-count";
 
 export function WaitlistCount({ className }: { className?: string }) {
   const [count, setCount] = useState<number | null>(null);
@@ -11,8 +12,8 @@ export function WaitlistCount({ className }: { className?: string }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { count?: unknown } | null) => {
         if (cancelled) return;
-        const n = typeof data?.count === "number" ? data.count : null;
-        if (n != null && n > 0) setCount(n);
+        const n = publicWaitlistCount(typeof data?.count === "number" ? data.count : null);
+        if (n != null) setCount(n);
       })
       .catch(() => undefined);
     return () => {
