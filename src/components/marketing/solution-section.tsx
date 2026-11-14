@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { LoopDemo } from "@/components/marketing/loop-demo";
 
 const STEPS = [
   {
@@ -19,13 +20,6 @@ const STEPS = [
     desc: "On Progress, Charlie, your AI money guide, turns your numbers into a Progress Report and walks you through it in plain Canadian terms. Educational information, not advice — speak with a licensed financial advisor before implementing changes.",
   },
 ];
-
-const LOOP_ROWS = [
-  { label: "Spending logged", value: "This week", done: true },
-  { label: "Net worth snapshot", value: "Saved for October", done: true },
-  { label: "Weekly streak", value: "6 weeks", done: true },
-  { label: "Progress Report", value: "Refreshed monthly", done: false },
-] as const;
 
 export function SolutionSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -87,7 +81,7 @@ export function SolutionSection() {
           Educational information, not financial advice.
         </p>
 
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+        <div className="grid gap-12 lg:grid-cols-2 lg:items-center lg:gap-16">
           {/* Timeline */}
           <div className="relative">
             <div className="absolute top-0 bottom-0 left-[15px] w-px bg-warm-200 lg:left-[15px]" />
@@ -113,59 +107,13 @@ export function SolutionSection() {
             </div>
           </div>
 
-          {/* Weekly loop preview (illustrative, not a user's data) */}
+          {/* Weekly loop demo (illustrative, not a user's data) */}
           <div
             data-animate
-            className="hidden rounded-2xl border border-white/[0.06] bg-slate-900 p-6 lg:block"
+            className="flex justify-center"
             style={{ opacity: 0, transform: "translateY(16px)" }}
-            aria-hidden="true"
           >
-            <div className="mb-5 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-white/10" />
-              <div className="h-3 w-3 rounded-full bg-white/10" />
-              <div className="h-3 w-3 rounded-full bg-white/10" />
-            </div>
-            <p className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-emerald">
-              This week
-            </p>
-            <div className="mt-3 flex items-end justify-between gap-4">
-              <div>
-                <p className="font-display text-5xl font-extrabold tabular-nums text-white">
-                  63
-                </p>
-                <p className="mt-1 font-body text-xs text-text-muted">
-                  Financial Health Score
-                </p>
-              </div>
-              <p className="rounded-full bg-emerald/15 px-3 py-1 font-display text-xs font-semibold text-emerald-soft">
-                90-day +7
-              </p>
-            </div>
-            <div className="mt-6 space-y-2">
-              {LOOP_ROWS.map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between rounded-lg bg-white/[0.04] px-4 py-3"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full ${
-                        row.done ? "bg-emerald" : "bg-white/20"
-                      }`}
-                    />
-                    <span className="font-body text-[13px] text-text-inverse/85">
-                      {row.label}
-                    </span>
-                  </div>
-                  <span className="font-display text-xs font-semibold text-text-inverse/60">
-                    {row.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-4 font-body text-[11px] text-text-muted">
-              Illustration. The Score measures tracking consistency, not investment returns.
-            </p>
+            <LoopDemo tone="light" />
           </div>
         </div>
       </div>

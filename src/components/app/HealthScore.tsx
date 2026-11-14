@@ -15,7 +15,7 @@ const sizeMap = {
   lg: { dimension: 180, strokeWidth: 10, fontSize: "text-5xl" },
 } as const;
 
-function getScoreColor(score: number): string {
+export function getScoreColor(score: number): string {
   if (score < 50) return "var(--error)";
   if (score < 70) return "var(--warning)";
   if (score < 85) return "var(--emerald)";

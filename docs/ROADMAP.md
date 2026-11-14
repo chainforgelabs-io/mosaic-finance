@@ -133,6 +133,12 @@ IDs and counts only. No amounts, names, emails, or free-text.
 - [ ] Founding counter louder on pricing (remaining of 200). Logic already in [src/lib/founding.ts](../src/lib/founding.ts).
 - [ ] Referral scaffold ("give a month, get a month," reward on the referred user's **paid** conversion). Do not launch the loop until ~100 paying users (Phase 5). Schema + API only in this phase if it stays dark.
 
+### 1G — Show the loop on the funnel (`agent/loop-demo`)
+
+Added at the owner's request on 2026-11-14. Not a gate for Phase 2.
+
+- [x] Looping illustration of the weekly loop (log a spend, snapshot net worth, the Score updates) in How It Works on the homepage and on `/waitlist`, on every screen size. It replaces the static desktop-only preview card. Illustrative numbers only; the Score on screen comes from the real Score maths and moves only with the two tracking streaks. Timeline in [src/lib/marketing/loop-demo.ts](../src/lib/marketing/loop-demo.ts), tests in `tests/unit/loop-demo.test.ts`. 2026-11-14 · main
+
 Suggested order: 1A → 1B → 1C → 1D → 1E. 1F after owner decisions.
 
 ---
@@ -237,6 +243,9 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - Google OAuth sign-in stores the Google display name and avatar in Supabase Auth metadata; `/privacy` says "we never collect your legal name." Counsel to qualify the claim, or restrict OAuth scopes.
 - Sentry Session Replay is on (`replaysSessionSampleRate: 0.1`) with SDK-default masking only. Confirm masking or disable before launch.
 - `/terms` §7 says "billed monthly"; annual billing is the pricing default. Fix lands with the counsel copy PR, not before.
+- `npm run lint` fails on `main` with 12 errors in 10 files, more than the two listed above: `login-form.tsx`, `reset-password/page.tsx`, `signup/page.tsx`, `onboarding/holdings/page.tsx`, both `admin/approval-queue` files, `ConversationBubble.tsx`, `PlanSection.tsx`, `QuickLogSheet.tsx`, `UnlockToast.tsx`. Mostly `react-hooks/set-state-in-effect`.
+- The four showcase mockups in `public/assets/` date from 31 August, before new accounts landed on the tracking dashboard. Check they still match the app.
+- The loop demo is not yet rendered as an MP4 for X. The timeline is a pure function of time, so it can be recorded frame by frame once `ffmpeg` is installed. Phase 3 content asset.
 
 ---
 
@@ -247,3 +256,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-10-11 | Created. Folded [BUSINESS_PLAN.md](../BUSINESS_PLAN.md) and [BUSINESS_TODO.md](../BUSINESS_TODO.md). Phase 1b checklist moved to [qa/full-test-run.md](./qa/full-test-run.md). Stage: 0→1, pre-Stage I money model. |
 | 2026-10-12 | Phase 0 owner items confirmed: migrations 027/028 applied, live Stripe prices + env set, crons registered, Resend domain verified. Webhook endpoint still to confirm in Stripe. Phase 1A shipped (PR #13). |
 | 2026-11-08 | Owner: Progress Charlie allowance is 200 messages/month, sized to break even on the $8 founding price. Do not publish the number. In-chat notice only when approaching, then at the limit. |
+| 2026-11-14 | Owner asked for a product demo on the funnel. Added Phase 1G and shipped the looping weekly-loop illustration on the homepage and `/waitlist`. |

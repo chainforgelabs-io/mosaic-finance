@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { LoopDemo } from "@/components/marketing/loop-demo";
 import { NotesOptIn } from "@/components/marketing/notes-opt-in";
 import { WaitlistCount } from "@/components/marketing/waitlist-count";
 import { waitlistSource } from "@/lib/marketing/waitlist-source";
@@ -186,25 +187,28 @@ export function WaitlistPage() {
 
       {/* Inside the guide */}
       <section className="border-t border-white/[0.06] px-6 py-12 sm:py-16">
-        <div className="mx-auto max-w-[640px] rounded-2xl border border-white/[0.08] bg-slate-900/50 px-6 py-8 sm:px-8 sm:py-10">
-          <p className="mb-6 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
-            What the tracker does
-          </p>
-          <ul className="space-y-6">
-            {TRACKER_ITEMS.map((item) => (
-              <li key={item.title} className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald" aria-hidden />
-                <div>
-                  <p className="font-display text-[15px] font-semibold text-white sm:text-base">
-                    {item.title}
-                  </p>
-                  <p className="mt-1 font-body text-sm leading-relaxed text-slate-400">
-                    {item.desc}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className="mx-auto grid max-w-[640px] items-center gap-10 lg:max-w-[1000px] lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-14">
+          <div className="order-2 rounded-2xl border border-white/[0.08] bg-slate-900/50 px-6 py-8 sm:px-8 sm:py-10 lg:order-1">
+            <p className="mb-6 font-body text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald">
+              What the tracker does
+            </p>
+            <ul className="space-y-6">
+              {TRACKER_ITEMS.map((item) => (
+                <li key={item.title} className="flex gap-3">
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-emerald" aria-hidden />
+                  <div>
+                    <p className="font-display text-[15px] font-semibold text-white sm:text-base">
+                      {item.title}
+                    </p>
+                    <p className="mt-1 font-body text-sm leading-relaxed text-slate-400">
+                      {item.desc}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <LoopDemo tone="dark" className="order-1 lg:order-2" />
         </div>
       </section>
 
