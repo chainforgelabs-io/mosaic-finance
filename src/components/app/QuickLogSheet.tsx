@@ -131,8 +131,8 @@ export function QuickLogSheet({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="quick-log-card flex max-h-[92dvh] w-full min-w-0 max-w-md flex-col overflow-clip rounded-2xl bg-[var(--warm-50)]">
-        <div className="min-h-0 overflow-y-auto overscroll-contain rounded-2xl px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:pb-5">
+      <div className="quick-log-card flex max-h-full min-h-0 w-full min-w-0 max-w-md flex-col overflow-clip rounded-2xl bg-[var(--warm-50)]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-2xl px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:pb-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="quick-log-title" className="font-display text-lg font-semibold text-[var(--text-primary)]">
             Log this week

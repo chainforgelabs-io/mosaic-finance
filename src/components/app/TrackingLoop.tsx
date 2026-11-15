@@ -185,11 +185,11 @@ export function TrackingLoop({ reportAvailable, onLogged }: TrackingLoopProps) {
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col gap-3 max-md:pb-16 sm:flex-row sm:items-center">
           <button
             type="button"
             onClick={() => setLogOpen(true)}
-            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-[#059669] sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--emerald)] px-5 py-3 font-display text-sm font-semibold text-white transition-colors hover:bg-[#059669] max-md:fixed max-md:inset-x-4 max-md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] max-md:z-30 max-md:w-auto sm:w-auto"
           >
             {logLabel}
             <ArrowRight className="size-4" />
