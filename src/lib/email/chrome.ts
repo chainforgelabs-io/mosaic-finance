@@ -1,6 +1,10 @@
 import { type EmailList, unsubscribeUrl } from "@/lib/email/unsubscribe";
 
-const LOGO_SVG = `<svg width="40" height="40" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="rotate(45 16 16)"><rect x="8" y="8" width="8" height="8" fill="#10B981"/><rect x="16" y="8" width="8" height="8" fill="#1F2937"/><rect x="8" y="16" width="8" height="8" fill="#1F2937"/><rect x="16" y="16" width="8" height="8" fill="#10B981"/><rect x="14" y="14" width="4" height="4" fill="#EAB308"/></g></svg>`;
+/** Hosted PNG. Outlook strips inline SVG, so the mark has to be an image. */
+export function mosaicLogoImg(appUrl: string): string {
+  const src = `${appUrl.replace(/\/$/, "")}/logos/MosaicEmblemLogo.png`;
+  return `<img src="${escapeHtml(src)}" width="48" height="48" alt="Mosaic Finance" style="display:block;margin:0 auto 10px;border:0;outline:none;height:48px;width:48px;" />`;
+}
 
 export const EMAIL_DISCLAIMER =
   "Mosaic Finance is a financial tracking and education platform. This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes.";
@@ -90,7 +94,7 @@ export function mosaicEmailHtml(opts: MosaicEmailOptions): string {
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;">
           <tr>
             <td align="center" style="padding:8px 4px 20px;">
-              <a href="${escapeHtml(appUrl)}" style="text-decoration:none;">${LOGO_SVG}</a>
+              <a href="${escapeHtml(appUrl)}" style="text-decoration:none;">${mosaicLogoImg(appUrl)}</a>
               ${kicker}
               <h1 style="margin:8px 0 0;font-family:Arial,sans-serif;font-size:22px;line-height:1.3;color:#1F2937;">${escapeHtml(opts.title)}</h1>
               ${subtitle}

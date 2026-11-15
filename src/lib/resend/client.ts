@@ -5,6 +5,7 @@ import {
   mosaicButton,
   mosaicCard,
   mosaicEmailHtml,
+  mosaicLogoImg,
 } from "@/lib/email/chrome";
 import { sendMosaicEmail } from "@/lib/email/send";
 import { nurtureIssue, prelaunchIssue } from "@/lib/email/nurture-content";
@@ -27,7 +28,8 @@ export async function sendApprovalQueueNotification(
       : "New Progress Report in QA queue",
     html: `
       <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
-        <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;">MOSAIC FINANCE</div>
+        ${mosaicLogoImg(APP_URL)}
+        <div style="font-size:12px;letter-spacing:3px;color:#EAB308;margin-bottom:8px;text-align:center;">MOSAIC FINANCE</div>
         <h2 style="color:#0f1923;margin-bottom:16px;">New Progress Report for QA</h2>
         <p>A new Progress Report has been generated and is available for optional internal QA review. The user already has access.</p>
         ${isPriority ? '<p style="color:#b91c1c;font-weight:700;">Priority — Complete tier</p>' : "<p>Standard</p>"}
