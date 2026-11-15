@@ -225,6 +225,7 @@ function PrePlanScore() {
 function DashboardGenerating() {
   const prePlanData = usePlanStore((s) => s.prePlanData);
   const user = usePlanStore((s) => s.user);
+  const [loopRefresh, setLoopRefresh] = useState(0);
   const reportAvailable =
     user?.tier === "progress" || user?.tier === "mastery" || isTrialActive(user?.trialEndsAt);
 
@@ -238,9 +239,9 @@ function DashboardGenerating() {
         </p>
       </div>
 
-      <TrackingLoop reportAvailable={reportAvailable} />
+      <TrackingLoop reportAvailable={reportAvailable} onLogged={() => setLoopRefresh((n) => n + 1)} />
       <PrePlanKPIStrip data={prePlanData} showScore={false} />
-      <MotivationStrip />
+      <MotivationStrip refreshToken={loopRefresh} />
 
       {prePlanData && (
         <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">
@@ -633,6 +634,7 @@ function DashboardPending() {
 function DashboardDelivered() {
   const { plan, marketContext } = usePlanStore();
   const now = useSyncExternalStore(subscribeMinute, snapshotNow, () => 0);
+  const [loopRefresh, setLoopRefresh] = useState(0);
 
   if (!plan) return null;
 
@@ -646,9 +648,9 @@ function DashboardDelivered() {
         <ApprovalStatusBanner status="delivered" planId={plan.id} />
       )}
 
-      <TrackingLoop reportAvailable />
+      <TrackingLoop reportAvailable onLogged={() => setLoopRefresh((n) => n + 1)} />
       <KPIStrip plan={plan} />
-      <MotivationStrip />
+      <MotivationStrip refreshToken={loopRefresh} />
       <ChartGrid />
 
       {plan.sections.length > 0 && (

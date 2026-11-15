@@ -19,6 +19,7 @@ import { reminderDayLabel } from "@/lib/tracking/net-worth-reminder";
 
 interface TrackingLoopProps {
   reportAvailable: boolean;
+  onLogged?: () => void;
 }
 
 interface ReportEntry {
@@ -31,7 +32,7 @@ interface GuaranteeStatus {
   snapshots: number;
 }
 
-export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
+export function TrackingLoop({ reportAvailable, onLogged }: TrackingLoopProps) {
   const [score, setScore] = useState<number | null>(null);
   const [delta90, setDelta90] = useState<number | null>(null);
   const [summary, setSummary] = useState<GamificationSummary | null>(null);
@@ -250,7 +251,10 @@ export function TrackingLoop({ reportAvailable }: TrackingLoopProps) {
       <QuickLogSheet
         open={logOpen}
         onClose={() => setLogOpen(false)}
-        onSaved={() => setRefreshToken((token) => token + 1)}
+        onSaved={() => {
+          setRefreshToken((token) => token + 1);
+          onLogged?.();
+        }}
       />
     </div>
   );

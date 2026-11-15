@@ -6,7 +6,13 @@ import { Award, Flame, Landmark, Target } from "lucide-react";
 import type { GamificationSummary } from "@/types/tracking";
 import { cn } from "@/lib/utils";
 
-export function MotivationStrip({ className }: { className?: string }) {
+export function MotivationStrip({
+  className,
+  refreshToken = 0,
+}: {
+  className?: string;
+  refreshToken?: number;
+}) {
   const [data, setData] = useState<GamificationSummary | null>(null);
 
   useEffect(() => {
@@ -20,7 +26,7 @@ export function MotivationStrip({ className }: { className?: string }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   if (!data) return null;
 
