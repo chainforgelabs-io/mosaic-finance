@@ -131,6 +131,7 @@ export async function PATCH(req: NextRequest) {
   if (error || !data) {
     return NextResponse.json({ error: "Transaction not found or update failed" }, { status: 404 });
   }
+  await recordDerivedHealthScore(supabase, user.id);
   return NextResponse.json({ transaction: data });
 }
 
@@ -151,5 +152,6 @@ export async function DELETE(req: NextRequest) {
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: "Failed to delete transaction" }, { status: 500 });
+  await recordDerivedHealthScore(supabase, user.id);
   return NextResponse.json({ ok: true });
 }

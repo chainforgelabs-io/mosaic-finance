@@ -118,9 +118,9 @@ describe("moneyForHealthScore", () => {
     const money = moneyForHealthScore({
       today: "2026-11-13",
       transactions: [
-        { txn_date: "2026-11-01", amount: 4000, line_role: "income", direction: "in" },
-        { txn_date: "2026-11-02", amount: 500, line_role: "purchase", direction: "out", category: "groceries" },
-        { txn_date: "2026-11-03", amount: 300, line_role: "savings", direction: "out", category: "tfsa" },
+        { txn_date: "2026-10-15", amount: 4000, line_role: "income", direction: "in" },
+        { txn_date: "2026-10-15", amount: 500, line_role: "purchase", direction: "out", category: "groceries" },
+        { txn_date: "2026-10-15", amount: 300, line_role: "savings", direction: "out", category: "tfsa" },
         { txn_date: "2026-11-04", amount: 200, line_role: "savings", direction: "out", category: "debt_principal" },
         { txn_date: "2026-10-01", amount: 9000, line_role: "purchase", direction: "out", category: "other" },
         { txn_date: "2026-11-05", amount: 800, source: "screenshot", line_role: "purchase", direction: "out" },
@@ -132,6 +132,22 @@ describe("moneyForHealthScore", () => {
     expect(money.monthlyExpenses).toBe(500);
     expect(money.annualIncome).toBe(48000);
     expect(money.emergencyFundMonths).toBe(3);
+    expect(money.totalDebt).toBe(0);
+  });
+
+  it("keeps the fact-find until a tracked kind covers the whole month", () => {
+    const money = moneyForHealthScore({
+      today: "2026-11-13",
+      transactions: [
+        { txn_date: "2026-11-13", amount: 0.01, line_role: "purchase", direction: "out", category: "groceries" },
+      ],
+      snapshot: { debtsTotal: 0, cash: 1500 },
+      factFind,
+    });
+    expect(money.monthlyExpenses).toBe(factFind.monthlyExpenses);
+    expect(money.monthlySavings).toBe(factFind.monthlySavings);
+    expect(money.annualIncome).toBe(factFind.annualIncome);
+    expect(money.emergencyFundMonths).toBe(0.4);
     expect(money.totalDebt).toBe(0);
   });
 

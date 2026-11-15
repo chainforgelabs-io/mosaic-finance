@@ -33,6 +33,11 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+function coversScoreWindow(rows: ScoreTransaction[], today: string): boolean {
+  const start = addDays(today, -(SCORE_WINDOW_DAYS - 1));
+  return rows.some((txn) => txn.txn_date <= start);
+}
+
 function sum(values: number[]): number {
   return roundMoney(values.reduce((total, value) => total + value, 0));
 }
@@ -60,16 +65,22 @@ export function moneyForHealthScore(input: {
     (txn) => transactionKind(txn) === "savings" && txn.category !== "debt_principal",
   );
 
-  const monthlyExpenses = expenses.length
+  // One logged line is not a month. Fact-find stands until that kind of
+  // transaction reaches the start of the trailing window.
+  const expensesCover = coversScoreWindow(expenses, input.today);
+  const incomeCover = coversScoreWindow(income, input.today);
+  const savingsCover = coversScoreWindow(savings, input.today);
+
+  const monthlyExpenses = expensesCover
     ? sum(expenses.map((txn) => Number(txn.amount)))
     : input.factFind.monthlyExpenses;
-  const trackedIncome = income.length ? sum(income.map((txn) => Number(txn.amount))) : null;
+  const trackedIncome = incomeCover ? sum(income.map((txn) => Number(txn.amount))) : null;
   const annualIncome = trackedIncome != null ? roundMoney(trackedIncome * 12) : input.factFind.annualIncome;
 
   let monthlySavings = input.factFind.monthlySavings;
-  if (savings.length) {
+  if (savingsCover) {
     monthlySavings = sum(savings.map((txn) => Number(txn.amount)));
-  } else if (trackedIncome != null && expenses.length) {
+  } else if (trackedIncome != null && expensesCover) {
     monthlySavings = roundMoney(trackedIncome - (monthlyExpenses ?? 0));
   }
 
