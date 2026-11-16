@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
 import { GuideLeadForm } from "@/components/marketing/guide-lead-form";
-import { LoopDemo } from "@/components/marketing/loop-demo";
+import { LoopDemoOnApproach } from "@/components/marketing/demo-on-approach";
 import { TrackingPictureSection } from "@/components/marketing/tracking-picture-section";
 import { WaitlistCount } from "@/components/marketing/waitlist-count";
 
@@ -110,7 +110,7 @@ export function WaitlistPage() {
                 ))}
               </ul>
             </div>
-            <LoopDemo tone="dark" className="order-1 lg:order-2" />
+            <LoopDemoOnApproach tone="dark" className="order-1 lg:order-2" />
           </div>
         </section>
       </Suspense>

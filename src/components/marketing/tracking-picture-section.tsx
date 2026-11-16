@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { NetWorthDemo } from "@/components/marketing/net-worth-demo";
-import { ReviewDemo } from "@/components/marketing/review-demo";
+import {
+  NetWorthDemoOnApproach,
+  ReviewDemoOnApproach,
+} from "@/components/marketing/demo-on-approach";
 import { TRACKING_PICTURE_COPY } from "@/lib/marketing/tracking-picture";
 import { cn } from "@/lib/utils";
 
@@ -55,10 +57,10 @@ export function TrackingPictureSection({ tone = "light" }: { tone?: Tone }) {
 
         <div className="mt-12 grid gap-16 lg:mt-16 lg:grid-cols-2 lg:gap-12">
           <DemoColumn tone={tone} copy={review}>
-            <ReviewDemo tone={tone} />
+            <ReviewDemoOnApproach tone={tone} />
           </DemoColumn>
           <DemoColumn tone={tone} copy={netWorth}>
-            <NetWorthDemo tone={tone} />
+            <NetWorthDemoOnApproach tone={tone} />
           </DemoColumn>
         </div>
       </div>

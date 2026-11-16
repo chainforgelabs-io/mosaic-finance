@@ -1,4 +1,4 @@
-import { LoopDemo } from "@/components/marketing/loop-demo";
+import { LoopDemoOnApproach } from "@/components/marketing/demo-on-approach";
 import { Reveal } from "@/components/marketing/reveal";
 
 const STEPS = [
@@ -83,7 +83,7 @@ export function SolutionSection() {
             className="flex justify-center"
             style={{ opacity: 0, transform: "translateY(16px)" }}
           >
-            <LoopDemo tone="light" />
+            <LoopDemoOnApproach tone="light" />
           </div>
         </div>
       </div>
