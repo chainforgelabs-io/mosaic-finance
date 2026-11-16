@@ -1,7 +1,5 @@
-"use client";
-
-import { useEffect, useRef } from "react";
 import { Award, Lock, MapPin, ShieldCheck } from "lucide-react";
+import { Reveal } from "@/components/marketing/reveal";
 import { GUARANTEE_NAME, GUARANTEE_SHORT } from "@/lib/config/offer";
 
 const PILLARS = [
@@ -28,36 +26,9 @@ const PILLARS = [
 ];
 
 export function TrustSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const items = el.querySelectorAll("[data-animate]");
-            items.forEach((item, i) => {
-              const htmlItem = item as HTMLElement;
-              setTimeout(() => {
-                htmlItem.style.transition = "opacity 400ms ease-out, transform 400ms ease-out";
-                htmlItem.style.opacity = "1";
-                htmlItem.style.transform = "translateY(0)";
-              }, i * 80);
-            });
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.15 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <section ref={sectionRef} id="trust" className="bg-warm-50 px-6 py-20 lg:py-[120px]">
+    <section id="trust" className="bg-warm-50 px-6 py-20 lg:py-[120px]">
+      <Reveal>
       <div className="mx-auto max-w-[1180px]">
         <p
           data-animate
@@ -108,6 +79,7 @@ export function TrustSection() {
           licensed advisor.
         </p>
       </div>
+      </Reveal>
     </section>
   );
 }

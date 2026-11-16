@@ -1,40 +1,11 @@
-"use client";
-
-import { useEffect, useRef } from "react";
+import { Reveal } from "@/components/marketing/reveal";
 import { WaitlistForm } from "@/components/marketing/waitlist-form";
 import { GUARANTEE_SHORT, OFFER_NAME } from "@/lib/config/offer";
 
 export function FinalCta() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const items = el.querySelectorAll("[data-animate]");
-            items.forEach((item, i) => {
-              const htmlItem = item as HTMLElement;
-              setTimeout(() => {
-                htmlItem.style.transition = "opacity 400ms ease-out, transform 400ms ease-out";
-                htmlItem.style.opacity = "1";
-                htmlItem.style.transform = "translateY(0)";
-              }, i * 80);
-            });
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.2 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="bg-slate-950 px-6 py-20 lg:py-[120px]">
+    <section className="bg-slate-950 px-6 py-20 lg:py-[120px]">
+      <Reveal threshold={0.2}>
       <div className="mx-auto max-w-[600px] text-center">
         <h2
           data-animate
@@ -80,6 +51,7 @@ export function FinalCta() {
           </a>
         </p>
       </div>
+      </Reveal>
     </section>
   );
 }

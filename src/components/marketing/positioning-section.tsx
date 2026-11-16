@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useRef } from "react";
+import { Reveal } from "@/components/marketing/reveal";
 
 const ROWS = [
   {
@@ -22,37 +20,9 @@ const ROWS = [
 ];
 
 export function PositioningSection() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const items = el.querySelectorAll("[data-animate]");
-            items.forEach((item, i) => {
-              const htmlItem = item as HTMLElement;
-              setTimeout(() => {
-                htmlItem.style.transition =
-                  "opacity 400ms ease-out, transform 400ms ease-out";
-                htmlItem.style.opacity = "1";
-                htmlItem.style.transform = "translateY(0)";
-              }, i * 80);
-            });
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   return (
-    <section ref={sectionRef} className="bg-white px-6 py-20 lg:py-[120px]">
+    <section className="bg-white px-6 py-20 lg:py-[120px]">
+      <Reveal threshold={0.1}>
       <div className="mx-auto max-w-[1180px]">
         <p
           data-animate
@@ -87,6 +57,7 @@ export function PositioningSection() {
           ))}
         </div>
       </div>
+      </Reveal>
     </section>
   );
 }

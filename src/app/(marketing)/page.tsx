@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Nav } from "@/components/marketing/nav";
 import { Hero } from "@/components/marketing/hero";
 import { ProblemSection } from "@/components/marketing/problem-section";
@@ -21,18 +22,42 @@ export default function MarketingPage() {
     <main>
       <Nav hideAuth={!live} />
       <Hero />
-      <ProblemSection />
-      <SolutionSection />
-      <TrackingPictureSection />
-      <ShowcaseSection />
-      <PlanSections />
-      <AlwaysAvailableSection />
-      <PositioningSection />
-      <TrustSection />
-      <OfferSection />
-      <PricingSection ctaHref={live ? "/signup" : "/waitlist"} />
-      <FaqSection />
-      <FinalCta />
+      <Suspense>
+        <ProblemSection />
+      </Suspense>
+      <Suspense>
+        <SolutionSection />
+      </Suspense>
+      <Suspense>
+        <TrackingPictureSection />
+      </Suspense>
+      <Suspense>
+        <ShowcaseSection />
+      </Suspense>
+      <Suspense>
+        <PlanSections />
+      </Suspense>
+      <Suspense>
+        <AlwaysAvailableSection />
+      </Suspense>
+      <Suspense>
+        <PositioningSection />
+      </Suspense>
+      <Suspense>
+        <TrustSection />
+      </Suspense>
+      <Suspense>
+        <OfferSection />
+      </Suspense>
+      <Suspense>
+        <PricingSection ctaHref={live ? "/signup" : "/waitlist"} />
+      </Suspense>
+      <Suspense>
+        <FaqSection />
+      </Suspense>
+      <Suspense>
+        <FinalCta />
+      </Suspense>
       <Footer />
     </main>
   );
