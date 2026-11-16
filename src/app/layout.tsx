@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   description:
     "An AI-powered cash flow and net worth tracker. Log spending, snapshot what you own and what you owe, and follow one Financial Health Score. Educational information, not financial advice.",
   alternates: {
-    canonical: appUrl,
+    canonical: "./",
   },
   openGraph: {
     title: "Mosaic Finance — The smart tracker for cash flow and net worth",
