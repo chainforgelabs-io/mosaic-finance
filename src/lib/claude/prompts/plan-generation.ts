@@ -142,6 +142,7 @@ OUTPUT FORMAT: Return a valid JSON object with this exact structure:
 }
 
 CRITICAL RULES:
+- factFindData.information_gaps lists figures the user did not know. Do not estimate them or fill them in. Where a section depends on one, say in one sentence that the figure was not on file.
 - Be concise: keep narrative strings to 2-3 sentences, and keep each observation to one sentence. Do not restate data the client already knows
 - Write in plain sentences. Professional, not stiff, and easy to read once. Explain a technical word in the same sentence. Do not hype, and do not call the person's debt, savings, or score healthy, behind, or on track
 - Every number must be calculated from the client's actual data

@@ -2,6 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { usePlanStore } from "@/stores/plan-store";
+import {
+  FIGURES_TO_ADD_SECTION,
+  figuresToAddLead,
+  SEE_WHERE_TO_FIND_THEM,
+} from "@/lib/reference/lookup-guides";
 import { PlanSectionComponent } from "@/components/app/PlanSectionComponent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { CheckCircle2, Download, FileText, Loader2, MessageCircle } from "lucide-react";
@@ -136,6 +141,9 @@ export default function PlanViewPage() {
     }
   };
 
+  const gatherSection = plan?.sections.find((section) => section.id === FIGURES_TO_ADD_SECTION.id);
+  const figuresLead = figuresToAddLead((gatherSection?.lookupGuides ?? []).map((guide) => guide.missing));
+
   if (!plan || plan.status !== "delivered") {
     return (
       <EmptyState
@@ -161,6 +169,18 @@ export default function PlanViewPage() {
       />
 
       <div className="flex-1 min-w-0">
+        {figuresLead ? (
+          <p className="mb-6 rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] px-4 py-3 font-[family-name:var(--font-body)] text-sm leading-relaxed text-[var(--text-secondary)]">
+            {figuresLead}{" "}
+            <button
+              type="button"
+              onClick={() => scrollToSection(FIGURES_TO_ADD_SECTION.id)}
+              className="font-semibold text-[var(--emerald)] underline"
+            >
+              {SEE_WHERE_TO_FIND_THEM}
+            </button>
+          </p>
+        ) : null}
         {/* Mobile section nav */}
         <div className="lg:hidden mb-6">
           <div className="flex items-center gap-2 mb-3">

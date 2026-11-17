@@ -85,6 +85,17 @@ export interface CoverageRec {
   rationale: string;
 }
 
+export interface LookupGuideView {
+  topic: string;
+  title: string;
+  missing: string;
+  institution: string | null;
+  howToReach: string;
+  checklist: string[];
+  href: string | null;
+  linkLabel: string | null;
+}
+
 export interface PlanSection {
   id: string;
   title: string;
@@ -97,6 +108,7 @@ export interface PlanSection {
   etfTable?: ETFRecommendation[];
   tables?: ComparisonTable[];
   coverageRecs?: CoverageRec[];
+  lookupGuides?: LookupGuideView[];
   disclaimer?: string;
 }
 

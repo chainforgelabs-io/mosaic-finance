@@ -3,6 +3,12 @@ import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import { describeStoredReport } from '@/lib/plan/describe-stored-report';
 import { sanitizeInvestmentSection } from '@/lib/plan/sanitize-investment-section';
+import {
+  escapeHtml,
+  FIGURES_TO_ADD_SECTION,
+  figuresToAddNote,
+  lookupGuidesFromPlanData,
+} from '@/lib/reference/lookup-guides';
 
 /** Letter width minus the left and right print margins, at 96px per inch. */
 const PDF_CONTENT_WIDTH_PX = 720;
@@ -97,6 +103,8 @@ function payoffTimeline(months: unknown): string {
 
 function buildReportHTML(plan: Record<string, unknown>): string {
   const p = describeStoredReport(sanitizeInvestmentSection(plan)) as Record<string, Record<string, unknown>>;
+  const gatherGuides = lookupGuidesFromPlanData(plan);
+  const gatherNote = figuresToAddNote(gatherGuides.map((guide) => guide.missing));
   const fhd = p.financial_health_diagnostic ?? {};
   const rr = p.retirement_readiness ?? {};
   const ipb = p.investment_portfolio_blueprint ?? {};
@@ -274,6 +282,7 @@ function buildReportHTML(plan: Record<string, unknown>): string {
         <div class="exec-metric"><div class="em-val">${fmt(dep.total_debt)}</div><div class="em-label">Total Debt</div></div>
       </div>
       <p style="margin-top:8px;font-size:11px;color:#6b7280;">Net worth in this report is the figure from the day it was generated. It can differ from the live number on Net Worth.</p>
+      ${gatherNote ? `<p style="margin-top:8px;font-size:11px;color:#6b7280;">${escapeHtml(gatherNote)}</p>` : ''}
     </div>
   </div>
 
@@ -603,6 +612,28 @@ function buildReportHTML(plan: Record<string, unknown>): string {
     This is educational information, not financial advice. It is not a substitute for a licensed advisor, a tax professional, or legal counsel. Past results are not a guide to what happens next. Mosaic Finance is a product of ChainForge Labs. Generated: ${new Date().toISOString()}
   </div>
 </div>
+
+${gatherGuides.length > 0 ? `
+<div class="page">
+  <div class="sh">
+    <div class="sh-accent" style="background:#059669;"></div>
+    <h2>${FIGURES_TO_ADD_SECTION.title}</h2>
+    <p>${FIGURES_TO_ADD_SECTION.subtitle}</p>
+  </div>
+  ${gatherGuides.map((guide) => `
+  <div class="insight-card" style="margin-bottom:16px;">
+    <h4>${escapeHtml(guide.title)}</h4>
+    <p><strong>Missing:</strong> ${escapeHtml(guide.missing)}</p>
+    ${guide.institution ? `<p><strong>Institution:</strong> ${escapeHtml(guide.institution)}</p>` : ''}
+    <p>${escapeHtml(guide.howToReach)}</p>
+    <div class="action-list" style="margin-top:10px;">
+      ${guide.checklist.map((item) => `<div class="ai"><div class="ai-icon" style="background:#059669;">→</div><div class="ai-text">${escapeHtml(item)}</div></div>`).join('')}
+    </div>
+    ${guide.linkLabel ? `<p style="margin-top:8px;">${escapeHtml(guide.linkLabel)}.</p>` : ''}
+    <p style="margin-top:8px;font-size:11px;color:#6b7280;">${escapeHtml(FIGURES_TO_ADD_SECTION.disclaimer)}</p>
+  </div>`).join('')}
+</div>
+` : ''}
 
 </body>
 </html>`;

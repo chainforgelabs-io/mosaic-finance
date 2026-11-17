@@ -279,4 +279,30 @@ describe('Plan JSON Schema Validation', () => {
       expect(result.success).toBe(false);
     });
   });
+
+  describe('information_to_gather', () => {
+    it('accepts a plan without information_to_gather', () => {
+      expect(VALID_PLAN_DATA.information_to_gather).toBeUndefined();
+      expect(FinancialPlanSchema.safeParse(VALID_PLAN_DATA).success).toBe(true);
+    });
+
+    it('accepts a stored gap with only the facts', () => {
+      const withGuides = createPlanWithOverrides({
+        information_to_gather: [
+          { topic: 'income', missing: 'gross pay', institution: 'CIBC' },
+          { topic: 'insurance', missing: 'life coverage', institution: null },
+        ],
+      });
+      expect(FinancialPlanSchema.safeParse(withGuides).success).toBe(true);
+    });
+
+    it('rejects a missing label longer than 60 characters', () => {
+      const withGuides = createPlanWithOverrides({
+        information_to_gather: [
+          { topic: 'income', missing: 'x'.repeat(61), institution: null },
+        ],
+      });
+      expect(FinancialPlanSchema.safeParse(withGuides).success).toBe(false);
+    });
+  });
 });

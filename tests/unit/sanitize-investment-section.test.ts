@@ -66,4 +66,12 @@ describe("plan generation prompt", () => {
     expect(prompt).not.toContain("personalized asset allocation");
     expect(prompt).not.toContain("which account to prioritize");
   });
+
+  it("tells the report not to estimate a figure the user did not know", () => {
+    expect(prompt).toContain(
+      "factFindData.information_gaps lists figures the user did not know. Do not estimate them or fill them in. Where a section depends on one, say in one sentence that the figure was not on file.",
+    );
+    expect(prompt).not.toContain("information_to_gather");
+    expect(prompt).not.toContain("lookupGuides");
+  });
 });

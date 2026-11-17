@@ -148,6 +148,12 @@ const LifetimeFinancialRoadmapSchema = z.object({
   action_items: z.array(z.string().min(1)).min(1),
 });
 
+const InformationToGatherSchema = z.object({
+  topic: z.enum(["income", "savings", "investments", "insurance", "debts"]),
+  missing: z.string().min(1).max(60),
+  institution: z.string().min(1).max(60).nullable(),
+});
+
 export const FinancialPlanSchema = z.object({
   financial_health_diagnostic: FinancialHealthDiagnosticSchema,
   retirement_readiness: RetirementReadinessSchema,
@@ -157,6 +163,7 @@ export const FinancialPlanSchema = z.object({
   insurance_coverage_audit: InsuranceCoverageAuditSchema,
   market_context_report: MarketContextReportSchema,
   lifetime_financial_roadmap: LifetimeFinancialRoadmapSchema,
+  information_to_gather: z.array(InformationToGatherSchema).optional(),
 });
 
 export type FinancialPlan = z.infer<typeof FinancialPlanSchema>;

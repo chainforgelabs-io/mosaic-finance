@@ -18,6 +18,7 @@ import { calculateSLADeadline, getSLAPriority } from "@/lib/calculations/sla";
 import { recordReportHealthScore } from "@/lib/health-score/record";
 import { reconcileDebtPlan } from "@/lib/plan/reconcile-debt-plan";
 import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
+import { gapsForReport, parseInformationGaps } from "@/lib/reference/lookup-guides";
 
 export type TriggerPlanGenerationResult =
   | { success: true; planId: string; status: string; resumed?: boolean }
@@ -168,7 +169,7 @@ async function runPlanGenerationBackground(
 
     const { data: factFindSession } = await svc
       .from("conversation_sessions")
-      .select("metadata")
+      .select("metadata, last_activity_at")
       .eq("user_id", userId)
       .eq("session_type", "fact-find")
       .eq("status", "completed")
@@ -180,19 +181,34 @@ async function runPlanGenerationBackground(
       typeof factFindSession?.metadata === "object"
         ? (factFindSession.metadata as Record<string, unknown>)?.extracted_data
         : null;
-    const factFindData =
+    const extracted =
       rawExtracted && typeof rawExtracted === "object"
-        ? {
-            insurance_coverage: (rawExtracted as Record<string, unknown>)
-              .insurance_coverage,
-            detected_flags: (rawExtracted as Record<string, unknown>)
-              .detected_flags,
-            special_situation_notes: (rawExtracted as Record<string, unknown>)
-              .special_situation_notes,
-            investment_knowledge: (rawExtracted as Record<string, unknown>)
-              .investment_knowledge,
-          }
+        ? (rawExtracted as Record<string, unknown>)
         : null;
+    const { data: earlierPlans } = await svc
+      .from("financial_plans")
+      .select("created_at")
+      .eq("user_id", userId)
+      .neq("id", planId)
+      .neq("status", "failed");
+    const gatheredGaps = gapsForReport(parseInformationGaps(extracted?.information_gaps), {
+      chatCompletedAt:
+        typeof factFindSession?.last_activity_at === "string"
+          ? factFindSession.last_activity_at
+          : null,
+      earlierReportDates: (earlierPlans ?? [])
+        .map((plan) => plan.created_at)
+        .filter((date): date is string => typeof date === "string"),
+    });
+    const factFindData = extracted
+      ? {
+          insurance_coverage: extracted.insurance_coverage,
+          detected_flags: extracted.detected_flags,
+          special_situation_notes: extracted.special_situation_notes,
+          investment_knowledge: extracted.investment_knowledge,
+          information_gaps: gatheredGaps,
+        }
+      : null;
 
     const { data: householdMembers } = await svc
       .from("household_members")
@@ -282,6 +298,15 @@ async function runPlanGenerationBackground(
     // Payoff months and interest totals come from the calculator, not the model.
     planData = reconcileDebtPlan(planData, financialProfile.data?.major_debts);
     planData = sanitizeInvestmentSection(planData);
+    if (gatheredGaps.length > 0) {
+      planData.information_to_gather = gatheredGaps.map((gap) => ({
+        topic: gap.topic,
+        missing: gap.missing,
+        institution: gap.institution,
+      }));
+    } else {
+      delete planData.information_to_gather;
+    }
 
     let pdfPath: string | null = null;
     try {

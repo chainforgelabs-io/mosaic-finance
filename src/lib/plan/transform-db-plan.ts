@@ -9,6 +9,10 @@ import type {
 } from "@/types";
 import { describeStoredReport } from "@/lib/plan/describe-stored-report";
 import { sanitizeInvestmentSection } from "@/lib/plan/sanitize-investment-section";
+import {
+  FIGURES_TO_ADD_SECTION,
+  lookupGuidesFromPlanData,
+} from "@/lib/reference/lookup-guides";
 
 function signedDollars(n: number, absFormatted: string): string {
   return n < 0 ? `-$${absFormatted}` : `$${absFormatted}`;
@@ -293,6 +297,31 @@ function buildSections(raw: any): PlanSection[] {
       prose: proseLines(currentPriorities, nextPriorities, lfr.decade_by_decade_summary),
       actionItems: actionItems(lfr, "lfr"),
       tables: tables.length > 0 ? tables : undefined,
+    });
+  }
+
+  const guides = lookupGuidesFromPlanData(raw);
+  if (guides.length > 0) {
+    sections.push({
+      id: FIGURES_TO_ADD_SECTION.id,
+      title: FIGURES_TO_ADD_SECTION.title,
+      subtitle: FIGURES_TO_ADD_SECTION.subtitle,
+      status: "ai_generated",
+      summary: "",
+      cards: [],
+      prose: "",
+      actionItems: [],
+      lookupGuides: guides.map((guide) => ({
+        topic: guide.topic,
+        title: guide.title,
+        missing: guide.missing,
+        institution: guide.institution,
+        howToReach: guide.howToReach,
+        checklist: guide.checklist,
+        href: guide.href,
+        linkLabel: guide.linkLabel,
+      })),
+      disclaimer: FIGURES_TO_ADD_SECTION.disclaimer,
     });
   }
 

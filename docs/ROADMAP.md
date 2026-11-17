@@ -141,6 +141,12 @@ Added at the owner's request on 2026-11-14. Not a gate for Phase 2.
 - [x] Two more illustrations in the same style, in a new "What the logs add up to" section after How It Works on the homepage and after the tracker list on `/waitlist`: the Cash Flow Review (tracked, tracking balance, savings rate, each category against its budget) and Net Worth (monthly check-in, net worth, net worth history). Review numbers come from the real Review maths; the net worth month moves only by what the Review illustration set aside and paid down, with no market movement, and the history includes a month that went down. Shared clockwork in [src/lib/marketing/demo-timeline.ts](../src/lib/marketing/demo-timeline.ts), tests in `tests/unit/marketing-demos.test.ts`. 2026-11-14 · main
 - [x] A fourth illustration, the discovery chat with Charlie, in a new "Charlie on Progress" section after "What the logs add up to" on the homepage and on `/waitlist`. Order across the four is weekly loop → Cash Flow Review → Net Worth → Charlie, which keeps the 1A decision to lead with logging. The chat is shortened and says so ("A few questions later"); its closing card shows the same monthly plan the Review illustration measures against. The section notes that Charlie comes with a Progress membership. It replaces the static fact-find mockup row in the Showcase. Also fixes a shared-clock fault that could skip a beat in any of the demos. Script in [src/lib/marketing/discovery-demo.ts](../src/lib/marketing/discovery-demo.ts), tests in `tests/unit/discovery-demo.test.ts`. 2026-11-17 · main
 
+### 1H — Figures to add (`agent/lookup-guides`)
+
+Added when the owner asked to finish the lookup-guide work in a slimmer form. Not a gate for Phase 2.
+
+- [x] When someone cannot name a figure in the discovery chat, Charlie asks once which bank, insurer, or employer holds it (at most twice in a quick overview) and carries on. The confirmation card lists what is still to look up. The first Progress Report after that chat names the missing figures at the top and ends with "Figures to add": where to find each one, and a link to Budget plan or Net Worth. Insurance has no link, because coverage is only captured in the chat; its cash value still points at Net Worth. Later reports do not repeat the list. No phone numbers are stored or shown. Facts only are stored (`topic`, `missing`, `institution`); the wording is built in [src/lib/reference/lookup-guides.ts](../src/lib/reference/lookup-guides.ts). 2026-11-17 · PR
+
 Suggested order: 1A → 1B → 1C → 1D → 1E. 1F after owner decisions.
 
 ---
@@ -240,7 +246,9 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - Full test run still mentions 14-day trial, Mastery on the public pricing grid, and onboarding as the post-auth land. Annotate while running; do not rewrite the whole checklist in this PR.
 - Guarantee refund scope: public copy says "that first charge, monthly or annual." Annual is the annual charge ($170 or founding $80). Monthly is one month. Owner confirmed this wording 2026-11-11.
 - Life-Event Playbooks are named as a bonus but there is no dedicated page yet; today they are covered by Charlie, calculators, and the report. Build or rename before launch.
-- Uncommitted local work (lookup guides, plan schema) is not part of this roadmap.
+- A "Figures to add" item has no "I've added this" control, so the list cannot drop one figure at a time. It is omitted from every report after the first instead.
+- Insurance coverage has no entry screen. The Figures to add list can point at Net Worth for a cash value, and nowhere for a coverage amount.
+- The Progress Report PDF inserts other model-written text without HTML escaping. Figures to add escapes the missing label and the institution. The rest of the PDF does not.
 - Account deletion deletes table-by-table with the service role. Most foreign keys to `user_profiles` still lack `ON DELETE CASCADE`. That is fine for the current delete path.
 - Google OAuth sign-in stores the Google display name and avatar in Supabase Auth metadata; `/privacy` says "we never collect your legal name." Counsel to qualify the claim, or restrict OAuth scopes.
 - Sentry Session Replay is on (`replaysSessionSampleRate: 0.1`) with SDK-default masking only. Confirm masking or disable before launch.
@@ -264,3 +272,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-11-08 | Owner: Progress Charlie allowance is 200 messages/month, sized to break even on the $8 founding price. Do not publish the number. In-chat notice only when approaching, then at the limit. |
 | 2026-11-14 | Owner asked for a product demo on the funnel. Added Phase 1G and shipped the looping weekly-loop illustration on the homepage and `/waitlist`. Same day, owner asked for two more: added the Cash Flow Review and Net Worth illustrations in a new section on both pages. |
 | 2026-11-17 | Owner asked for a fourth illustration, the discovery chat with Charlie, and a note that Charlie comes with Progress. Added the "Charlie on Progress" section on the homepage and `/waitlist`; it replaces the static fact-find mockup in the Showcase. |
+| 2026-11-17 | Owner asked to finish the lookup-guide work in a slimmer form. An unknown figure in the discovery chat costs one follow-up question and appears once, on the first Progress Report, with a link to where it goes. |

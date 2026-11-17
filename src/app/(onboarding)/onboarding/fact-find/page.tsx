@@ -26,6 +26,7 @@ import { shouldExcludeFromInvestmentHoldings } from "@/lib/schemas/holdings";
 import { cashValueAssetsFromFactFind } from "@/lib/assets/life-insurance-cash-value";
 import { CATEGORY_KIND_LABELS, type CategoryKind } from "@/lib/tracking/categories";
 import { resolveFactFindCashFlow, type CashFlowLine } from "@/lib/tracking/fact-find-cash-flow";
+import { LOOK_UP_LATER_LABEL, parseInformationGaps } from "@/lib/reference/lookup-guides";
 
 
 const TOPICS: { key: keyof ExtractedTopics; label: string }[] = [
@@ -211,6 +212,11 @@ function formatSummaryAsBullets(summary: Record<string, unknown>): string[] {
 
   const retireAge = summary.retirement_target_age as number | undefined;
   if (retireAge != null) bullets.push(`**Retirement:** Target age ${retireAge}`);
+
+  const gaps = parseInformationGaps(summary.information_gaps);
+  if (gaps.length > 0) {
+    bullets.push(`**${LOOK_UP_LATER_LABEL}:** ${gaps.map((gap) => gap.missing).join(", ")}`);
+  }
 
   const goals = summary.goals as Array<{ type: string }> | undefined;
   const special = summary.special_situation_notes as string | undefined;

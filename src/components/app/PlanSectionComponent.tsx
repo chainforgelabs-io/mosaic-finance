@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ChevronDown, CheckCircle2, Sparkles, AlertTriangle, Info } from "lucide-react";
 import type { PlanSection } from "@/types";
 import { FinancialCard } from "./FinancialCard";
@@ -196,6 +197,51 @@ export function PlanSectionComponent({ section, defaultExpanded = true }: PlanSe
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {section.lookupGuides && section.lookupGuides.length > 0 && (
+          <div className="mb-6 space-y-4">
+            {section.lookupGuides.map((guide) => (
+              <div
+                key={`${guide.topic}-${guide.missing}`}
+                className="rounded-lg border border-[var(--warm-200)] bg-[var(--warm-50)] p-5"
+              >
+                <h4 className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
+                  {guide.title}
+                </h4>
+                <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+                  Missing: {guide.missing}
+                </p>
+                {guide.institution ? (
+                  <p className="mt-1 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+                    Institution: {guide.institution}
+                  </p>
+                ) : null}
+                <p className="mt-2 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]">
+                  {guide.howToReach}
+                </p>
+                <ul className="mt-3 space-y-1.5">
+                  {guide.checklist.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2 font-[family-name:var(--font-body)] text-sm text-[var(--text-secondary)]"
+                    >
+                      <span className="text-[var(--emerald)] font-semibold">→</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                {guide.href && guide.linkLabel ? (
+                  <Link
+                    href={guide.href}
+                    className="mt-3 inline-flex font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--emerald)] hover:underline"
+                  >
+                    {guide.linkLabel}
+                  </Link>
+                ) : null}
+              </div>
+            ))}
           </div>
         )}
 
