@@ -89,6 +89,48 @@ export function createDemoTimeline<S extends DemoBaseState, F extends DemoBaseSt
   };
 }
 
+/** The clock and timers a demo runs on. The browser's in the app, a fake one in tests. */
+export interface DemoClock<T = unknown> {
+  /** Milliseconds from any fixed point. Must never go backwards. */
+  now(): number;
+  setTimer(run: () => void, delayMs: number): T;
+  clearTimer(timer: T): void;
+}
+
+/**
+ * Plays a timeline from `fromMs` into the loop, calling `onFrame` each time
+ * the picture changes. Returns a stop function that reports how far into the
+ * loop it got, so a paused demo can pick up where it left off.
+ */
+export function playDemoTimeline<F, T>(
+  timeline: DemoTimeline<F>,
+  clock: DemoClock<T>,
+  fromMs: number,
+  onFrame: (frame: F) => void,
+): () => number {
+  const startedAt = clock.now() - fromMs;
+  const elapsed = () => (clock.now() - startedAt) % timeline.durationMs;
+  let timer: T;
+
+  const waitFrom = (timeMs: number) => {
+    timer = clock.setTimer(tick, timeline.msUntilChange(timeMs));
+  };
+  const tick = () => {
+    // One reading of the clock picks the frame and the next wait. Timers can
+    // fire a fraction early; a second reading taken just after a change would
+    // then wait for the change after it and skip this one.
+    const timeMs = elapsed();
+    onFrame(timeline.frameAt(timeMs));
+    waitFrom(timeMs);
+  };
+  waitFrom(elapsed());
+
+  return () => {
+    clock.clearTimer(timer);
+    return elapsed();
+  };
+}
+
 /** Shared by every demo. */
 export const DEMO_CONTROLS = {
   pause: "Pause demo",

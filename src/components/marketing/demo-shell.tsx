@@ -5,7 +5,9 @@ import { Pause, Play } from "lucide-react";
 import {
   DEMO_CONTROLS,
   DEMO_STILL_AT_MS,
+  playDemoTimeline,
   type DemoBaseState,
+  type DemoClock,
   type DemoStep,
   type DemoTimeline,
 } from "@/lib/marketing/demo-timeline";
@@ -27,6 +29,12 @@ function useReducedMotion(): boolean {
   );
 }
 
+const BROWSER_CLOCK: DemoClock<number> = {
+  now: () => performance.now(),
+  setTimer: (run, delayMs) => window.setTimeout(run, delayMs),
+  clearTimer: (timer) => window.clearTimeout(timer),
+};
+
 /** Steps the frame at each change in the timeline, and keeps its place when paused. */
 function useDemoFrame<F>(timeline: DemoTimeline<F>, running: boolean): F {
   const [frame, setFrame] = useState(() => timeline.frameAt(0));
@@ -34,23 +42,9 @@ function useDemoFrame<F>(timeline: DemoTimeline<F>, running: boolean): F {
 
   useEffect(() => {
     if (!running) return;
-    const startedAt = performance.now() - elapsedRef.current;
-    const elapsed = () => (performance.now() - startedAt) % timeline.durationMs;
-    let timer = 0;
-
-    const schedule = () => {
-      timer = window.setTimeout(() => {
-        const now = elapsed();
-        elapsedRef.current = now;
-        setFrame(timeline.frameAt(now));
-        schedule();
-      }, timeline.msUntilChange(elapsed()));
-    };
-    schedule();
-
+    const stop = playDemoTimeline(timeline, BROWSER_CLOCK, elapsedRef.current, setFrame);
     return () => {
-      window.clearTimeout(timer);
-      elapsedRef.current = elapsed();
+      elapsedRef.current = stop();
     };
   }, [running, timeline]);
 

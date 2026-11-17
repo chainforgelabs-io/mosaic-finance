@@ -7,11 +7,7 @@ const SHOWCASES = [
     image: encodeURI("/assets/Dashboard - Main Dashboard.svg"),
     alt: "Main dashboard with Financial Health Score",
   },
-  {
-    label: "When you want the why, a five-minute conversation with Charlie",
-    image: encodeURI("/assets/Onboarding - Factfind.svg"),
-    alt: "Fact-find conversation screen",
-  },
+  // The conversation with Charlie is shown as a looping demo in CharlieSection, just above.
   {
     label: "A Progress Report that explains the picture in plain Canadian terms",
     image: encodeURI("/assets/Financial Plan Report - Executive Summary.svg"),

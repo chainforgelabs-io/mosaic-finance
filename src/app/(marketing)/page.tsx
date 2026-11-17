@@ -6,6 +6,7 @@ import { ShowcaseSection } from "@/components/marketing/showcase-section";
 import { PlanSections } from "@/components/marketing/plan-sections";
 import { SolutionSection } from "@/components/marketing/solution-section";
 import { TrackingPictureSection } from "@/components/marketing/tracking-picture-section";
+import { CharlieSection } from "@/components/marketing/charlie-section";
 import { AlwaysAvailableSection } from "@/components/marketing/always-available-section";
 import { PositioningSection } from "@/components/marketing/positioning-section";
 import { TrustSection } from "@/components/marketing/trust-section";
@@ -30,6 +31,9 @@ export default function MarketingPage() {
       </Suspense>
       <Suspense>
         <TrackingPictureSection />
+      </Suspense>
+      <Suspense>
+        <CharlieSection />
       </Suspense>
       <Suspense>
         <ShowcaseSection />

@@ -3,10 +3,14 @@ import {
   DEMO_DURATION_MS,
   DEMO_STILL_AT_MS,
   createDemoTimeline,
+  playDemoTimeline,
   type DemoBaseState,
+  type DemoClock,
   type DemoStep,
   type DemoTimeline,
 } from "@/lib/marketing/demo-timeline";
+import { DISCOVERY_DEMO_STEPS, DISCOVERY_DEMO_TIMELINE } from "@/lib/marketing/discovery-demo";
+import { LOOP_DEMO_STEPS, LOOP_DEMO_TIMELINE } from "@/lib/marketing/loop-demo";
 import {
   NET_WORTH_DEMO_ALT,
   NET_WORTH_DEMO_AXIS,
@@ -36,6 +40,7 @@ function framesOf<F>(timeline: DemoTimeline<F>) {
 const TIMELINES: [string, DemoTimeline<DemoBaseState>, readonly DemoStep[]][] = [
   ["review", REVIEW_DEMO_TIMELINE, REVIEW_DEMO_STEPS],
   ["net worth", NET_WORTH_DEMO_TIMELINE, NET_WORTH_DEMO_STEPS],
+  ["discovery", DISCOVERY_DEMO_TIMELINE, DISCOVERY_DEMO_STEPS],
 ];
 
 describe.each(TIMELINES)("%s demo clockwork", (_name, timeline, steps) => {
@@ -75,6 +80,90 @@ describe.each(TIMELINES)("%s demo clockwork", (_name, timeline, steps) => {
     }
   });
 });
+
+/**
+ * A clock like a browser's: time moves on between two readings, and a timer
+ * can fire a fraction of a millisecond before it is due.
+ */
+function fakeClock(earlyMs: number, readCostMs: number) {
+  let time = 5_000;
+  let pending: { run: () => void; at: number } | null = null;
+  const clock: DemoClock<object> = {
+    now: () => {
+      const reading = time;
+      time += readCostMs;
+      return reading;
+    },
+    setTimer: (run, delayMs) => {
+      pending = { run, at: time + delayMs - earlyMs };
+      return pending;
+    },
+    clearTimer: (timer) => {
+      if (pending === timer) pending = null;
+    },
+  };
+  return {
+    clock,
+    /** Fires every timer due within the next `ms`. */
+    run(ms: number) {
+      const until = time + ms;
+      while (pending && pending.at <= until) {
+        const due = pending;
+        pending = null;
+        time = Math.max(time, due.at);
+        due.run();
+      }
+      time = Math.max(time, until);
+    },
+    hasTimer: () => pending !== null,
+  };
+}
+
+/** Drops repeats, so a tick that redraws the same picture does not count. */
+function distinct<F>(frames: F[]): string[] {
+  const seen = frames.map((frame) => JSON.stringify(frame));
+  return seen.filter((frame, index) => index === 0 || frame !== seen[index - 1]);
+}
+
+describe.each([["weekly loop", LOOP_DEMO_TIMELINE, LOOP_DEMO_STEPS] as const, ...TIMELINES])(
+  "%s demo playback",
+  (_name, timeline) => {
+    const LOOPS = 3;
+    /** Every picture the screen should show, in order, starting on the opening frame. */
+    const everyChange = Array.from({ length: LOOPS }, () => timeline.changeTimes)
+      .flat()
+      .map((at) => timeline.frameAt(at));
+    const opening = timeline.frameAt(0);
+
+    it.each([
+      ["on time", 0, 0],
+      ["early, with the clock moving on between readings", 0.5, 0.3],
+      ["very early", 3, 0.1],
+    ])("draws every change, in order, when timers fire %s", (_case, earlyMs, readCostMs) => {
+      const { clock, run } = fakeClock(earlyMs, readCostMs);
+      const drawn: DemoBaseState[] = [opening];
+      playDemoTimeline(timeline, clock, 0, (frame) => drawn.push(frame));
+      run(timeline.durationMs * LOOPS - 100);
+      expect(distinct(drawn)).toEqual(distinct(everyChange));
+    });
+
+    it("stops cleanly and picks up where it left off", () => {
+      const first = fakeClock(0.5, 0.3);
+      const drawn: DemoBaseState[] = [opening];
+      const stop = playDemoTimeline(timeline, first.clock, 0, (frame) => drawn.push(frame));
+      first.run(6_100);
+      const reached = stop();
+      expect(first.hasTimer()).toBe(false);
+      expect(reached).toBeGreaterThanOrEqual(6_100);
+      expect(reached).toBeLessThan(6_150);
+
+      const second = fakeClock(0.5, 0.3);
+      playDemoTimeline(timeline, second.clock, reached, (frame) => drawn.push(frame));
+      second.run(timeline.durationMs * LOOPS - 100 - reached);
+      expect(distinct(drawn)).toEqual(distinct(everyChange));
+    });
+  },
+);
 
 describe("demo timeline builder", () => {
   it("refuses a keyframe that would collide with the fade-out", () => {

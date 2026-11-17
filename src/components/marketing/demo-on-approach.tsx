@@ -65,6 +65,14 @@ const NetWorthDemoLazy = dynamic(
   { ssr: false },
 );
 
+const DiscoveryDemoLazy = dynamic(
+  () =>
+    import("@/components/marketing/discovery-demo").then(
+      (mod) => mod.DiscoveryDemo,
+    ),
+  { ssr: false },
+);
+
 export function LoopDemoOnApproach({ className, ...props }: DemoToneProps) {
   return (
     <NearViewport className={className}>
@@ -85,6 +93,14 @@ export function NetWorthDemoOnApproach({ className, ...props }: DemoToneProps) {
   return (
     <NearViewport className={className}>
       <NetWorthDemoLazy {...props} />
+    </NearViewport>
+  );
+}
+
+export function DiscoveryDemoOnApproach({ className, ...props }: DemoToneProps) {
+  return (
+    <NearViewport className={className}>
+      <DiscoveryDemoLazy {...props} />
     </NearViewport>
   );
 }

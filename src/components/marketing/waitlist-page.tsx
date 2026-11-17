@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Nav } from "@/components/marketing/nav";
 import { Footer } from "@/components/marketing/footer";
+import { CharlieSection } from "@/components/marketing/charlie-section";
 import { GuideLeadForm } from "@/components/marketing/guide-lead-form";
 import { LoopDemoOnApproach } from "@/components/marketing/demo-on-approach";
 import { TrackingPictureSection } from "@/components/marketing/tracking-picture-section";
@@ -117,6 +118,10 @@ export function WaitlistPage() {
 
       <Suspense>
         <TrackingPictureSection tone="dark" />
+      </Suspense>
+
+      <Suspense>
+        <CharlieSection surface="waitlist" />
       </Suspense>
 
       <Suspense>

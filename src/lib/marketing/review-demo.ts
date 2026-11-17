@@ -79,6 +79,7 @@ export const REVIEW_DEMO = {
     active: savingsRate(TOTALS, "active"),
     passive: savingsRate(TOTALS, "passive"),
   } satisfies Record<SavingsRateMode, number | null>,
+  income: sectionOf("income"),
   expenses: sectionOf("expense"),
   savings: sectionOf("savings"),
 } as const;
