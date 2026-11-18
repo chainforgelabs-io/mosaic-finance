@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { getAccountLabel } from "@/lib/schemas/holdings";
 
@@ -23,18 +22,7 @@ function fmtFull(n: number | null | undefined): string {
   return `$${n.toLocaleString("en-CA", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-export function CurrentAllocationChart() {
-  const [accounts, setAccounts] = useState<AccountRow[] | null>(null);
-
-  useEffect(() => {
-    fetch("/api/holdings", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.holdings) setAccounts(data.holdings);
-      })
-      .catch(() => {});
-  }, []);
-
+export function CurrentAllocationChart({ accounts }: { accounts: AccountRow[] | null }) {
   if (!accounts || accounts.length === 0) {
     return (
       <div className="bg-white border border-[var(--warm-200)] rounded-lg p-6">

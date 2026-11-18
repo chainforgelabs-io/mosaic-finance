@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarCheck, ChevronLeft, ChevronRight } from "lucide-react";
-import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
+import { loadChart } from "@/components/charts/load-chart";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
@@ -22,6 +22,11 @@ import { formatMonthLabel, monthKey, todayIso } from "@/lib/tracking/dates";
 import { formatMoney } from "@/lib/tracking/format";
 import { cn } from "@/lib/utils";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
+
+const NetWorthHistoryChart = loadChart(
+  () => import("@/components/charts/NetWorthHistoryChart").then((m) => m.NetWorthHistoryChart),
+  "h-[320px] w-full",
+);
 
 interface HoldingAccount {
   id: string;

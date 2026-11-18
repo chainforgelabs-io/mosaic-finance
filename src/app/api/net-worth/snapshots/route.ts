@@ -39,7 +39,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("net_worth_snapshots")
-    .select("*")
+    .select(
+      "id, user_id, snapshot_date, investments_total, fixed_assets_total, debts_total, net_worth, breakdown, created_at, updated_at",
+    )
     .eq("user_id", user.id)
     .order("snapshot_date", { ascending: true });
 

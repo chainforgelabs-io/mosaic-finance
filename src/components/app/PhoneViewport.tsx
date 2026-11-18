@@ -28,7 +28,23 @@ export function PhoneViewport() {
     }
 
     sync();
-    const observer = new MutationObserver(sync);
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+        const touchesSheet = nodes.some((node) => {
+          if (!(node instanceof HTMLElement)) return false;
+          return (
+            node.classList.contains("phone-sheet") ||
+            node.classList.contains("phone-chat") ||
+            node.querySelector(".phone-sheet, .phone-chat") != null
+          );
+        });
+        if (touchesSheet) {
+          sync();
+          return;
+        }
+      }
+    });
     observer.observe(document.body, { childList: true, subtree: true });
     mq.addEventListener("change", sync);
     viewport?.addEventListener("resize", sync);

@@ -437,7 +437,8 @@ export default function GoalsPage() {
                 </h2>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   {rows.map((g) => (
-                    <QuietBoundary key={g.id}>
+                    <div key={g.id} className="cv-row">
+                    <QuietBoundary>
                       <GoalMeasure
                         goal={g}
                         facts={factsFor(g)}
@@ -454,6 +455,7 @@ export default function GoalsPage() {
                         onDelete={() => remove(g.id)}
                       />
                     </QuietBoundary>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -464,7 +466,8 @@ export default function GoalsPage() {
               <h2 className="mb-3 font-display text-lg font-semibold">Achieved</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {achieved.map((g) => (
-                  <QuietBoundary key={g.id}>
+                  <div key={g.id} className="cv-row">
+                  <QuietBoundary>
                     <GoalMeasure
                       goal={g}
                       facts={factsFor(g)}
@@ -475,6 +478,7 @@ export default function GoalsPage() {
                       onDelete={() => remove(g.id)}
                     />
                   </QuietBoundary>
+                  </div>
                 ))}
               </div>
             </div>
@@ -484,7 +488,8 @@ export default function GoalsPage() {
               <h2 className="mb-3 font-display text-lg font-semibold text-[var(--text-muted)]">Archived</h2>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {archived.map((g) => (
-                  <QuietBoundary key={g.id}>
+                  <div key={g.id} className="cv-row">
+                  <QuietBoundary>
                     <GoalMeasure
                       goal={g}
                       facts={factsFor(g)}
@@ -496,6 +501,7 @@ export default function GoalsPage() {
                       onAchieve={() => patch(g.id, { status: "active" })}
                     />
                   </QuietBoundary>
+                  </div>
                 ))}
               </div>
             </div>

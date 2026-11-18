@@ -14,8 +14,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { SpendingCategoryChart } from "@/components/charts/SpendingCategoryChart";
-import { WeeklySpendChart } from "@/components/charts/WeeklySpendChart";
+import { loadChart } from "@/components/charts/load-chart";
 import { BalanceCheckSheet } from "@/components/tracking/BalanceCheckSheet";
 import { CashGuideSheet } from "@/components/tracking/CashGuideSheet";
 import { CashKeypad } from "@/components/tracking/CashKeypad";
@@ -87,6 +86,15 @@ import type {
   SpendingPicture,
   TransactionRow,
 } from "@/types/tracking";
+
+const SpendingCategoryChart = loadChart(
+  () => import("@/components/charts/SpendingCategoryChart").then((m) => m.SpendingCategoryChart),
+  "h-[220px] w-full",
+);
+const WeeklySpendChart = loadChart(
+  () => import("@/components/charts/WeeklySpendChart").then((m) => m.WeeklySpendChart),
+  "h-[260px] w-full",
+);
 
 const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 
@@ -1259,7 +1267,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("income")}
             >
               {listedIncome.map((t) => (
-                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                <li key={t.id} className="cv-row flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || t.note || categoryLabel(t.category)}
@@ -1301,7 +1309,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("refunds")}
             >
               {refundTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                <li key={t.id} className="cv-row flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || t.note || "Refund"}
@@ -1339,7 +1347,7 @@ export default function CashFlowPage() {
                 const title = named || category;
                 const showCategory = named.length > 0 && named.toLowerCase() !== category.toLowerCase();
                 return (
-                  <li key={t.id} className="flex items-center gap-1 px-4 py-2.5 md:gap-3">
+                  <li key={t.id} className="cv-row flex items-center gap-1 px-4 py-2.5 md:gap-3">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: categoryColor(t.category) }}
@@ -1399,7 +1407,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("payments")}
             >
               {paymentTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                <li key={t.id} className="cv-row flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {t.description || "Card payment"}
@@ -1433,7 +1441,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("paydown")}
             >
               {paydownTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                <li key={t.id} className="cv-row flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {categoryLabel(t.category)}
@@ -1475,7 +1483,7 @@ export default function CashFlowPage() {
               onToggle={() => toggleList("savings")}
             >
               {setAsideTxns.map((t) => (
-                <li key={t.id} className="flex items-start gap-1 px-4 py-2.5 md:gap-3">
+                <li key={t.id} className="cv-row flex items-start gap-1 px-4 py-2.5 md:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-body text-sm text-[var(--text-primary)]">
                       {categoryLabel(t.category)}

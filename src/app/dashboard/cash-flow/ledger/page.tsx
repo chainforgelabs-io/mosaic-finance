@@ -438,7 +438,7 @@ function LedgerLine({
   const amount = Number(txn.amount);
   const details = txn.description || txn.note || "";
   return (
-    <li className="px-4 py-2.5">
+    <li className="cv-row px-4 py-2.5">
       {/* Desktop row */}
       <div className="hidden grid-cols-[96px_90px_minmax(120px,1fr)_110px_minmax(120px,1.4fr)_120px_40px] items-center gap-2 md:grid">
         <span className="font-body text-sm tabular-nums text-[var(--text-secondary)]">{formatDate(txn.txn_date)}</span>

@@ -4,6 +4,9 @@ import { z } from 'zod';
 import { seedLifeInsuranceCashAssets } from '@/lib/assets/seed-life-insurance';
 import { seedGoalsFromProfile } from '@/lib/tracking/sync-goals';
 
+const FIXED_ASSET_COLUMNS =
+  'id, category, name, estimated_value, purchase_price, purchase_date, notes, is_primary_residence, property_city, property_province, property_sqft, property_bedrooms, property_bathrooms, property_year_built, property_features, created_at';
+
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -14,32 +17,41 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const named = await supabase
-    .from('investment_holdings')
-    .select('id, account_type, display_name, holdings, total_value, source, created_at')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-  const holdingsQuery =
-    named.error && /display_name/i.test(named.error.message)
-      ? await supabase
-          .from('investment_holdings')
-          .select('id, account_type, holdings, total_value, source, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-      : named;
-  const { data: holdings, error } = holdingsQuery;
+  const holdingsPromise = (async () => {
+    const named = await supabase
+      .from('investment_holdings')
+      .select('id, account_type, display_name, holdings, total_value, source, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    if (named.error && /display_name/i.test(named.error.message)) {
+      return supabase
+        .from('investment_holdings')
+        .select('id, account_type, holdings, total_value, source, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+    }
+    return named;
+  })();
 
+  const [holdingsQuery, profileRes, userProfileRes, membersRes] = await Promise.all([
+    holdingsPromise,
+    supabase
+      .from('financial_profiles')
+      .select('annual_income, monthly_expenses, monthly_savings, emergency_fund_months, major_debts, financial_goals')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase.from('user_profiles').select('annual_income').eq('id', user.id).single(),
+    supabase.from('household_members').select('annual_income').eq('user_id', user.id),
+  ]);
+
+  const { data: holdings, error } = holdingsQuery;
   if (error) {
     return NextResponse.json({ error: 'Failed to fetch holdings' }, { status: 500 });
   }
 
-  const { data: profile } = await supabase
-    .from('financial_profiles')
-    .select('annual_income, monthly_expenses, monthly_savings, emergency_fund_months, major_debts, financial_goals')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const profile = profileRes.data;
 
   await seedGoalsFromProfile(supabase, user.id);
   await seedLifeInsuranceCashAssets(supabase, user.id);
@@ -47,14 +59,26 @@ export async function GET() {
   let financialGoals = profile?.financial_goals as
     | { goal?: string; target_amount?: number | null; target_year?: number | null }[]
     | null;
-  if (!Array.isArray(financialGoals) || financialGoals.length === 0) {
-    const { data: goalRows } = await supabase
-      .from('goals')
-      .select('name, target_amount, target_date, target_age')
+  const needsGoalFallback = !Array.isArray(financialGoals) || financialGoals.length === 0;
+
+  const [goalRowsRes, fixedAssetsRes] = await Promise.all([
+    needsGoalFallback
+      ? supabase
+          .from('goals')
+          .select('name, target_amount, target_date, target_age')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: true })
+      : Promise.resolve({ data: null }),
+    supabase
+      .from('fixed_assets')
+      .select(FIXED_ASSET_COLUMNS)
       .eq('user_id', user.id)
-      .eq('status', 'active')
-      .order('created_at', { ascending: true });
-    financialGoals = (goalRows ?? []).map((g) => ({
+      .order('created_at', { ascending: false }),
+  ]);
+
+  if (needsGoalFallback) {
+    financialGoals = (goalRowsRes.data ?? []).map((g) => ({
       goal: g.name as string,
       target_amount: g.target_amount as number | null,
       target_year:
@@ -63,22 +87,9 @@ export async function GET() {
     }));
   }
 
-  const { data: fixedAssets } = await supabase
-    .from('fixed_assets')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  const { data: userProfile } = await supabase
-    .from('user_profiles')
-    .select('annual_income')
-    .eq('id', user.id)
-    .single();
-
-  const { data: members } = await supabase
-    .from('household_members')
-    .select('annual_income')
-    .eq('user_id', user.id);
+  const fixedAssets = fixedAssetsRes.data;
+  const userProfile = userProfileRes.data;
+  const members = membersRes.data;
 
   const primaryIncome = Number(userProfile?.annual_income) || 0;
   const membersIncome = (members ?? []).reduce(

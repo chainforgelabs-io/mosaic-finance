@@ -5,8 +5,7 @@ import { usePlanStore } from "@/stores/plan-store";
 import { PlanSectionComponent } from "@/components/app/PlanSectionComponent";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HealthScore } from "@/components/app/HealthScore";
-import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
-import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
+import { loadChart } from "@/components/charts/load-chart";
 import {
   Check,
   Clock,
@@ -19,6 +18,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+
+const DebtBreakdownChart = loadChart(
+  () => import("@/components/charts/DebtBreakdownChart").then((m) => m.DebtBreakdownChart),
+  "h-[220px] w-full",
+);
+const ScoreBreakdownChart = loadChart(
+  () => import("@/components/charts/ScoreBreakdownChart").then((m) => m.ScoreBreakdownChart),
+  "h-[300px] w-full",
+);
 
 /* ---------- Status Timeline ---------- */
 

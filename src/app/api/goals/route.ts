@@ -70,11 +70,24 @@ export async function GET() {
 
   await seedGoalsFromProfile(supabase, user.id);
 
-  const { data, error } = await supabase
+  const goalColumns =
+    "id, user_id, name, goal_type, target_amount, current_amount, target_date, target_age, amount_unknown, priority, status, source, reviewed_at, tracking_class, linked_account_ids, linked_plan_categories, baseline_balances, monthly_need, funding_method, payoff_months, created_at, updated_at";
+  const named = await supabase
     .from("goals")
-    .select("*")
+    .select(goalColumns)
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
+  const goalQuery =
+    named.error && missingGoalColumns(named.error.message)
+      ? await supabase
+          .from("goals")
+          .select(
+            "id, user_id, name, goal_type, target_amount, current_amount, target_date, target_age, amount_unknown, priority, status, source, reviewed_at, created_at, updated_at",
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: true })
+      : named;
+  const { data, error } = goalQuery;
 
   if (error) return NextResponse.json({ error: "Failed to fetch goals" }, { status: 500 });
 

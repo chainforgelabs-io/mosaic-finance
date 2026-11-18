@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { TrackedVsBudgetChart } from "@/components/charts/TrackedVsBudgetChart";
+import { loadChart } from "@/components/charts/load-chart";
 import {
   CATEGORY_KIND_LABELS,
   categoryColor,
@@ -35,6 +34,15 @@ import { fetchCatalog, fetchPlan } from "@/lib/tracking/plan-client";
 import type { PlanKind } from "@/lib/tracking/budget-plan";
 import { cn } from "@/lib/utils";
 import type { BudgetPlanEntry, TransactionRow } from "@/types/tracking";
+
+const TrackedVsBudgetChart = loadChart(
+  () => import("@/components/charts/TrackedVsBudgetChart").then((m) => m.TrackedVsBudgetChart),
+  "h-[320px] w-full",
+);
+const KindDonutChart = loadChart(
+  () => import("@/components/charts/KindDonutChart").then((m) => m.KindDonutChart),
+  "h-[120px] w-[120px]",
+);
 
 const RATE_MODE_KEY = "mosaic-savings-rate-mode";
 
@@ -565,16 +573,7 @@ function KindDonut({
       <p className={cn("mb-3 font-body text-xs text-[var(--text-muted)]", !open && "max-xl:mb-0")}>{formatMoney(total)} total</p>
       <div className={cn("flex items-center gap-4", !open && "max-xl:hidden")}>
         <div className="h-[120px] w-[120px] shrink-0">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <PieChart>
-              <Pie data={data} cx="50%" cy="50%" innerRadius={36} outerRadius={56} paddingAngle={2} dataKey="value" stroke="none">
-                {data.map((entry) => (
-                  <Cell key={entry.name} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => formatMoney(Number(value))} contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13 }} />
-            </PieChart>
-          </ResponsiveContainer>
+          <KindDonutChart data={data} />
         </div>
         <ul className="min-w-0 flex-1 space-y-1">
           {data.slice(0, 6).map((entry) => (

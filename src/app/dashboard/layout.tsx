@@ -192,7 +192,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       if (planRes.ok) {
         const { plan: dbPlan } = await planRes.json();
-        applyLatestPlanFromDb(dbPlan, setPlan, setPlanStatus, setRawPlanData);
+        const current = usePlanStore.getState();
+        const unchanged =
+          dbPlan &&
+          current.plan &&
+          current.rawPlanData &&
+          dbPlan.id === current.plan.id &&
+          dbPlan.created_at === current.plan.createdAt &&
+          dbPlan.status === current.plan.status;
+        const stillEmpty = !dbPlan && !current.plan && current.planStatus === "none";
+        if (!unchanged && !stillEmpty) {
+          applyLatestPlanFromDb(dbPlan, setPlan, setPlanStatus, setRawPlanData);
+        }
       }
     }
 

@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
 import { usePlanStore } from "@/stores/plan-store";
-import { AssetClassAllocationChart } from "@/components/charts/AssetClassAllocationChart";
-import { CurrentAllocationChart } from "@/components/charts/CurrentAllocationChart";
-import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
+import { loadChart } from "@/components/charts/load-chart";
 import { FinancialCard } from "@/components/app/FinancialCard";
 import {
   Award,
@@ -37,7 +35,6 @@ import Link from "next/link";
 import { HoldingsEditor } from "@/components/tracking/HoldingsEditor";
 import { MonthlyCheckIn } from "@/components/tracking/MonthlyCheckIn";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
-import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
 import { addDays, addMonths, formatMonthLabel, monthKey, startOfMonth, startOfWeekMonday, todayIso } from "@/lib/tracking/dates";
 import { planOverview } from "@/lib/tracking/budget-plan";
 import { fetchPlan } from "@/lib/tracking/plan-client";
@@ -51,6 +48,23 @@ import {
   type LiabilityTerm,
 } from "@/lib/net-worth/tracking";
 import type { BudgetPlanEntry, GoalRow, NetWorthSnapshotRow } from "@/types/tracking";
+
+const AssetClassAllocationChart = loadChart(
+  () => import("@/components/charts/AssetClassAllocationChart").then((m) => m.AssetClassAllocationChart),
+  "h-[220px] w-full",
+);
+const CurrentAllocationChart = loadChart(
+  () => import("@/components/charts/CurrentAllocationChart").then((m) => m.CurrentAllocationChart),
+  "h-[220px] w-full",
+);
+const DebtBreakdownChart = loadChart(
+  () => import("@/components/charts/DebtBreakdownChart").then((m) => m.DebtBreakdownChart),
+  "h-[220px] w-full",
+);
+const NetWorthHistoryChart = loadChart(
+  () => import("@/components/charts/NetWorthHistoryChart").then((m) => m.NetWorthHistoryChart),
+  "h-[260px] w-full",
+);
 
 /* ---------- Types ---------- */
 
@@ -211,7 +225,7 @@ function AccountCard({ account }: { account: AccountRow }) {
   const label = accountLabel(account);
 
   return (
-    <div className="bg-white border border-[var(--warm-200)] rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
+    <div className="cv-row bg-white border border-[var(--warm-200)] rounded-lg overflow-hidden hover:shadow-sm transition-shadow">
       <button onClick={() => setExpanded(!expanded)} className="flex w-full items-center justify-between gap-2 p-5 text-left">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
@@ -1218,7 +1232,7 @@ export default function AssetsPage() {
               </button>
             </div>
             {allocationView === "account" ? (
-              <CurrentAllocationChart />
+              <CurrentAllocationChart accounts={holdings} />
             ) : (
               <AssetClassAllocationChart accounts={holdings} />
             )}

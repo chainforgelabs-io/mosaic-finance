@@ -251,7 +251,10 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 - The Progress Report PDF inserts other model-written text without HTML escaping. Figures to add escapes the missing label and the institution. The rest of the PDF does not.
 - Account deletion deletes table-by-table with the service role. Most foreign keys to `user_profiles` still lack `ON DELETE CASCADE`. That is fine for the current delete path.
 - Google OAuth sign-in stores the Google display name and avatar in Supabase Auth metadata; `/privacy` says "we never collect your legal name." Counsel to qualify the claim, or restrict OAuth scopes.
-- Sentry Session Replay is on (`replaysSessionSampleRate: 0.1`) with SDK-default masking only. Confirm masking or disable before launch.
+- Sentry session replay is off in production. Error replays stay on, and traces are sampled at 10%. Confirm masking before turning session replay back on.
+- Every dashboard request and every API route both call `getUser`. Left in place because it is an auth change.
+- A debt goal without a baseline PATCHes `/api/goals` and then reloads all six Goals requests.
+- Gamification still reads every transaction date. The `(user_id, txn_date)` index already exists.
 - `/terms` §7 says "billed monthly"; annual billing is the pricing default. Fix lands with the counsel copy PR, not before.
 - `npm run lint` fails on `main` with 12 errors in 10 files, more than the two listed above: `login-form.tsx`, `reset-password/page.tsx`, `signup/page.tsx`, `onboarding/holdings/page.tsx`, both `admin/approval-queue` files, `ConversationBubble.tsx`, `PlanSection.tsx`, `QuickLogSheet.tsx`, `UnlockToast.tsx`. Mostly `react-hooks/set-state-in-effect`.
 - The four showcase mockups in `public/assets/` date from 31 August, before new accounts landed on the tracking dashboard. Check they still match the app.

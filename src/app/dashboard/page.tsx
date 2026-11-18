@@ -13,9 +13,7 @@ import { ClubCard } from "@/components/app/ClubCard";
 import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
 import { PendingReviewBanner } from "@/components/app/PendingReviewBanner";
 import { PlanStaleBanner } from "@/components/app/PlanStaleBanner";
-import { DebtBreakdownChart } from "@/components/charts/DebtBreakdownChart";
-import { ScoreBreakdownChart } from "@/components/charts/ScoreBreakdownChart";
-import { NetWorthHistoryChart } from "@/components/charts/NetWorthHistoryChart";
+import { loadChart } from "@/components/charts/load-chart";
 import { lineSeries } from "@/lib/net-worth/tracking";
 import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
@@ -34,6 +32,19 @@ import {
   Target,
 } from "lucide-react";
 import Link from "next/link";
+
+const DebtBreakdownChart = loadChart(
+  () => import("@/components/charts/DebtBreakdownChart").then((m) => m.DebtBreakdownChart),
+  "h-[220px] w-full",
+);
+const ScoreBreakdownChart = loadChart(
+  () => import("@/components/charts/ScoreBreakdownChart").then((m) => m.ScoreBreakdownChart),
+  "h-[300px] w-full",
+);
+const NetWorthHistoryChart = loadChart(
+  () => import("@/components/charts/NetWorthHistoryChart").then((m) => m.NetWorthHistoryChart),
+  "h-[260px] w-full",
+);
 
 let cachedNow = 0;
 
@@ -447,7 +458,7 @@ function ExpandablePlanSection({
       {section.actionItems.length > 0 && (
         <div className="space-y-1.5">
           {visibleItems.map((item) => (
-            <div key={item.id} className="flex items-start gap-2">
+            <div key={item.id} className="cv-row flex items-start gap-2">
               <ArrowRight className="w-3 h-3 text-[var(--emerald)] mt-1 shrink-0" />
               <p className="font-[family-name:var(--font-body)] text-xs text-[var(--text-secondary)] line-clamp-2">
                 {item.text}
@@ -620,7 +631,9 @@ function DashboardPending() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plan.sections.map((section) => (
-              <ExpandablePlanSection key={section.id} section={section} />
+              <div key={section.id} className="cv-row">
+                <ExpandablePlanSection section={section} />
+              </div>
             ))}
           </div>
         </div>
@@ -660,7 +673,9 @@ function DashboardDelivered() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {plan.sections.map((section) => (
-              <ExpandablePlanSection key={section.id} section={section} />
+              <div key={section.id} className="cv-row">
+                <ExpandablePlanSection section={section} />
+              </div>
             ))}
           </div>
         </div>

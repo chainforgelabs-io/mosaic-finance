@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { createClient } from "@/lib/supabase/client";
@@ -12,16 +11,15 @@ import { signInWithGoogle } from "@/lib/actions/auth";
 import { signInSchema, type SignInFormData } from "@/lib/schemas/auth";
 
 export default function LoginForm() {
-  const searchParams = useSearchParams();
-  const callbackError = searchParams.get("error");
-  const redirectTo = searchParams.get("redirectTo");
-
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(
-    callbackError === "auth_callback_failed"
-      ? "Authentication failed. Please try again."
-      : null,
-  );
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "auth_callback_failed") {
+      setServerError("Authentication failed. Please try again.");
+    }
+  }, []);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const {
@@ -48,6 +46,7 @@ export default function LoginForm() {
       return;
     }
 
+    const redirectTo = new URLSearchParams(window.location.search).get("redirectTo");
     const params = new URLSearchParams();
     if (redirectTo) {
       params.set("redirectTo", redirectTo);

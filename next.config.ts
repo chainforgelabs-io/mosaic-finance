@@ -11,6 +11,9 @@ const heicPack = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
   // Keep Puppeteer and Chromium out of the bundle so launch() can resolve the browser binary.
   serverExternalPackages: [
     "puppeteer",

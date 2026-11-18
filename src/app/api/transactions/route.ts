@@ -41,7 +41,9 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from("transactions")
-    .select("*")
+    .select(
+      "id, user_id, txn_date, amount, category, description, note, source, document_id, category_confirmed, direction, line_role, instrument, recurring_item_id, created_at, updated_at",
+    )
     .eq("user_id", user.id)
     .order("txn_date", { ascending: false })
     .order("created_at", { ascending: false });

@@ -2,11 +2,16 @@
 
 import { useMarketStore } from "@/stores/market-store";
 import { useCompanyData } from "../hooks/useStockSearch";
-import { PriceChart } from "./PriceChart";
+import { loadChart } from "@/components/charts/load-chart";
 import { ArrowLeft, Globe, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import type { Timeframe } from "@/lib/market-data/types";
+
+const PriceChart = loadChart(
+  () => import("./PriceChart").then((m) => m.PriceChart),
+  "h-[260px] w-full",
+);
 
 function formatMarketCap(value: number): string {
   if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
