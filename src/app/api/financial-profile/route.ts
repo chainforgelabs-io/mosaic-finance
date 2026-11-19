@@ -4,6 +4,11 @@ import { z } from 'zod';
 import { resolveFactFindCashFlow } from '@/lib/tracking/fact-find-cash-flow';
 import { seedFactFindCashFlow } from '@/lib/tracking/seed-fact-find-cash-flow';
 import { upsertGoalsFromExtracted } from '@/lib/tracking/sync-goals';
+import { resolveFactFindSession } from '@/lib/conversation/fact-find-session';
+import {
+  extractedFactFind,
+  factFindMetadataConfirmed,
+} from '@/lib/conversation/fact-find-resume';
 
 function optionalNumber(value: unknown): number | undefined {
   if (value == null || value === "") return undefined;
@@ -212,6 +217,28 @@ export async function POST(req: NextRequest) {
     void import("@/lib/analytics/capture").then(({ captureLoopEvent }) =>
       captureLoopEvent(user.id, "fact_find_completed").catch(() => undefined),
     );
+  }
+
+  const session = await resolveFactFindSession(supabase, user.id);
+  if (session && !factFindMetadataConfirmed(session.metadata)) {
+    const base =
+      session.metadata && typeof session.metadata === "object"
+        ? (session.metadata as Record<string, unknown>)
+        : {};
+    const extracted = extractedFactFind(session.metadata);
+    await supabase
+      .from("conversation_sessions")
+      .update({
+        status: "completed",
+        metadata: {
+          ...base,
+          ...(extracted ? { extracted_data: extracted } : {}),
+          confirmed: true,
+        },
+        last_activity_at: new Date().toISOString(),
+      })
+      .eq("id", session.id)
+      .eq("user_id", user.id);
   }
 
   return NextResponse.json({ ok: true });

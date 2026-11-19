@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
 import { saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
+import { getOnboardingDraft, saveOnboardingDraft } from "@/lib/actions/onboarding-draft";
 import {
   ACCOUNT_CATEGORIES,
   type AccountType,
@@ -809,47 +810,81 @@ export default function HoldingsPage() {
 
   useEffect(() => {
     if (hasPrePopulated.current) return;
+    let cancelled = false;
 
-    if (factFindAccounts.length > 0) {
-      hasPrePopulated.current = true;
-      setAccountsFromConversation(true);
-      setAccounts(buildPrePopulatedAccounts(factFindAccounts));
-      return;
-    }
+    (async () => {
+      const draft = await getOnboardingDraft();
+      if (cancelled || hasPrePopulated.current) return;
+      const saved = Array.isArray(draft.holdings)
+        ? draft.holdings.filter(
+            (row): row is SavedAccount =>
+              row != null &&
+              typeof row === "object" &&
+              typeof (row as SavedAccount).id === "string" &&
+              typeof (row as SavedAccount).accountType === "string" &&
+              Array.isArray((row as SavedAccount).holdings),
+          )
+        : [];
+      if (saved.length > 0) {
+        hasPrePopulated.current = true;
+        setAccounts(saved);
+        return;
+      }
 
-    getFactFindAccounts().then((dbAccounts) => {
-      if (hasPrePopulated.current || !dbAccounts || dbAccounts.length === 0) return;
+      if (factFindAccounts.length > 0) {
+        hasPrePopulated.current = true;
+        setAccountsFromConversation(true);
+        setAccounts(buildPrePopulatedAccounts(factFindAccounts));
+        return;
+      }
+
+      const dbAccounts = await getFactFindAccounts();
+      if (cancelled || hasPrePopulated.current || !dbAccounts || dbAccounts.length === 0) return;
       hasPrePopulated.current = true;
       setAccountsFromConversation(true);
       setAccounts(buildPrePopulatedAccounts(dbAccounts));
-    });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [factFindAccounts]);
 
+  const rememberHoldings = (next: SavedAccount[]) => {
+    void saveOnboardingDraft({ holdings: next });
+  };
+
   const handleSaveAccount = (account: SavedAccount) => {
-    setAccounts((prev) => [...prev, account]);
+    const next = [...accounts, account];
+    setAccounts(next);
+    rememberHoldings(next);
     setIsAddingAccount(false);
   };
 
   const handleToggleAccount = (id: string) => {
-    setAccounts((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, collapsed: !a.collapsed } : a,
-      ),
+    const next = accounts.map((a) =>
+      a.id === id ? { ...a, collapsed: !a.collapsed } : a,
     );
+    setAccounts(next);
+    rememberHoldings(next);
   };
 
   const handleUpdateAccount = (updated: SavedAccount) => {
-    setAccounts((prev) =>
-      prev.map((a) => (a.id === updated.id ? updated : a)),
-    );
+    const next = accounts.map((a) => (a.id === updated.id ? updated : a));
+    setAccounts(next);
+    rememberHoldings(next);
   };
 
   const handleRemoveAccount = (id: string) => {
-    setAccounts((prev) => prev.filter((a) => a.id !== id));
+    const next = accounts.filter((a) => a.id !== id);
+    setAccounts(next);
+    rememberHoldings(next);
   };
 
   const handleUploadParsed = (newAccounts: SavedAccount[]) => {
-    setAccounts((prev) => [...prev, ...newAccounts]);
+    const next = [...accounts, ...newAccounts];
+    setAccounts(next);
+    rememberHoldings(next);
     setActiveTab("manual");
   };
 
@@ -859,6 +894,7 @@ export default function HoldingsPage() {
   );
 
   const goToGoals = () => {
+    void saveOnboardingDraft({ holdings: null });
     completeStep("holdings");
     router.push("/onboarding/goals");
   };

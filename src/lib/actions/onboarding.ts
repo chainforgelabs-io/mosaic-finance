@@ -8,6 +8,7 @@ import {
   reportEntryPath,
   reportStarted,
 } from "@/lib/onboarding/paths";
+import { isFactFindStepComplete } from "@/lib/conversation/fact-find-resume";
 import { resolveEntitlements } from "@/lib/entitlements";
 import { financialProfileSchema } from "@/lib/schemas/onboarding";
 import type { FactFindAccount, FactFindHolding } from "@/stores/onboarding";
@@ -171,7 +172,7 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
 
   if (!user) return empty;
 
-  const [profileRes, factFindRes, riskRes, holdingsRes, planRes] =
+  const [profileRes, factFindRes, riskRes, holdingsRes, planRes, pictureRes] =
     await Promise.all([
       supabase
         .from("user_profiles")
@@ -180,12 +181,12 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
         .single(),
       supabase
         .from("conversation_sessions")
-        .select("id")
+        .select("status, metadata")
         .eq("user_id", user.id)
         .eq("session_type", "fact-find")
-        .eq("status", "completed")
-        .limit(1)
-        .single(),
+        .neq("status", "abandoned")
+        .order("last_activity_at", { ascending: false })
+        .limit(8),
       supabase
         .from("risk_profiles")
         .select("id")
@@ -206,11 +207,21 @@ export async function getOnboardingProgress(): Promise<OnboardingProgress> {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("financial_profiles")
+        .select("monthly_expenses, monthly_savings, emergency_fund_months, retirement_target_age, major_debts")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   const flags = {
     profileComplete: !!(profileRes.data?.age && profileRes.data?.employment_type),
-    factFindComplete: !!factFindRes.data,
+    factFindComplete: isFactFindStepComplete({
+      sessions: factFindRes.data ?? [],
+      profile: pictureRes.data,
+    }),
     riskProfileComplete: !!riskRes.data,
     holdingsExist: !!holdingsRes.data,
     planExists: !!planRes.data,

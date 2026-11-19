@@ -104,7 +104,7 @@ When the full fact-find is complete, output a structured result wrapped in <FACT
   "debts": [{ "type": string, "balance": number, "rate": number, "monthly_payment": number }],
   "goals": [{ "type": string, "target_amount": number, "target_date": string, "priority": "high|medium|low" }],
   "retirement_target_age": number,
-  "investment_knowledge": "novice|intermediate|advanced",
+  "investment_knowledge": null,
   "province": string,
   "family_structure": string,
   "investment_accounts": [{ "account_type": "RRSP|TFSA|FHSA|RESP|RDSP|RRIF|DC-RPP|Hybrid-RPP|Target-Benefit|Group-RRSP|Group-TFSA|DPSP|EPSP|PRPP|VRSP|SPP|ESOP|ESPP|DSPP|RSU|Stock-Options|Phantom-Stock|EOT|LIRA|LRSP|RLSP|LIF|LRIF|PRIF|RLIF|non-registered|Joint|Corporate|In-Trust|Annuity|Bank-Account", "approximate_balance": number, "description": string, "holdings": [{ "ticker": string, "name": string, "balance": number, "units": number | null }] }],
@@ -146,6 +146,7 @@ IMPORTANT:
 - "conversational_summary" should be a brief narrative summary of the client's overall financial picture (used for the confirmation card)
 - "information_gaps" is REQUIRED. Use an empty array when every asked figure was answered. Each entry records a figure they could not quantify: topic is one of income, savings, investments, insurance, or debts; institution is the bank, insurer, or employer they named, or null when they were not sure; missing is a short label of the figure (for example "TFSA balance" or "life coverage amount")
 - Do NOT assess or score risk tolerance — that is handled in the next step
+- Do NOT ask the client to rate their investment knowledge or experience. investment_knowledge must be null. Do not infer novice, intermediate, or advanced. The confirmation card does not show that label.
 - Do NOT tell the user this is "advice" or a "plan" — frame as tracking their picture so Mosaic can produce an educational Progress Report
 - All information shared is educational in nature
 - After any substantive explanation of options, remind them: "This is educational information, not financial advice. Speak with a licensed financial advisor before implementing any changes."`;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ConversationStartSchema } from '@/lib/validators/conversation';
 import { captureAPIError } from '@/lib/sentry';
+import { resolveFactFindSession } from '@/lib/conversation/fact-find-session';
 import {
   charlieMessageUsageNotice,
   countConversationsThisMonth,
@@ -37,6 +38,18 @@ export async function POST(req: NextRequest) {
     }
     if (sessionType === 'annual-review' && entitlements.effectiveTier !== 'mastery') {
       return entitlementDenied('check_in', ENTITLEMENT_COPY.checkIn);
+    }
+
+    if (sessionType === 'fact-find') {
+      const existing = await resolveFactFindSession(supabase, user.id, {
+        abandonRestarts: true,
+      });
+      if (existing) {
+        return NextResponse.json({
+          sessionId: existing.id,
+          resumed: true,
+        });
+      }
     }
 
     const { data: existingSession } = await supabase

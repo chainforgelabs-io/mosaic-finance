@@ -11,6 +11,7 @@ import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
 import { canReopenCompletedFactFind } from '@/lib/conversation/reopen-fact-find';
+import { omitUnaskedInvestmentKnowledge } from '@/lib/conversation/fact-find-resume';
 import { buildClientSnapshot } from '@/lib/conversation/snapshot';
 import {
   charlieMessageUsageNotice,
@@ -467,7 +468,11 @@ export async function POST(req: NextRequest) {
           const match = fullResponse.match(completionPattern);
           if (match) {
             try {
-              extractedData = JSON.parse(match[1]);
+              const parsed = JSON.parse(match[1]);
+              extractedData =
+                parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+                  ? omitUnaskedInvestmentKnowledge(parsed as Record<string, unknown>)
+                  : parsed;
               sessionStatus = 'completed';
             } catch {
               /* JSON parse failed — session stays active */

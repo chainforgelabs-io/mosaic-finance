@@ -4,10 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { isDeferredDashboardPath } from '@/lib/config/launch-surface';
 import { resolveEntitlements } from '@/lib/entitlements';
 import { authLandingPath } from '@/lib/onboarding/paths';
+import { isFactFindStepComplete } from '@/lib/conversation/fact-find-resume';
 
 /** Same landing rule as sign-in. A finished account goes to the dashboard, not the profile form. */
 async function landingPath(supabase: SupabaseClient, userId: string): Promise<string> {
-  const [profileRes, factFindRes, riskRes, holdingsRes, planRes] = await Promise.all([
+  const [profileRes, factFindRes, riskRes, holdingsRes, planRes, pictureRes] = await Promise.all([
     supabase
       .from('user_profiles')
       .select('age, employment_type, role, subscription_tier, trial_ends_at')
@@ -15,12 +16,12 @@ async function landingPath(supabase: SupabaseClient, userId: string): Promise<st
       .single(),
     supabase
       .from('conversation_sessions')
-      .select('id')
+      .select('status, metadata')
       .eq('user_id', userId)
       .eq('session_type', 'fact-find')
-      .eq('status', 'completed')
-      .limit(1)
-      .single(),
+      .neq('status', 'abandoned')
+      .order('last_activity_at', { ascending: false })
+      .limit(8),
     supabase.from('risk_profiles').select('id').eq('user_id', userId).limit(1).single(),
     supabase.from('investment_holdings').select('id').eq('user_id', userId).limit(1).single(),
     supabase
@@ -31,12 +32,22 @@ async function landingPath(supabase: SupabaseClient, userId: string): Promise<st
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('financial_profiles')
+      .select('monthly_expenses, monthly_savings, emergency_fund_months, retirement_target_age, major_debts')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const profile = profileRes.data;
   return authLandingPath({
     profileComplete: !!(profile?.age && profile?.employment_type),
-    factFindComplete: !!factFindRes.data,
+    factFindComplete: isFactFindStepComplete({
+      sessions: factFindRes.data ?? [],
+      profile: pictureRes.data,
+    }),
     riskProfileComplete: !!riskRes.data,
     holdingsExist: !!holdingsRes.data,
     planExists: !!planRes.data,

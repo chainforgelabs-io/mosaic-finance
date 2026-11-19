@@ -41,6 +41,7 @@ interface ConversationState {
   error: string | null;
 
   setSessionId: (id: string) => void;
+  setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   updateLastAssistantMessage: (content: string) => void;
   setStreaming: (streaming: boolean) => void;
@@ -72,6 +73,8 @@ export const useConversationStore = create<ConversationState>((set) => ({
   error: null,
 
   setSessionId: (id) => set({ sessionId: id }),
+
+  setMessages: (messages) => set({ messages }),
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),

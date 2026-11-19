@@ -16,6 +16,7 @@ import {
   type GoalType,
 } from "@/lib/tracking/categories";
 import { goalDraftToPayload, horizonFromStored, type GoalHorizon } from "@/lib/tracking/goal-draft";
+import { getOnboardingDraft, saveOnboardingDraft } from "@/lib/actions/onboarding-draft";
 import { cn } from "@/lib/utils";
 
 interface DraftGoal {
@@ -58,10 +59,21 @@ export default function OnboardingGoalsPage() {
     setCurrentStep("goals");
   }, [completeStep, setCurrentStep]);
 
+  function updateGoals(next: DraftGoal[]) {
+    setGoals(next);
+    void saveOnboardingDraft({ goals: next });
+  }
+
   useEffect(() => {
-    fetch("/api/goals", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
+    Promise.all([
+      fetch("/api/goals", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
+      getOnboardingDraft(),
+    ])
+      .then(([json, draft]) => {
+        if (Array.isArray(draft.goals) && draft.goals.length > 0) {
+          updateGoals(draft.goals as DraftGoal[]);
+          return;
+        }
         const existing = (json?.goals ?? []) as {
           name: string;
           goal_type: GoalType;
@@ -72,7 +84,7 @@ export default function OnboardingGoalsPage() {
           priority: GoalPriority;
         }[];
         if (existing.length > 0) {
-          setGoals(
+          updateGoals(
             existing.map((g) => ({
               key: crypto.randomUUID(),
               name: presentGoalName(g.name),
@@ -111,6 +123,7 @@ export default function OnboardingGoalsPage() {
   }
 
   async function finishAndOpenDashboard() {
+    void saveOnboardingDraft({ goals: null });
     completeStep("goals");
     try {
       const res = await fetch("/api/plan/generate", {
@@ -159,7 +172,7 @@ export default function OnboardingGoalsPage() {
                     {goals.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => setGoals(goals.filter((x) => x.key !== g.key))}
+                        onClick={() => updateGoals(goals.filter((x) => x.key !== g.key))}
                         className="text-[var(--text-muted)] hover:text-[var(--error)]"
                         aria-label="Remove goal"
                       >
@@ -170,7 +183,7 @@ export default function OnboardingGoalsPage() {
                   <input
                     value={g.name}
                     onChange={(e) =>
-                      setGoals(goals.map((x) => (x.key === g.key ? { ...x, name: e.target.value } : x)))
+                      updateGoals(goals.map((x) => (x.key === g.key ? { ...x, name: e.target.value } : x)))
                     }
                     placeholder="e.g. Emergency fund, pay off credit card"
                     className="mb-3 w-full rounded-lg border border-[var(--warm-200)] px-3 py-2 font-body text-sm"
@@ -179,7 +192,7 @@ export default function OnboardingGoalsPage() {
                     <select
                       value={g.goal_type}
                       onChange={(e) =>
-                        setGoals(
+                        updateGoals(
                           goals.map((x) =>
                             x.key === g.key ? { ...x, goal_type: e.target.value as GoalType } : x,
                           ),
@@ -200,7 +213,7 @@ export default function OnboardingGoalsPage() {
                         value={g.amount_unknown ? "" : g.target_amount}
                         disabled={g.amount_unknown}
                         onChange={(e) =>
-                          setGoals(
+                          updateGoals(
                             goals.map((x) =>
                               x.key === g.key ? { ...x, target_amount: e.target.value } : x,
                             ),
@@ -214,7 +227,7 @@ export default function OnboardingGoalsPage() {
                           type="checkbox"
                           checked={g.amount_unknown}
                           onChange={(e) =>
-                            setGoals(
+                            updateGoals(
                               goals.map((x) =>
                                 x.key === g.key
                                   ? {
@@ -240,7 +253,7 @@ export default function OnboardingGoalsPage() {
                             key={mode}
                             type="button"
                             onClick={() =>
-                              setGoals(
+                              updateGoals(
                                 goals.map((x) => (x.key === g.key ? { ...x, horizon: mode } : x)),
                               )
                             }
@@ -260,7 +273,7 @@ export default function OnboardingGoalsPage() {
                           type="date"
                           value={g.target_date}
                           onChange={(e) =>
-                            setGoals(
+                            updateGoals(
                               goals.map((x) =>
                                 x.key === g.key ? { ...x, target_date: e.target.value } : x,
                               ),
@@ -276,7 +289,7 @@ export default function OnboardingGoalsPage() {
                           max="120"
                           value={g.target_age}
                           onChange={(e) =>
-                            setGoals(
+                            updateGoals(
                               goals.map((x) =>
                                 x.key === g.key ? { ...x, target_age: e.target.value } : x,
                               ),
@@ -294,7 +307,7 @@ export default function OnboardingGoalsPage() {
                           key={p}
                           type="button"
                           onClick={() =>
-                            setGoals(goals.map((x) => (x.key === g.key ? { ...x, priority: p } : x)))
+                            updateGoals(goals.map((x) => (x.key === g.key ? { ...x, priority: p } : x)))
                           }
                           className={cn(
                             "flex-1 rounded-lg py-2 font-display text-[11px] font-semibold capitalize",
@@ -312,7 +325,7 @@ export default function OnboardingGoalsPage() {
               ))}
               <button
                 type="button"
-                onClick={() => setGoals([...goals, emptyGoal()])}
+                onClick={() => updateGoals([...goals, emptyGoal()])}
                 className="inline-flex items-center gap-2 font-display text-sm font-semibold text-[var(--emerald)]"
               >
                 <Plus className="size-4" />

@@ -8,6 +8,8 @@ import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { getRiskProfileStatus, saveRiskProfile } from "@/lib/actions/risk-profile";
+import { getOnboardingDraft, saveOnboardingDraft } from "@/lib/actions/onboarding-draft";
+import type { RiskDraft } from "@/lib/onboarding/draft";
 
 interface QuestionOption {
   value: number;
@@ -170,12 +172,20 @@ export default function RiskProfilePage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { completed } = await getRiskProfileStatus();
+      const [{ completed }, draft] = await Promise.all([
+        getRiskProfileStatus(),
+        getOnboardingDraft(),
+      ]);
       if (cancelled) return;
       if (completed) {
         completeStep("risk-profile");
         router.replace("/onboarding/holdings");
         return;
+      }
+      if (draft.risk) {
+        setPhase(draft.risk.phase);
+        setCurrentQ(Math.min(draft.risk.currentQ, RISK_QUESTIONS.length - 1));
+        setAnswers(draft.risk.answers);
       }
       setCheckingExistingProfile(false);
     })();
@@ -192,8 +202,15 @@ export default function RiskProfilePage() {
       ? scoredAnswers.reduce((sum, value) => sum + value, 0) / scoredAnswers.length
       : 0;
 
+  const rememberRisk = (draft: RiskDraft) => {
+    void saveOnboardingDraft({ risk: draft });
+  };
+
   const handleAnswer = (questionId: string, value: number) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    const next = { ...answers, [questionId]: value };
+    const nextQ = currentQ < RISK_QUESTIONS.length - 1 ? currentQ + 1 : currentQ;
+    setAnswers(next);
+    rememberRisk({ phase: "questionnaire", currentQ: nextQ, answers: next });
     if (currentQ < RISK_QUESTIONS.length - 1) {
       setTimeout(() => setCurrentQ(currentQ + 1), 200);
     }
@@ -225,6 +242,7 @@ export default function RiskProfilePage() {
     }
 
     completeStep("risk-profile");
+    void saveOnboardingDraft({ risk: null });
     router.push("/onboarding/holdings");
   };
 
@@ -337,7 +355,10 @@ export default function RiskProfilePage() {
                 {allAnswered && currentQ === RISK_QUESTIONS.length - 1 ? (
                   <button
                     type="button"
-                    onClick={() => setPhase("followup")}
+                    onClick={() => {
+                      setPhase("followup");
+                      rememberRisk({ phase: "followup", currentQ, answers });
+                    }}
                     className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)]"
                   >
                     Continue
@@ -380,7 +401,11 @@ export default function RiskProfilePage() {
                           <button
                             key={option.value}
                             type="button"
-                            onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: option.value }))}
+                            onClick={() => {
+                          const next = { ...answers, [item.id]: option.value };
+                          setAnswers(next);
+                          rememberRisk({ phase: "followup", currentQ, answers: next });
+                        }}
                             className={cn(
                               "flex w-full items-center gap-3 rounded-lg border px-5 py-4 text-left transition-all",
                               isSelected
@@ -412,7 +437,10 @@ export default function RiskProfilePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => setPhase("questionnaire")}
+                  onClick={() => {
+                    setPhase("questionnaire");
+                    rememberRisk({ phase: "questionnaire", currentQ, answers });
+                  }}
                   className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                 >
                   <ArrowLeft className="size-4" />
@@ -420,7 +448,10 @@ export default function RiskProfilePage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPhase("review")}
+                  onClick={() => {
+                    setPhase("review");
+                    rememberRisk({ phase: "review", currentQ, answers });
+                  }}
                   disabled={!followUpAnswered}
                   className="flex items-center gap-2 rounded-lg bg-[var(--emerald)] px-6 py-2.5 font-display text-[14px] font-semibold text-white transition-colors hover:bg-[var(--emerald-dark)] disabled:opacity-30"
                 >
@@ -454,7 +485,10 @@ export default function RiskProfilePage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => setPhase("followup")}
+                  onClick={() => {
+                    setPhase("followup");
+                    rememberRisk({ phase: "followup", currentQ, answers });
+                  }}
                   disabled={isSubmitting}
                   className="flex items-center gap-2 font-body text-[14px] font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-30"
                 >
