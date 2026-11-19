@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
 import { isLaunchLive } from "@/lib/config/launch";
+import { marketingSectionHref } from "@/lib/marketing/section-href";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
@@ -14,18 +15,17 @@ const NAV_LINKS = [
 ];
 
 /**
- * When auth is hidden: use same-page hashes on `/` (home) since sections live there.
- * On `/privacy`, `/terms`, etc., deep-link back to `/#...`.
+ * When auth is hidden: use same-page hashes on `/` and `/test`, since those
+ * pages render the homepage sections. On `/privacy`, `/terms`, etc., deep-link
+ * back to `/#...`.
  */
 function navLinkHref(
   href: string,
   hideAuth: boolean,
   pathname: string,
 ): string {
-  if (!hideAuth || !href.startsWith("/#")) return href;
-  const hash = href.slice(1);
-  if (pathname === "/") return hash;
-  return `/${hash}`;
+  if (!hideAuth) return href;
+  return marketingSectionHref(href, pathname);
 }
 
 export function Nav({
@@ -50,7 +50,9 @@ export function Nav({
   }, []);
 
   const showLinks = !hideNavLinks;
-  const startHref = isLaunchLive() ? "/signup" : "/#waitlist";
+  const startHref = isLaunchLive()
+    ? "/signup"
+    : marketingSectionHref("/#waitlist", pathname);
   const solid = onLight || scrolled;
 
   return (
