@@ -10,6 +10,7 @@ import { ConversationMessageSchema } from '@/lib/validators/conversation';
 import { ratelimit } from '@/lib/ratelimit';
 import { captureAPIError } from '@/lib/sentry';
 import { sanitizeUserInput } from '@/lib/security/sanitize';
+import { canReopenCompletedFactFind } from '@/lib/conversation/reopen-fact-find';
 import { buildClientSnapshot } from '@/lib/conversation/snapshot';
 import {
   charlieMessageUsageNotice,
@@ -126,11 +127,29 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'Session not found' }, { status: 404 });
   }
 
-  if (session.status !== 'active') {
+  const reopeningFactFind = canReopenCompletedFactFind({
+    status: session.status,
+    sessionType: session.session_type,
+    requestedType: sessionType,
+    hasMessage: Boolean(sanitizedMessage),
+  });
+
+  if (session.status !== 'active' && !reopeningFactFind) {
     return Response.json(
       { error: 'Session is no longer active' },
       { status: 400 },
     );
+  }
+
+  if (reopeningFactFind) {
+    await supabase
+      .from('conversation_sessions')
+      .update({
+        status: 'active',
+        last_activity_at: new Date().toISOString(),
+      })
+      .eq('id', sessionId)
+      .eq('user_id', user.id);
   }
 
   if (overCap) {
