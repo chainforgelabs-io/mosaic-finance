@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { MosaicLogo } from "./mosaic-logo";
 import { isLaunchLive } from "@/lib/config/launch";
-import { marketingSectionHref } from "@/lib/marketing/section-href";
+import { marketingNavShowsSignIn, marketingSectionHref } from "@/lib/marketing/section-href";
 
 const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
@@ -50,6 +50,7 @@ export function Nav({
   }, []);
 
   const showLinks = !hideNavLinks;
+  const showSignIn = marketingNavShowsSignIn(pathname, hideAuth);
   const startHref = isLaunchLive()
     ? "/signup"
     : marketingSectionHref("/#waitlist", pathname);
@@ -87,25 +88,25 @@ export function Nav({
                 {link.label}
               </a>
             ))}
+            {showSignIn && (
+              <a
+                href="/login"
+                className={`font-display text-sm font-medium transition-colors ${
+                  solid
+                    ? "text-text-secondary hover:text-text-primary"
+                    : "text-text-inverse/60 hover:text-text-inverse"
+                }`}
+              >
+                Sign In
+              </a>
+            )}
             {!hideAuth && (
-              <>
-                <a
-                  href="/login"
-                  className={`font-display text-sm font-medium transition-colors ${
-                    solid
-                      ? "text-text-secondary hover:text-text-primary"
-                      : "text-text-inverse/60 hover:text-text-inverse"
-                  }`}
-                >
-                  Sign In
-                </a>
-                <a
-                  href={startHref}
-                  className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
-                >
-                  {isLaunchLive() ? "Start free" : "Join the waitlist"}
-                </a>
-              </>
+              <a
+                href={startHref}
+                className="rounded-full bg-emerald px-5 py-2 font-display text-sm font-semibold text-white transition-colors hover:bg-emerald-dark"
+              >
+                {isLaunchLive() ? "Start free" : "Join the waitlist"}
+              </a>
             )}
           </div>
         )}
@@ -113,6 +114,16 @@ export function Nav({
         {/* Mobile */}
         {showLinks && (
           <div className="flex shrink-0 items-center gap-2 md:hidden">
+            {pathname === "/test" && (
+              <a
+                href="/login"
+                className={`font-display text-xs font-medium ${
+                  solid ? "text-text-secondary" : "text-text-inverse/80"
+                }`}
+              >
+                Sign In
+              </a>
+            )}
             <a
               href={startHref}
               className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-emerald px-3.5 py-2 font-display text-xs font-semibold leading-none text-white"
@@ -144,7 +155,7 @@ export function Nav({
               {link.label}
             </a>
           ))}
-          {!hideAuth && (
+          {showSignIn && (
             <a
               href="/login"
               className="block py-2 font-display text-sm font-medium text-text-secondary"
