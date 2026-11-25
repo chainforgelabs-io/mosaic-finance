@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
+import { watchJson } from "@/lib/client/api-cache";
 import { usePlanStore } from "@/stores/plan-store";
 import { loadChart } from "@/components/charts/load-chart";
 import { FinancialCard } from "@/components/app/FinancialCard";
@@ -786,12 +787,9 @@ export default function AssetsPage() {
         setSpendFacts(spendingFactsFromTransactions(json?.transactions, today));
       })
       .catch(() => undefined);
-    void fetch("/api/setup/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (typeof data?.reminderDay === "number") setReminderDay(data.reminderDay);
-      })
-      .catch(() => undefined);
+    void watchJson<{ reminderDay?: number }>("/api/setup/status", (data) => {
+      if (typeof data.reminderDay === "number") setReminderDay(data.reminderDay);
+    });
   }, [loadData]);
 
   async function handleSaveAsset(formData: AssetFormData) {

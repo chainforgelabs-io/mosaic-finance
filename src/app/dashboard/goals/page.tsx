@@ -4,6 +4,7 @@ import { Component, useCallback, useEffect, useRef, useState, useSyncExternalSto
 import * as Sentry from "@sentry/nextjs";
 import { Archive, Check, ChevronDown, Plus, Target, Trash2, X } from "lucide-react";
 import { ReplayTourLink } from "@/components/app/ReplayTourLink";
+import { getJson, invalidateApi, peekJson } from "@/lib/client/api-cache";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   GOAL_PRIORITIES,
@@ -119,39 +120,45 @@ interface GoalPageData {
   planChoices: { slug: string; label: string; kind: CategoryKind }[];
 }
 
-async function fetchGoalPageData(): Promise<GoalPageData> {
+async function fetchGoalPageData(
+  onGoals?: (partial: { goals: GoalRow[] | null; age: number | null; profileMonthly: number | null }) => void,
+): Promise<GoalPageData> {
   const today = todayIso();
   const month = startOfMonth(today);
   const weekStart = addDays(startOfWeekMonday(today), -21);
   const rangeStart = addMonths(month, -12);
   const start = weekStart < rangeStart ? weekStart : rangeStart;
   const year = Number(today.slice(0, 4));
-  const [res, snapRes, holdRes, txnRes, plan, catalog] = await Promise.all([
-    fetch("/api/goals", { credentials: "include" }),
-    fetch("/api/net-worth/snapshots", { credentials: "include" }),
-    fetch("/api/holdings", { credentials: "include" }),
-    fetch(`/api/transactions?start=${start}&end=${today}`, { credentials: "include" }),
+  const goalsPromise = getJson<{
+    goals?: GoalRow[];
+    context?: { age?: number | null; monthlyExpenses?: number | null };
+  }>("/api/goals");
+  const restPromise = Promise.all([
+    getJson<{ snapshots?: { snapshot_date?: string; breakdown?: SnapshotBreakdown }[] }>("/api/net-worth/snapshots"),
+    getJson<Record<string, unknown>>("/api/holdings"),
+    getJson<{ transactions?: unknown }>(`/api/transactions?start=${start}&end=${today}`),
     fetchPlan(year).catch(() => null),
-    fetchCatalog().catch(() => []),
+    fetchCatalog().catch(() => [] as Awaited<ReturnType<typeof fetchCatalog>>),
   ]);
+  const res = await goalsPromise;
   let goals: GoalRow[] | null = null;
   let age: number | null = null;
   let profileMonthly: number | null = null;
-  if (res.ok) {
-    const json = await res.json();
-    goals = json.goals ?? [];
-    age = json.context?.age != null ? Number(json.context.age) : null;
-    profileMonthly = json.context?.monthlyExpenses != null ? Number(json.context.monthlyExpenses) : null;
+  if (res.ok && res.body) {
+    goals = res.body.goals ?? [];
+    age = res.body.context?.age != null ? Number(res.body.context.age) : null;
+    profileMonthly = res.body.context?.monthlyExpenses != null ? Number(res.body.context.monthlyExpenses) : null;
   }
+  onGoals?.({ goals, age, profileMonthly });
+  const [snapRes, holdRes, txnRes, plan, catalog] = await restPromise;
   let snaps: { snapshot_date?: string; breakdown?: SnapshotBreakdown }[] = [];
-  if (snapRes.ok) {
-    const json = await snapRes.json();
-    snaps = (json.snapshots ?? []) as { snapshot_date?: string; breakdown?: SnapshotBreakdown }[];
+  if (snapRes.ok && snapRes.body) {
+    snaps = snapRes.body.snapshots ?? [];
   }
   let assembled = assembleGoalHistory({ today, snapshots: snaps });
-  if (holdRes.ok) {
+  if (holdRes.ok && holdRes.body) {
     try {
-      const json = await holdRes.json();
+      const json = holdRes.body;
       const profile = json && typeof json === "object" ? (json as { financialProfile?: { major_debts?: unknown } | null }).financialProfile : null;
       assembled = assembleGoalHistory({
         today,
@@ -169,7 +176,7 @@ async function fetchGoalPageData(): Promise<GoalPageData> {
   const hasPrimaryResidence = assembled.hasPrimaryResidence;
   const hasRentalProperty = assembled.hasRentalProperty;
   const spent = spendingFactsFromTransactions(
-    txnRes.ok ? ((await txnRes.json()) as { transactions?: unknown }).transactions : [],
+    txnRes.ok && txnRes.body ? txnRes.body.transactions : [],
     today,
   );
   const { loggedByCategory, spendByMonthCategory, expenseDates, monthExpense } = spent;
@@ -256,6 +263,12 @@ export default function GoalsPage() {
   }, []);
 
   const load = useCallback(async () => {
+    invalidateApi("/api/goals");
+    invalidateApi("/api/net-worth/snapshots");
+    invalidateApi("/api/holdings");
+    invalidateApi("/api/transactions");
+    invalidateApi("/api/budget-plan");
+    invalidateApi("/api/categories");
     try {
       applyPage(await fetchGoalPageData());
     } catch {
@@ -265,7 +278,24 @@ export default function GoalsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetchGoalPageData()
+    const cached = peekJson<{ goals?: GoalRow[]; context?: { age?: number | null; monthlyExpenses?: number | null } }>(
+      "/api/goals",
+    );
+    if (cached?.goals) {
+      const rows = cached.goals;
+      queueMicrotask(() => {
+        if (cancelled) return;
+        setGoals(rows);
+        setLoading(false);
+      });
+    }
+    void fetchGoalPageData((partial) => {
+      if (cancelled) return;
+      if (partial.goals) setGoals(partial.goals);
+      setAge(partial.age);
+      setProfileMonthly(partial.profileMonthly);
+      setLoading(false);
+    })
       .then((data) => {
         if (!cancelled) applyPage(data);
       })
@@ -296,13 +326,10 @@ export default function GoalsPage() {
         body: JSON.stringify({ id: goal.id, baseline_balances }),
       }).then((res) => {
         if (!res.ok || cancelled) return;
-        void fetchGoalPageData()
-          .then((data) => {
-            if (!cancelled) applyPage(data);
-          })
-          .catch(() => {
-            if (!cancelled) setLoading(false);
-          });
+        invalidateApi("/api/goals");
+        setGoals((current) =>
+          current.map((item) => (item.id === goal.id ? { ...item, baseline_balances } : item)),
+        );
       });
     }
     return () => {

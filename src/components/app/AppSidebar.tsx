@@ -29,6 +29,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Tier } from "@/types";
 import { isTrialActive } from "@/lib/entitlements";
 import { MASTERY_PUBLIC } from "@/lib/config/launch-surface";
+import { clearApiCache, watchJson } from "@/lib/client/api-cache";
 import { TierBadge } from "./TierBadge";
 import { MosaicLogo } from "./MosaicLogo";
 import {
@@ -116,14 +117,9 @@ export function AppSidebar({
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/setup/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data && typeof data.planSet === "boolean") {
-          setSetup(data as SetupStatus);
-        }
-      })
-      .catch(() => undefined);
+    void watchJson<SetupStatus>("/api/setup/status", (data) => {
+      if (!cancelled && typeof data.planSet === "boolean") setSetup(data);
+    });
     return () => {
       cancelled = true;
     };
@@ -145,6 +141,7 @@ export function AppSidebar({
 
   async function handleSignOut() {
     if (!window.confirm("Sign out of Mosaic?")) return;
+    clearApiCache();
     await fetch("/api/auth/signout", { method: "POST" });
     router.push("/login");
   }

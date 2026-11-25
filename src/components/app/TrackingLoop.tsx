@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Flame, Landmark, Loader2, Wallet } from "lucide-react";
 import { HealthScore } from "@/components/app/HealthScore";
 import { QuickLogSheet } from "@/components/app/QuickLogSheet";
+import { watchJson } from "@/lib/client/api-cache";
 import { outflowTotal, type CashTxn } from "@/lib/tracking/cash-capture";
 import { startOfWeekMonday, todayIso, weekRange } from "@/lib/tracking/dates";
 import { formatMoneyExact } from "@/lib/tracking/format";
@@ -49,62 +50,43 @@ export function TrackingLoop({ reportAvailable, onLogged }: TrackingLoopProps) {
     const today = todayIso();
     const range = weekRange(startOfWeekMonday(today));
 
-    void fetch("/api/health-score", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || data?.score == null) return;
-        setScore(Number(data.score));
-        setDelta90(data.delta90 ?? null);
-      })
-      .catch(() => undefined);
+    void watchJson<{ score?: number; delta90?: number | null }>("/api/health-score", (data) => {
+      if (cancelled || data.score == null) return;
+      setScore(Number(data.score));
+      setDelta90(data.delta90 ?? null);
+    });
 
-    void fetch("/api/gamification/summary", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data) setSummary(data as GamificationSummary);
-      })
-      .catch(() => undefined);
+    void watchJson<GamificationSummary>("/api/gamification/summary", (data) => {
+      if (!cancelled) setSummary(data);
+    });
 
-    void fetch(`/api/transactions?start=${range.start}&end=${range.end}`, {
-      credentials: "include",
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data) return;
-        setWeekSpend(outflowTotal((data.transactions ?? []) as CashTxn[]));
-      })
-      .catch(() => undefined);
+    void watchJson<{ transactions?: CashTxn[] }>(
+      `/api/transactions?start=${range.start}&end=${range.end}`,
+      (data) => {
+        if (cancelled) return;
+        setWeekSpend(outflowTotal(data.transactions ?? []));
+      },
+    );
 
-    void fetch("/api/guarantee/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data) return;
-        setGuarantee({
-          weeksLogged: Number(data.weeksLogged ?? 0),
-          snapshots: Number(data.snapshots ?? 0),
-        });
-      })
-      .catch(() => undefined);
+    void watchJson<{ weeksLogged?: number; snapshots?: number }>("/api/guarantee/status", (data) => {
+      if (cancelled) return;
+      setGuarantee({
+        weeksLogged: Number(data.weeksLogged ?? 0),
+        snapshots: Number(data.snapshots ?? 0),
+      });
+    });
 
-    void fetch("/api/setup/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data && typeof data.planSet === "boolean") {
-          setSetup(data as SetupStatus);
-        }
-      })
-      .catch(() => undefined);
+    void watchJson<SetupStatus>("/api/setup/status", (data) => {
+      if (!cancelled && typeof data.planSet === "boolean") setSetup(data);
+    });
 
-    void fetch("/api/auth/redirect", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (cancelled || !data?.reportEntryPath) return;
-        setEntry({
-          path: String(data.reportEntryPath),
-          started: Boolean(data.reportStarted),
-        });
-      })
-      .catch(() => undefined);
+    void watchJson<{ reportEntryPath?: string; reportStarted?: boolean }>("/api/auth/redirect", (data) => {
+      if (cancelled || !data.reportEntryPath) return;
+      setEntry({
+        path: String(data.reportEntryPath),
+        started: Boolean(data.reportStarted),
+      });
+    });
 
     return () => {
       cancelled = true;

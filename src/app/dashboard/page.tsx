@@ -18,6 +18,7 @@ import type { NetWorthSnapshotRow } from "@/types/tracking";
 import { MotivationStrip } from "@/components/tracking/MotivationStrip";
 import { TrackingLoop } from "@/components/app/TrackingLoop";
 import { SetupChecklist } from "@/components/app/SetupChecklist";
+import { watchJson } from "@/lib/client/api-cache";
 import type { SetupStatus } from "@/lib/onboarding/setup-status";
 import {
   FileText,
@@ -631,14 +632,9 @@ function DashboardSetup() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/setup/status", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data && typeof data.planSet === "boolean") {
-          setStatus(data as SetupStatus);
-        }
-      })
-      .catch(() => undefined);
+    void watchJson<SetupStatus>("/api/setup/status", (data) => {
+      if (!cancelled && typeof data.planSet === "boolean") setStatus(data);
+    });
     return () => {
       cancelled = true;
     };

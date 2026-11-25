@@ -1,6 +1,6 @@
 /**
- * Refreshes the Supabase auth session and enforces access on matched routes
- * (dashboard, admin, onboarding, auth pages, and API).
+ * Refreshes the Supabase auth session and enforces access on page routes.
+ * API routes check the user themselves, so they are not matched here.
  */
 import { type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
@@ -18,6 +18,5 @@ export const config = {
     '/forgot-password',
     '/reset-password',
     '/onboarding/:path*',
-    '/api/:path*',
   ],
 };

@@ -97,7 +97,7 @@ From the owner's staging pass. These stay inside Phase 0.
 - [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25 · PR #16
 - [x] Tour outlines keep a gap from the text on every side. 2026-11-25 · PR #16
 - [x] Calculator title is "RRSP vs TFSA room". 2026-11-25 · PR #16
-- [ ] Dashboard, Cash Flow, Net Worth, and Goals load faster.
+- [x] Dashboard, Cash Flow, Net Worth, and Goals load faster. 2026-11-25 · PR #19
 
 ---
 
@@ -295,3 +295,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-11-25 | Owner test pass. Dashboard leads with the net worth breakdown. Cash Flow confirmation, a fuller tour, and faster pages follow in their own PRs. |
 | 2026-11-25 | A cash-flow plan seeded by discovery stays on the setup checklist until the person confirms it. |
 | 2026-11-25 | Owner test: the first tour walks the cash flow plan, weekly logging, the monthly net worth check-in, how the two trackers meet, and goals. It can be replayed from the sidebar, each tracker, and Settings. |
+| 2026-11-25 | Owner: API routes keep their own login check, and middleware no longer runs one for `/api/*`. Page routes still go through middleware. Dashboard, Cash Flow, and Goals share in-flight reads so the same request is not sent two or three times, and Goals paints before the slower readings return. |
