@@ -97,7 +97,7 @@ From the owner's staging pass. One PR per line. Keep every checked line when the
 - [ ] A cash-flow plan seeded by discovery stays on the setup checklist until the person confirms it.
 - [ ] The budget plan says the starting lines can be renamed, and that more lines can be added.
 - [ ] The first tour walks Cash Flow, Net Worth, how they meet, and Goals, and it can be replayed.
-- [x] Dashboard, Cash Flow, Net Worth, and Goals open faster. 2026-11-25
+- [x] Dashboard, Cash Flow, Net Worth, and Goals open faster. 2026-11-25 · PR #19
 
 ---
 
