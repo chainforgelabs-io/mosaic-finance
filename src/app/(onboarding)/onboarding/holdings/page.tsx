@@ -23,9 +23,16 @@ import { StepProgress } from "@/components/app/StepProgress";
 import { MosaicLogo } from "@/components/app/MosaicLogo";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useOnboardingStore, type FactFindAccount } from "@/stores/onboarding";
-import { saveHoldings } from "@/lib/actions/holdings";
+import { getSavedHoldingsAccounts, saveHoldings } from "@/lib/actions/holdings";
 import { getFactFindAccounts } from "@/lib/actions/onboarding";
 import { getOnboardingDraft, saveOnboardingDraft } from "@/lib/actions/onboarding-draft";
+import {
+  prefillAccountName,
+  prefillFactFindAccount,
+  prefillHoldingLabel,
+  tidyStoredAccountName,
+  tidyStoredHoldingLabel,
+} from "@/lib/onboarding/holding-labels";
 import {
   ACCOUNT_CATEGORIES,
   type AccountType,
@@ -120,6 +127,7 @@ function HoldingsTable({
                       onUpdate(h.localId, "tickerOrName", e.target.value)
                     }
                     placeholder="e.g. XEQT (optional)"
+                    maxLength={100}
                     className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
                   />
                 </td>
@@ -185,11 +193,13 @@ function AccountCard({
   onToggle,
   onRemove,
   onUpdate,
+  registerCommit,
 }: {
   account: SavedAccount;
   onToggle: () => void;
   onRemove: () => void;
   onUpdate: (updated: SavedAccount) => void;
+  registerCommit: (id: string, commit: (() => SavedAccount | null) | null) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editType, setEditType] = useState<AccountType>(account.accountType);
@@ -210,16 +220,35 @@ function AccountCard({
     setIsEditing(true);
   };
 
+  const snapshot = useRef<() => SavedAccount | null>(() => account);
+
+  useEffect(() => {
+    snapshot.current = () => {
+      if (!isEditing) return account;
+      const validHoldings = editHoldings.filter((holding) => holding.balance > 0);
+      if (validHoldings.length === 0) return null;
+      return {
+        ...account,
+        accountType: editType,
+        accountName: editName.trim().slice(0, 100) || undefined,
+        owner: editOwner || undefined,
+        holdings: validHoldings.map((holding) => ({
+          ...holding,
+          tickerOrName: (holding.tickerOrName ?? "").trim().slice(0, 100),
+        })),
+      };
+    };
+  }, [account, editHoldings, editName, editOwner, editType, isEditing]);
+
+  useEffect(() => {
+    registerCommit(account.id, () => snapshot.current());
+    return () => registerCommit(account.id, null);
+  }, [account.id, registerCommit]);
+
   const saveEdits = () => {
-    const validHoldings = editHoldings.filter((h) => h.balance > 0);
-    if (validHoldings.length === 0) return;
-    onUpdate({
-      ...account,
-      accountType: editType,
-      accountName: editName || undefined,
-      owner: editOwner || undefined,
-      holdings: validHoldings,
-    });
+    const next = snapshot.current();
+    if (!next) return;
+    onUpdate(next);
     setIsEditing(false);
   };
 
@@ -359,6 +388,7 @@ function AccountCard({
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                maxLength={100}
                 placeholder="e.g. Wealthsimple TFSA"
                 className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
               />
@@ -417,16 +447,44 @@ function AccountCard({
   );
 }
 
-function holdingLabel(holding: { ticker?: string; name?: string }): string {
-  const ticker = (holding.ticker ?? "").trim();
-  const name = (holding.name ?? "").trim();
-  const tickerMissing = !ticker || ticker.toUpperCase() === "UNKNOWN";
-  if (tickerMissing) return name;
-  if (name && name.toUpperCase() !== ticker.toUpperCase()) {
-    const combined = `${name} (${ticker})`;
-    return combined.length <= 100 ? combined : name;
-  }
-  return ticker;
+function holdingRows(account: SavedAccount): SavedAccount {
+  return {
+    ...account,
+    accountName: tidyStoredAccountName(account.accountType, account.accountName),
+    holdings: account.holdings.map((holding) => ({
+      ...holding,
+      tickerOrName: tidyStoredHoldingLabel(holding.tickerOrName),
+    })),
+  };
+}
+
+function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
+  return factFindAccounts
+    .filter(
+      (acc) =>
+        !shouldExcludeFromInvestmentHoldings(acc.account_type, acc.description),
+    )
+    .map((acc, i) => {
+      const ts = Date.now();
+      const prefilled = prefillFactFindAccount({
+        accountType: acc.account_type,
+        description: acc.description,
+        approximateBalance: acc.approximate_balance,
+        holdings: acc.holdings,
+      });
+      return {
+        id: `prefill-${i}-${ts}`,
+        accountType: prefilled.accountType,
+        accountName: prefilled.accountName,
+        holdings: prefilled.holdings.map((holding, j) => ({
+          localId: `prefill-h-${i}-${j}-${ts}`,
+          tickerOrName: holding.tickerOrName,
+          balance: holding.balance,
+          units: holding.units,
+        })),
+        collapsed: false,
+      };
+    });
 }
 
 function UploadDropZone({
@@ -474,11 +532,11 @@ function UploadDropZone({
           (acc: { account_type: string; holdings?: { ticker?: string; name?: string; balance?: number; units?: number }[]; total_value?: number }, i: number) => ({
             id: `acc-upload-${Date.now()}-${i}`,
             accountType: fromDbAccountType(acc.account_type),
-            accountName: uploadNote || undefined,
+            accountName: prefillAccountName(acc.account_type, uploadNote),
             holdings: (acc.holdings ?? []).map(
               (h: { ticker?: string; name?: string; balance?: number; units?: number }, j: number) => ({
                 localId: `upload-${Date.now()}-${i}-${j}`,
-                tickerOrName: holdingLabel(h),
+                tickerOrName: prefillHoldingLabel(h),
                 balance: h.balance ?? 0,
                 units: h.units == null ? undefined : h.units,
               }),
@@ -699,6 +757,7 @@ function ManualEntryForm({
           type="text"
           value={accountName}
           onChange={(e) => setAccountName(e.target.value)}
+          maxLength={100}
           placeholder="e.g. Wealthsimple TFSA, Work DC Pension"
           className="w-full rounded-lg border border-[var(--warm-200)] bg-white px-3 py-2 font-body text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--emerald)] focus:ring-2 focus:ring-[var(--emerald)]/20"
         />
@@ -755,40 +814,6 @@ function ManualEntryForm({
   );
 }
 
-function buildPrePopulatedAccounts(factFindAccounts: FactFindAccount[]): SavedAccount[] {
-  return factFindAccounts
-    .filter(
-      (acc) =>
-        !shouldExcludeFromInvestmentHoldings(acc.account_type, acc.description),
-    )
-    .map((acc, i) => {
-      const ts = Date.now();
-      const holdingsList =
-        acc.holdings && acc.holdings.length > 0
-          ? acc.holdings.map((h, j) => ({
-              localId: `prefill-h-${i}-${j}-${ts}`,
-              tickerOrName: holdingLabel(h),
-              balance: h.balance ?? 0,
-              units: h.units ?? undefined,
-            }))
-          : [
-              {
-                localId: `prefill-h-${i}-${ts}`,
-                tickerOrName: "",
-                balance: acc.approximate_balance ?? 0,
-                units: undefined,
-              },
-            ];
-      return {
-        id: `prefill-${i}-${ts}`,
-        accountType: fromDbAccountType(acc.account_type),
-        accountName: acc.description || undefined,
-        holdings: holdingsList,
-        collapsed: false,
-      };
-    });
-}
-
 export default function HoldingsPage() {
   const router = useRouter();
   const { currentStep, completedSteps, setCurrentStep, completeStep, factFindAccounts } =
@@ -798,8 +823,12 @@ export default function HoldingsPage() {
   const [isAddingAccount, setIsAddingAccount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [accountsFromConversation, setAccountsFromConversation] = useState(false);
   const hasPrePopulated = useRef(false);
+  const committers = useRef(new Map<string, () => SavedAccount | null>());
+  const registerCommit = useCallback((id: string, commit: (() => SavedAccount | null) | null) => {
+    if (commit) committers.current.set(id, commit);
+    else committers.current.delete(id);
+  }, []);
 
   useEffect(() => {
     completeStep("profile");
@@ -813,27 +842,34 @@ export default function HoldingsPage() {
     let cancelled = false;
 
     (async () => {
-      const draft = await getOnboardingDraft();
+      const [draft, savedRows] = await Promise.all([
+        getOnboardingDraft(),
+        getSavedHoldingsAccounts(),
+      ]);
       if (cancelled || hasPrePopulated.current) return;
-      const saved = Array.isArray(draft.holdings)
-        ? draft.holdings.filter(
-            (row): row is SavedAccount =>
-              row != null &&
-              typeof row === "object" &&
-              typeof (row as SavedAccount).id === "string" &&
-              typeof (row as SavedAccount).accountType === "string" &&
-              Array.isArray((row as SavedAccount).holdings),
-          )
-        : [];
-      if (saved.length > 0) {
+
+      if (Array.isArray(draft.holdings)) {
+        const saved = draft.holdings.filter(
+          (row): row is SavedAccount =>
+            row != null &&
+            typeof row === "object" &&
+            typeof (row as SavedAccount).id === "string" &&
+            typeof (row as SavedAccount).accountType === "string" &&
+            Array.isArray((row as SavedAccount).holdings),
+        );
         hasPrePopulated.current = true;
-        setAccounts(saved);
+        setAccounts(saved.map(holdingRows));
+        return;
+      }
+
+      if (savedRows.length > 0) {
+        hasPrePopulated.current = true;
+        setAccounts(savedRows);
         return;
       }
 
       if (factFindAccounts.length > 0) {
         hasPrePopulated.current = true;
-        setAccountsFromConversation(true);
         setAccounts(buildPrePopulatedAccounts(factFindAccounts));
         return;
       }
@@ -841,7 +877,6 @@ export default function HoldingsPage() {
       const dbAccounts = await getFactFindAccounts();
       if (cancelled || hasPrePopulated.current || !dbAccounts || dbAccounts.length === 0) return;
       hasPrePopulated.current = true;
-      setAccountsFromConversation(true);
       setAccounts(buildPrePopulatedAccounts(dbAccounts));
     })();
 
@@ -894,7 +929,6 @@ export default function HoldingsPage() {
   );
 
   const goToGoals = () => {
-    void saveOnboardingDraft({ holdings: null });
     completeStep("holdings");
     router.push("/onboarding/goals");
   };
@@ -903,13 +937,35 @@ export default function HoldingsPage() {
     setIsSubmitting(true);
     setServerError(null);
 
-    if (accounts.length === 0) {
+    const committed: SavedAccount[] = [];
+    for (const account of accounts) {
+      const commit = committers.current.get(account.id);
+      const next = commit ? commit() : account;
+      if (!next) {
+        setServerError("Add at least one holding with a balance.");
+        setIsSubmitting(false);
+        return;
+      }
+      committed.push({
+        ...next,
+        accountName: next.accountName?.trim().slice(0, 100) || undefined,
+        holdings: next.holdings.map((holding) => ({
+          ...holding,
+          tickerOrName: (holding.tickerOrName ?? "").trim().slice(0, 100),
+        })),
+      });
+    }
+
+    if (committed.length === 0) {
       goToGoals();
       return;
     }
 
+    setAccounts(committed);
+    await saveOnboardingDraft({ holdings: committed });
+
     const formData = {
-      accounts: accounts.map((a) => ({
+      accounts: committed.map((a) => ({
         id: a.id,
         accountType: a.accountType,
         accountName: a.accountName,
@@ -1017,6 +1073,7 @@ export default function HoldingsPage() {
                 onToggle={() => handleToggleAccount(account.id)}
                 onRemove={() => handleRemoveAccount(account.id)}
                 onUpdate={handleUpdateAccount}
+                registerCommit={registerCommit}
               />
             ))}
 

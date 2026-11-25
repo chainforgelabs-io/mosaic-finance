@@ -65,41 +65,49 @@ export default function OnboardingGoalsPage() {
   }
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/goals", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
-      getOnboardingDraft(),
-    ])
-      .then(([json, draft]) => {
-        if (Array.isArray(draft.goals) && draft.goals.length > 0) {
-          updateGoals(draft.goals as DraftGoal[]);
-          return;
-        }
-        const existing = (json?.goals ?? []) as {
-          name: string;
-          goal_type: GoalType;
-          target_amount: number | null;
-          target_date: string | null;
-          target_age: number | null;
-          amount_unknown: boolean | null;
-          priority: GoalPriority;
-        }[];
-        if (existing.length > 0) {
-          updateGoals(
-            existing.map((g) => ({
-              key: crypto.randomUUID(),
-              name: presentGoalName(g.name),
-              goal_type: inferGoalType(g.goal_type),
-              target_amount: g.target_amount != null ? String(g.target_amount) : "",
-              amount_unknown: Boolean(g.amount_unknown),
-              horizon: horizonFromStored(g),
-              target_date: g.target_date ?? "",
-              target_age: g.target_age != null ? String(g.target_age) : "",
-              priority: g.priority ?? "medium",
-            })),
-          );
-        }
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      await saveOnboardingDraft({ holdings: null });
+      if (cancelled) return;
+      const [json, draft] = await Promise.all([
+        fetch("/api/goals", { credentials: "include" }).then((r) => (r.ok ? r.json() : null)),
+        getOnboardingDraft(),
+      ]);
+      if (cancelled) return;
+      if (Array.isArray(draft.goals) && draft.goals.length > 0) {
+        updateGoals(draft.goals as DraftGoal[]);
+        return;
+      }
+      const existing = (json?.goals ?? []) as {
+        name: string;
+        goal_type: GoalType;
+        target_amount: number | null;
+        target_date: string | null;
+        target_age: number | null;
+        amount_unknown: boolean | null;
+        priority: GoalPriority;
+      }[];
+      if (existing.length > 0) {
+        updateGoals(
+          existing.map((g) => ({
+            key: crypto.randomUUID(),
+            name: presentGoalName(g.name),
+            goal_type: inferGoalType(g.goal_type),
+            target_amount: g.target_amount != null ? String(g.target_amount) : "",
+            amount_unknown: Boolean(g.amount_unknown),
+            horizon: horizonFromStored(g),
+            target_date: g.target_date ?? "",
+            target_age: g.target_age != null ? String(g.target_age) : "",
+            priority: g.priority ?? "medium",
+          })),
+        );
+      }
+    })().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function continueOnboarding() {

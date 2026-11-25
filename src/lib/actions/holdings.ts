@@ -2,6 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { holdingsSchema, toDbAccountType } from "@/lib/schemas/holdings";
+import {
+  accountsFromSavedHoldings,
+  type SavedHoldingAccount,
+  type SavedHoldingRow,
+} from "@/lib/onboarding/holding-labels";
 
 export type HoldingsResult = {
   error?: string;
@@ -121,6 +126,40 @@ export async function saveHoldings(formData: {
   }
 
   return { ok: true };
+}
+
+/** Holdings already stored for this person. Empty when nothing has been saved yet. */
+export async function getSavedHoldingsAccounts(): Promise<SavedHoldingAccount[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const named = await supabase
+    .from("investment_holdings")
+    .select("id, account_type, display_name, holdings, total_value")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+
+  let rows = named.data as SavedHoldingRow[] | null;
+  if (named.error && /display_name/i.test(named.error.message)) {
+    const plain = await supabase
+      .from("investment_holdings")
+      .select("id, account_type, holdings, total_value")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    if (plain.error) {
+      console.error("[getSavedHoldingsAccounts]", plain.error);
+      return [];
+    }
+    rows = plain.data as SavedHoldingRow[] | null;
+  } else if (named.error) {
+    console.error("[getSavedHoldingsAccounts]", named.error);
+    return [];
+  }
+
+  return accountsFromSavedHoldings(rows ?? []);
 }
 
 function isUuid(value: string): boolean {

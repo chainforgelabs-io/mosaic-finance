@@ -184,7 +184,7 @@ export function fromDbAccountType(dbType: string): AccountType {
 }
 
 export const holdingSchema = z.object({
-  tickerOrName: z.string().max(100, "Name too long").optional().default(""),
+  tickerOrName: z.string().max(100, "Name must be 100 characters or fewer").optional().default(""),
   balance: z
     .number({ message: "Balance is required" })
     .min(0, "Balance must be positive"),
@@ -197,7 +197,7 @@ export const holdingSchema = z.object({
 export const accountSchema = z.object({
   id: z.string(),
   accountType: z.string().min(1, "Please select an account type"),
-  accountName: z.string().max(100).optional(),
+  accountName: z.string().max(100, "Account name must be 100 characters or fewer").optional(),
   holdings: z.array(holdingSchema).min(1, "Add at least one holding"),
 });
 

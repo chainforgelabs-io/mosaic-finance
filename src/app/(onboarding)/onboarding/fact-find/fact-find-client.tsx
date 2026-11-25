@@ -902,9 +902,9 @@ export function FactFindConversation({
             accounts.push({
               account_type: "Bank-Account",
               approximate_balance: efBalance,
-              description: "Emergency fund / cash savings",
+              description: "Cash",
               holdings: [
-                { ticker: "CASH", name: "Cash savings", balance: efBalance, units: null },
+                { ticker: "", name: "Cash", balance: efBalance, units: null },
               ],
             });
           }
