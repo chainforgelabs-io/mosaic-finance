@@ -126,7 +126,7 @@ export function BudgetPlanGrid(props: BudgetPlanGridProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour="plan-grid">
       <div className="flex items-center justify-between gap-2 lg:hidden">
         <label className="font-body text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Month

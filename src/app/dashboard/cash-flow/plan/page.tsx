@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, FileText, History, LayoutList, Loader2, Upload } from "lucide-react";
+import { ReplayTourLink } from "@/components/app/ReplayTourLink";
 import { BudgetPlanGrid } from "@/components/tracking/BudgetPlanGrid";
 import { LedgerSetup, type LedgerSetupInput } from "@/components/tracking/LedgerSetup";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
@@ -468,7 +469,10 @@ export default function BudgetPlanPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Budget plan</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 data-tour="page-plan" className="font-display text-2xl font-bold text-[var(--text-primary)]">Budget plan</h1>
+            <ReplayTourLink chapter="cash-flow-plan" />
+          </div>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             Set what you expect each month for money in, expenses, and savings. Tracking compares against this.
           </p>

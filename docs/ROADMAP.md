@@ -92,7 +92,7 @@ From the owner's staging pass. These stay inside Phase 0.
 
 - [x] Cash Flow seeded by discovery stays unchecked until the person confirms the plan, and the checklist sends them there first. 2026-11-25 · PR #17
 - [x] Dashboard opens on the net worth breakdown, above This week, with no Health Score in that strip. 2026-11-25 · PR #16
-- [ ] Guided tour walks Cash Flow, Net Worth, how they connect, and Goals, with replay and animated examples.
+- [x] Guided tour walks Cash Flow, Net Worth, how they connect, and Goals, with replay and animated examples. 2026-11-25 · PR #18
 - [x] Cash Flow plan tells people they can rename lines and add as many categories as they track. 2026-11-25 · PR #17
 - [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25 · PR #16
 - [x] Tour outlines keep a gap from the text on every side. 2026-11-25 · PR #16
@@ -294,3 +294,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-11-19 | Owner: a refresh restarted the discovery chat, and the confirmation card labeled investment knowledge that was never asked. Discovery now resumes the saved transcript, and that label is omitted until a later step. |
 | 2026-11-25 | Owner test pass. Dashboard leads with the net worth breakdown. Cash Flow confirmation, a fuller tour, and faster pages follow in their own PRs. |
 | 2026-11-25 | A cash-flow plan seeded by discovery stays on the setup checklist until the person confirms it. |
+| 2026-11-25 | Owner test: the first tour walks the cash flow plan, weekly logging, the monthly net worth check-in, how the two trackers meet, and goals. It can be replayed from the sidebar, each tracker, and Settings. |

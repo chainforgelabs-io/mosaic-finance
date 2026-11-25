@@ -1,160 +1,208 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { TOUR_OPEN_EVENT } from "@/components/app/ReplayTourLink";
+import { TourExample } from "@/components/tour/TourExample";
+import {
+  TOUR_STEPS,
+  chapterLabel,
+  readTourStep,
+  rememberTourStep,
+} from "@/lib/onboarding/tour";
+import { cn } from "@/lib/utils";
 
-const STEPS = [
-  {
-    path: "/dashboard",
-    nav: "nav-dashboard",
-    page: "page-dashboard",
-    title: "Your dashboard",
-    body: "This is the picture after the conversation with Charlie: Health Score, this week, and the Progress Report when it is ready. Educational information, not advice.",
-  },
-  {
-    path: "/dashboard/cash-flow",
-    nav: "nav-cash-flow",
-    page: "page-cash-flow",
-    title: "Cash Flow",
-    body: "Put a number on each month for money in, expenses, and savings. Then log spending each week so tracking can compare against the plan.",
-  },
-  {
-    path: "/dashboard/assets",
-    nav: "nav-net-worth",
-    page: "page-net-worth",
-    title: "Net Worth",
-    body: "The accounts and property from the conversation are here. Check them, save the first snapshot, and pick the day of the month for a reminder.",
-  },
-  {
-    path: "/dashboard/goals",
-    nav: "nav-goals",
-    page: "page-goals",
-    title: "Goals",
-    body: "The goals from the conversation are listed. Edit an amount or date, or tap Looks right if they still match.",
-  },
-  {
-    path: "/dashboard/meeting",
-    nav: "nav-charlie",
-    page: "page-charlie",
-    title: "Charlie stays",
-    body: "Ask Charlie about any of these numbers any time. This link stays in the sidebar.",
-  },
-] as const;
-
-function stepKey(userId: string): string {
-  return `mosaic-tour-step:${userId}`;
-}
+const OUTLINE = 10;
 
 export function AppTour({ userId }: { userId?: string }) {
+  return (
+    <Suspense fallback={null}>
+      <TourOverlay userId={userId} />
+    </Suspense>
+  );
+}
+
+function TourOverlay({ userId }: { userId?: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  const params = useSearchParams();
   const [step, setStep] = useState<number | null>(null);
-  const [box, setBox] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [box, setBox] = useState<DOMRect | null>(null);
+  const [place, setPlace] = useState<{ top: number; pin: "left" | "right" | "full" }>({ top: 8, pin: "full" });
+  const cardRef = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     const timer = window.setTimeout(() => {
-      const welcome = new URLSearchParams(window.location.search).get("welcome") === "1";
-      const stored = localStorage.getItem(stepKey(userId));
+      const live = new URLSearchParams(window.location.search);
+      const welcome = live.get("welcome") === "1" || params.get("welcome") === "1";
+      const replay = live.get("tour") === "1" || params.get("tour") === "1";
       if (welcome) {
-        localStorage.setItem(stepKey(userId), "0");
+        rememberTourStep(userId, 0);
         setStep(0);
-        window.history.replaceState({}, "", pathname);
-        return;
+      } else if (replay) {
+        const stored = readTourStep(userId);
+        setStep(typeof stored === "number" ? stored : 0);
+      } else {
+        const stored = readTourStep(userId);
+        setStep(typeof stored === "number" ? stored : null);
       }
-      if (stored == null || stored === "done") {
-        setStep(null);
-        return;
+      if ((live.get("welcome") === "1" || live.get("tour") === "1") && window.location.search) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("welcome");
+        url.searchParams.delete("tour");
+        const next = url.pathname + (url.searchParams.toString() ? `?${url.searchParams.toString()}` : "");
+        window.history.replaceState({}, "", next);
       }
-      const index = Number(stored);
-      setStep(Number.isInteger(index) && index >= 0 && index < STEPS.length ? index : null);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [userId, pathname]);
-
-  const current = step != null ? STEPS[step] : null;
-  const onPage =
-    current != null &&
-    (pathname === current.path || (current.path !== "/dashboard" && pathname.startsWith(current.path)));
+  }, [userId, pathname, params]);
 
   useEffect(() => {
-    if (!current) return;
-    const targets = onPage ? [current.page, current.nav] : [current.nav];
-    const place = () => {
-      const nodes = targets.flatMap((target) => [...document.querySelectorAll(`[data-tour="${target}"]`)]);
-      let top = 0;
-      let left = 0;
-      let width = 0;
-      let height = 0;
-      let found = false;
-      nodes.forEach((node) => {
-        if (found) return;
-        const next = node.getBoundingClientRect();
-        if (next.width > 0 && next.height > 0) {
-          top = next.top;
-          left = next.left;
-          width = next.width;
-          height = next.height;
-          found = true;
-        }
-      });
-      if (!found) {
-        setBox(null);
+    if (!userId) return;
+    function onOpen() {
+      const stored = readTourStep(userId!);
+      setStep(typeof stored === "number" ? stored : 0);
+    }
+    window.addEventListener(TOUR_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(TOUR_OPEN_EVENT, onOpen);
+  }, [userId]);
+
+  useEffect(() => {
+    if (step == null) return;
+    const current = TOUR_STEPS[step];
+    let stopped = false;
+    let attempts = 0;
+    let timer = 0;
+
+    function findTarget(): HTMLElement | null {
+      if (pathname !== current.path) return null;
+      for (const id of current.targets) {
+        const node = document.querySelector(`[data-tour="${id}"]`);
+        if (!(node instanceof HTMLElement)) continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) return node;
+      }
+      return null;
+    }
+
+    function layout(rect: DOMRect | null) {
+      const height = cardRef.current?.offsetHeight ?? 240;
+      if (!rect) {
+        setPlace({ top: 8, pin: "full" });
         return;
       }
-      setBox({ top, left, width, height });
-    };
-    const timer = window.setTimeout(place, 0);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+      const gap = 16;
+      const below = rect.bottom + OUTLINE + gap;
+      const above = rect.top - OUTLINE - gap - height;
+      const tab = window.innerWidth < 640 ? 88 : 16;
+      const top = below + height < window.innerHeight - tab ? below : above > 8 ? above : 8;
+      const center = rect.left + rect.width / 2;
+      const pin = window.innerWidth >= 640 ? (center > window.innerWidth / 2 ? "left" : "right") : "full";
+      setPlace({ top, pin });
+    }
+
+    function placeCard() {
+      if (stopped) return;
+      const el = findTarget();
+      if (!el) {
+        setBox(null);
+        layout(null);
+        if (pathname === current.path && attempts < 20) {
+          attempts += 1;
+          timer = window.setTimeout(placeCard, 100);
+        }
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const marginBottom = Math.min(260, window.innerHeight * 0.35);
+      const outOfView = rect.top < 80 || rect.bottom > window.innerHeight - marginBottom;
+      if (outOfView && scrolledFor.current !== current.id) {
+        scrolledFor.current = current.id;
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+      setBox(rect);
+      layout(rect);
+    }
+
+    function follow() {
+      const el = findTarget();
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setBox(rect);
+      layout(rect);
+    }
+
+    placeCard();
+    window.addEventListener("scroll", follow, true);
+    window.addEventListener("resize", follow);
+    const observer = new ResizeObserver(follow);
+    if (cardRef.current) observer.observe(cardRef.current);
     return () => {
+      stopped = true;
       window.clearTimeout(timer);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("scroll", follow, true);
+      window.removeEventListener("resize", follow);
+      observer.disconnect();
     };
-  }, [current, onPage, pathname]);
+  }, [step, pathname]);
 
+  const current = step != null ? TOUR_STEPS[step] : null;
   if (!userId || step == null || !current) return null;
+  const onPage = pathname === current.path;
 
-  function persist(next: number | "done") {
+  function go(next: number | "done") {
     if (!userId) return;
-    localStorage.setItem(stepKey(userId), String(next));
-    setStep(next === "done" ? null : next);
-  }
-
-  function goNext() {
-    const following = STEPS[step! + 1];
-    if (!following) {
-      persist("done");
+    if (next === "done") {
+      rememberTourStep(userId, "done");
+      setStep(null);
       return;
     }
-    persist(step! + 1);
-    if (pathname !== following.path) router.push(following.path);
+    rememberTourStep(userId, next);
+    setStep(next);
+    const path = TOUR_STEPS[next].path;
+    if (pathname !== path) router.push(path);
   }
 
   return (
     <>
       {box && (
         <div
-          className="pointer-events-none fixed z-[60] rounded-lg border-2 border-[var(--emerald)]"
-          style={{ top: box.top - 10, left: box.left - 10, width: box.width + 20, height: box.height + 20 }}
+          className="pointer-events-none fixed z-[60] rounded-xl border-2 border-[var(--emerald)]"
+          style={{
+            top: box.top - OUTLINE,
+            left: box.left - OUTLINE,
+            width: box.width + OUTLINE * 2,
+            height: box.height + OUTLINE * 2,
+          }}
         />
       )}
-      <div className="fixed inset-x-4 bottom-24 z-[70] mx-auto max-w-md rounded-xl border border-[var(--warm-200)] bg-white p-4 shadow-xl sm:bottom-6 sm:left-auto sm:right-6 sm:mx-0">
+      <div
+        ref={cardRef}
+        className={cn(
+          "fixed z-[70] max-h-[70vh] overflow-y-auto rounded-xl border border-[var(--warm-200)] bg-white p-4 shadow-xl",
+          place.pin === "left" && "left-6 w-80",
+          place.pin === "right" && "right-6 w-80",
+          place.pin === "full" && "inset-x-4",
+        )}
+        style={{ top: place.top }}
+      >
         <p className="font-body text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)]">
-          How Mosaic works · {step + 1} of {STEPS.length}
+          {chapterLabel(current.chapter)} · {step + 1} of {TOUR_STEPS.length}
         </p>
         <h2 className="mt-1 font-display text-base font-semibold text-[var(--text-primary)]">{current.title}</h2>
         <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">{current.body}</p>
+        {current.demo && <TourExample demo={current.demo} />}
         {!onPage && (
           <p className="mt-2 font-body text-xs text-[var(--text-muted)]">
             Next opens this page. The tour stays with you.
           </p>
         )}
         <div className="mt-3 flex gap-1">
-          {STEPS.map((item, index) => (
+          {TOUR_STEPS.map((item, index) => (
             <span
-              key={item.path}
+              key={item.id}
               className={index === step ? "h-1 flex-1 rounded-full bg-[var(--slate-950)]" : "h-1 flex-1 rounded-full bg-[var(--warm-200)]"}
             />
           ))}
@@ -162,7 +210,7 @@ export function AppTour({ userId }: { userId?: string }) {
         <div className="mt-4 flex gap-2">
           <button
             type="button"
-            onClick={() => persist("done")}
+            onClick={() => go("done")}
             className="flex-1 cursor-pointer rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
           >
             Skip tour
@@ -170,11 +218,7 @@ export function AppTour({ userId }: { userId?: string }) {
           {step > 0 && (
             <button
               type="button"
-              onClick={() => {
-                const previous = STEPS[step - 1];
-                persist(step - 1);
-                if (pathname !== previous.path) router.push(previous.path);
-              }}
+              onClick={() => go(step - 1)}
               className="flex-1 cursor-pointer rounded-lg border border-[var(--warm-200)] py-2.5 font-display text-sm font-semibold"
             >
               Back
@@ -182,10 +226,10 @@ export function AppTour({ userId }: { userId?: string }) {
           )}
           <button
             type="button"
-            onClick={goNext}
+            onClick={() => go(step === TOUR_STEPS.length - 1 ? "done" : step + 1)}
             className="flex-1 cursor-pointer rounded-lg bg-[var(--emerald)] py-2.5 font-display text-sm font-semibold text-white"
           >
-            {step === STEPS.length - 1 ? "Done" : "Next"}
+            {step === TOUR_STEPS.length - 1 ? "Done" : "Next"}
           </button>
         </div>
       </div>

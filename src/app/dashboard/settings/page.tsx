@@ -3,6 +3,7 @@
 import { Suspense, useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePlanStore } from "@/stores/plan-store";
+import { rememberTourStep } from "@/lib/onboarding/tour";
 import { TierBadge } from "@/components/app/TierBadge";
 import type { Tier } from "@/types";
 import {
@@ -213,7 +214,7 @@ function ProfileTab() {
       <button
         type="button"
         onClick={() => {
-          if (user?.id) localStorage.setItem(`mosaic-tour-step:${user.id}`, "0");
+          if (user?.id) rememberTourStep(user.id, 0);
           window.location.href = "/dashboard?welcome=1";
         }}
         className="mt-4 block font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--emerald-dark)] underline"

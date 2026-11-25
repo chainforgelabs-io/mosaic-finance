@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { TourMenu } from "@/components/app/TourMenu";
 import { usePathname, useRouter } from "next/navigation";
 import type { Tier } from "@/types";
 import { isTrialActive } from "@/lib/entitlements";
@@ -234,6 +235,7 @@ export function AppSidebar({
         </p>
         {learn.map((item) => renderLink(item))}
         {renderLink({ label: "Settings", href: "/dashboard/settings", icon: Settings })}
+        <TourMenu />
         {showReviewQueue && (
           <Link
             href="/admin/approval-queue"
@@ -288,6 +290,7 @@ export function AppSidebar({
               </button>
             </div>
             <div className="flex flex-col gap-1">
+              <TourMenu mobile onNavigate={() => setMoreOpen(false)} />
               {moreItems.map((item) => {
                 const isActive = itemActive(pathname, item);
                 const isDisabled =

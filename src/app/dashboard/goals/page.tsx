@@ -3,6 +3,7 @@
 import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as Sentry from "@sentry/nextjs";
 import { Archive, Check, ChevronDown, Plus, Target, Trash2, X } from "lucide-react";
+import { ReplayTourLink } from "@/components/app/ReplayTourLink";
 import { UnlockToast, type UnlockItem } from "@/components/tracking/UnlockToast";
 import {
   GOAL_PRIORITIES,
@@ -368,7 +369,10 @@ export default function GoalsPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 data-tour="page-goals" className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 data-tour="page-goals" className="font-display text-2xl font-bold text-[var(--text-primary)]">Goals</h1>
+            <ReplayTourLink chapter="goals" />
+          </div>
           <p className="mt-1 font-body text-sm text-[var(--text-secondary)]">
             Each goal is measured in its own way, from the accounts and plan lines you attach.
           </p>
@@ -411,6 +415,7 @@ export default function GoalsPage() {
           </div>
         )}
 
+      <div data-tour="goals-list" className="space-y-6">
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -508,6 +513,7 @@ export default function GoalsPage() {
           )}
         </>
       )}
+      </div>
 
       {showForm && (
         <QuietBoundary>

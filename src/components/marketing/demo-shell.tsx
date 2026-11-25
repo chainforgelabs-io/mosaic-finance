@@ -1,55 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pause, Play } from "lucide-react";
 import {
   DEMO_CONTROLS,
   DEMO_STILL_AT_MS,
-  playDemoTimeline,
   type DemoBaseState,
-  type DemoClock,
   type DemoStep,
   type DemoTimeline,
 } from "@/lib/marketing/demo-timeline";
+import { useDemoFrame, useReducedMotion } from "@/components/marketing/demo-playback";
 import { cn } from "@/lib/utils";
-
-const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-
-function subscribeReducedMotion(onChange: () => void) {
-  const query = window.matchMedia(REDUCED_MOTION);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(
-    subscribeReducedMotion,
-    () => window.matchMedia(REDUCED_MOTION).matches,
-    () => false,
-  );
-}
-
-const BROWSER_CLOCK: DemoClock<number> = {
-  now: () => performance.now(),
-  setTimer: (run, delayMs) => window.setTimeout(run, delayMs),
-  clearTimer: (timer) => window.clearTimeout(timer),
-};
-
-/** Steps the frame at each change in the timeline, and keeps its place when paused. */
-function useDemoFrame<F>(timeline: DemoTimeline<F>, running: boolean): F {
-  const [frame, setFrame] = useState(() => timeline.frameAt(0));
-  const elapsedRef = useRef(0);
-
-  useEffect(() => {
-    if (!running) return;
-    const stop = playDemoTimeline(timeline, BROWSER_CLOCK, elapsedRef.current, setFrame);
-    return () => {
-      elapsedRef.current = stop();
-    };
-  }, [running, timeline]);
-
-  return frame;
-}
 
 /**
  * The phone, caption, and controls every marketing demo shares. The demo

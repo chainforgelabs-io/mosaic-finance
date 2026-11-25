@@ -120,7 +120,7 @@ export function TrackingLoop({ reportAvailable, onLogged }: TrackingLoopProps) {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border border-[var(--warm-200)] bg-white p-5 sm:p-8">
+      <section data-tour="this-week" className="rounded-xl border border-[var(--warm-200)] bg-white p-5 sm:p-8">
         <p className="font-body text-xs font-semibold uppercase tracking-[0.1em] text-[var(--emerald)]">
           This week
         </p>
