@@ -96,7 +96,7 @@ From the owner's staging pass. One PR per line. Keep every checked line when the
 - [ ] The calculator title is "RRSP vs TFSA room".
 - [ ] A cash-flow plan seeded by discovery stays on the setup checklist until the person confirms it.
 - [ ] The budget plan says the starting lines can be renamed, and that more lines can be added.
-- [x] The first tour walks Cash Flow, Net Worth, how they meet, and Goals, and it can be replayed. 2026-11-25
+- [x] The first tour walks Cash Flow, Net Worth, how they meet, and Goals, and it can be replayed. 2026-11-25 · PR #18
 - [ ] Dashboard, Cash Flow, Net Worth, and Goals open faster.
 
 ---

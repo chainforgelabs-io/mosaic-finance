@@ -192,7 +192,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
     path: "/dashboard",
     targets: ["nav-dashboard", "page-dashboard"],
     title: "Replay this tour",
-    body: "Tour in the sidebar, and on a phone under More, starts the whole tour or one chapter again. Cash Flow, Net Worth, and Goals each have How this page works. Settings still has Replay the tour.",
+    body: "Tour in the sidebar, and on a phone under More, starts the whole tour or one chapter again. Cash Flow, the budget plan, Net Worth, and Goals each have How this page works. Settings still has Replay the tour.",
   },
 ];
 
