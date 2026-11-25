@@ -5,6 +5,7 @@ import { recordedDebt } from "@/lib/calculations/financial";
 import { usePlanStore } from "@/stores/plan-store";
 import { loadChart } from "@/components/charts/load-chart";
 import { FinancialCard } from "@/components/app/FinancialCard";
+import { ReplayTourLink } from "@/components/app/ReplayTourLink";
 import {
   Award,
   CalendarCheck,
@@ -1019,9 +1020,12 @@ export default function AssetsPage() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Net Worth</h1>
+        <div>
+          <h1 className="font-[family-name:var(--font-display)] font-bold text-2xl text-[var(--text-primary)]">Net Worth</h1>
+          <ReplayTourLink chapter="net-worth" />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 font-body text-xs text-[var(--text-secondary)]">
+          <label data-tour="net-worth-reminder" className="flex items-center gap-2 font-body text-xs text-[var(--text-secondary)]">
             Remind me on
             <select
               value={reminderDay}
@@ -1076,7 +1080,7 @@ export default function AssetsPage() {
 
       <div className="space-y-8">
         {/* NET WORTH HERO BANNER */}
-        <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
+        <div data-tour="net-worth-hero" className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
           <div className="flex flex-col gap-6">
             {/* Top row: Net Worth headline + metric cards */}
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -1191,7 +1195,9 @@ export default function AssetsPage() {
           </div>
         )}
 
-        <NetWorthHistoryChart data={lineSeries(snapshots)} showToggles />
+        <div data-tour="net-worth-history">
+          <NetWorthHistoryChart data={lineSeries(snapshots)} showToggles />
+        </div>
 
         {snapshots.length > 0 && (
           <BucketDeltas

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { loadChart } from "@/components/charts/load-chart";
 import { BalanceCheckSheet } from "@/components/tracking/BalanceCheckSheet";
-import { CashGuideSheet } from "@/components/tracking/CashGuideSheet";
+import { ReplayTourLink } from "@/components/app/ReplayTourLink";
 import { CashKeypad } from "@/components/tracking/CashKeypad";
 import { CashSetupSheet } from "@/components/tracking/CashSetupSheet";
 import { EditSpendSheet } from "@/components/tracking/EditSpendSheet";
@@ -101,7 +101,6 @@ const SETUP_SKIP_KEY = "mosaic-cash-setup-skipped";
 type PeriodList = "income" | "refunds" | "expense" | "payments" | "savings" | "paydown";
 
 const HOWTO_KEY = "mosaic-spending-howto-seen";
-const GUIDE_KEY = "mosaic-cash-guide-seen";
 const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 
 function loggedVerb(input: CaptureInput): string {
@@ -159,7 +158,6 @@ export default function CashFlowPage() {
   const [undo, setUndo] = useState<{ ids: string[]; verb: string; label: string } | null>(null);
   const [cashLoaded, setCashLoaded] = useState(false);
   const [showHowTo, setShowHowTo] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [reviewRows, setReviewRows] = useState<ImportRow[] | null>(null);
   const [reviewNotice, setReviewNotice] = useState<string | null>(null);
   const [editing, setEditing] = useState<TransactionRow | null>(null);
@@ -280,13 +278,6 @@ export default function CashFlowPage() {
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
-
-  useEffect(() => {
-    if (!cashLoaded) return;
-    if (typeof window === "undefined") return;
-    if (localStorage.getItem(GUIDE_KEY) === "1") return;
-    setShowGuide(true);
-  }, [cashLoaded]);
 
   useEffect(() => {
     if (!undo) return;
@@ -863,13 +854,7 @@ export default function CashFlowPage() {
         <div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 data-tour="page-cash-flow" className="font-display text-2xl font-bold text-[var(--text-primary)]">Cash Flow</h1>
-            <button
-              type="button"
-              onClick={() => setShowGuide(true)}
-              className="font-display text-sm font-semibold text-[var(--emerald-dark)] underline"
-            >
-              How tracking works
-            </button>
+            <ReplayTourLink chapter="logging" />
           </div>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             {hasAnyPlan === false
@@ -1085,7 +1070,7 @@ export default function CashFlowPage() {
         onCreate={createSchedule}
         onDelete={deleteSchedule}
       />
-      <div className="inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
+      <div data-tour="cash-period" className="inline-flex rounded-full border border-[var(--warm-200)] bg-white p-1">
         <button
           type="button"
           onClick={() => setView("week")}
@@ -1206,7 +1191,7 @@ export default function CashFlowPage() {
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex gap-2" data-tour="cash-upload">
         <button
           type="button"
           onClick={requestUpload}
@@ -1546,25 +1531,6 @@ export default function CashFlowPage() {
         />
       </div>
       </div>
-
-      {showGuide && (
-        <CashGuideSheet
-          onClose={() => {
-            localStorage.setItem(GUIDE_KEY, "1");
-            setShowGuide(false);
-          }}
-          onSetup={
-            anchor == null
-              ? () => {
-                  localStorage.setItem(GUIDE_KEY, "1");
-                  setShowGuide(false);
-                  if (hasAnyPlan === true) setShowSetup(true);
-                  else openPlan();
-                }
-              : undefined
-          }
-        />
-      )}
 
       {showHowTo && (
         <HowToModal

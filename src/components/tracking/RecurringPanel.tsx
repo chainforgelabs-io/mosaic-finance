@@ -65,7 +65,7 @@ export function RecurringPanel({
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-tour="cash-recurring">
       {due.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">

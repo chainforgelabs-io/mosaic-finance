@@ -187,7 +187,7 @@ export default function ReviewPage() {
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">Review</h1>
+          <h1 data-tour="page-review" className="font-display text-2xl font-bold text-[var(--text-primary)]">Review</h1>
           <p className="mt-1 font-body text-sm text-[var(--text-muted)]">
             What you tracked against what you planned, for a month or the whole year.
           </p>

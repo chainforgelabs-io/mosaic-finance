@@ -128,7 +128,7 @@ export function CashKeypad({
   }
 
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="mx-auto w-full max-w-md" data-tour="cash-keypad">
       <div className="mb-3 flex rounded-full border border-[var(--warm-200)] bg-white p-1">
         {(Object.keys(MODE_LABELS) as CaptureMode[]).map((option) => (
           <button
