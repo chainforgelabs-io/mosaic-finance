@@ -91,12 +91,12 @@ Owner checklist with status, Stripe steps, and CIPO results: [legal/launch-legal
 From the owner's staging pass. These stay inside Phase 0.
 
 - [ ] Cash Flow seeded by discovery stays unchecked until the person confirms the plan, and the checklist sends them there first.
-- [x] Dashboard opens on the net worth breakdown, above This week, with no Health Score in that strip. 2026-11-25
+- [x] Dashboard opens on the net worth breakdown, above This week, with no Health Score in that strip. 2026-11-25 · PR #16
 - [ ] Guided tour walks Cash Flow, Net Worth, how they connect, and Goals, with replay and animated examples.
 - [ ] Cash Flow plan tells people they can rename lines and add as many categories as they track.
-- [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25
-- [x] Tour outlines keep a gap from the text on every side. 2026-11-25
-- [x] Calculator title is "RRSP vs TFSA room". 2026-11-25
+- [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25 · PR #16
+- [x] Tour outlines keep a gap from the text on every side. 2026-11-25 · PR #16
+- [x] Calculator title is "RRSP vs TFSA room". 2026-11-25 · PR #16
 - [ ] Dashboard, Cash Flow, Net Worth, and Goals load faster.
 
 ---
