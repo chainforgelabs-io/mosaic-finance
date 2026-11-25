@@ -154,8 +154,9 @@ export function AppSidebar({
       item.requiresPlan && planStatus !== "delivered" && planStatus !== "pending_review";
     const mobile = opts?.mobile;
     const next = setup ? nextSetupItem(setup) : null;
+    const nextHref = next ? setupItemHref(next, setup ?? undefined) : "";
     const showDot =
-      (next != null && item.href === setupItemHref(next)) ||
+      (next != null && (item.href === nextHref || nextHref.startsWith(`${item.href}/`))) ||
       (setup?.reminderDue === true && item.href === "/dashboard/assets");
 
     if (isDisabled) {

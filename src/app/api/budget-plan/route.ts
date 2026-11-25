@@ -29,6 +29,8 @@ const scheduleSchema = z.object({
 });
 
 const putSchema = z.object({
+  /** True when the person built this plan themselves, so it does not wait for a confirm. */
+  reviewed: z.boolean().optional(),
   entries: z.array(entrySchema).max(2000),
   /** Rows to remove, for example when a category is taken out of the plan. */
   remove: z
@@ -51,6 +53,37 @@ function missingScheduleTable(message: string): boolean {
 
 function missingSpendColumn(message: string): boolean {
   return /spend_category/i.test(message);
+}
+
+function missingReviewColumn(message: string): boolean {
+  return /cash_flow_reviewed_at/i.test(message);
+}
+
+/** Missing column counts as already confirmed, so the app works before the migration. */
+async function stampCashFlowReviewed(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<"ok" | "missing" | "error"> {
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ cash_flow_reviewed_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (!error) return "ok";
+  if (missingReviewColumn(error.message)) return "missing";
+  return "error";
+}
+
+async function cashFlowReviewed(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("cash_flow_reviewed_at")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) return true;
+  return Boolean(data?.cash_flow_reviewed_at);
 }
 
 export async function GET(req: NextRequest) {
@@ -113,7 +146,29 @@ export async function GET(req: NextRequest) {
     entries: (data ?? []).map((row) => ({ ...row, amount: Number(row.amount) })),
     hasAnyPlan: (count ?? 0) > 0,
     schedules,
+    reviewed: await cashFlowReviewed(supabase, user.id),
   });
+}
+
+const patchSchema = z.object({
+  reviewed: z.literal(true),
+});
+
+export async function PATCH(req: NextRequest) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const parsed = patchSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  }
+
+  const stamped = await stampCashFlowReviewed(supabase, user.id);
+  if (stamped === "error") return NextResponse.json({ error: "Failed to confirm plan" }, { status: 500 });
+  return NextResponse.json({ reviewed: true });
 }
 
 export async function PUT(req: NextRequest) {
@@ -200,6 +255,11 @@ export async function PUT(req: NextRequest) {
       if (missingScheduleTable(error.message)) schedulesSaved = false;
       else return NextResponse.json({ error: "Failed to save plan schedule" }, { status: 500 });
     }
+  }
+
+  if (parsed.data.reviewed) {
+    // The rows are already saved. A failed stamp leaves the confirm banner up on the next load.
+    await stampCashFlowReviewed(supabase, user.id);
   }
 
   const unlocks = await awardForEvent(supabase, user.id, { budgetJustSet: true });

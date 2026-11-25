@@ -90,10 +90,10 @@ Owner checklist with status, Stripe steps, and CIPO results: [legal/launch-legal
 
 From the owner's staging pass. These stay inside Phase 0.
 
-- [ ] Cash Flow seeded by discovery stays unchecked until the person confirms the plan, and the checklist sends them there first.
+- [x] Cash Flow seeded by discovery stays unchecked until the person confirms the plan, and the checklist sends them there first. 2026-11-25 · PR #17
 - [x] Dashboard opens on the net worth breakdown, above This week, with no Health Score in that strip. 2026-11-25 · PR #16
 - [ ] Guided tour walks Cash Flow, Net Worth, how they connect, and Goals, with replay and animated examples.
-- [ ] Cash Flow plan tells people they can rename lines and add as many categories as they track.
+- [x] Cash Flow plan tells people they can rename lines and add as many categories as they track. 2026-11-25 · PR #17
 - [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25 · PR #16
 - [x] Tour outlines keep a gap from the text on every side. 2026-11-25 · PR #16
 - [x] Calculator title is "RRSP vs TFSA room". 2026-11-25 · PR #16
@@ -293,3 +293,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-11-17 | Owner asked to finish the lookup-guide work in a slimmer form. An unknown figure in the discovery chat costs one follow-up question and appears once, on the first Progress Report, with a link to where it goes. |
 | 2026-11-19 | Owner: a refresh restarted the discovery chat, and the confirmation card labeled investment knowledge that was never asked. Discovery now resumes the saved transcript, and that label is omitted until a later step. |
 | 2026-11-25 | Owner test pass. Dashboard leads with the net worth breakdown. Cash Flow confirmation, a fuller tour, and faster pages follow in their own PRs. |
+| 2026-11-25 | A cash-flow plan seeded by discovery stays on the setup checklist until the person confirms it. |
