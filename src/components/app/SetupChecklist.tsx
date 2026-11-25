@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { Check, Circle } from "lucide-react";
 import {
+  cashFlowReady,
   nextSetupItem,
   setupItemHref,
-  SETUP_ITEM_LABEL,
+  setupItemLabel,
   type SetupItem,
   type SetupStatus,
 } from "@/lib/onboarding/setup-status";
@@ -13,7 +14,7 @@ import {
 const ITEMS: SetupItem[] = ["cash-flow", "net-worth", "goals"];
 
 function itemDone(item: SetupItem, status: SetupStatus): boolean {
-  if (item === "cash-flow") return status.planSet;
+  if (item === "cash-flow") return cashFlowReady(status);
   if (item === "net-worth") return status.snapshotEver;
   return status.goalsReviewed;
 }
@@ -38,7 +39,7 @@ export function SetupChecklist({ status }: { status: SetupStatus }) {
           return (
             <li key={item}>
               <Link
-                href={setupItemHref(item)}
+                href={setupItemHref(item, status)}
                 className={
                   current
                     ? "flex items-center justify-between gap-3 rounded-lg border border-[var(--emerald)] bg-[var(--emerald-soft)] px-3 py-2.5"
@@ -51,7 +52,7 @@ export function SetupChecklist({ status }: { status: SetupStatus }) {
                   ) : (
                     <Circle className="size-4 text-[var(--text-muted)]" aria-hidden />
                   )}
-                  {SETUP_ITEM_LABEL[item]}
+                  {setupItemLabel(item, status)}
                 </span>
                 {!done && (
                   <span className="font-display text-xs font-semibold text-[var(--emerald-dark)]">

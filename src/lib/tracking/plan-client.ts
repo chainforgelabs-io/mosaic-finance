@@ -110,27 +110,40 @@ export async function fetchPlan(year: number): Promise<{
   entries: BudgetPlanEntry[];
   hasAnyPlan: boolean;
   schedules: BudgetPlanSchedule[];
+  reviewed: boolean;
 }> {
   const res = await fetch(`/api/budget-plan?year=${year}`, { credentials: "include" });
-  if (!res.ok) return { entries: [], hasAnyPlan: false, schedules: [] };
+  if (!res.ok) return { entries: [], hasAnyPlan: false, schedules: [], reviewed: true };
   const json = await res.json();
   return {
     entries: (json.entries ?? []) as BudgetPlanEntry[],
     hasAnyPlan: Boolean(json.hasAnyPlan),
     schedules: (json.schedules ?? []) as BudgetPlanSchedule[],
+    reviewed: json.reviewed !== false,
   };
+}
+
+export async function confirmCashFlowPlan(): Promise<boolean> {
+  const res = await fetch("/api/budget-plan", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ reviewed: true }),
+  });
+  return res.ok;
 }
 
 export async function savePlan(
   entries: BudgetPlanEntry[],
   remove?: Array<{ kind: CategoryKind; category: string; month?: string }>,
   schedules?: BudgetPlanSchedule[],
+  options?: { reviewed?: boolean },
 ): Promise<{ ok: boolean; schedulesSaved: boolean }> {
   const res = await fetch("/api/budget-plan", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ entries, remove, schedules }),
+    body: JSON.stringify({ entries, remove, schedules, reviewed: options?.reviewed || undefined }),
   });
   if (!res.ok) return { ok: false, schedulesSaved: false };
   const json = await res.json().catch(() => ({}));

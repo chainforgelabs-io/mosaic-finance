@@ -30,6 +30,7 @@ import { isSpreadsheetFile, readPlanFile } from "@/lib/tracking/plan-spreadsheet
 import { addMonths, startOfMonth, todayIso } from "@/lib/tracking/dates";
 import { formatMoney } from "@/lib/tracking/format";
 import {
+  confirmCashFlowPlan,
   fetchCatalog,
   fetchPlan,
   migrateLocalCategories,
@@ -53,6 +54,8 @@ export default function BudgetPlanPage() {
   const [entries, setEntries] = useState<BudgetPlanEntry[]>([]);
   const [catalog, setCatalog] = useState<UserCategory[]>([]);
   const [hasAnyPlan, setHasAnyPlan] = useState(false);
+  const [reviewed, setReviewed] = useState<boolean | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -85,6 +88,7 @@ export default function BudgetPlanPage() {
     setEntries(plan.entries);
     setHasAnyPlan(plan.hasAnyPlan);
     setSchedules(plan.schedules);
+    setReviewed(plan.reviewed);
     setCatalog(merged);
     setSetupOpen(!plan.hasAnyPlan);
     setLoading(false);
@@ -124,13 +128,13 @@ export default function BudgetPlanPage() {
     next: BudgetPlanEntry[],
     remove?: Array<{ kind: PlanKind; category: string }>,
     nextSchedules?: BudgetPlanSchedule[],
-  ) {
+  ): Promise<boolean> {
     setSaveError(null);
     const result = await savePlan(next, remove, nextSchedules);
     if (!result.ok) {
       setSaveError("Could not save that change. Check your connection and try again.");
       await load(year);
-      return;
+      return false;
     }
     if (next.length > 0) setHasAnyPlan(true);
     if (nextSchedules && nextSchedules.length > 0 && !result.schedulesSaved) {
@@ -138,6 +142,7 @@ export default function BudgetPlanPage() {
         "The monthly plan is saved. The payment schedule could not be saved. That needs the latest database update.",
       );
     }
+    return true;
   }
 
   function upsertSchedules(next: BudgetPlanSchedule[]) {
@@ -244,7 +249,7 @@ export default function BudgetPlanPage() {
               setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
             }
           }
-          const result = await savePlan(parsed.entries);
+          const result = await savePlan(parsed.entries, undefined, undefined, { reviewed: true });
           if (!result.ok) {
             notes.push(`Could not save the rows from ${file.name}.`);
             continue;
@@ -252,6 +257,7 @@ export default function BudgetPlanPage() {
           upsertLocal(parsed.entries);
           imported += parsed.categories.length;
           setHasAnyPlan(true);
+          setReviewed(true);
         } catch (error) {
           const code = error instanceof Error ? error.message : "";
           if (code === "xls" || code === "not-xlsx") {
@@ -372,7 +378,7 @@ export default function BudgetPlanPage() {
           setCatalog((prev) => [...prev.filter((row) => row.slug !== saved.slug), saved]);
         }
       }
-      const result = await savePlan(built.entries, undefined, built.planSchedules);
+      const result = await savePlan(built.entries, undefined, built.planSchedules, { reviewed: true });
       if (!result.ok) {
         setLedgerError("Could not save the plan.");
         return;
@@ -380,6 +386,7 @@ export default function BudgetPlanPage() {
       upsertLocal(built.entries);
       upsertSchedules(built.planSchedules);
       setHasAnyPlan(true);
+      setReviewed(true);
       if (!result.schedulesSaved) {
         setSaveError(
           "The monthly plan is saved. The payment schedule could not be saved. That needs the latest database update.",
@@ -411,7 +418,8 @@ export default function BudgetPlanPage() {
     setApplying(true);
     const next = entriesFromSuggestions(presetSuggestions(), year);
     upsertLocal(next);
-    await persist(next);
+    const saved = await persist(next);
+    if (saved && (await confirmCashFlowPlan())) setReviewed(true);
     setApplying(false);
     setSetupOpen(false);
     setSource(null);
@@ -428,12 +436,13 @@ export default function BudgetPlanPage() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ entries: next }),
+      body: JSON.stringify({ entries: next, reviewed: true }),
     });
     if (res.ok) {
       const json = await res.json().catch(() => ({}));
       if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
       setHasAnyPlan(true);
+      setReviewed(true);
     } else {
       setSaveError("Could not save the plan. Try again.");
       await load(year);
@@ -513,6 +522,31 @@ export default function BudgetPlanPage() {
 
       {saveError && <p className="font-body text-sm text-[var(--error)]">{saveError}</p>}
       {banner && <p className="font-body text-sm text-[var(--text-secondary)]">{banner}</p>}
+
+      {hasAnyPlan && reviewed === false && (
+        <div
+          data-tour="cash-flow-confirm"
+          className="flex flex-col gap-3 rounded-lg border border-[var(--emerald)]/30 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="font-body text-sm text-[var(--text-secondary)]">
+            These lines came from your conversation with Charlie. Check each amount, then confirm.
+          </p>
+          <button
+            type="button"
+            disabled={confirming}
+            onClick={() => {
+              setConfirming(true);
+              void confirmCashFlowPlan().then((ok) => {
+                if (ok) setReviewed(true);
+                setConfirming(false);
+              });
+            }}
+            className="cursor-pointer rounded-lg bg-[var(--emerald)] px-4 py-2 font-display text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {confirming ? "Saving…" : "Looks right"}
+          </button>
+        </div>
+      )}
 
       {setupOpen && !hasAnyPlan && !suggestions && (
         <LedgerSetup
@@ -618,7 +652,12 @@ export default function BudgetPlanPage() {
         </div>
       ) : (
         (entries.length > 0 || !setupOpen) && (
-          <BudgetPlanGrid
+          <>
+            <p data-tour="plan-lines-note" className="font-body text-sm text-[var(--text-secondary)]">
+              These lines are a starting point. Rename any line, or add as many income, expense, and savings
+              lines as you track.
+            </p>
+            <BudgetPlanGrid
             year={year}
             months={months}
             entries={entries}
@@ -633,8 +672,9 @@ export default function BudgetPlanPage() {
             onCreateCategory={handleCreateCategory}
             onApplySchedule={handleApplySchedule}
             onRename={handleRename}
-            schedules={schedules}
-          />
+              schedules={schedules}
+            />
+          </>
         )
       )}
 

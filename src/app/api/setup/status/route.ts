@@ -22,7 +22,7 @@ export async function GET() {
   const today = torontoDate();
   const thisMonth = monthKey(today);
 
-  const [planRes, snapRes, goalsRes, profileRes] = await Promise.all([
+  const [planRes, snapRes, goalsRes, profileRes, reviewRes] = await Promise.all([
     supabase
       .from("budget_plan_entries")
       .select("id", { count: "exact", head: true })
@@ -37,6 +37,11 @@ export async function GET() {
     supabase
       .from("user_profiles")
       .select("net_worth_reminder_day")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("user_profiles")
+      .select("cash_flow_reviewed_at")
       .eq("id", user.id)
       .maybeSingle(),
   ]);
@@ -58,8 +63,11 @@ export async function GET() {
     ? 1
     : clampReminderDay(Number(profileRes.data?.net_worth_reminder_day ?? 1));
 
+  const planReviewed = reviewRes.error ? true : Boolean(reviewRes.data?.cash_flow_reviewed_at);
+
   const status: SetupStatus = {
     planSet: (planRes.count ?? 0) > 0,
+    planReviewed,
     snapshotEver: snapshots.length > 0,
     snapshotThisMonth,
     goalsCount: goals.length,
