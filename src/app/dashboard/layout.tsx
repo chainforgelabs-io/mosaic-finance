@@ -18,6 +18,7 @@ import type { FinancialPlan, PlanStatus, NotificationPreferences } from "@/types
 import { transformDbPlanToFinancialPlan } from "@/lib/plan/transform-db-plan";
 import { normalizeTier } from "@/lib/entitlements";
 import { insertUserProfileAfterSignUp } from "@/lib/actions/auth";
+import { getJson } from "@/lib/client/api-cache";
 
 function applyLatestPlanFromDb(
   dbPlan: { id: string; status: string; plan_data: unknown; created_at: string } | null | undefined,
@@ -41,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const profileLoad = useRef(false);
+  const loadedPlanWithProfile = useRef(false);
   const { user, plan, planStatus, setUser, clearUser, setPlan, setPlanStatus, setRawPlanData, setPrePlanData, setLoading } = usePlanStore();
 
   useEffect(() => {
@@ -78,6 +80,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.replace("/login");
         return;
       }
+
+      const planPromise = getJson<{ plan?: { id: string; status: string; plan_data: unknown; created_at: string } | null }>(
+        "/api/plan/latest",
+      );
 
       const profileSelect =
         "alias, subscription_tier, age, province, employment_type, family_structure, notification_preferences, role, trial_ends_at, is_founding_member, academy_access, subscription_interval";
@@ -155,15 +161,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         });
       }
 
-      const planRes = await fetch("/api/plan/latest", { credentials: "include" });
+      const planRes = await planPromise;
+      loadedPlanWithProfile.current = true;
       if (planRes.status === 401) {
         clearUser();
         router.replace("/login");
         return;
       }
       if (planRes.ok) {
-        const { plan: dbPlan } = await planRes.json();
-        applyLatestPlanFromDb(dbPlan, setPlan, setPlanStatus, setRawPlanData);
+        applyLatestPlanFromDb(planRes.body?.plan, setPlan, setPlanStatus, setRawPlanData);
       } else {
         setPlanStatus("none");
       }
@@ -181,9 +187,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user) return;
     if (!pathname.startsWith("/dashboard")) return;
 
+    if (loadedPlanWithProfile.current) {
+      loadedPlanWithProfile.current = false;
+      return;
+    }
+
     let cancelled = false;
     async function refreshPlanFromServer() {
-      const planRes = await fetch("/api/plan/latest", { credentials: "include" });
+      const planRes = await getJson<{ plan?: { id: string; status: string; plan_data: unknown; created_at: string } | null }>(
+        "/api/plan/latest",
+      );
       if (cancelled) return;
       if (planRes.status === 401) {
         clearUser();
@@ -191,7 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return;
       }
       if (planRes.ok) {
-        const { plan: dbPlan } = await planRes.json();
+        const dbPlan = planRes.body?.plan;
         const current = usePlanStore.getState();
         const unchanged =
           dbPlan &&
@@ -219,23 +232,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     async function loadPrePlanData() {
       const supabase = createClient();
-      const { data: fp } = await supabase
-        .from("financial_profiles")
-        .select("annual_income, monthly_expenses, emergency_fund_months, major_debts, retirement_target_age")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const { data: holdings } = await supabase
-        .from("investment_holdings")
-        .select("total_value")
-        .eq("user_id", user!.id);
-
-      const { data: fixedAssets } = await supabase
-        .from("fixed_assets")
-        .select("estimated_value")
-        .eq("user_id", user!.id);
+      const [fpRes, holdingsRes, fixedRes] = await Promise.all([
+        supabase
+          .from("financial_profiles")
+          .select("annual_income, monthly_expenses, emergency_fund_months, major_debts, retirement_target_age")
+          .eq("user_id", user!.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase.from("investment_holdings").select("total_value").eq("user_id", user!.id),
+        supabase.from("fixed_assets").select("estimated_value").eq("user_id", user!.id),
+      ]);
+      const fp = fpRes.data;
+      const holdings = holdingsRes.data;
+      const fixedAssets = fixedRes.data;
 
       const totalFixedAssets =
         fixedAssets && fixedAssets.length > 0
@@ -280,20 +290,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const pollPlanStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/plan/latest", { credentials: "include" });
+      const res = await getJson<{ plan?: { id: string; status: string; plan_data: unknown; created_at: string } | null }>(
+        "/api/plan/latest",
+      );
       if (res.status === 401) return;
-      if (!res.ok) return;
-      const { plan: latestPlan } = await res.json();
+      if (!res.ok || !res.body) return;
+      const latestPlan = res.body.plan;
       if (!latestPlan) {
         setPlanStatus("failed");
         return;
       }
       if (latestPlan.status !== "generating") {
-        if (latestPlan.plan_data && Object.keys(latestPlan.plan_data).length > 0) {
-          setRawPlanData(latestPlan.plan_data);
+        const planData =
+          latestPlan.plan_data && typeof latestPlan.plan_data === "object"
+            ? (latestPlan.plan_data as Record<string, unknown>)
+            : null;
+        if (planData && Object.keys(planData).length > 0) {
+          setRawPlanData(planData);
           setPlan(transformDbPlanToFinancialPlan(latestPlan));
         } else {
-          setPlanStatus(latestPlan.status);
+          setPlanStatus(latestPlan.status as PlanStatus);
         }
       }
     } catch {

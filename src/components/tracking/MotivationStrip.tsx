@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Award, Flame, Landmark, Target } from "lucide-react";
+import { watchJson } from "@/lib/client/api-cache";
 import type { GamificationSummary } from "@/types/tracking";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +18,9 @@ export function MotivationStrip({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/gamification/summary", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        if (!cancelled && json) setData(json as GamificationSummary);
-      })
-      .catch(() => {});
+    void watchJson<GamificationSummary>("/api/gamification/summary", (json) => {
+      if (!cancelled) setData(json);
+    });
     return () => {
       cancelled = true;
     };

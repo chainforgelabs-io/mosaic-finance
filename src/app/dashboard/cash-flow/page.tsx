@@ -56,6 +56,7 @@ import {
   leftToSpend,
   outflowTotal,
 } from "@/lib/tracking/cash-capture";
+import { getJson, invalidateApi } from "@/lib/client/api-cache";
 import { extraSlugs, fetchCatalog, migrateLocalCategories, persistCustomCategory } from "@/lib/tracking/plan-client";
 import { effectiveBudget, indexPlan, planTotals } from "@/lib/tracking/budget-plan";
 import { firstFullMonth } from "@/lib/tracking/budget-kpis";
@@ -77,6 +78,7 @@ import { cn } from "@/lib/utils";
 import { usePlanStore } from "@/stores/plan-store";
 import type {
   BudgetPlanEntry,
+  BudgetPlanSchedule,
   CaptureInput,
   CashAnchor,
   CashDirection,
@@ -205,77 +207,100 @@ export default function CashFlowPage() {
 
   const loadWeek = useCallback(async (start: string) => {
     const { end } = weekRange(start);
-    const res = await fetch(`/api/transactions?start=${start}&end=${end}`, { credentials: "include" });
-    if (!res.ok) return;
-    const json = await res.json();
-    setTransactions(json.transactions ?? []);
+    const result = await getJson<{ transactions?: TransactionRow[] }>(
+      `/api/transactions?start=${start}&end=${end}`,
+    );
+    if (!result.ok || !result.body) return;
+    setTransactions(result.body.transactions ?? []);
   }, []);
+
+  const weekStartRef = useRef(weekStart);
+  weekStartRef.current = weekStart;
 
   const loadMeta = useCallback(async (monthOverride?: string) => {
     const month = monthOverride ?? monthStart;
-    const historyStart = startOfMonth(addMonths(todayIso(), -(RECENT_MONTHS - 1)));
-    const [histRes, gamRes] = await Promise.all([
-      fetch(`/api/transactions?start=${historyStart}&end=${todayIso()}`, { credentials: "include" }),
-      fetch("/api/gamification/summary", { credentials: "include" }),
-    ]);
-    if (histRes.ok) {
-      const json = await histRes.json();
-      setHistory(json.transactions ?? []);
-    }
+    const activeWeek = weekStartRef.current;
+    const today = todayIso();
+    const historyStart = startOfMonth(addMonths(today, -(RECENT_MONTHS - 1)));
     const monthEnd = endOfMonth(month);
-    const [budgetRes, monthRes, planRes] = await Promise.all([
-      fetch("/api/budgets", { credentials: "include" }),
-      fetch(`/api/transactions?start=${month}&end=${monthEnd}`, { credentials: "include" }),
-      fetch(`/api/budget-plan?year=${month.slice(0, 4)}`, { credentials: "include" }),
+    const monthInside = month >= historyStart;
+    let histRes: Awaited<ReturnType<typeof getJson<{ transactions?: TransactionRow[] }>>>;
+    let gamRes: Awaited<ReturnType<typeof getJson<{ weeklyStreak?: number; loggedThisWeek?: boolean }>>>;
+    let budgetRes: Awaited<ReturnType<typeof getJson<{ budgets?: { category: string; monthly_limit: number }[] }>>>;
+    let planRes: Awaited<ReturnType<typeof getJson<{ entries?: BudgetPlanEntry[]; schedules?: BudgetPlanSchedule[]; hasAnyPlan?: boolean }>>>;
+    let cashRes: Awaited<ReturnType<typeof getJson<{ anchor?: CashAnchor | null; expected_balance?: number | null; last_check_date?: string | null; baseline?: SpendingPicture | null }>>>;
+    let recurringRes: Awaited<ReturnType<typeof getJson<{ items?: RecurringItem[] }>>>;
+    let monthRes: Awaited<ReturnType<typeof getJson<{ transactions?: TransactionRow[] }>>> | null;
+    let nextCatalog: UserCategory[];
+    try {
+    [histRes, gamRes, budgetRes, planRes, cashRes, recurringRes, monthRes, nextCatalog] = await Promise.all([
+      getJson<{ transactions?: TransactionRow[] }>(`/api/transactions?start=${historyStart}&end=${today}`),
+      getJson<{ weeklyStreak?: number; loggedThisWeek?: boolean }>("/api/gamification/summary"),
+      getJson<{ budgets?: { category: string; monthly_limit: number }[] }>("/api/budgets"),
+      getJson<{ entries?: BudgetPlanEntry[]; schedules?: BudgetPlanSchedule[]; hasAnyPlan?: boolean }>(
+        `/api/budget-plan?year=${month.slice(0, 4)}`,
+      ),
+      getJson<{ anchor?: CashAnchor | null; expected_balance?: number | null; last_check_date?: string | null; baseline?: SpendingPicture | null }>(
+        "/api/cash",
+      ),
+      getJson<{ items?: RecurringItem[] }>("/api/recurring"),
+      monthInside
+        ? Promise.resolve(null)
+        : getJson<{ transactions?: TransactionRow[] }>(`/api/transactions?start=${month}&end=${monthEnd}`),
+      fetchCatalog().then((catalog) => migrateLocalCategories(catalog)),
     ]);
-    if (budgetRes.ok) {
-      const json = await budgetRes.json();
+    const rows = histRes.ok && histRes.body ? histRes.body.transactions ?? [] : [];
+    setHistory(rows);
+    const { end } = weekRange(activeWeek);
+    if (activeWeek >= historyStart) {
+      setTransactions(rows.filter((txn) => txn.txn_date >= activeWeek && txn.txn_date <= end));
+    }
+    setMonthTxns(
+      monthRes?.ok && monthRes.body
+        ? monthRes.body.transactions ?? []
+        : rows.filter((txn) => txn.txn_date >= month && txn.txn_date <= monthEnd),
+    );
+    if (budgetRes.ok && budgetRes.body) {
       const map: Record<string, number> = {};
-      for (const b of json.budgets ?? []) {
-        map[b.category] = Number(b.monthly_limit);
-      }
+      for (const b of budgetRes.body.budgets ?? []) map[b.category] = Number(b.monthly_limit);
       setBudgets(map);
     }
-    if (planRes.ok) {
-      const json = await planRes.json();
-      setPlanEntries((json.entries ?? []) as BudgetPlanEntry[]);
-      setPlanSchedules(json.schedules ?? []);
-      setHasAnyPlan(Boolean(json.hasAnyPlan));
+    if (planRes.ok && planRes.body) {
+      setPlanEntries(planRes.body.entries ?? []);
+      setPlanSchedules(planRes.body.schedules ?? []);
+      setHasAnyPlan(Boolean(planRes.body.hasAnyPlan));
     }
-    if (monthRes.ok) {
-      const json = await monthRes.json();
-      setMonthTxns(json.transactions ?? []);
+    if (gamRes.ok && gamRes.body) {
+      setStreak(gamRes.body.weeklyStreak ?? 0);
+      setLoggedThisWeek(Boolean(gamRes.body.loggedThisWeek));
     }
-    if (gamRes.ok) {
-      const json = await gamRes.json();
-      setStreak(json.weeklyStreak ?? 0);
-      setLoggedThisWeek(Boolean(json.loggedThisWeek));
-    }
-    const [cashRes, recurringRes] = await Promise.all([
-      fetch("/api/cash", { credentials: "include" }),
-      fetch("/api/recurring", { credentials: "include" }),
-    ]);
-    if (cashRes.ok) {
-      const json = await cashRes.json();
-      setAnchor(json.anchor ?? null);
-      setExpectedBalance(json.expected_balance ?? null);
-      setLastCheckDate(json.last_check_date ?? null);
-      setPicture(json.baseline ?? null);
+    if (cashRes.ok && cashRes.body) {
+      setAnchor(cashRes.body.anchor ?? null);
+      setExpectedBalance(cashRes.body.expected_balance ?? null);
+      setLastCheckDate(cashRes.body.last_check_date ?? null);
+      setPicture(cashRes.body.baseline ?? null);
       setCashLoaded(true);
     }
-    if (recurringRes.ok) {
-      const json = await recurringRes.json();
-      setRecurring(json.items ?? []);
-    }
-    const nextCatalog = await migrateLocalCategories(await fetchCatalog());
+    if (recurringRes.ok && recurringRes.body) setRecurring(recurringRes.body.items ?? []);
     setCatalog(nextCatalog);
     setCustomCategories([...new Set([...loadCustomCategories(), ...extraSlugs(nextCatalog)])]);
+    } finally {
+      setLoading(false);
+    }
   }, [monthStart]);
 
   useEffect(() => {
+    const historyStart = startOfMonth(addMonths(todayIso(), -(RECENT_MONTHS - 1)));
+    if (weekStart >= historyStart && history.length > 0) {
+      const { end } = weekRange(weekStart);
+      setTransactions(history.filter((txn) => txn.txn_date >= weekStart && txn.txn_date <= end));
+      setLoading(false);
+      return;
+    }
+    if (history.length === 0) return;
     setLoading(true);
     loadWeek(weekStart).finally(() => setLoading(false));
-  }, [weekStart, loadWeek]);
+  }, [weekStart, history, loadWeek]);
 
   useEffect(() => {
     loadMeta();
@@ -393,7 +418,15 @@ export default function CashFlowPage() {
   }, [history]);
 
   async function reload() {
-    await Promise.all([loadWeek(weekStart), loadMeta()]);
+    invalidateApi("/api/transactions");
+    invalidateApi("/api/gamification/summary");
+    invalidateApi("/api/budgets");
+    invalidateApi("/api/budget-plan");
+    invalidateApi("/api/cash");
+    invalidateApi("/api/recurring");
+    invalidateApi("/api/categories");
+    invalidateApi("/api/setup/status");
+    await loadMeta();
   }
 
   async function handleCapture(input: CaptureInput): Promise<boolean> {
@@ -441,9 +474,31 @@ export default function CashFlowPage() {
     if (!res.ok) return false;
     const json = await res.json();
     if (json.gamification?.newUnlocks?.length) setUnlocks(json.gamification.newUnlocks);
-    const ids = (json.transactions ?? []).map((txn: TransactionRow) => txn.id).filter(Boolean);
+    const created = (json.transactions ?? []) as TransactionRow[];
+    const ids = created.map((txn) => txn.id).filter(Boolean);
     setUndo({ ids, verb: loggedVerb(input), label: formatMoneyExact(input.amount) });
-    await reload();
+    const weekEnd = weekRange(weekStart).end;
+    const monthEnd = endOfMonth(monthStart);
+    const merge = (rows: TransactionRow[]) => {
+      const seen = new Set(rows.map((txn) => txn.id));
+      return [...rows, ...created.filter((txn) => txn.id && !seen.has(txn.id))];
+    };
+    setHistory(merge);
+    setTransactions((rows) => merge(rows).filter((txn) => txn.txn_date >= weekStart && txn.txn_date <= weekEnd));
+    setMonthTxns((rows) => merge(rows).filter((txn) => txn.txn_date >= monthStart && txn.txn_date <= monthEnd));
+    invalidateApi("/api/transactions");
+    invalidateApi("/api/gamification/summary");
+    invalidateApi("/api/setup/status");
+    const refreshed = await getJson<{ weeklyStreak?: number; loggedThisWeek?: boolean }>("/api/gamification/summary");
+    if (refreshed.ok && refreshed.body) {
+      setStreak(refreshed.body.weeklyStreak ?? 0);
+      setLoggedThisWeek(Boolean(refreshed.body.loggedThisWeek));
+    }
+    if (recurringId) {
+      invalidateApi("/api/recurring");
+      const recurringRefresh = await getJson<{ items?: RecurringItem[] }>("/api/recurring");
+      if (recurringRefresh.ok && recurringRefresh.body) setRecurring(recurringRefresh.body.items ?? []);
+    }
     return true;
   }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { getJson, invalidateApi } from "@/lib/client/api-cache";
 import type { BudgetPlanEntry, BudgetPlanSchedule } from "@/types/tracking";
 import {
   categoryKind,
@@ -29,10 +30,9 @@ export const CUSTOM_CATEGORY_KEY = "mosaic-custom-categories";
 const CUSTOM_MIGRATED_KEY = "mosaic-custom-categories-synced";
 
 export async function fetchCatalog(): Promise<UserCategory[]> {
-  const res = await fetch("/api/categories", { credentials: "include" });
-  if (!res.ok) return [];
-  const json = await res.json();
-  return (json.categories ?? []) as UserCategory[];
+  const result = await getJson<{ categories?: UserCategory[] }>("/api/categories");
+  if (!result.ok || !result.body) return [];
+  return result.body.categories ?? [];
 }
 
 export async function saveCategory(row: {
@@ -48,6 +48,7 @@ export async function saveCategory(row: {
     body: JSON.stringify({ categories: [row] }),
   });
   if (!res.ok) return null;
+  invalidateApi("/api/categories");
   const json = await res.json();
   return (json.categories?.[0] as UserCategory) ?? null;
 }
@@ -63,6 +64,7 @@ export async function patchCategory(
     body: JSON.stringify({ slug, ...updates }),
   });
   if (!res.ok) return null;
+  invalidateApi("/api/categories");
   const json = await res.json();
   return (json.category as UserCategory) ?? null;
 }
@@ -111,13 +113,16 @@ export async function fetchPlan(year: number): Promise<{
   hasAnyPlan: boolean;
   schedules: BudgetPlanSchedule[];
 }> {
-  const res = await fetch(`/api/budget-plan?year=${year}`, { credentials: "include" });
-  if (!res.ok) return { entries: [], hasAnyPlan: false, schedules: [] };
-  const json = await res.json();
+  const result = await getJson<{
+    entries?: BudgetPlanEntry[];
+    hasAnyPlan?: boolean;
+    schedules?: BudgetPlanSchedule[];
+  }>(`/api/budget-plan?year=${year}`);
+  if (!result.ok || !result.body) return { entries: [], hasAnyPlan: false, schedules: [] };
   return {
-    entries: (json.entries ?? []) as BudgetPlanEntry[],
-    hasAnyPlan: Boolean(json.hasAnyPlan),
-    schedules: (json.schedules ?? []) as BudgetPlanSchedule[],
+    entries: result.body.entries ?? [],
+    hasAnyPlan: Boolean(result.body.hasAnyPlan),
+    schedules: result.body.schedules ?? [],
   };
 }
 
@@ -133,6 +138,7 @@ export async function savePlan(
     body: JSON.stringify({ entries, remove, schedules }),
   });
   if (!res.ok) return { ok: false, schedulesSaved: false };
+  invalidateApi("/api/budget-plan");
   const json = await res.json().catch(() => ({}));
   return { ok: true, schedulesSaved: json.schedulesSaved !== false };
 }
