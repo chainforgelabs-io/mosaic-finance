@@ -136,8 +136,8 @@ export function AppTour({ userId }: { userId?: string }) {
     <>
       {box && (
         <div
-          className="pointer-events-none fixed z-[60] rounded-lg ring-2 ring-[var(--emerald)] ring-offset-2 ring-offset-transparent"
-          style={{ top: box.top - 4, left: box.left - 4, width: box.width + 8, height: box.height + 8 }}
+          className="pointer-events-none fixed z-[60] rounded-lg border-2 border-[var(--emerald)]"
+          style={{ top: box.top - 10, left: box.left - 10, width: box.width + 20, height: box.height + 20 }}
         />
       )}
       <div className="fixed inset-x-4 bottom-24 z-[70] mx-auto max-w-md rounded-xl border border-[var(--warm-200)] bg-white p-4 shadow-xl sm:bottom-6 sm:left-auto sm:right-6 sm:mx-0">

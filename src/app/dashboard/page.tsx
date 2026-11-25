@@ -3,8 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { recordedDebt } from "@/lib/calculations/financial";
 import { isTrialActive } from "@/lib/entitlements";
-import { usePlanStore, type PrePlanData } from "@/stores/plan-store";
-import { HealthScore } from "@/components/app/HealthScore";
+import { usePlanStore } from "@/stores/plan-store";
 import { ApprovalStatusBanner } from "@/components/app/ApprovalStatusBanner";
 import { HouseholdCard } from "@/components/app/HouseholdCard";
 import { MeetingHistory } from "@/components/app/MeetingHistory";
@@ -96,88 +95,95 @@ function DashGlassCard({ label, value, unit, accent, note }: { label: string; va
   );
 }
 
-function useLiveHealthScore() {
-  const [liveScore, setLiveScore] = useState<{ score: number; delta90: number | null } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void fetch("/api/health-score", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d?.score != null) {
-          setLiveScore({ score: Number(d.score), delta90: d.delta90 ?? null });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return liveScore;
-}
+function NetWorthStrip({ snapshotNetWorth = null }: { snapshotNetWorth?: number | null }) {
+  const plan = usePlanStore((s) => s.plan);
+  const rawPlanData = usePlanStore((s) => s.rawPlanData);
+  const prePlanData = usePlanStore((s) => s.prePlanData);
 
-function PrePlanKPIStrip({
-  data,
-  snapshotNetWorth = null,
-  showScore = true,
-}: {
-  data: PrePlanData | null;
-  snapshotNetWorth?: number | null;
-  showScore?: boolean;
-}) {
-  const inv = data?.totalInvestments;
-  const fix = data?.totalFixedAssets;
-  const totalAssetSum = (inv ?? 0) + (fix ?? 0);
-  const hasAssetFigure = inv != null || fix != null;
+  const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
+  const debtPlan = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
+  const planDebt = typeof debtPlan?.total_debt === "number" ? debtPlan.total_debt : null;
+  const liveInv = prePlanData?.totalInvestments;
+  const liveFix = prePlanData?.totalFixedAssets;
+  const hasLiveAssets = liveInv != null || liveFix != null;
+  const liveAssets = (liveInv ?? 0) + (liveFix ?? 0);
 
-  const totalDebtNum = data?.totalDebt ?? null;
-  const debtForPicture = totalDebtNum ?? 0;
   let netWorthDisplay = "--";
-  if (hasAssetFigure) {
-    netWorthDisplay = fmtKpi(totalAssetSum - debtForPicture);
-  } else if (snapshotNetWorth != null && Number.isFinite(snapshotNetWorth)) {
-    netWorthDisplay = fmtKpi(snapshotNetWorth);
-  }
-
+  let totalAssetsDisplay = "--";
+  let totalDebtDisplay = "--";
   let cashFlowDisplay = "--";
-  if (data?.annualIncome != null && data?.monthlyExpenses != null) {
-    cashFlowDisplay = fmtKpi(data.annualIncome / 12 - data.monthlyExpenses);
+  let totalDebtNum = 0;
+  let emergencyMonths: number | null = null;
+  let figureNote: string | undefined;
+  let cashFlowNote: string | undefined;
+  let emergencyNote: string | undefined;
+
+  if (plan) {
+    totalDebtNum = recordedDebt(prePlanData?.totalDebt ?? 0, planDebt);
+    const reportNetWorth = (diag?.net_worth as number) ?? null;
+    const totalAssets = hasLiveAssets
+      ? liveAssets
+      : reportNetWorth != null
+        ? reportNetWorth + totalDebtNum
+        : null;
+    netWorthDisplay = hasLiveAssets ? fmtKpi(liveAssets - totalDebtNum) : (plan.netWorth ?? "--");
+    totalAssetsDisplay = fmtKpi(totalAssets);
+    totalDebtDisplay = fmtKpi(totalDebtNum);
+    cashFlowDisplay = plan.monthlyCashFlow ?? "--";
+    emergencyMonths = (diag?.emergency_fund_months as number) ?? null;
+    figureNote = hasLiveAssets ? "Today" : "From your last report";
+    cashFlowNote = "From your last report";
+    emergencyNote = "From your last report";
+  } else {
+    const debt = prePlanData?.totalDebt ?? null;
+    totalDebtNum = debt ?? 0;
+    if (hasLiveAssets) netWorthDisplay = fmtKpi(liveAssets - totalDebtNum);
+    else if (snapshotNetWorth != null && Number.isFinite(snapshotNetWorth)) {
+      netWorthDisplay = fmtKpi(snapshotNetWorth);
+    }
+    totalAssetsDisplay = hasLiveAssets ? fmtKpi(liveAssets) : "--";
+    totalDebtDisplay = debt != null ? fmtKpi(debt) : "--";
+    if (prePlanData?.annualIncome != null && prePlanData.monthlyExpenses != null) {
+      cashFlowDisplay = fmtKpi(prePlanData.annualIncome / 12 - prePlanData.monthlyExpenses);
+    }
+    emergencyMonths = prePlanData?.emergencyFundMonths ?? null;
   }
 
-  const totalAssetsDisplay = hasAssetFigure ? fmtKpi(totalAssetSum) : "--";
-  const totalDebtDisplay = totalDebtNum != null ? fmtKpi(totalDebtNum) : "--";
-  const emergencyMonths = data?.emergencyFundMonths ?? null;
+  const debtAccent = totalDebtDisplay !== "--" && totalDebtNum > 0 ? "#ef4444" : "#c9aa71";
+  const emergencyColor =
+    emergencyMonths != null && emergencyMonths >= 6
+      ? "#10b981"
+      : emergencyMonths != null && emergencyMonths >= 3
+        ? "#f59e0b"
+        : "#c9aa71";
 
   return (
-    <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
-      <div className="flex flex-col md:flex-row items-center gap-6">
-        {showScore && <PrePlanScore />}
+    <div data-tour="dashboard-net-worth" className="rounded-xl bg-[#0f1923] p-6 shadow-lg md:p-8">
+      <div className="flex flex-col items-center gap-6 md:flex-row">
+        <div className="flex shrink-0 flex-col items-center">
+          <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/50">
+            Net Worth
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-bold tabular-nums text-[#10b981] sm:text-5xl">
+            {netWorthDisplay}
+          </p>
+          {figureNote && <p className="mt-1 font-body text-[10px] text-white/40">{figureNote}</p>}
+        </div>
 
-        {showScore && <div className="hidden md:block w-px h-20 bg-white/10" />}
+        <div className="hidden h-20 w-px bg-white/10 md:block" />
 
-        <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
-          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" />
-          <DashGlassCard label="Cash Flow" value={cashFlowDisplay} unit="/mo" accent="#818cf8" />
-          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} />
-          <DashGlassCard
-            label="Total Debt"
-            value={totalDebtDisplay}
-            accent={totalDebtNum != null && totalDebtNum > 0 ? "#ef4444" : "#c9aa71"}
-          />
-          <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
-            <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
+        <div className="grid w-full flex-1 grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
+          <DashGlassCard label="Cash Flow" value={cashFlowDisplay} unit="/mo" accent="#818cf8" note={cashFlowNote} />
+          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} note={figureNote} />
+          <DashGlassCard label="Total Debt" value={totalDebtDisplay} accent={debtAccent} note={figureNote} />
+          <div className="rounded-lg border border-white/[0.08] bg-white/[0.06] p-5">
+            <p className="mb-2 font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40">
               Emergency Fund
             </p>
             <div className="flex items-baseline gap-1.5">
               <span
                 className="font-[family-name:var(--font-display)] text-lg font-bold tabular-nums sm:text-[26px]"
-                style={{
-                  color:
-                    emergencyMonths != null && emergencyMonths >= 6
-                      ? "#10b981"
-                      : emergencyMonths != null && emergencyMonths >= 3
-                        ? "#f59e0b"
-                        : "#c9aa71",
-                }}
+                style={{ color: emergencyColor }}
               >
                 {emergencyMonths != null ? emergencyMonths.toFixed(1) : "--"}
               </span>
@@ -185,15 +191,15 @@ function PrePlanKPIStrip({
                 <span className="font-[family-name:var(--font-body)] text-xs text-white/35">mo</span>
               )}
             </div>
+            {emergencyNote && <p className="mt-1 font-body text-[10px] text-white/40">{emergencyNote}</p>}
             {emergencyMonths != null && (
               <div className="mt-3">
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
                       width: `${Math.min((emergencyMonths / 6) * 100, 100)}%`,
-                      background:
-                        emergencyMonths >= 6 ? "#10b981" : emergencyMonths >= 3 ? "#f59e0b" : "#ef4444",
+                      background: emergencyMonths >= 6 ? "#10b981" : emergencyMonths >= 3 ? "#f59e0b" : "#ef4444",
                     }}
                   />
                 </div>
@@ -202,33 +208,6 @@ function PrePlanKPIStrip({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function PrePlanScore() {
-  const liveScore = useLiveHealthScore();
-
-  return (
-    <div className="flex flex-col items-center shrink-0">
-      {liveScore != null ? (
-        <HealthScore score={liveScore.score} size="sm" />
-      ) : (
-        <div className="flex size-[80px] items-center justify-center rounded-full border-2 border-dashed border-white/25 bg-white/[0.04]">
-          <span className="font-[family-name:var(--font-display)] text-2xl font-bold tabular-nums text-white/35">
-            --
-          </span>
-        </div>
-      )}
-      <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
-        Health Score
-      </p>
-      {liveScore?.delta90 != null && (
-        <p className="mt-0.5 font-[family-name:var(--font-body)] text-[10px] text-white/60">
-          90-day {liveScore.delta90 >= 0 ? "+" : ""}
-          {liveScore.delta90}
-        </p>
-      )}
     </div>
   );
 }
@@ -250,8 +229,8 @@ function DashboardGenerating() {
         </p>
       </div>
 
+      <NetWorthStrip />
       <TrackingLoop reportAvailable={reportAvailable} onLogged={() => setLoopRefresh((n) => n + 1)} />
-      <PrePlanKPIStrip data={prePlanData} showScore={false} />
       <MotivationStrip refreshToken={loopRefresh} />
 
       {prePlanData && (
@@ -338,7 +317,6 @@ const TRACKING_LINKS = [
 ] as const;
 
 function DashboardNoPlan() {
-  const prePlanData = usePlanStore((s) => s.prePlanData);
   const user = usePlanStore((s) => s.user);
   const [snapshots, setSnapshots] = useState<NetWorthSnapshotRow[]>([]);
 
@@ -365,9 +343,8 @@ function DashboardNoPlan() {
 
   return (
     <div className="space-y-6">
+      <NetWorthStrip snapshotNetWorth={latestNetWorth} />
       <TrackingLoop reportAvailable={reportAvailable} />
-
-      <PrePlanKPIStrip data={prePlanData} snapshotNetWorth={latestNetWorth} showScore={false} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {TRACKING_LINKS.map((item) => (
@@ -489,90 +466,6 @@ function ExpandablePlanSection({
   );
 }
 
-function KPIStrip({ plan }: { plan: NonNullable<ReturnType<typeof usePlanStore.getState>["plan"]> }) {
-  const liveScore = useLiveHealthScore();
-  const rawPlanData = usePlanStore((s) => s.rawPlanData);
-  const prePlanData = usePlanStore((s) => s.prePlanData);
-  const diag = rawPlanData?.financial_health_diagnostic as Record<string, unknown> | undefined;
-  const debtPlan = rawPlanData?.debt_elimination_plan as Record<string, unknown> | undefined;
-
-  const planDebt = typeof debtPlan?.total_debt === "number" ? debtPlan.total_debt : null;
-  const liveInv = prePlanData?.totalInvestments ?? 0;
-  const liveFix = prePlanData?.totalFixedAssets ?? 0;
-  const liveAssets = liveInv + liveFix;
-  const hasLiveAssets =
-    prePlanData?.totalInvestments != null || prePlanData?.totalFixedAssets != null;
-
-  const totalDebt = recordedDebt(prePlanData?.totalDebt ?? 0, planDebt);
-  const netWorthNum = (diag?.net_worth as number) ?? null;
-  const totalAssets = hasLiveAssets
-    ? liveAssets
-    : netWorthNum != null
-      ? netWorthNum + totalDebt
-      : null;
-  const netWorthDisplay = hasLiveAssets
-    ? fmtKpi(liveAssets - totalDebt)
-    : (plan.netWorth ?? "--");
-  const totalAssetsDisplay = hasLiveAssets ? fmtKpi(totalAssets) : fmtKpi(totalAssets);
-  const emergencyMonths = (diag?.emergency_fund_months as number) ?? null;
-
-  return (
-    <div className="rounded-xl bg-[#0f1923] p-6 md:p-8 shadow-lg">
-      <div className="flex flex-col md:flex-row items-center gap-6">
-        {(liveScore?.score ?? plan.healthScore) > 0 && (
-          <div className="flex flex-col items-center shrink-0">
-            <HealthScore score={liveScore?.score ?? plan.healthScore} size="lg" />
-            <p className="font-[family-name:var(--font-display)] font-semibold text-[11px] uppercase tracking-wider text-white/50 mt-2">
-              Health Score
-            </p>
-            <p className="font-body text-[10px] text-white/40">Today</p>
-            {liveScore?.delta90 != null && (
-              <p className="mt-1 font-body text-xs text-white/60">
-                90-day {liveScore.delta90 >= 0 ? "+" : ""}
-                {liveScore.delta90}
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="hidden md:block w-px h-20 bg-white/10" />
-
-        <div className="flex-1 grid w-full grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
-          <DashGlassCard label="Net Worth" value={netWorthDisplay} accent="#10b981" note={hasLiveAssets ? "Today" : "From your last report"} />
-          <DashGlassCard label="Cash Flow" value={plan.monthlyCashFlow ?? "--"} unit="/mo" accent="#818cf8" note="From your last report" />
-          <DashGlassCard label="Total Assets" value={totalAssetsDisplay} note={hasLiveAssets ? "Today" : "From your last report"} />
-          <DashGlassCard label="Total Debt" value={fmtKpi(totalDebt)} accent={totalDebt > 0 ? "#ef4444" : "#c9aa71"} note={hasLiveAssets ? "Today" : "From your last report"} />
-          <div className="rounded-lg bg-white/[0.06] border border-white/[0.08] p-5">
-            <p className="font-[family-name:var(--font-body)] text-[11px] font-medium uppercase tracking-widest text-white/40 mb-2">
-              Emergency Fund
-            </p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-[family-name:var(--font-display)] text-lg font-bold tabular-nums sm:text-[26px]" style={{ color: emergencyMonths != null && emergencyMonths >= 6 ? "#10b981" : emergencyMonths != null && emergencyMonths >= 3 ? "#f59e0b" : "#c9aa71" }}>
-                {emergencyMonths != null ? emergencyMonths.toFixed(1) : "--"}
-              </span>
-              {emergencyMonths != null && <span className="font-[family-name:var(--font-body)] text-xs text-white/35">mo</span>}
-            </div>
-            <p className="mt-1 font-body text-[10px] text-white/40">From your last report</p>
-            {emergencyMonths != null && (
-              <div className="mt-3">
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min((emergencyMonths / 6) * 100, 100)}%`,
-                      background: emergencyMonths >= 6 ? "#10b981" : emergencyMonths >= 3 ? "#f59e0b" : "#ef4444",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const chartRowClass =
   "grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2";
 
@@ -620,7 +513,7 @@ function DashboardPending() {
         <ArrowRight className="w-4 h-4 text-[var(--emerald)] group-hover:translate-x-0.5 transition-transform" />
       </Link>
 
-      <KPIStrip plan={plan} />
+      <NetWorthStrip />
       <MotivationStrip />
       <ChartGrid />
 
@@ -661,8 +554,8 @@ function DashboardDelivered() {
         <ApprovalStatusBanner status="delivered" planId={plan.id} />
       )}
 
+      <NetWorthStrip />
       <TrackingLoop reportAvailable onLogged={() => setLoopRefresh((n) => n + 1)} />
-      <KPIStrip plan={plan} />
       <MotivationStrip refreshToken={loopRefresh} />
       <ChartGrid />
 
@@ -761,12 +654,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <p className="font-body text-sm text-[var(--text-muted)]">Loading your dashboard</p>
-        <div className="skeleton h-44 w-full" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="skeleton h-28" />
-          ))}
-        </div>
+        <div className="skeleton h-36 w-full" />
+        <div className="skeleton h-56 w-full" />
       </div>
     );
   }

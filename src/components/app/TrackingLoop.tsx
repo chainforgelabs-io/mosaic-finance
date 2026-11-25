@@ -277,7 +277,8 @@ function LoopStat({
   detail: string;
   active: boolean;
 }) {
-  const className = "min-h-11 rounded-lg bg-[var(--warm-50)] px-4 py-3 text-left transition-colors hover:bg-[var(--warm-100)]";
+  const className =
+    "flex h-full min-h-11 flex-col justify-center rounded-lg bg-[var(--warm-50)] px-4 py-3 text-left transition-colors hover:bg-[var(--warm-100)]";
   const body = (
     <>
       <div className="flex items-center gap-1.5">
@@ -300,7 +301,7 @@ function LoopStat({
     );
   }
   return (
-    <Link href={href ?? "/dashboard"} className={`block ${className}`}>
+    <Link href={href ?? "/dashboard"} className={className}>
       {body}
     </Link>
   );

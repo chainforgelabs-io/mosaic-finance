@@ -5,7 +5,7 @@ import FhsaCalculatorPage from "@/app/(marketing)/calculators/fhsa/page";
 import RrspVsTfsaPage from "@/app/(marketing)/calculators/rrsp-vs-tfsa/page";
 
 const CALCULATORS = [
-  { slug: "rrsp-vs-tfsa", title: "RRSP vs TFSA room (illustrative)" },
+  { slug: "rrsp-vs-tfsa", title: "RRSP vs TFSA room" },
   { slug: "cpp-timing", title: "CPP at 60 vs 65 vs 70" },
   { slug: "fhsa", title: "FHSA contribution room" },
 ] as const;

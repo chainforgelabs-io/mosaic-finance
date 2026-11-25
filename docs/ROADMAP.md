@@ -86,6 +86,21 @@ Owner checklist with status, Stripe steps, and CIPO results: [legal/launch-legal
 
 ---
 
+## Phase 0 — Owner test findings (25 November 2026)
+
+From the owner's staging pass. These stay inside Phase 0.
+
+- [ ] Cash Flow seeded by discovery stays unchecked until the person confirms the plan, and the checklist sends them there first.
+- [x] Dashboard opens on the net worth breakdown, above This week, with no Health Score in that strip. 2026-11-25
+- [ ] Guided tour walks Cash Flow, Net Worth, how they connect, and Goals, with replay and animated examples.
+- [ ] Cash Flow plan tells people they can rename lines and add as many categories as they track.
+- [x] Net worth snapshot card in This week is centred with the other cards. 2026-11-25
+- [x] Tour outlines keep a gap from the text on every side. 2026-11-25
+- [x] Calculator title is "RRSP vs TFSA room". 2026-11-25
+- [ ] Dashboard, Cash Flow, Net Worth, and Goals load faster.
+
+---
+
 ## Phase 1 — Implement the playbook upgrades
 
 First build step after Phase 0. One branch per PR. Items tagged **Decision needed** wait for the owner. Compliance: every copy change listed in the PR.
@@ -277,3 +292,4 @@ North Star: **paying app subscribers.** Not followers, not waitlist size.
 | 2026-11-17 | Owner asked for a fourth illustration, the discovery chat with Charlie, and a note that Charlie comes with Progress. Added the "Charlie on Progress" section on the homepage and `/waitlist`; it replaces the static fact-find mockup in the Showcase. |
 | 2026-11-17 | Owner asked to finish the lookup-guide work in a slimmer form. An unknown figure in the discovery chat costs one follow-up question and appears once, on the first Progress Report, with a link to where it goes. |
 | 2026-11-19 | Owner: a refresh restarted the discovery chat, and the confirmation card labeled investment knowledge that was never asked. Discovery now resumes the saved transcript, and that label is omitted until a later step. |
+| 2026-11-25 | Owner test pass. Dashboard leads with the net worth breakdown. Cash Flow confirmation, a fuller tour, and faster pages follow in their own PRs. |
